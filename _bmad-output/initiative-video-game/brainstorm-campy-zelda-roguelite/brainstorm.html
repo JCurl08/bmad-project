@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entropy Rules the World</title>
+<meta name="description" content="Brainstorm keepsake: a campy Zelda-like roguelite on a Rubik's cube ruled by entropy.">
+<style>
+:root{
+  --bg:#fbf8f1; --bg2:#f2ede1; --ink:#1d1b26; --muted:#5d5869; --card:#ffffff; --line:#d9d2c3;
+  --user:#c98a00; --user-bg:#fff3c4; --user-ink:#5a3d00;
+  --coach:#4b5bb5; --coach-bg:#e7eaf8; --coach-ink:#26306b;
+  --s-w:#f4f4ef; --s-y:#ffd21f; --s-r:#e2342c; --s-o:#ff8a1f; --s-b:#1f6fe0; --s-g:#17a157;
+  --q:#a33d8f;
+  --shadow:0 2px 0 rgba(0,0,0,.08), 0 8px 24px rgba(40,30,10,.08);
+  --mono:ui-monospace,"Cascadia Mono","Consolas","Menlo",monospace;
+  --display:"Arial Black","Impact","Helvetica Neue",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13111a; --bg2:#1b1824; --ink:#ece8f4; --muted:#a7a1b6; --card:#211d2c; --line:#3a3449;
+    --user:#ffc93a; --user-bg:#3b2f0c; --user-ink:#ffe7a3;
+    --coach:#9aa8ff; --coach-bg:#232846; --coach-ink:#d4daff;
+    --s-w:#e9e9e2; --q:#e58fd2;
+    --shadow:0 2px 0 rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13111a; --bg2:#1b1824; --ink:#ece8f4; --muted:#a7a1b6; --card:#211d2c; --line:#3a3449;
+  --user:#ffc93a; --user-bg:#3b2f0c; --user-ink:#ffe7a3;
+  --coach:#9aa8ff; --coach-bg:#232846; --coach-ink:#d4daff;
+  --s-w:#e9e9e2; --q:#e58fd2;
+  --shadow:0 2px 0 rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);overflow-x:hidden}
+img,svg{max-width:100%}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+h1,h2,h3{font-family:var(--display);line-height:1.08;letter-spacing:.01em;margin:0}
+h2{font-size:clamp(1.7rem,5vw,2.8rem)}
+h3{font-size:1.15rem;margin:1.6rem 0 .6rem}
+p{margin:.5rem 0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--s-b);outline-offset:2px}
+
+/* entropy progress bar */
+#entropyBar{position:fixed;top:0;left:0;height:5px;width:0;z-index:50;
+  background:linear-gradient(90deg,var(--s-w) 0 20%,var(--s-y) 20% 30%,var(--s-g) 30% 38%,var(--s-r) 38% 44%,var(--s-b) 44% 49%,var(--s-o) 49% 53%,var(--s-y) 53% 56%,var(--s-g) 56% 59%,var(--s-r) 59% 62%,var(--s-b) 62% 64%,var(--s-o) 64% 66%,var(--s-w) 66% 68%,var(--s-r) 68% 70%,var(--s-g) 70% 72%,var(--s-y) 72% 74%,var(--s-b) 74% 76%,var(--s-o) 76% 78%,var(--s-r) 78% 80%,var(--s-g) 80% 82%,var(--s-y) 82% 84%,var(--s-w) 84% 86%,var(--s-b) 86% 88%,var(--s-o) 88% 90%,var(--s-r) 90% 92%,var(--s-g) 92% 94%,var(--s-y) 94% 96%,var(--s-b) 96% 98%,var(--s-o) 98%);
+  background-size:100vw 100%;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+
+/* entries + attribution */
+.log{list-style:none;margin:0;padding:0;display:grid;gap:.6rem}
+.e{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.65rem .8rem;box-shadow:var(--shadow);position:relative}
+.e .tag{display:inline-block;font:700 .68rem/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;padding:.25rem .45rem;border-radius:999px;margin-right:.45rem;vertical-align:.12em;background:var(--bg2);color:var(--muted);white-space:nowrap}
+.e[data-by="user"]{background:var(--user-bg);border:2px solid var(--user);color:var(--ink)}
+.e[data-by="user"] .tag{background:var(--user);color:#2a1d00}
+.e[data-by="coach"] .tag{background:var(--coach-bg);color:var(--coach-ink);border:1px solid var(--coach)}
+.e[data-k="question"]{border-style:dashed;border-color:var(--q)}
+.e[data-k="question"] .tag{background:transparent;color:var(--q);border:1px solid var(--q)}
+.legend{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.85rem;color:var(--muted)}
+.legend .e{padding:.3rem .55rem;box-shadow:none}
+
+/* section scaffolding */
+section{padding:4.5rem 0 3.5rem;position:relative}
+.sec-head{display:flex;gap:1rem;align-items:center;margin-bottom:1.4rem;flex-wrap:wrap}
+.mini{display:grid;grid-template-columns:repeat(3,14px);gap:2px;padding:3px;background:#111;border-radius:5px;flex:none}
+.mini span{width:14px;height:14px;border-radius:2px}
+.kicker{font:700 .78rem/1.2 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.lede{color:var(--muted);max-width:62ch}
+.grid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+
+/* ---------- HERO ---------- */
+#hero{padding-top:3.2rem}
+.hero-grid{display:grid;gap:2rem;grid-template-columns:1fr;align-items:center}
+@media(min-width:880px){.hero-grid{grid-template-columns:1.05fr 1fr}}
+#title{font-size:clamp(2.6rem,10vw,5.4rem);line-height:.95;margin:.4rem 0 1rem;word-break:break-word}
+#title .ch{display:inline-block}
+.meta{display:grid;gap:.35rem;font-size:.95rem}
+.meta b{font-family:var(--mono);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:inline-block;min-width:4.6rem}
+.tally{margin-top:1rem;display:flex;flex-wrap:wrap;gap:.5rem}
+.pill{border-radius:999px;padding:.4rem .8rem;font-weight:700;font-size:.9rem;border:2px solid}
+.pill.u{background:var(--user-bg);border-color:var(--user);color:var(--user-ink)}
+.pill.c{background:var(--coach-bg);border-color:var(--coach);color:var(--coach-ink)}
+
+/* cube net */
+.cube-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+#net{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%;max-width:480px;margin:0 auto}
+.face{all:unset;cursor:pointer;display:block;border-radius:8px;padding:3px;background:#111;position:relative}
+.face:focus-visible{outline:3px solid var(--s-b);outline-offset:2px}
+.face.sel{box-shadow:0 0 0 3px var(--user)}
+.face .st{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.face .s{aspect-ratio:1;border-radius:3px;transition:background-color .35s ease}
+.face .lbl{display:block;text-align:center;font:700 clamp(.5rem,1.9vw,.68rem)/1.3 var(--mono);color:#eee;text-transform:uppercase;letter-spacing:.04em;padding-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.face .s.c{display:flex;align-items:center;justify-content:center;font:900 clamp(.55rem,2.4vw,.85rem)/1 var(--display);color:rgba(0,0,0,.6)}
+.face.lock::after{content:"fixed";position:absolute;top:-8px;right:-6px;font:700 .55rem/1 var(--mono);background:var(--user);color:#2a1d00;padding:2px 4px;border-radius:4px;text-transform:uppercase}
+#net.shake{animation:shake .4s}
+@keyframes shake{20%{transform:rotate(-1.5deg)}50%{transform:rotate(1.2deg) scale(.99)}80%{transform:rotate(-.5deg)}}
+.cube-ctrl{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin:12px 0 8px}
+.btn{border:2px solid var(--ink);background:var(--card);border-radius:10px;padding:.5rem .9rem;font-weight:800;box-shadow:3px 3px 0 var(--ink);transition:transform .1s}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn.hot{background:var(--s-r);color:#fff;border-color:#000;box-shadow:3px 3px 0 #000}
+.btn.cold{background:var(--s-b);color:#fff;border-color:#000;box-shadow:3px 3px 0 #000}
+.gauge{display:flex;align-items:center;gap:.6rem;font:700 .8rem/1 var(--mono);max-width:480px;margin:0 auto}
+.gauge .track{flex:1;height:12px;border-radius:99px;background:var(--bg2);overflow:hidden;border:1px solid var(--line)}
+.gauge .fill{height:100%;width:0;background:linear-gradient(90deg,var(--s-w),var(--s-y),var(--s-o),var(--s-r));transition:width .35s}
+#facePanel{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;min-height:7rem;font-size:.93rem}
+#facePanel h4{margin:0 0 .3rem;font-family:var(--display);font-size:1.05rem}
+#facePanel ul{margin:.3rem 0 0;padding-left:1.1rem}
+#facePanel li{margin:.15rem 0}
+#facePanel .who{font:700 .62rem/1 var(--mono);padding:.12rem .3rem;border-radius:4px;margin-left:.3rem;vertical-align:.1em;text-transform:uppercase}
+#facePanel .who.u{background:var(--user);color:#2a1d00}
+#facePanel .who.c{background:var(--coach-bg);color:var(--coach-ink);border:1px solid var(--coach)}
+.direction-strip{display:grid;gap:.6rem;margin-top:2rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+
+/* ---------- S1: Three Rounds of Stupid (corkboard) ---------- */
+#stupid{background:
+  radial-gradient(circle at 20% 30%,rgba(0,0,0,.05) 1px,transparent 2px) 0 0/14px 14px,
+  linear-gradient(#c79a62,#b98a52);color:#1d1b26}
+#stupid .kicker,#stupid .lede{color:#3d2a14}
+.cork{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));list-style:none;padding:0;margin:0}
+.cork .e{border-radius:2px;border:none;box-shadow:0 6px 14px rgba(0,0,0,.25);padding:1.3rem .9rem .9rem;color:#1d1b26;background:#dbe6ff}
+.cork .e::before{content:"";position:absolute;top:6px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff7a7a,#a40000);box-shadow:0 2px 2px rgba(0,0,0,.35)}
+.cork .e[data-by="user"]{background:#fff07a;border:none}
+.cork .e[data-k="insight"]{background:#ffffff}
+.cork .e:nth-child(3n+1){transform:rotate(-1.6deg)}
+.cork .e:nth-child(3n+2){transform:rotate(1.2deg)}
+.cork .e:nth-child(4n){transform:rotate(-.6deg)}
+.cork .e .tag{background:rgba(0,0,0,.08);color:#333}
+.cork .e[data-by="user"] .tag{background:#c98a00;color:#fff}
+.cork .e[data-by="coach"] .tag{background:#4b5bb5;color:#fff;border:none}
+.stamp{display:inline-block;font:900 .75rem/1 var(--display);text-transform:uppercase;letter-spacing:.08em;padding:.3rem .5rem;border:2px solid currentColor;border-radius:4px;transform:rotate(-4deg)}
+.kernel{margin:2rem 0 0;background:#1d1b26;color:#fff7d1;border-radius:14px;padding:1.2rem;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.kernel h3{margin:0 0 .6rem;color:#ffd21f}
+.kernel .log .e{background:#2a2636;color:#fff;border-color:#4a4460}
+.kernel .log .e[data-by="user"]{background:#3b2f0c;border-color:#ffc93a;color:#fff}
+.kernel .log .e[data-by="user"] .tag{background:#ffc93a;color:#2a1d00}
+.kernel .log .e[data-by="coach"] .tag{background:#232846;color:#d4daff;border-color:#9aa8ff}
+.kernel-eq{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font:900 clamp(1rem,3.4vw,1.5rem)/1.2 var(--display);margin:.2rem 0 1rem}
+.kernel-eq span.t{background:#fff7d1;color:#1d1b26;padding:.25rem .55rem;border-radius:6px}
+
+/* Lego workshop */
+.workshop{display:grid;gap:1rem;grid-template-columns:1fr;margin-top:2rem}
+@media(min-width:760px){.workshop{grid-template-columns:1fr 1fr}}
+.panel{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:1rem;box-shadow:var(--shadow)}
+#stupid .panel{background:#fbf8f1;color:#1d1b26;border-color:#8a6a3f}
+.lego-stage{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap}
+.fig{width:110px;flex:none;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 4px 0 rgba(0,0,0,.25))}
+.fig .stud{width:26px;height:9px;border-radius:4px 4px 0 0;background:var(--hc)}
+.fig .head{width:58px;height:50px;border-radius:12px;background:var(--hc);position:relative;display:flex;align-items:center;justify-content:center;gap:9px}
+.fig .head i{width:7px;height:7px;border-radius:50%;background:#1d1b26;display:block}
+.fig .beak{position:absolute;right:-16px;top:22px;width:0;height:0;border-left:18px solid #f2a000;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.fig .beak.thick{border-left-width:14px;border-top-width:9px;border-bottom-width:9px;top:17px;right:-12px}
+.fig .torso{width:96px;height:62px;margin-top:3px;background:var(--tc);clip-path:polygon(14% 0,86% 0,100% 100%,0 100%);display:flex;align-items:center;justify-content:center;font:900 .62rem/1 var(--mono);color:rgba(0,0,0,.65);text-transform:uppercase}
+.fig .hips{width:90px;height:12px;background:var(--lc);margin-top:2px;border-radius:2px}
+.fig .legs{display:flex;gap:4px}
+.fig .legs b{width:43px;height:44px;background:var(--lc);border-radius:0 0 4px 4px;display:block}
+.picker{display:grid;gap:.45rem;flex:1;min-width:190px}
+.picker label{font:700 .7rem/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:#5d4a2f}
+.picker select{font:inherit;padding:.4rem;border-radius:8px;border:2px solid #1d1b26;background:#fff;color:#1d1b26;width:100%}
+.readout{margin-top:.8rem;font-size:.92rem;background:#fff;border:1px dashed #8a6a3f;border-radius:10px;padding:.6rem .7rem}
+.readout .warn{color:#b3261e;font-weight:800}
+.tiles{display:flex;flex-wrap:wrap;gap:.4rem;margin:.8rem 0}
+.tile{border:2px solid #1d1b26;background:#fff;color:#1d1b26;border-radius:6px;padding:.35rem .55rem;font:800 .9rem/1 var(--mono);box-shadow:2px 2px 0 #1d1b26}
+.tile.pick{background:#ffd21f}
+.tiles.ok .tile{background:#c9f2d6;border-color:#17a157}
+.slider{display:flex;align-items:center;gap:.6rem;font:700 .8rem/1 var(--mono)}
+.slider input{flex:1;accent-color:#e2342c}
+
+/* ---------- S2: Trait Transfer ---------- */
+#transfer{background:linear-gradient(180deg,var(--bg),var(--bg2))}
+.xfer{display:grid;gap:.8rem}
+.xrow{display:grid;grid-template-columns:auto 1fr;gap:.7rem;align-items:start}
+.donor{font:900 .78rem/1.1 var(--display);text-transform:uppercase;padding:.55rem .6rem;border-radius:10px;width:6.6rem;text-align:center;color:#fff;position:relative;margin-top:.2rem}
+.donor::after{content:"\2192";position:absolute;right:-.85rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1.1rem}
+.donor.z{background:#17a157}.donor.zr{background:#1f6fe0}.donor.h{background:#e2342c}
+@media(max-width:420px){.xrow{grid-template-columns:1fr}.donor{width:auto}.donor::after{content:"\2193";right:auto;left:50%;top:auto;bottom:-1.1rem;transform:none}}
+.themes{display:grid;gap:1rem;grid-template-columns:1fr;margin-top:1rem}
+@media(min-width:760px){.themes{grid-template-columns:1fr 1fr}}
+.theme-card{border-radius:14px;padding:1rem;border:2px solid var(--line);background:var(--card)}
+.theme-card.lost{opacity:.82;background:repeating-linear-gradient(-45deg,var(--card) 0 12px,var(--bg2) 12px 24px)}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0}
+.chip{font:700 .78rem/1 var(--mono);padding:.35rem .5rem;border-radius:6px;background:var(--bg2);border:1px solid var(--line)}
+.pantheon{display:grid;gap:.7rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));margin:1rem 0}
+.deity{border-radius:12px;padding:.7rem;background:var(--card);border:2px solid var(--line);position:relative;min-height:118px;display:flex;flex-direction:column;gap:.2rem}
+.deity .dn{font:900 1rem/1.1 var(--display)}
+.deity .df{font-size:.8rem;color:var(--muted)}
+.deity .ds{margin-top:auto;font:800 .64rem/1.2 var(--mono);text-transform:uppercase;letter-spacing:.04em;padding:.25rem .35rem;border-radius:5px;align-self:flex-start}
+.deity.keep{border-color:var(--sc)}
+.deity.keep::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;border-radius:10px 10px 0 0;background:var(--sc)}
+.deity.keep .ds{background:var(--sc);color:#111}
+.deity.cut{opacity:.7}
+.deity.cut .dn{text-decoration:line-through;text-decoration-thickness:2px}
+.deity.cut .ds{background:var(--bg2);color:var(--muted)}
+.deity.care{border-style:dashed;border-color:var(--q)}
+.deity.care .ds{color:var(--q);border:1px solid var(--q)}
+
+/* ---------- S3: One Feature Only (spotlight) ---------- */
+#onefeature{background:#0d0c12;color:#f1eef8}
+#onefeature .kicker,#onefeature .lede{color:#b9b3c9}
+.spot{position:relative;text-align:center;padding:3rem 1rem 2.4rem;border-radius:20px;margin-bottom:2rem;
+  background:radial-gradient(ellipse 60% 70% at 50% 40%,rgba(255,240,180,.28),rgba(255,240,180,.06) 55%,transparent 72%)}
+.spot .big{font:900 clamp(1.8rem,7vw,3.6rem)/1 var(--display);color:#fff6cf;text-shadow:0 0 30px rgba(255,220,120,.45)}
+.spot .by{margin-top:.9rem;display:inline-block;background:#ffc93a;color:#2a1d00;font:800 .8rem/1 var(--mono);padding:.4rem .6rem;border-radius:999px;text-transform:uppercase}
+.spot-net{display:grid;grid-template-columns:repeat(3,22px);gap:3px;justify-content:center;margin:0 auto 1.2rem}
+.spot-net span{width:22px;height:22px;border-radius:3px;transition:background-color .6s}
+#onefeature .e{background:#1c1926;border-color:#38324a;color:#efeaf8;box-shadow:none}
+#onefeature .e[data-by="user"]{background:#3b2f0c;border-color:#ffc93a}
+#onefeature .e[data-by="user"] .tag{background:#ffc93a;color:#2a1d00}
+#onefeature .e[data-by="coach"] .tag{background:#232846;color:#d4daff;border-color:#9aa8ff}
+#onefeature .e .tag{background:#2b2738;color:#b9b3c9}
+#onefeature .e[data-k="question"]{border-color:#e58fd2}
+#onefeature .e[data-k="question"] .tag{color:#e58fd2;border-color:#e58fd2;background:transparent}
+.draft{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));margin:1.2rem 0}
+.draft div{border-radius:12px;padding:.9rem;border:1px solid #38324a;background:#16141e}
+.draft .n{font:900 2rem/1 var(--display)}
+.draft .ally .n{color:#7ee2a3}.draft .hostile .n{color:#ff7a70}.draft .mid .n{color:#e58fd2}
+.quote{font:italic 700 1.1rem/1.3 Georgia,serif;color:#ffb3ab}
+.two-stage{display:grid;grid-template-columns:1fr auto 1fr;gap:.6rem;align-items:center;margin:1.2rem 0;text-align:center}
+.two-stage div{border:2px solid #ffc93a;border-radius:12px;padding:.8rem;background:#16141e}
+.two-stage .arrow{font:900 1.6rem/1 var(--display);color:#ffc93a;border:none;background:none;padding:0}
+@media(max-width:520px){.two-stage{grid-template-columns:1fr}.two-stage .arrow{transform:rotate(90deg)}}
+
+/* ---------- S4: Infomercial at 3AM ---------- */
+#infomercial{background:#1a0f24;color:#fff}
+#infomercial .kicker{color:#ff9ce6}
+.tv{border-radius:28px;padding:14px;background:linear-gradient(145deg,#5a4632,#2e2216);box-shadow:inset 0 0 0 3px #7a6146,0 20px 50px rgba(0,0,0,.5)}
+.screen{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(ellipse at center,#20264a,#090b18 75%);padding:1.4rem 1rem 1.6rem}
+.screen::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+.clock{position:absolute;top:10px;right:14px;font:700 .85rem/1 var(--mono);color:#7cff9a;text-shadow:0 0 6px #7cff9a}
+.live{position:absolute;top:10px;left:14px;font:800 .7rem/1 var(--mono);color:#fff;background:#e2342c;padding:.25rem .4rem;border-radius:3px}
+.infohead{text-align:center;margin:1.4rem 0 1.4rem}
+.infohead .big{font:900 clamp(1.8rem,7.5vw,3.8rem)/.95 var(--display);color:#ffe14a;text-shadow:3px 3px 0 #e2342c,6px 6px 0 #1f6fe0;transform:rotate(-2deg);display:inline-block}
+.infohead .sub{margin-top:.8rem;font:800 1rem/1.3 var(--mono);color:#9ff7ff}
+.wait{display:block;text-align:center;margin:1.8rem auto 1rem;font:900 clamp(1.2rem,5vw,2rem)/1 var(--display);color:#ff4fd8;text-shadow:0 0 12px rgba(255,79,216,.7);transform:rotate(-1.5deg)}
+.product{position:relative;border:3px solid #ffe14a;border-radius:16px;padding:1rem .9rem .9rem;margin:1.2rem 0;background:rgba(0,0,0,.35)}
+.product h3{margin:0 0 .7rem;font-size:clamp(1.1rem,4.4vw,1.55rem);color:#ffe14a;text-transform:uppercase}
+.product .burst{position:absolute;top:-18px;right:-6px;width:74px;height:74px;display:flex;align-items:center;justify-content:center;text-align:center;font:900 .62rem/1.05 var(--display);color:#1a0f24;background:#ffe14a;transform:rotate(12deg);
+  clip-path:polygon(50% 0,61% 18%,82% 10%,80% 32%,100% 38%,85% 54%,98% 72%,76% 74%,72% 96%,54% 84%,38% 100%,32% 80%,10% 88%,16% 66%,0 52%,16% 38%,8% 16%,30% 18%)}
+.product.cut{border-color:#777;border-style:dashed}
+.product.cut h3{color:#aaa}
+.product.cut .burst{background:#888}
+#infomercial .e{background:#120c1e;border-color:#3b2c55;color:#f4efff;box-shadow:none}
+#infomercial .e .tag{background:#2b2140;color:#cbbfe6}
+#infomercial .e[data-by="user"]{background:#3a2a05;border-color:#ffe14a}
+#infomercial .e[data-by="user"] .tag{background:#ffe14a;color:#2a1d00}
+#infomercial .e[data-by="coach"] .tag{background:#232846;color:#d4daff;border-color:#9aa8ff}
+#infomercial .e[data-k="question"]{border-color:#ff8fe0}
+#infomercial .e[data-k="question"] .tag{background:transparent;color:#ff8fe0;border-color:#ff8fe0}
+.ticker{overflow:hidden;white-space:nowrap;background:#e2342c;color:#fff;font:800 .85rem/2 var(--mono);border-radius:6px;margin-top:1.4rem}
+.ticker span{display:inline-block;padding-left:100%;animation:tick 26s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+.blink{animation:blink 1.1s steps(2,end) infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---------- S5: free-form batch (RPG menu) ---------- */
+#batch2{background:var(--bg2)}
+.rpg{border:4px solid var(--ink);border-radius:6px;background:var(--card);padding:1rem;box-shadow:6px 6px 0 var(--ink);font-family:var(--mono)}
+.rpg h3{font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;font-size:.95rem;margin:0 0 .8rem;border-bottom:3px dotted var(--line);padding-bottom:.4rem}
+.rpg .e{font-family:var(--body)}
+.hero-stage{display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap}
+.pc{width:96px;height:150px;flex:none;position:relative}
+.pc .h{position:absolute;left:24px;top:0;width:48px;height:44px;border-radius:10px;background:#9b9b9b}
+.pc .b{position:absolute;left:10px;top:48px;width:76px;height:58px;border-radius:6px;background:var(--pcb,#bdbdbd);transition:background .5s}
+.pc .l{position:absolute;top:110px;width:34px;height:40px;background:#8a8a8a;border-radius:0 0 4px 4px}
+.pc .l.a{left:12px}.pc .l.b2{left:50px}
+.abil{display:flex;flex-wrap:wrap;gap:.4rem}
+.abil button{border:2px solid var(--ink);background:var(--card);border-radius:6px;padding:.35rem .55rem;font:700 .78rem/1.1 var(--mono)}
+.abil button[aria-pressed="true"]{background:var(--ac);color:#111}
+.stats{display:grid;gap:.4rem;margin:.6rem 0 1rem}
+.stat{display:grid;grid-template-columns:5.5rem 1fr;gap:.5rem;align-items:center;font-size:.8rem;text-transform:uppercase}
+.stat i{height:10px;display:block;background:repeating-linear-gradient(90deg,var(--s-g) 0 12px,transparent 12px 15px);border-radius:2px;opacity:.85}
+.races{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));margin:.6rem 0 1rem}
+.race{border:2px solid var(--line);border-left:8px solid var(--rc);border-radius:6px;padding:.5rem .6rem;font-size:.85rem;background:var(--bg)}
+.race b{display:block;font-family:var(--body)}
+.race.q{border-left-color:var(--q);border-style:dashed}
+
+/* ---------- S6: MoSCoW ---------- */
+.board{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+.col{border-radius:14px;overflow:hidden;border:2px solid var(--ink);background:var(--card);display:flex;flex-direction:column}
+.col header{padding:.7rem .8rem;font:900 1.3rem/1 var(--display);color:#111;display:flex;justify-content:space-between;align-items:baseline;gap:.4rem}
+.col header small{font:700 .62rem/1 var(--mono);text-transform:uppercase;opacity:.75}
+.col.m header{background:var(--s-g)}.col.s header{background:var(--s-y)}.col.c header{background:var(--s-o)}.col.w header{background:#9a96a6}
+.col ul{list-style:none;margin:0;padding:.6rem .7rem .8rem;display:grid;gap:.4rem;font-size:.9rem}
+.col li{padding:.4rem .5rem;border-radius:6px;background:var(--bg2);border-left:4px solid var(--line)}
+.col.m li{border-left-color:var(--s-g)}.col.s li{border-left-color:var(--s-y)}.col.c li{border-left-color:var(--s-o)}
+.col.w li{text-decoration:line-through;text-decoration-color:rgba(127,127,127,.7);color:var(--muted)}
+.col .src{font:700 .62rem/1 var(--mono);color:var(--muted);text-transform:uppercase;padding:0 .8rem .7rem}
+.fallback{display:flex;flex-wrap:wrap;gap:1.2rem;align-items:center;margin-top:1.2rem}
+.facemini{display:inline-grid;gap:2px;padding:3px;background:#111;border-radius:4px}
+.facemini span{width:16px;height:16px;border-radius:2px;background:var(--s-g)}
+
+/* ---------- S7: Synthesis climax ---------- */
+#synthesis{overflow:hidden;background:var(--bg)}
+#confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#confetti span{position:absolute;width:18px;height:18px;border-radius:3px;opacity:.35}
+.syn{position:relative;display:grid;gap:1.2rem}
+.syn-card{position:relative;border-radius:18px;padding:1.3rem 1.1rem;background:var(--card);border:3px solid transparent;
+  background-image:linear-gradient(var(--card),var(--card)),conic-gradient(from var(--a,0deg),var(--s-r),var(--s-o),var(--s-y),var(--s-g),var(--s-b),var(--s-w),var(--s-r));
+  background-origin:border-box;background-clip:padding-box,border-box;box-shadow:var(--shadow)}
+.syn-card .num{font:900 3rem/1 var(--display);opacity:.18;position:absolute;right:14px;top:6px}
+.syn-card h3{margin:0 0 .5rem;font-size:clamp(1.25rem,4.4vw,1.8rem);max-width:30ch}
+.syn-card .fromyou{margin-top:.8rem;font-size:.85rem}
+.syn-card .fromyou b{font:800 .68rem/1 var(--mono);text-transform:uppercase;color:var(--user);letter-spacing:.06em}
+.syn-card .fromyou .chip{background:var(--user-bg);border-color:var(--user);color:var(--user-ink);font-family:var(--body);font-weight:600}
+.syn-card:nth-child(1){transform:rotate(-.6deg)}
+.syn-card:nth-child(2){transform:rotate(.8deg)}
+.syn-card:nth-child(3){transform:rotate(-1.1deg)}
+.syn-card:nth-child(4){transform:rotate(1.4deg)}
+.arc{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:1.6rem 0;text-align:center;font:800 .78rem/1.2 var(--mono);text-transform:uppercase}
+@media(max-width:560px){.arc{grid-template-columns:1fr 1fr}}
+.arc div{border-radius:10px;padding:.7rem .4rem;background:var(--bg2);border:1px solid var(--line)}
+.arc .sw{display:block;height:20px;border-radius:4px;margin-bottom:.4rem}
+.finale{text-align:center;padding:2.4rem 0 1rem}
+.finale .big{font:900 clamp(2rem,9vw,4.6rem)/.95 var(--display)}
+.loose{margin-top:2rem}
+footer{padding:2rem 0 3rem;color:var(--muted);font:600 .8rem/1.5 var(--mono);text-align:center}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .ticker span{padding-left:0;white-space:normal}
+  .ticker{white-space:normal;line-height:1.5;padding:.4rem .6rem}
+}
+</style>
+</head>
+<body>
+<div id="entropyBar" aria-hidden="true"></div>
+
+<!-- ================= HERO ================= -->
+<header id="hero" class="wrap">
+  <div class="hero-grid">
+    <div>
+      <div class="kicker">Brainstorm keepsake &middot; 2026-10-05 &middot; partner mode</div>
+      <h1 id="title" aria-label="Entropy rules the world">Entropy rules the world</h1>
+      <p class="lede">A campy, lighthearted Zelda-like roguelite set on a Rubik's cube: six faces, scientist-deities, Lego-style swappable NPCs, and Maxwell's Demon waiting in the core trying to sort everything back into order. You play as entropy.</p>
+      <div class="meta" style="margin-top:1rem">
+        <div><b>Topic</b> Campy Zelda-like roguelite/metroidvania game</div>
+        <div><b>Goal</b> Feasible in 1&ndash;2 weeks with real complexity; puzzle and adventure focused; campy and lighthearted</div>
+        <div><b>Status</b> Complete</div>
+      </div>
+      <div class="tally" id="tally" aria-live="polite"></div>
+      <div class="legend" style="margin-top:.8rem">
+        <span class="e" data-by="user" data-k="idea">your contributions shine gold</span>
+        <span class="e" data-by="coach" data-k="idea">coach</span>
+        <span class="e" data-k="question">open question</span>
+      </div>
+    </div>
+
+    <div class="cube-box">
+      <div class="kicker" style="text-align:center;margin-bottom:8px">The world map &middot; 6 faces &times; 3&times;3 = 54 screens</div>
+      <div id="net" role="group" aria-label="Rubik's cube net of the six faces. Select a face to read about it."></div>
+      <div class="cube-ctrl">
+        <button class="btn hot" id="scrambleBtn" type="button">Leave town (shuffle)</button>
+        <button class="btn cold" id="demonBtn" type="button">Summon Maxwell's Demon (sort)</button>
+      </div>
+      <div class="gauge"><span>ORDER</span><div class="track"><div class="fill" id="gaugeFill"></div></div><span id="gaugeVal">0%</span><span>CHAOS</span></div>
+      <div id="facePanel" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="direction-strip">
+    <ul class="log" style="display:contents">
+      <li class="e" data-k="direction">Genre seed: roguelike/metroidvania hybrid, kept small in scope.</li>
+      <li class="e" data-k="direction">Puzzle and adventure focus over combat &mdash; &ldquo;a Zelda roguelike.&rdquo;</li>
+      <li class="e" data-k="direction">Tone: very campy and lighthearted.</li>
+      <li class="e" data-k="decision" data-by="coach">Technique batch, coach-chosen: Three Rounds of Stupid, Trait Transfer, One Feature Only, Infomercial at 3AM.</li>
+    </ul>
+  </div>
+</header>
+
+<!-- ================= S1: THREE ROUNDS OF STUPID ================= -->
+<section id="stupid" data-level="1">
+  <div class="wrap">
+    <div class="sec-head"><div class="mini" data-level="1"></div>
+      <div><div class="kicker">Technique 1</div><h2>Three Rounds of Stupid</h2></div>
+      <span class="stamp" style="color:#7a1f1f">dumb on purpose</span>
+    </div>
+    <p class="lede">Pinned to the corkboard: the deliberately silly first pass. The janitor didn't survive the scope cut, but the cube came out of this round.</p>
+
+    <ul class="log cork">
+      <li class="e" data-by="coach" data-k="idea">Play as the dungeon janitor resetting puzzles, keys and pots after each hero passes through; each run a new hero makes a new mess.</li>
+      <li class="e" data-by="user" data-k="idea">The world is a Rubik's cube that gets reshuffled every run (Zelda-randomizer feel).</li>
+      <li class="e" data-by="user" data-k="idea">Abilities reset each run, but re-collecting them grants an improved version.</li>
+      <li class="e" data-by="user" data-k="idea">The final dungeon/boss is open from the start: very hard but beatable (speedrun/skill route).</li>
+      <li class="e" data-by="user" data-k="idea">Persistent meta-progression: each run unlocks equipment upgrades.</li>
+      <li class="e" data-by="user" data-k="insight">Core theme: <strong>entropy rules the world.</strong></li>
+      <li class="e" data-by="coach" data-k="idea">The cube twists mid-run (on a timer or on big events); players time or trigger twists to reach new areas.</li>
+      <li class="e" data-by="user" data-k="idea">The lore itself is entropy.</li>
+      <li class="e" data-by="user" data-k="idea">NPC races built like Lego figures: head/body/legs swap between races each run.</li>
+      <li class="e" data-by="user" data-k="idea">The seed's chaos level scales NPC dialogue chaos: helpful hints become cryptic in high-entropy seeds.</li>
+      <li class="e" data-by="coach" data-k="idea">NPC body parts carry function: head = knowledge/hint, torso = role (merchant/quest/smith), legs = movement. Mismatches create comedy (a sage head on a goblin body gives wrong advice).</li>
+      <li class="e" data-by="coach" data-k="idea">High-chaos dialogue shown as scrambled word tiles the player rearranges to decode hints.</li>
+    </ul>
+
+    <div class="kernel">
+      <h3>The kernel you love</h3>
+      <div class="kernel-eq"><span class="t">entropy theme</span>+<span class="t">shuffling Lego-like pieces</span>+<span class="t">map rearranged every run</span></div>
+      <ul class="log">
+        <li class="e" data-by="user" data-k="insight">Kernel: entropy theme + shuffling Lego-like pieces + map rearranged every run.</li>
+        <li class="e" data-by="coach" data-k="insight">Unifying system: one &lsquo;modular swap&rsquo; engine. Map faces, rooms and NPC parts are all built from interchangeable modules and shuffled by a seed.</li>
+      </ul>
+    </div>
+
+    <div class="workshop">
+      <div class="panel">
+        <h3 style="margin-top:0">Lego NPC part-swapper</h3>
+        <p style="font-size:.88rem;margin-top:0">Head = knowledge/hint &middot; torso = role &middot; legs = movement. Swap parts and see whether the advice can be trusted.</p>
+        <div class="lego-stage">
+          <div class="fig" id="fig" aria-hidden="true">
+            <div class="stud"></div>
+            <div class="head"><i></i><i></i><span class="beak" id="beak" hidden></span></div>
+            <div class="torso" id="torsoLbl"></div>
+            <div class="hips"></div>
+            <div class="legs"><b></b><b></b></div>
+          </div>
+          <div class="picker">
+            <label for="pHead">Head (knowledge / hint)</label><select id="pHead"></select>
+            <label for="pTorso">Torso (role)</label><select id="pTorso"></select>
+            <label for="pLegs">Legs (movement)</label><select id="pLegs"></select>
+            <button class="btn" type="button" id="reseed" style="background:#fff;color:#1d1b26;border-color:#1d1b26;box-shadow:3px 3px 0 #1d1b26">Reroll seed</button>
+          </div>
+        </div>
+        <div class="readout" id="readout" aria-live="polite"></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">High-entropy dialogue</h3>
+        <p style="font-size:.88rem;margin-top:0">Raise the seed's chaos and an NPC's hint scrambles into word tiles. Tap two tiles to swap them and decode it.</p>
+        <div class="slider"><label for="chaos">Seed chaos</label><input type="range" id="chaos" min="0" max="3" value="2"><span id="chaosVal">2</span></div>
+        <div class="tiles" id="tiles" role="group" aria-label="Scrambled hint word tiles"></div>
+        <p id="tileMsg" style="font-size:.85rem;font-weight:700;min-height:1.4em" aria-live="polite"></p>
+        <p style="font-size:.78rem;color:#5d4a2f">Hint text taken from the session's Darwin-face idea: pollinated flowers grow into bridges/vines on an adjacent screen.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= S2: TRAIT TRANSFER ================= -->
+<section id="transfer" data-level="2">
+  <div class="wrap">
+    <div class="sec-head"><div class="mini" data-level="2"></div>
+      <div><div class="kicker">Technique 2</div><h2>Trait Transfer</h2></div>
+    </div>
+    <p class="lede">Borrowed traits from Zelda, the Zelda randomizer and Hades, and what they turned into on the cube.</p>
+
+    <div class="xfer">
+      <div class="xrow"><div class="donor z">Zelda item gates</div><ul class="log"><li class="e" data-by="coach" data-k="idea">Each upgraded ability changes how the cube can be twisted, not just raw power.</li></ul></div>
+      <div class="xrow"><div class="donor z">Zelda overworld</div><ul class="log"><li class="e" data-by="user" data-k="idea">Each cube grid square = one screen, like the original Zelda's overworld screens.</li></ul></div>
+      <div class="xrow"><div class="donor zr">Zelda randomizer</div><ul class="log"><li class="e" data-by="user" data-k="idea">Item/location shuffle drives replayability.</li></ul></div>
+      <div class="xrow"><div class="donor h">Hades</div><ul class="log"><li class="e" data-by="user" data-k="idea">Each run supports a significantly different playstyle; upgrades are highly player-driven choices.</li></ul></div>
+      <div class="xrow"><div class="donor h">Hades boons</div><ul class="log"><li class="e" data-by="user" data-k="idea">Per-run friendships with races produce boon-like effects (Hades boons via relationships).</li></ul></div>
+    </div>
+
+    <h3>Shaping the run</h3>
+    <ul class="log grid">
+      <li class="e" data-by="user" data-k="direction">Goal: each run should flow through the map very differently.</li>
+      <li class="e" data-by="coach" data-k="insight">Scope math: 3&times;3 faces &times; 6 = 54 screens total. A concrete, bounded content budget.</li>
+      <li class="e" data-by="user" data-k="decision">Always start on the same cube face (fixed home/hub face).</li>
+      <li class="e" data-by="user" data-k="idea">NPC interactions reshape the map: the order you talk to them, your answers, and who you ignore all change the layout.</li>
+      <li class="e" data-by="user" data-k="idea">One-way gates close the world behind you (e.g. an item to lower safely down a cliff but not climb back).</li>
+      <li class="e" data-by="coach" data-k="idea">Rival races: befriending one race angers its rival and locks their region for the run. A social one-way gate that also sets the route.</li>
+    </ul>
+
+    <h3>What is each face?</h3>
+    <div class="themes">
+      <div class="theme-card lost">
+        <div class="kicker">Theme A &middot; elements</div>
+        <div class="chips"><span class="chip">Light (start)</span><span class="chip">Dark (opposite)</span><span class="chip">Fire</span><span class="chip">Water</span><span class="chip">Earth</span><span class="chip">Wind</span></div>
+        <ul class="log"><li class="e" data-by="user" data-k="idea">Each face is an element: start face Light, opposite Dark, plus Fire, Water, Earth, Wind.</li></ul>
+      </div>
+      <div class="theme-card">
+        <div class="kicker">Theme B &middot; sciences (the eventual winner)</div>
+        <div class="chips"><span class="chip">biology</span><span class="chip">chemistry</span><span class="chip">physics</span><span class="chip">math</span><span class="chip">CS</span><span class="chip">psychology</span><span class="chip">earth/atmospheric</span></div>
+        <ul class="log"><li class="e" data-by="user" data-k="idea">Alt theme: faces as sciences, each ruled by a deity based on a famous scientist.</li></ul>
+      </div>
+    </div>
+    <ul class="log grid" style="margin-top:.8rem">
+      <li class="e" data-k="question">The science list has 7 domains but the cube has 6 faces. Which merges, or does the 7th live in the cube's core?</li>
+      <li class="e" data-by="coach" data-k="idea">Final boss: Maxwell's Demon on the Dark face, the force imposing order. The player is the agent of entropy.</li>
+    </ul>
+
+    <h3>The pantheon draft</h3>
+    <div class="pantheon">
+      <div class="deity keep" style="--sc:var(--s-g)"><span class="dn">Darwin</span><span class="df">Biology &middot; evolution</span><span class="ds">On the cube</span></div>
+      <div class="deity keep" style="--sc:var(--s-y)"><span class="dn">Marie Curie</span><span class="df">Chemistry &middot; decay</span><span class="ds">On the cube</span></div>
+      <div class="deity keep" style="--sc:var(--s-b)"><span class="dn">Einstein</span><span class="df">Physics &middot; relativity</span><span class="ds">On the cube</span></div>
+      <div class="deity keep" style="--sc:var(--s-o)"><span class="dn">Euler</span><span class="df">Math &middot; bridges</span><span class="ds">On the cube</span></div>
+      <div class="deity keep" style="--sc:var(--s-r)"><span class="dn">Mary Anning</span><span class="df">Earth &middot; fossil digs</span><span class="ds">Favoured pick</span></div>
+      <div class="deity keep" style="--sc:var(--s-r)"><span class="dn">Charles Richter</span><span class="df">Earth &middot; quake rooms</span><span class="ds">Favoured pick</span></div>
+      <div class="deity cut"><span class="dn">Newton</span><span class="df">Physics</span><span class="ds">Likely an NPC cameo</span></div>
+      <div class="deity cut"><span class="dn">Freud</span><span class="df">Psychology</span><span class="ds">Won't (this time)</span></div>
+      <div class="deity cut"><span class="dn">Turing</span><span class="df">Computer science</span><span class="ds">Won't (this time)</span></div>
+      <div class="deity cut"><span class="dn">Wegener</span><span class="df">Continental drift</span><span class="ds">Option, not picked</span></div>
+      <div class="deity cut"><span class="dn">Inge Lehmann</span><span class="df">Earth's inner core</span><span class="ds">Option, not picked</span></div>
+      <div class="deity care"><span class="dn">Henrietta Lacks</span><span class="df">Biology</span><span class="ds">Flagged: needs care</span></div>
+    </div>
+    <ul class="log grid">
+      <li class="e" data-by="user" data-k="idea">Scientist-deity candidates: Marie Curie, Darwin, Henrietta Lacks, Einstein, Turing, Euler, Newton.</li>
+      <li class="e" data-k="question">Henrietta Lacks was a real person whose cells were taken without consent, and her family is still active on her legacy. A campy deity treatment needs care, or a different pick.</li>
+      <li class="e" data-k="insight">The deity list doubles up (physics: Einstein + Newton; biology: Darwin + Lacks) and leaves psychology and earth science uncovered.</li>
+      <li class="e" data-by="coach" data-k="idea">Einstein face: relativity puzzles. Time slows near massive objects (drag a boulder to a timed door to keep it open).</li>
+      <li class="e" data-by="user" data-k="idea">Freud as the psychology deity.</li>
+      <li class="e" data-by="coach" data-k="idea">Earth science options: Wegener (continental drift; his face's tiles slide around, mirroring the cube shuffle), Inge Lehmann (Earth's inner core; could rule the cube's core / 7th domain), Mary Anning (fossil dig puzzles), Charles Richter (earthquake rooms).</li>
+      <li class="e" data-by="user" data-k="decision">Earth science picks favoured: Mary Anning (fossil dig puzzles) and Charles Richter (escalating earthquake rooms).</li>
+      <li class="e" data-by="coach" data-k="idea">Anning and Richter share the earth face: Richter's quakes shake loose fossils that Anning wants dug up.</li>
+    </ul>
+
+    <h3>Darwin's face takes shape</h3>
+    <ul class="log grid">
+      <li class="e" data-by="user" data-k="idea">Darwin face = evolution; its race are finch-like people who fill different ecological niches.</li>
+      <li class="e" data-by="coach" data-k="idea">Finch beaks are swappable Lego heads: a nut-cracker beak breaks rocks, a probing beak reaches switches through gaps; the shuffle changes which beaks are present.</li>
+      <li class="e" data-by="user" data-k="idea">Each run the player gets a different finch adaptation that opens different parts of Darwin's face.</li>
+      <li class="e" data-by="user" data-k="idea">Finch adaptations unlock gates across the whole cube, but most densely on Darwin's face.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= S3: ONE FEATURE ONLY ================= -->
+<section id="onefeature" data-level="3">
+  <div class="wrap">
+    <div class="sec-head"><div class="mini" data-level="3"></div>
+      <div><div class="kicker">Technique 3</div><h2>One Feature Only</h2></div>
+    </div>
+    <p class="lede">If the game could keep just one mechanic, which would it be? Everything else goes dark.</p>
+
+    <div class="spot">
+      <div class="spot-net" id="spotNet" aria-hidden="true"></div>
+      <div class="big">The rearranging map</div>
+      <div class="by">&#9733; your pick</div>
+      <ul class="log" style="max-width:640px;margin:1.2rem auto 0;text-align:left">
+        <li class="e" data-by="user" data-k="decision">One Feature Only pick: the rearranging map is the single mechanic worth keeping.</li>
+      </ul>
+    </div>
+
+    <ul class="log grid">
+      <li class="e" data-by="coach" data-k="insight">Pattern: each face's ability works mostly on its home face and a little everywhere else (the Zelda dungeon-item rule, reusable across all 6 faces).</li>
+      <li class="e" data-by="user" data-k="decision">The cube is mostly random, but the player can subtly influence the shuffle.</li>
+      <li class="e" data-by="user" data-k="direction">Goal: the whole map is explorable, but very hard on the first run.</li>
+      <li class="e" data-by="user" data-k="idea">First-run difficulty layers: tougher enemies vs the starting arsenal, NPCs share only a little info, some gates/puzzles inaccessible.</li>
+      <li class="e" data-by="coach" data-k="idea">Where you die biases the next shuffle (e.g. dying on a face pulls it nearer the start face). Death as steering.</li>
+    </ul>
+
+    <h3 style="color:#fff6cf">The town draft</h3>
+    <div class="draft">
+      <div class="ally"><div class="n">1st</div>The first race you talk to becomes your ally.</div>
+      <div class="mid"><div class="n">?</div>Races talked to in the middle, or skipped: still an open question.</div>
+      <div class="hostile"><div class="n">Last</div>The last race you talk to turns hostile. <div class="quote">&ldquo;Oh, NOW you have time for me?&rdquo;</div></div>
+    </div>
+    <ul class="log grid">
+      <li class="e" data-by="user" data-k="idea">The starting town always has one NPC of each race; talk order sets alliances.</li>
+      <li class="e" data-by="user" data-k="idea">The first race you talk to becomes your ally: better advice and useful items (healing etc.) from that whole race.</li>
+      <li class="e" data-by="user" data-k="idea">The last race you talk to turns hostile: every member of that race attacks you for the run.</li>
+      <li class="e" data-by="coach" data-k="idea">The snubbed last NPC is personally offended (&ldquo;Oh, NOW you have time for me?&rdquo;): campy grudge dialogue.</li>
+      <li class="e" data-by="coach" data-k="insight">Town talk-order works as a run-start draft (like the Hades weapon pick); players plan their order around the faces they want.</li>
+      <li class="e" data-k="question">What happens to races talked to in the middle, or skipped entirely?</li>
+    </ul>
+
+    <h3 style="color:#fff6cf">Two-stage randomization</h3>
+    <div class="two-stage">
+      <div><strong>Entering town</strong><br>which faces/themes are present is fixed</div>
+      <div class="arrow">&rarr;</div>
+      <div><strong>Leaving town</strong><br>the cube's shuffle is rolled</div>
+    </div>
+    <ul class="log grid">
+      <li class="e" data-by="user" data-k="idea">Not every theme appears each run, e.g. 2 themes missing per run (theme pool larger than 6 faces).</li>
+      <li class="e" data-by="coach" data-k="insight">A larger theme pool resolves the 7+ deity overflow, but each extra theme is more content to build. A scope tension to settle in convergence.</li>
+      <li class="e" data-by="user" data-k="decision">Two-stage randomization: which faces/themes are present is fixed on entering town; the cube's shuffle is rolled on leaving town.</li>
+      <li class="e" data-by="coach" data-k="insight">Town becomes the scouting + commitment phase: players see which themes exist this run before drafting allies, then the shuffle locks in.</li>
+      <li class="e" data-by="user" data-k="decision">Keep shuffle nudging minimal: town talk order is enough influence; no extra levers.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= S4: INFOMERCIAL AT 3AM ================= -->
+<section id="infomercial" data-level="4">
+  <div class="wrap">
+    <div class="sec-head"><div class="mini" data-level="4"></div>
+      <div><div class="kicker">Technique 4</div><h2>Infomercial at 3AM</h2></div>
+    </div>
+
+    <div class="tv">
+      <div class="screen">
+        <span class="live">LIVE</span><span class="clock" id="clock">3:00 AM</span>
+        <div class="infohead">
+          <div class="big">ARE YOU TIRED OF<br>A WORLD IN ORDER?</div>
+          <div class="sub">Pitched straight to camera. Six faces. 54 screens.<br>Entropy sold separately. (It isn't. It's everywhere.)</div>
+        </div>
+
+        <div class="product">
+          <span class="burst">PICK YOUR PAIN</span>
+          <h3>Choose your ally, choose your difficulty</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="idea">The starting ally choice doubles as a difficulty selector: some races make the run easier or harder.</li>
+            <li class="e" data-by="coach" data-k="idea">Joke-tier NPC races (e.g. a useless race) as a deliberate hard mode: befriending them first is the challenge run.</li>
+            <li class="e" data-by="user" data-k="idea">Each face is home to one race that worships that face's scientist-deity; the race can help or hinder you.</li>
+            <li class="e" data-by="user" data-k="idea">Each face's puzzles are science-based problem solving tied to its deity's field.</li>
+            <li class="e" data-k="insight">The science theme appears to be winning over the elemental theme (the pitch frames faces by scientist-deities).</li>
+          </ul>
+        </div>
+
+        <span class="wait blink">BUT WAIT, THERE'S MORE!</span>
+
+        <div class="product">
+          <span class="burst">NEW BEAKS!</span>
+          <h3>Darwin's Beak-o-Matic</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="idea">Darwin face bird people grant beaks/body parts as tools: a thin long beak presses distant buttons and pollinates flowers.</li>
+            <li class="e" data-by="user" data-k="idea">A thick beak breaks certain pots/obstacles.</li>
+            <li class="e" data-by="coach" data-k="idea">Pollinated flowers grow into bridges/vines on an adjacent screen: a biology-flavoured item gate.</li>
+          </ul>
+        </div>
+
+        <div class="product">
+          <span class="burst">7 BRIDGES!</span>
+          <h3>Euler's Bridge Pass</h3>
+          <ul class="log">
+            <li class="e" data-by="coach" data-k="idea">Euler face puzzle: the Seven Bridges of K&ouml;nigsberg. Cross every bridge exactly once to open the door (Eulerian path puzzles).</li>
+          </ul>
+        </div>
+
+        <div class="product">
+          <span class="burst">HALF-LIFE INCLUDED</span>
+          <h3>Curie's Decay Chain</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="idea">Curie face: radioactive decay puzzle. A re-obtainable object breaks down over time, and each decay state has a specific use.</li>
+            <li class="e" data-by="coach" data-k="idea">Decay chain as tool states: a glowing isotope lights dark rooms, the unstable stage blasts walls, the final lead stage is heavy enough to hold down switches; half-life is a timer.</li>
+            <li class="e" data-by="coach" data-k="insight">Radioactive decay is entropy in action: Curie's face expresses the game's core theme most directly.</li>
+            <li class="e" data-by="user" data-k="idea">Curie race: radioactive people who decay through life stages.</li>
+            <li class="e" data-by="user" data-k="idea">Early decay stage: hard-shelled. They smash through walls and grant high defence.</li>
+            <li class="e" data-by="user" data-k="idea">Late decay stage: skeletons who use their fingers as literal skeleton keys.</li>
+          </ul>
+        </div>
+
+        <span class="wait blink">ORDER NOW AND WE'LL BEND SPACETIME!</span>
+
+        <div class="product">
+          <span class="burst">MORE MASS, LESS TIME</span>
+          <h3>Einstein's Time-Slowing Boulders</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="direction">Avoid two physics faces: one of Newton/Einstein should give way to an earth &amp; atmospheric science face.</li>
+            <li class="e" data-by="user" data-k="decision">Einstein stays as the physics face (boulder time-dilation puzzles); Newton is likely cut to an NPC cameo.</li>
+            <li class="e" data-by="user" data-k="idea">Einstein puzzles scale by mass: gather multiple boulders near a timed door to slow time further.</li>
+          </ul>
+        </div>
+
+        <div class="product">
+          <span class="burst">WEATHER NOT INCLUDED (IT IS)</span>
+          <h3>The Earth &amp; Atmosphere Storm Kit</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="idea">Earth &amp; atmospheric face: an earthquake + weather combo.</li>
+            <li class="e" data-by="user" data-k="idea">Stormy regions as traversal hazards: wind pushes, rain, snow makes you slide, freezing rain slows you.</li>
+            <li class="e" data-by="user" data-k="idea">Earthquake spots open crevices that must be crossed.</li>
+            <li class="e" data-by="user" data-k="idea">The centre screen of the earth face is the calm eye of a hurricane.</li>
+            <li class="e" data-by="coach" data-k="idea">Storm bands rotate around the hurricane eye over time (a mini cube-twist); quake crevices expose Anning's fossils.</li>
+          </ul>
+        </div>
+
+        <div class="product cut">
+          <span class="burst">LATE-NIGHT ONLY</span>
+          <h3>Freud's Dream Layer (later cut)</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="idea">Freud face: a dream/reality duality puzzle. Actions in the dream state affect the real world.</li>
+            <li class="e" data-by="user" data-k="idea">Freudian symbols as mechanics: the dream king is your real father, who helps you grow stronger; the snake is a cheeky phallic euphemism that helps you.</li>
+            <li class="e" data-by="coach" data-k="idea">Freud's dream layer built like Link to the Past's Dark World: same tilemap, alternate palette/objects. Cheap to build.</li>
+            <li class="e" data-k="question">Target audience/rating: how far should innuendo humour (e.g. the Freud snake) go?</li>
+          </ul>
+        </div>
+
+        <div class="product cut">
+          <span class="burst">BEEP BOOP</span>
+          <h3>Turing's State Machine (later cut)</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="idea">Turing face: state-machine puzzles. Rotating/raising platforms, each with buttons that change the shared state.</li>
+            <li class="e" data-by="coach" data-k="idea">Turing Test NPC gag: one Lego NPC in a room is secretly a robot; question them to find which one.</li>
+            <li class="e" data-by="user" data-k="idea">All face puzzles scale in difficulty/complexity depending on run conditions.</li>
+          </ul>
+        </div>
+
+        <span class="wait blink">AND THE GRAND PRIZE...</span>
+
+        <div class="product" style="border-color:#ff4fd8">
+          <span class="burst" style="background:#ff4fd8">FINAL BOSS!</span>
+          <h3 style="color:#ff9ce6">Maxwell's Demon, the sorter</h3>
+          <ul class="log">
+            <li class="e" data-by="user" data-k="decision">Maxwell's Demon confirmed as the final boss.</li>
+            <li class="e" data-by="user" data-k="idea">Order-to-chaos arc: things start very segregated (a solved Rubik's cube) and grow more chaotic as you progress.</li>
+            <li class="e" data-by="user" data-k="idea">You must defeat the boss several times to truly beat the game (Hades-style multiple victories).</li>
+            <li class="e" data-by="coach" data-k="idea">The boss arena starts sorted (Maxwell's Demon separating hot/cold); the player wins by mixing it into chaos faster than the demon can sort.</li>
+            <li class="e" data-by="user" data-k="direction">The arena's sorting doesn't need to be literal hot/cold; any sorted-duality analogy works.</li>
+            <li class="e" data-by="coach" data-k="idea">The demon's sorting phases are built from that run's present themes (sort dream vs reality, isotope vs lead, beak types), so the boss fight changes with the run.</li>
+            <li class="e" data-by="user" data-k="idea">The demon sorts Curie people by decay state; when they decay they are forced to move to their new state's zone.</li>
+            <li class="e" data-by="user" data-k="idea">The demon sorts Darwin's finches by beaks, feet and other traits.</li>
+            <li class="e" data-by="user" data-k="idea">The demon sorts Freud's world into reality vs dream.</li>
+          </ul>
+        </div>
+
+        <div class="ticker" aria-hidden="true"><span>OPERATORS ARE STANDING BY &middot; 54 SCREENS &middot; SIX FACES &middot; ONE DEMON &middot; FIXED TOWN FACE &middot; SHUFFLE ROLLED ON LEAVING TOWN &middot; DECAY STATES SOLD BY THE HALF-LIFE &middot; BEAKS NOT INTERCHANGEABLE (THEY ARE) &middot;</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= S5: FREE-FORM BATCH ================= -->
+<section id="batch2" data-level="4">
+  <div class="wrap">
+    <div class="sec-head"><div class="mini" data-level="4"></div>
+      <div><div class="kicker">Batch 2 &middot; free-form</div><h2>Player, combat, town, upgrades, races</h2></div>
+    </div>
+    <p class="lede">The character sheet. Mostly yours: this round was a gold rush.</p>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:1.2rem">
+      <div class="rpg">
+        <h3>&#9654; Player</h3>
+        <div class="hero-stage">
+          <div class="pc" aria-hidden="true"><div class="h"></div><div class="b" id="pcBody"></div><div class="l a"></div><div class="l b2"></div></div>
+          <div style="flex:1;min-width:170px">
+            <p style="margin:0 0 .5rem;font-size:.8rem">Collect abilities to colour in the embodiment of entropy:</p>
+            <div class="abil" id="abil">
+              <button type="button" aria-pressed="false" data-c="var(--s-g)" style="--ac:var(--s-g)">Beak</button>
+              <button type="button" aria-pressed="false" data-c="var(--s-y)" style="--ac:var(--s-y)">Isotope</button>
+              <button type="button" aria-pressed="false" data-c="var(--s-b)" style="--ac:var(--s-b)">Boulder</button>
+              <button type="button" aria-pressed="false" data-c="var(--s-o)" style="--ac:var(--s-o)">Bridges</button>
+              <button type="button" aria-pressed="false" data-c="var(--s-r)" style="--ac:var(--s-r)">Storm</button>
+            </div>
+          </div>
+        </div>
+        <ul class="log" style="margin-top:1rem">
+          <li class="e" data-by="user" data-k="idea">The player character is the embodiment of entropy.</li>
+          <li class="e" data-by="user" data-k="idea">The player starts colourless and gains colours each run based on the abilities collected.</li>
+          <li class="e" data-by="user" data-k="idea">Combat is puzzle-based: Zelda-style equipment makes specific enemies easier to defeat.</li>
+          <li class="e" data-by="user" data-k="idea">The town represents a mix of everything and starts out highly entropic.</li>
+        </ul>
+      </div>
+
+      <div class="rpg">
+        <h3>&#9654; Upgrades</h3>
+        <div class="stats">
+          <div class="stat"><span>Health</span><i style="width:70%"></i></div>
+          <div class="stat"><span>Defence</span><i style="width:55%"></i></div>
+          <div class="stat"><span>Power</span><i style="width:62%"></i></div>
+          <div class="stat"><span>Speed</span><i style="width:48%"></i></div>
+        </div>
+        <ul class="log">
+          <li class="e" data-by="user" data-k="idea">Meta currency buys stat upgrades: health, defence, power, speed.</li>
+          <li class="e" data-by="user" data-k="idea">A later upgrade: keep one piece of equipment between runs, accumulating more kept items over time.</li>
+          <li class="e" data-by="user" data-k="idea">Ammo-based equipment with capacity upgrades.</li>
+          <li class="e" data-by="user" data-k="idea">Persisted equipment can be upgraded along different branches.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rpg" style="margin-top:1.4rem">
+      <h3>&#9654; Race roster</h3>
+      <div class="races">
+        <div class="race" style="--rc:var(--s-g)"><b>Plant-like finches</b>Darwin</div>
+        <div class="race" style="--rc:var(--s-y)"><b>Radioactive mushroom-like people</b>Curie</div>
+        <div class="race" style="--rc:var(--s-b)"><b>Alien-like people</b>Einstein / physics</div>
+        <div class="race" style="--rc:var(--s-r)"><b>Wind/earth people</b>Earth &amp; atmospheric</div>
+        <div class="race" style="--rc:var(--s-r)"><b>Butterflies vs moles</b>Earth &amp; atmospheric (sky vs underground)</div>
+        <div class="race" style="--rc:var(--s-r)"><b>Avian vs terrestrial dinos</b>Earth &amp; atmospheric (alt)</div>
+        <div class="race" style="--rc:#9a96a6"><b>Dreamy psychic people</b>Freud (cut)</div>
+        <div class="race" style="--rc:#9a96a6"><b>Robot people</b>Turing (cut)</div>
+        <div class="race q"><b>???</b>Euler: no race yet</div>
+      </div>
+      <ul class="log grid">
+        <li class="e" data-by="user" data-k="idea">Race roster: plant-like finches (Darwin), dinosaurs, radioactive mushroom-like people (Curie), dreamy psychic people (Freud), robot people (Turing), alien-like people (Einstein/physics), wind/earth people (earth &amp; atmospheric).</li>
+        <li class="e" data-k="question">Which face do the dinosaurs belong to? Euler's face still has no race.</li>
+        <li class="e" data-by="user" data-k="idea">Earth &amp; atmospheric face races: butterflies (wind/weather) and moles (earth/quakes).</li>
+        <li class="e" data-by="coach" data-k="insight">Butterflies tie to the butterfly effect (chaos theory), a direct link to the entropy theme on the weather face.</li>
+        <li class="e" data-by="coach" data-k="idea">Rival-pair races on one face: butterflies vs moles on the earth face (sky vs underground).</li>
+        <li class="e" data-by="user" data-k="idea">Earth &amp; atmospheric race alt: dinosaurs split into rivals, terrestrial dinos (ground/quakes) vs avian dinos (sky/weather).</li>
+        <li class="e" data-by="coach" data-k="insight">Avian dinosaurs echo Darwin's finches (birds are dinosaurs), a cross-face link. Dinos vs butterflies/moles still undecided.</li>
+        <li class="e" data-k="question">Euler's face still has no race.</li>
+      </ul>
+    </div>
+
+    <h3>The scope call</h3>
+    <ul class="log grid">
+      <li class="e" data-by="user" data-k="decision">Scope for 1&ndash;2 weeks: 6 faces total. Town face (hub, not a science face) + Biology (Darwin), Chemistry (Curie), Physics (Einstein), Math (Euler), Earth &amp; Atmosphere.</li>
+      <li class="e" data-by="user" data-k="decision">Implied cuts: the Psychology (Freud) and Computer Science (Turing) faces are dropped from the 2-week scope.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= S6: MoSCoW ================= -->
+<section id="moscow" data-level="5">
+  <div class="wrap">
+    <div class="sec-head"><div class="mini" data-level="5"></div>
+      <div><div class="kicker">Converge</div><h2>The MoSCoW scope board</h2></div>
+    </div>
+    <p class="lede">Proposed by the coach, then amended by you: a final boss is a Must, but Maxwell's Demon with face-based phases is a Should.</p>
+
+    <div class="board">
+      <div class="col m"><header>MUST<small>ship it</small></header>
+        <ul>
+          <li>6 faces &times; 3&times;3 = 54 screens, Town face fixed start</li>
+          <li>Shuffle of the 5 science faces on leaving town</li>
+          <li>One signature puzzle + item per face: Darwin beaks, Curie decay, Einstein boulders, Euler bridges, Earth weather/quakes</li>
+          <li>Item gates</li>
+          <li>A final boss, open from the start but hard: single-phase Maxwell's Demon sorting one thing (hot/cold)</li>
+          <li>Meta currency stat upgrades</li>
+          <li>Lego swappable NPCs + campy dialogue</li>
+        </ul>
+        <div class="src">coach &middot; boss line amended by you</div>
+      </div>
+      <div class="col s"><header>SHOULD<small>if on track</small></header>
+        <ul>
+          <li>Town talk-order ally/enemy draft</li>
+          <li>Maxwell's Demon sorting phases built from the faces (a simpler boss is an acceptable fallback)</li>
+          <li>Beat the demon multiple times</li>
+          <li>Puzzle difficulty knob</li>
+          <li>Re-collected abilities come back improved</li>
+        </ul>
+        <div class="src">coach &middot; demon line moved here by you</div>
+      </div>
+      <div class="col c"><header>COULD<small>bonus</small></header>
+        <ul>
+          <li>Persistent gear + upgrade branches + ammo</li>
+          <li>Player gains colour</li>
+          <li>Rival race pairs</li>
+          <li>Chaos-scaled word-tile dialogue</li>
+          <li>Mid-run twists, rotating storm, death-steered shuffle</li>
+          <li>Newton / skeleton-key gags</li>
+        </ul>
+        <div class="src">coach</div>
+      </div>
+      <div class="col w"><header>WON'T<small>this time</small></header>
+        <ul>
+          <li>Freud and Turing faces + dream layer</li>
+          <li>2 missing themes per run</li>
+          <li>Janitor premise</li>
+        </ul>
+        <div class="src">coach</div>
+      </div>
+    </div>
+
+    <div class="fallback panel" style="margin-top:1.4rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <div class="facemini" style="grid-template-columns:repeat(3,16px)"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <span style="font:900 1.4rem/1 var(--display)">&rarr;</span>
+        <div class="facemini" style="grid-template-columns:repeat(2,16px)"><span style="background:var(--s-o)"></span><span style="background:var(--s-o)"></span><span style="background:var(--s-o)"></span><span style="background:var(--s-o)"></span></div>
+      </div>
+      <div style="flex:1;min-width:220px"><strong>Day-5 emergency lever:</strong> 54 screens shrink to 24 (2&times;2 faces). Cut screen count, not puzzle types.</div>
+    </div>
+
+    <ul class="log grid" style="margin-top:1.2rem">
+      <li class="e" data-by="coach" data-k="decision">Maxwell's Demon lives in the cube's core, reachable from any face.</li>
+      <li class="e" data-by="coach" data-k="insight">Risk: the Must list alone fills ~2 weeks solo. If behind by day 5, the first cut is screen count (2&times;2 faces = 24 screens), not puzzle types.</li>
+      <li class="e" data-by="user" data-k="decision">You agreed to the MoSCoW scope, demon-in-core, and the screen-count fallback.</li>
+      <li class="e" data-by="user" data-k="decision">Scope correction: a final boss is a MUST; Maxwell's Demon specifically (with face-based sorting phases) is a SHOULD. A simpler boss is an acceptable fallback.</li>
+      <li class="e" data-by="coach" data-k="insight">Boss reconciliation: Must = a single-phase Maxwell's Demon sorting one thing (hot/cold); Should = extra phases built from the faces.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= S7: SYNTHESIS ================= -->
+<section id="synthesis" data-level="6">
+  <div id="confetti" aria-hidden="true"></div>
+  <div class="wrap" style="position:relative">
+    <div class="sec-head"><div class="mini" data-level="6"></div>
+      <div><div class="kicker">Synthesis &middot; maximum entropy</div><h2>What the scramble revealed</h2></div>
+    </div>
+
+    <div class="syn">
+      <article class="syn-card" style="--a:0deg">
+        <span class="num">01</span>
+        <h3>It's all one modular swap engine. Build it first.</h3>
+        <ul class="log"><li class="e" data-by="coach" data-k="insight">The game is one modular swap engine (screens, NPC parts, beaks, decay stages) driven by a seed. Build it first.</li></ul>
+        <div class="fromyou"><b>&#9733; built from your ideas</b><div class="chips"><span class="chip">reshuffled Rubik's-cube world</span><span class="chip">Lego NPC races</span><span class="chip">a different finch adaptation each run</span><span class="chip">decay states with specific uses</span></div></div>
+      </article>
+      <article class="syn-card" style="--a:90deg">
+        <span class="num">02</span>
+        <h3>Commitment closes doors.</h3>
+        <ul class="log"><li class="e" data-by="coach" data-k="insight">The town draft, one-way gates and rival races are one &lsquo;commitment closes doors&rsquo; mechanic. Build once, reuse.</li></ul>
+        <div class="fromyou"><b>&#9733; built from your ideas</b><div class="chips"><span class="chip">first race = ally, last = hostile</span><span class="chip">one-way gates</span><span class="chip">NPC talk order reshapes the map</span></div></div>
+      </article>
+      <article class="syn-card" style="--a:180deg">
+        <span class="num">03</span>
+        <h3>Two progression ideas overlap. Ship the first.</h3>
+        <ul class="log"><li class="e" data-by="coach" data-k="insight">Improved re-collected abilities and persistent gear overlap. Ship the former first if time is short.</li></ul>
+        <div class="fromyou"><b>&#9733; built from your ideas</b><div class="chips"><span class="chip">re-collected abilities come back improved</span><span class="chip">keep one piece of equipment between runs</span><span class="chip">upgrade branches</span></div></div>
+      </article>
+      <article class="syn-card" style="--a:270deg">
+        <span class="num">04</span>
+        <h3>The theme holds from end to end.</h3>
+        <ul class="log"><li class="e" data-by="coach" data-k="insight">Player = entropy (colourless to colourful), Curie decay = the entropy mechanic, town = entropy's home, boss = order.</li></ul>
+        <div class="fromyou"><b>&#9733; built from your ideas</b><div class="chips"><span class="chip">entropy rules the world</span><span class="chip">player is the embodiment of entropy</span><span class="chip">starts colourless</span><span class="chip">radioactive decay puzzle</span><span class="chip">town starts highly entropic</span><span class="chip">order-to-chaos arc</span></div></div>
+      </article>
+    </div>
+
+    <div class="arc">
+      <div><span class="sw" style="background:var(--s-w);border:1px solid var(--line)"></span>Player<br>colourless &rarr; colourful</div>
+      <div><span class="sw" style="background:linear-gradient(90deg,var(--s-y),#7a8a3a,#555)"></span>Curie<br>decay = entropy</div>
+      <div><span class="sw" style="background:linear-gradient(90deg,var(--s-r),var(--s-g),var(--s-y),var(--s-b),var(--s-o))"></span>Town<br>entropy's home</div>
+      <div><span class="sw" style="background:linear-gradient(90deg,var(--s-r) 50%,var(--s-b) 50%)"></span>Demon<br>= order</div>
+    </div>
+
+    <div class="loose">
+      <h3>Still scrambled (open threads)</h3>
+      <ul class="log grid">
+        <li class="e" data-k="question">Races talked to in the middle of the town draft, or skipped entirely: what happens to them?</li>
+        <li class="e" data-k="question">Euler's face has no race yet.</li>
+        <li class="e" data-k="question">Earth &amp; Atmosphere races: butterflies/moles or avian/terrestrial dinos?</li>
+        <li class="e" data-k="question">Target audience/rating: how far should the innuendo humour go?</li>
+      </ul>
+    </div>
+
+    <div class="finale">
+      <div class="kicker">Session complete</div>
+      <div class="big" id="finaleTitle">You are the entropy.</div>
+      <p class="lede" style="margin:1rem auto 0">The demon sorts. You scramble. Build the swap engine first.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">Brainstorming session log &middot; campy Zelda-like roguelite &middot; updated 2026-10-05 13:52 &middot; partner mode</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var COLORS = ['w','y','g','b','r','o'];
+  function cv(k){return 'var(--s-'+k+')';}
+  function rnd(seed){var s=seed||1;return function(){s=(s*16807)%2147483647;return (s-1)/2147483646;};}
+
+  /* ---- attribution tags + tally ---- */
+  var KLABEL={idea:'idea',insight:'insight',decision:'decision',direction:'direction',question:'question'};
+  var user=0, coach=0, userIdeas=0;
+  document.querySelectorAll('.e').forEach(function(el){
+    var by=el.getAttribute('data-by'), k=el.getAttribute('data-k')||'note';
+    var inLegend = !!el.closest('.legend');
+    var t=document.createElement('span'); t.className='tag';
+    t.textContent = by==='user' ? '★ you · '+(KLABEL[k]||k) : by==='coach' ? 'coach · '+(KLABEL[k]||k) : (KLABEL[k]||k);
+    if(inLegend){ t.textContent = by==='user'?'★ you':by==='coach'?'coach':'?'; }
+    el.insertBefore(t, el.firstChild);
+    if(inLegend || el.closest('.loose')) return;
+    if(by==='user'){user++; if(k==='idea')userIdeas++;}
+    else if(by==='coach'){coach++;}
+  });
+  document.getElementById('tally').innerHTML =
+    '<span class="pill u">★ '+user+' contributions from you ('+userIdeas+' ideas)</span>'+
+    '<span class="pill c">'+coach+' from the coach</span>';
+
+  /* ---- title: order to chaos ---- */
+  var title=document.getElementById('title'), txt=title.textContent; title.textContent='';
+  var r0=rnd(7), seq=['w','y','o','r','g','b'];
+  for(var i=0;i<txt.length;i++){
+    var ch=document.createElement('span'); ch.className='ch'; ch.setAttribute('aria-hidden','true');
+    ch.textContent = txt[i]===' ' ? ' ' : txt[i];
+    var p=i/(txt.length-1), chaos=p*p;
+    ch.style.transform='rotate('+((r0()*2-1)*16*chaos).toFixed(1)+'deg) translateY('+((r0()*2-1)*8*chaos).toFixed(1)+'px)';
+    if(p>.3 && txt[i]!==' '){ var c=seq[Math.floor(r0()*6)]; if(c!=='w') ch.style.color=cv(c); }
+    title.appendChild(ch);
+  }
+
+  /* ---- mini cubes per section ---- */
+  document.querySelectorAll('.mini').forEach(function(m){
+    var lvl=+m.getAttribute('data-level'), r=rnd(lvl*31+3), base=seq[lvl%6];
+    for(var i=0;i<9;i++){var s=document.createElement('span');
+      var c = r() < lvl/6.5 ? COLORS[Math.floor(r()*6)] : base; s.style.background=cv(c); m.appendChild(s);}
+  });
+
+  /* ---- cube net ---- */
+  var FACES=[
+    {id:'U',name:'Earth & Atmosphere',short:'Earth',c:'r',ab:'Ea',pos:[1,2]},
+    {id:'L',name:'Darwin · Biology',short:'Darwin',c:'g',ab:'Dw',pos:[2,1]},
+    {id:'F',name:'Town',short:'Town',c:'w',ab:'⌂',pos:[2,2],town:true},
+    {id:'R',name:'Einstein · Physics',short:'Einstein',c:'b',ab:'Ei',pos:[2,3]},
+    {id:'B',name:'Curie · Chemistry',short:'Curie',c:'y',ab:'Cu',pos:[2,4]},
+    {id:'D',name:'Euler · Math',short:'Euler',c:'o',ab:'Eu',pos:[3,2]}
+  ];
+  var INFO={
+    F:{h:'Town: the fixed start face (hub)',l:[
+      ['Always start on the same cube face.','u'],
+      ['One NPC of each race; talk order sets alliances: first = ally, last = hostile.','u'],
+      ['Which themes are present is fixed on entering town; the shuffle is rolled on leaving.','u'],
+      ['Represents a mix of everything and starts out highly entropic.','u'],
+      ['Scouting + commitment phase: see the themes, draft allies, then the shuffle locks in.','c']]},
+    L:{h:'Darwin · Biology: evolution',l:[
+      ['Finch-like people who fill different ecological niches.','u'],
+      ['Thin long beak presses distant buttons and pollinates flowers; thick beak breaks pots/obstacles.','u'],
+      ['Nut-cracker beak breaks rocks; probing beak reaches switches through gaps.','c'],
+      ['Pollinated flowers grow into bridges/vines on an adjacent screen.','c'],
+      ['A different finch adaptation each run, opening different parts of the face.','u']]},
+    B:{h:'Curie · Chemistry: radioactive decay',l:[
+      ['A re-obtainable object decays over time; each state has a specific use.','u'],
+      ['Glowing isotope lights dark rooms, unstable stage blasts walls, lead holds down switches; half-life is a timer.','c'],
+      ['Radioactive mushroom-like people: hard-shelled early, skeleton-key fingers late.','u'],
+      ['Decay is entropy in action: the most direct expression of the theme.','c']]},
+    R:{h:'Einstein · Physics: relativity',l:[
+      ['Time slows near massive objects: drag a boulder to a timed door to keep it open.','c'],
+      ['Puzzles scale by mass: more boulders near the door slow time further.','u'],
+      ['Alien-like people. Newton is likely cut to an NPC cameo.','u']]},
+    D:{h:'Euler · Math: bridges',l:[
+      ['Seven Bridges of Königsberg: cross every bridge exactly once to open the door.','c'],
+      ['No race yet (open question).','q']]},
+    U:{h:'Earth & Atmosphere: Anning + Richter',l:[
+      ['Earthquake + weather combo; quake spots open crevices to cross.','u'],
+      ['Wind pushes, snow makes you slide, freezing rain slows you.','u'],
+      ['The centre screen is the calm eye of a hurricane.','u'],
+      ['Storm bands rotate around the eye; quakes shake loose Anning’s fossils.','c'],
+      ['Butterflies vs moles, or avian vs terrestrial dinos (undecided).','u']]},
+    CORE:{h:'The core: Maxwell’s Demon',l:[
+      ['Lives in the cube’s core, reachable from any face.','c'],
+      ['Open from the start: very hard but beatable.','u'],
+      ['Sorts the world back into order; you win by mixing faster than it can sort.','c']]}
+  };
+  var net=document.getElementById('net'), state=[], solved=[], els=[], pool=[];
+  FACES.forEach(function(f,fi){
+    var b=document.createElement('button'); b.type='button'; b.className='face'+(f.town?' lock':'');
+    b.style.gridRow=f.pos[0]; b.style.gridColumn=f.pos[1];
+    b.setAttribute('aria-label',f.name+(f.town?' (fixed, never shuffled)':''));
+    var st=document.createElement('span'); st.className='st';
+    for(var i=0;i<9;i++){
+      var s=document.createElement('span'); s.className='s'+(i===4?' c':''); if(i===4) s.textContent=f.ab;
+      st.appendChild(s); els.push(s); state.push(f.c); solved.push(f.c);
+      if(!f.town && i!==4) pool.push(fi*9+i);
+    }
+    var lb=document.createElement('span'); lb.className='lbl'; lb.textContent=f.short;
+    b.appendChild(st); b.appendChild(lb);
+    b.addEventListener('click',function(){select(f.id,b);});
+    net.appendChild(b);
+  });
+  var core=document.createElement('button'); core.type='button'; core.className='face';
+  core.style.gridRow=3; core.style.gridColumn='3 / span 2'; core.style.background='transparent';
+  core.innerHTML='<span class="lbl" style="color:var(--ink);white-space:normal;font-size:.7rem;padding:8px 4px;border:2px dashed var(--line);border-radius:8px">CORE<br>Maxwell’s Demon</span>';
+  core.addEventListener('click',function(){select('CORE',core);});
+  net.appendChild(core);
+
+  function paint(){ els.forEach(function(e,i){e.style.backgroundColor=cv(state[i]);}); gauge(); }
+  function gauge(){
+    var tot=0, n=0;
+    FACES.forEach(function(f,fi){ if(f.town) return;
+      var cnt={}; for(var i=0;i<9;i++){var c=state[fi*9+i];cnt[c]=(cnt[c]||0)+1;}
+      var H=0; for(var k in cnt){var p=cnt[k]/9;H-=p*Math.log2(p);} tot+=H/Math.log2(5); n++; });
+    var pct=Math.round(Math.min(1,tot/n/0.86)*100);
+    document.getElementById('gaugeFill').style.width=pct+'%';
+    document.getElementById('gaugeVal').textContent=pct+'%';
+  }
+  function select(id,btn){
+    net.querySelectorAll('.face').forEach(function(x){x.classList.remove('sel');}); btn.classList.add('sel');
+    var d=INFO[id], p=document.getElementById('facePanel');
+    var h='<h4>'+d.h+'</h4><ul>';
+    d.l.forEach(function(x){ var w=x[1]==='u'?'<span class="who u">★ you</span>':x[1]==='c'?'<span class="who c">coach</span>':'<span class="who c" style="color:var(--q);border-color:var(--q)">open</span>'; h+='<li>'+x[0]+w+'</li>'; });
+    p.innerHTML=h+'</ul>';
+  }
+  var demonTimer=null;
+  document.getElementById('scrambleBtn').addEventListener('click',function(){
+    clearInterval(demonTimer);
+    for(var k=0;k<14;k++){var a=pool[Math.floor(Math.random()*pool.length)], b=pool[Math.floor(Math.random()*pool.length)], t=state[a];state[a]=state[b];state[b]=t;}
+    paint();
+    if(!reduce){net.classList.remove('shake');void net.offsetWidth;net.classList.add('shake');}
+  });
+  document.getElementById('demonBtn').addEventListener('click',function(){
+    clearInterval(demonTimer);
+    function step(){
+      for(var x=0;x<pool.length;x++){var i=pool[x]; if(state[i]!==solved[i]){
+        for(var y=x+1;y<pool.length;y++){var j=pool[y]; if(state[j]===solved[i]){var t=state[i];state[i]=state[j];state[j]=t;return true;}}}}
+      return false;
+    }
+    if(reduce){ while(step()){} paint(); return; }
+    demonTimer=setInterval(function(){ if(!step()) clearInterval(demonTimer); paint(); },70);
+  });
+  paint();
+  select('F', net.querySelector('.face.lock'));
+
+  /* ---- Lego part-swapper ---- */
+  var RACES={
+    sage:{n:'Sage',c:'#c9b7ff'}, goblin:{n:'Goblin',c:'#7fbf4d'}, finchP:{n:'Finch (probing beak)',c:'#8fd16a',beak:'thin'},
+    finchN:{n:'Finch (nut-cracker beak)',c:'#5fae5a',beak:'thick'}, mush:{n:'Curie mushroom',c:'#f5d94a'},
+    alien:{n:'Einstein alien',c:'#6fa8ff'}, fly:{n:'Butterfly',c:'#ff9ad5'}, mole:{n:'Mole',c:'#a07a5c'}
+  };
+  var HEADNOTE={finchP:'Probing beak: reaches switches through gaps.',finchN:'Nut-cracker beak: breaks rocks.',
+    sage:'Sage head: the knowledge source, if the body agrees.',mush:'Curie race: decays through life stages.'};
+  var ROLES=['merchant','quest','smith'];
+  var keys=Object.keys(RACES);
+  var pH=document.getElementById('pHead'), pT=document.getElementById('pTorso'), pL=document.getElementById('pLegs');
+  keys.forEach(function(k){
+    pH.add(new Option(RACES[k].n,k));
+    pL.add(new Option(RACES[k].n.replace(/ \(.*\)/,''),k));
+    ROLES.forEach(function(r){pT.add(new Option(RACES[k].n.replace(/ \(.*\)/,'')+' '+r,k+'|'+r));});
+  });
+  pH.value='sage'; pT.value='goblin|merchant'; pL.value='mole';
+  function lego(){
+    var h=RACES[pH.value], tp=pT.value.split('|'), t=RACES[tp[0]], l=RACES[pL.value], fig=document.getElementById('fig');
+    fig.style.setProperty('--hc',h.c); fig.style.setProperty('--tc',t.c); fig.style.setProperty('--lc',l.c);
+    var bk=document.getElementById('beak'); bk.hidden=!h.beak; bk.className='beak'+(h.beak==='thick'?' thick':'');
+    document.getElementById('torsoLbl').textContent=tp[1];
+    var same=(pH.value.replace(/[PN]$/,'')===tp[0].replace(/[PN]$/,''));
+    var out='<strong>'+h.n+'</strong> head gives the hints, <strong>'+t.n.replace(/ \(.*\)/,'')+' '+tp[1]+'</strong> torso sets the role, <strong>'+l.n.replace(/ \(.*\)/,'')+'</strong> legs set how they move.';
+    if(HEADNOTE[pH.value]) out+='<br>'+HEADNOTE[pH.value];
+    out+= same ? '<br><span style="color:#17703e;font-weight:800">Matched head and body: advice is probably sound.</span>'
+               : '<br><span class="warn">Mismatch! Comedy guaranteed. Remember: a sage head on a goblin body gives wrong advice.</span>';
+    document.getElementById('readout').innerHTML=out;
+  }
+  [pH,pT,pL].forEach(function(s){s.addEventListener('change',lego);});
+  document.getElementById('reseed').addEventListener('click',function(){
+    pH.selectedIndex=Math.floor(Math.random()*pH.options.length);
+    pT.selectedIndex=Math.floor(Math.random()*pT.options.length);
+    pL.selectedIndex=Math.floor(Math.random()*pL.options.length); lego();
+  });
+  lego();
+
+  /* ---- word tiles ---- */
+  var HINT='Pollinated flowers grow into bridges on an adjacent screen'.split(' ');
+  var order=[], pick=-1, tilesEl=document.getElementById('tiles'), msg=document.getElementById('tileMsg'), chaosEl=document.getElementById('chaos');
+  function deal(){
+    var lvl=+chaosEl.value; document.getElementById('chaosVal').textContent=lvl;
+    order=HINT.map(function(_,i){return i;});
+    var swaps=[0,2,5,12][lvl];
+    for(var k=0;k<swaps;k++){var a=Math.floor(Math.random()*order.length),b=Math.floor(Math.random()*order.length),t=order[a];order[a]=order[b];order[b]=t;}
+    if(lvl>0 && order.every(function(v,i){return v===i;})){var t=order[0];order[0]=order[1];order[1]=t;}
+    pick=-1; drawTiles();
+  }
+  function drawTiles(){
+    tilesEl.innerHTML='';
+    order.forEach(function(w,i){var b=document.createElement('button');b.type='button';b.className='tile'+(i===pick?' pick':'');b.textContent=HINT[w];
+      b.setAttribute('aria-pressed',i===pick?'true':'false');
+      b.addEventListener('click',function(){ if(pick<0){pick=i;} else { var t=order[pick];order[pick]=order[i];order[i]=t;pick=-1;} drawTiles(); });
+      tilesEl.appendChild(b);});
+    var ok=order.every(function(v,i){return v===i;});
+    tilesEl.classList.toggle('ok',ok);
+    msg.textContent= ok ? (chaosEl.value==='0' ? 'Low-entropy seed: the hint arrives in plain words.' : 'Decoded! The NPC was helpful after all.') : 'Cryptic. Keep swapping.';
+  }
+  chaosEl.addEventListener('input',deal); deal();
+
+  /* ---- spotlight net cycling ---- */
+  var sn=document.getElementById('spotNet'), sns=[];
+  for(var i=0;i<9;i++){var s=document.createElement('span');sn.appendChild(s);sns.push(s);}
+  function spin(){sns.forEach(function(s){s.style.background=cv(COLORS[Math.floor(Math.random()*6)]);});}
+  spin(); if(!reduce) setInterval(spin,1600);
+
+  /* ---- player colour ---- */
+  var pcBody=document.getElementById('pcBody');
+  document.querySelectorAll('#abil button').forEach(function(b){
+    b.addEventListener('click',function(){
+      b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')==='true'?'false':'true');
+      var cs=[]; document.querySelectorAll('#abil button[aria-pressed="true"]').forEach(function(x){cs.push(x.getAttribute('data-c'));});
+      if(!cs.length){pcBody.style.removeProperty('--pcb');return;}
+      var st=[], w=100/cs.length; cs.forEach(function(c,i){st.push(c+' '+(i*w)+'% '+((i+1)*w)+'%');});
+      pcBody.style.setProperty('--pcb','linear-gradient(180deg,'+st.join(',')+')');
+    });
+  });
+
+  /* ---- 3AM clock ---- */
+  var clock=document.getElementById('clock'), mins=0;
+  if(!reduce) setInterval(function(){mins=(mins+1)%60;clock.textContent='3:'+(mins<10?'0':'')+mins+' AM';},4000);
+
+  /* ---- synthesis confetti ---- */
+  var cf=document.getElementById('confetti'), rc=rnd(99);
+  for(var i=0;i<40;i++){var s=document.createElement('span');s.style.left=(rc()*100)+'%';s.style.top=(rc()*100)+'%';
+    s.style.background=cv(COLORS[Math.floor(rc()*6)]);s.style.transform='rotate('+(rc()*90)+'deg) scale('+(0.5+rc()*1.4)+')';cf.appendChild(s);}
+
+  /* ---- entropy scroll bar ---- */
+  var bar=document.getElementById('entropyBar');
+  function onScroll(){var h=document.documentElement, max=h.scrollHeight-h.clientHeight; bar.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+})();
+</script>
+</body>
+</html>
