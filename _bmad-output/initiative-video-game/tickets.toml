@@ -1,0 +1,21 @@
+# tickets.toml — initiative-video-game's epics. The order of the tables is the build order.
+
+[[epic]]
+id = 1
+slug = "epic-playable-cube"
+title = "One complete run, town to boss"
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4", "CAP-5", "CAP-6", "CAP-9", "CAP-10", "CAP-11", "CAP-12", "CAP-13", "CAP-25"]
+
+[[epic]]
+id = 2
+slug = "epic-varied-runs"
+title = "Every run plays differently"
+covers = ["CAP-7", "CAP-8", "CAP-14", "CAP-15", "CAP-16", "CAP-17"]
+after = [{ epic = 1, needs = "seeded swap system, gate/item framework with the commitment mechanic, NPC part system with hostility and role hooks, enemies, boss with a phase slot, face-size setting and sealed-face slots, face pattern from the built faces, puzzle difficulty parameters, ability collect/reset flow, versioned save format, first itch.io build" }]
+
+[[epic]]
+id = 3
+slug = "epic-stretch"
+title = "Deeper progression and chaos"
+covers = ["CAP-18", "CAP-19", "CAP-20", "CAP-21", "CAP-22", "CAP-23", "CAP-24"]
+after = [{ epic = 1, needs = "save system, ability collection, commitment mechanic, seed-sweep tool, enemies (currency drops), NPC merchant role" }, { epic = 2, needs = "town draft (CAP-14) for CAP-18/21; improved abilities (CAP-17) for CAP-19; weather hazards (CAP-8) for CAP-23" }]

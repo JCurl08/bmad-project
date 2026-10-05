@@ -1,0 +1,155 @@
+# tickets.toml — epic-playable-cube's agreed stories. The order of the tables is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Unity project and WebGL tracer"
+description = "Creates the Unity 2D (URP) project in game/ with a Unity .gitignore and Git LFS, pushed to the JCurl08/bmad-project remote, and proves the pipeline end to end: a top-down player walks between two placeholder screens, audio starts only after the first input, and a PlayerPrefs value saves and loads, in a WebGL build uploaded to a restricted itch.io page the developer creates."
+verify = "The WebGL build opens from the itch.io page, the player walks from one screen to the other, audio plays after the first click, and a saved value is still there after reloading the tab."
+covers = ["CAP-2"]
+after = []
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Seeded cube model and debug tools"
+description = "Builds the seeded random source and the cube model: 6 faces of N×N screens (a face-size setting, 2×2 in this epic so epic-varied-runs can raise it to 3×3), edge adjacency between faces, and sealed-face slots for faces not built yet; adds a debug overlay (face, screen, seed), seed reroll, jump-to-screen, a seed-sweep tool that checks every unsealed screen is reachable, and Unity Test Framework (EditMode) with a seed-determinism test."
+verify = "The determinism test passes (same seed, identical cube; different seeds, different arrangements), walking off any face edge lands on the correct adjacent face or a sealed boundary, and the seed sweep reports reachability for 50 seeds."
+covers = ["CAP-1", "CAP-2"]
+after = [1]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Screen modules and the town-exit shuffle"
+description = "Adds hand-built screen modules with tagged entry/exit points, gate slots, hidden-item slots and a core-entrance slot; keeps the Town face fixed as the start; and rearranges the built science faces and their screens when the player leaves town, leaving unbuilt faces sealed; provides placeholder modules for science faces whose story is not done yet; and extends the seed sweep to report a reachable core-entrance slot on every built face."
+verify = "Each new run starts on the Town face, leaving town produces a layout that differs between seeds and is reproduced exactly by the same seed, unbuilt faces stay sealed, every module's slots show in the debug view, and the sweep reports a reachable core entrance per face."
+covers = ["CAP-1"]
+after = [2]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Items, gates, one-way gates and trial rooms"
+description = "Adds the inventory and item pickup; gates as data bound to the item that opens them, placed by a seeded placer into module gate slots (mostly on the item's home face, at least one elsewhere); the one-way gate as the reusable commitment mechanic; a trial-room completion event carrying a currency amount that face trials use; and a softlock check in the seed sweep."
+verify = "A placeholder item opens its gates on and off its home face, a one-way gate can be crossed in one direction only, a placeholder trial fires its completion event, and the seed sweep flags a seed whose required gate comes before its item."
+covers = ["CAP-3", "CAP-25"]
+after = [3]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Lego NPCs and dialogue"
+description = "Assembles NPCs for every race, including the sealed faces' shape people and dinosaurs (placeholder art), from head (hint), torso (role, including merchant) and leg (movement) parts chosen by the seed, with a dialogue system for campy lines and a sparse first-run hint set, and exposes a per-race hostility flag for later use."
+verify = "NPC parts differ between seeds, each slot visibly changes what the NPC says or does, and setting a race's hostility flag in debug makes its NPCs stop talking."
+covers = ["CAP-9", "CAP-12"]
+after = [2]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Health, enemies and item-weak combat"
+description = "Adds player health and damage, stat fields (health, defence, power, speed), and an enemy base whose weaknesses are tied to items; hostile-flagged NPCs (entry 5) reuse enemy behaviour."
+verify = "A placeholder enemy takes markedly more damage from its weakness item, the player dies at zero health, and a hostile-flagged NPC attacks on sight."
+covers = ["CAP-10"]
+after = [4, 5]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Town face hub"
+description = "Builds the Town face: busy, mismatched screens among mixed-style ruins with one NPC of each race from entry 5, as the fixed start of every run."
+verify = "A new run starts in town with one NPC per race, each able to talk, and every exit leads onto the shuffled cube."
+covers = ["CAP-1", "CAP-9"]
+after = [3, 5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Biology face (Darwin), vertical slice"
+description = "Builds the Biology face end to end at 2×2: a random-per-run beak adaptation (thin beak presses distant buttons and pollinates flowers that grow bridges or vines; thick beak breaks pots and rocks), beak gates with a difficulty parameter (e.g. number of beak gates), where only the rolled beak's gates are required and the other type's gates are optional, a rule added to the seed sweep's softlock check; a harder trial puzzle combining beak mechanics that fires entry 4's completion event, its enemy types (each weak to an item, on entry 6's enemy base), the finch part set from entry 5 dressed with face dialogue and art, and modules carrying entry 3's gate slots (including slots for other faces' items), hidden-item slots and one core-entrance slot (entry 3)."
+verify = "On full runs from town with seeds that roll each beak type, the player gets a beak, solves its required gates (a thin-beak seed includes a pollinated bridge on an adjacent screen) and the Biology trial; each face enemy is markedly easier with its weakness item; the beak opens at least one gate on another face (a placeholder screen until Chemistry and Physics exist)."
+covers = ["CAP-4", "CAP-25", "CAP-10", "CAP-3"]
+after = [6, 7]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Chemistry face (Curie)"
+description = "Builds the Chemistry face at 2×2: the re-obtainable decay item with half-life stages (glow lights dark rooms, unstable blasts walls, lead holds switches) and a difficulty parameter (e.g. half-life length), its gates, a softlock-check rule that the item is reachable again before stage-gated gates, a harder trial puzzle combining decay stages, its enemy types on entry 6's enemy base, the mushroom-people part set from entry 5 dressed with face dialogue and art, and modules carrying entry 3's gate slots (including slots for other faces' items), hidden-item slots and one core-entrance slot."
+verify = "Each decay stage solves its puzzle type, the item can be re-obtained after full decay, the Chemistry trial pays out, each face enemy is markedly easier with its weakness item, and the decay item opens at least one gate on another face."
+covers = ["CAP-5", "CAP-25", "CAP-10", "CAP-3"]
+after = [8]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Physics face (Einstein)"
+description = "Builds the Physics face at 2×2: draggable boulders whose mass slows time near timed doors (more mass, more slowing, with a difficulty parameter for boulder count), its gates, a softlock-check rule that enough boulders are reachable for each required timed door, a harder trial puzzle with several timed doors, its enemy types on entry 6's enemy base, the alien part set from entry 5 dressed with face dialogue and art, and modules carrying entry 3's gate slots (including slots for other faces' items), hidden-item slots and one core-entrance slot."
+verify = "A timed door that can't be passed without boulders becomes passable with the required boulders beside it, the Physics trial pays out, each face enemy is markedly easier with its weakness item, and the boulder mechanic opens at least one gate on another face."
+covers = ["CAP-6", "CAP-25", "CAP-10", "CAP-3"]
+after = [8, 9]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Core boss: single-phase Maxwell's Demon"
+description = "Adds the core arena, entered through each built face's core-entrance slot (entry 3) and open from run 1, with a single-phase Maxwell's Demon beaten by mixing an ordered arena faster than it restores order, a phase slot for later phases, and win/lose states that raise a run-end event (entry 12 acts on it); in-game text and imagery speak of the Partition and never say sort; falls back to a simpler boss if the demon is not working."
+verify = "The core can be entered from each built face, a skilled player beats the demon with the starting kit, and win and loss each raise the run-end event."
+covers = ["CAP-11", "CAP-2"]
+after = [3, 6]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Run loop, meta currency and upgrades"
+description = "Ends a run on player death (entry 6) or the boss's run-end event (entry 11), resets abilities and rolls a new seed; pays meta currency on trial completion events (entry 4), the core boss, and hidden meta-currency items it places in hidden-item slots (entry 3); adds the stat upgrade shop; saves meta progress in a versioned, extensible save format that tracks per-ability versions; and tunes first-run difficulty."
+verify = "After a run ends, the next run starts in town with reset abilities and a new layout, and upgrades bought and the meta-currency balance are still there after reloading the browser tab."
+covers = ["CAP-12", "CAP-13", "CAP-25"]
+after = [4, 6, 9, 10, 11]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Refactor sweep"
+description = "Cleans up code across the epic, with scope set at start from the build plans and deferred review findings; cleanup only."
+verify = "All tests and the seed sweep pass unchanged after the sweep."
+covers = []
+after = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 14
+type = "story"
+title = "First itch.io release and full-run check"
+description = "Runs the seed sweep and full playtests against the epic's Done when and republishes the WebGL build to the itch.io page from entry 1."
+verify = "Three or more seeds play from town to boss with no softlock, and on the itch.io page in a fresh browser a full run ends, upgrades are bought, and they still apply in the next run after a tab reload."
+covers = ["CAP-12"]
+after = [13]
+hitl = true
+risk = "medium"

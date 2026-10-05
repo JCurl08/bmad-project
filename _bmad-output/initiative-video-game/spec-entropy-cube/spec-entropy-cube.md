@@ -24,7 +24,7 @@ A vision to realize, plus a learning goal. The developer wants a campy, lighthea
 Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.md`.
 
 - **CAP-1** [Must]
-  - **intent:** Each run builds a seeded cube world of 6 faces × 3×3 screens. The Town face is always the start. The 5 science faces and their screens are rearranged when the player leaves town.
+  - **intent:** Each run builds a seeded cube world of 6 faces × N×N screens (2×2 at Must tier, 3×3 at Should tier). The Town face is always the start. The built science faces and their screens are rearranged when the player leaves town, and faces not built yet are sealed.
   - **success:** The same seed reproduces an identical layout. Two different seeds produce different face and screen arrangements. The run always starts on the Town face.
 - **CAP-2** [Must]
   - **intent:** The player explores screen to screen, as in classic Zelda, crossing cube edges onto adjacent faces. The core is reachable from every face.
@@ -41,10 +41,10 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 - **CAP-6** [Must]
   - **intent:** On the Physics face (Einstein), boulders moved near a timed door slow time, so the door stays open longer. More mass slows time further.
   - **success:** A door that can't be passed with no boulders becomes passable with the required number of boulders next to it.
-- **CAP-7** [Must]
+- **CAP-7** [Should]
   - **intent:** The Math face (Euler) has cross-every-bridge-exactly-once puzzles.
   - **success:** Every generated bridge layout is checked as solvable, and the door opens only after an exactly-once crossing.
-- **CAP-8** [Must]
+- **CAP-8** [Should]
   - **intent:** The Earth & Atmosphere face has weather hazards, quake crevices to cross, and a calm hurricane-eye centre screen. Its item is a weather wand that controls one phenomenon at first and gains more with upgrades.
   - **success:** Each hazard measurably changes movement (wind pushes, snow causes sliding, freezing rain slows), and the wand's phenomenon solves at least one gate on the face.
 - **CAP-9** [Must]
@@ -60,8 +60,11 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
   - **intent:** A run ends on death or victory. Abilities then reset and the next run gets a new seed. The whole map can be explored on the first run, but it is very hard: enemies outmatch the starting kit, NPCs share little, and some gates stay out of reach until later runs.
   - **success:** After a run ends, the next run starts in town with reset abilities and a new layout, and nothing on the map is permanently blocked for a first-run player.
 - **CAP-13** [Must]
-  - **intent:** During a run, the player finds meta currency from bosses and hidden items, and spends it after the run on persistent stat upgrades: health, defence, power and speed.
+  - **intent:** During a run, the player finds meta currency from the core boss, face trial puzzles (CAP-25) and hidden items, and spends it after the run on persistent stat upgrades: health, defence, power and speed.
   - **success:** Upgrades bought in one session are still applied after quitting and relaunching.
+- **CAP-25** [Must]
+  - **intent:** Each science face ends in a harder trial puzzle that combines its mechanic, and solving it pays meta currency. This replaces minibosses; the core final boss stays a boss.
+  - **success:** Each built face's trial can be solved with that face's item and pays meta currency that is still there after the run ends.
 - **CAP-14** [Should]
   - **intent:** Talk order in town drafts the run. The first race the player talks to becomes an ally, and the last race and any skipped races become hostile for the run.
   - **success:** Ally bonuses apply (item upgrade or extra ability, better hints, unlocked areas, healing items), and every member of a hostile race attacks on sight.
@@ -74,7 +77,7 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 - **CAP-17** [Should]
   - **intent:** A re-collected ability returns as an improved version.
   - **success:** Collecting an ability in a later run gives a measurably stronger or expanded version than the previous run's.
-- **CAP-24** [Should]
+- **CAP-24** [Could, cut for now]
   - **intent:** Enemies mainly drop a run-only currency that the player spends during the same run and loses when the run ends.
   - **success:** Run currency can be spent mid-run, resets to zero at the start of the next run, and never converts into meta currency.
 - **CAP-18** [Could]
@@ -98,10 +101,10 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 
 ## Constraints
 
-- One developer, 14 days. Must scope is complete by the day-11 checkpoint, and day 14 is reserved for polish and playtests.
+- One developer, 14 days at most. The target is to finish all Must scope by the end of the week of 2026-10-05 (about 2026-10-11), working longer days. Should work follows, and the last day is reserved for polish and playtests.
 - 2D in Unity, built with Unity's built-in 2D tools. The developer is learning Unity, so simple implementations win.
 - Release target is **WebGL on itch.io**, with a Windows desktop build as the fallback. Saves must work in browser storage, audio may only start after the player's first input, and the build should stay small.
-- Content budget is 54 screens. If behind at day 5, drop to 2×2 faces (24 screens). Never cut puzzle types.
+- The Must tier ships 3 science faces (Biology, Chemistry, Physics) at 2×2 screens. Math, Earth & Atmosphere and 3×3 faces come next, in the Should tier.
 - Audience is pre-teens to adults, like *Ocarina of Time*. Camp humour only, no explicit innuendo (`lore-and-tone.md`).
 - The game never says "sort". The demon's order is shown through abstract imagery and named "the Partition".
 - The order the player talks to races in town is the only player influence on the shuffle.
@@ -110,26 +113,24 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 ## Non-goals
 
 - Psychology (Freud) and Computer Science (Turing) faces, and the dream layer.
-- Leaving science themes out of a run. All 5 appear in every run.
+- Leaving built science faces out of a run. Every built face appears in every run.
 - Shuffle-nudging levers beyond talk order in town, including a death-steered shuffle.
 - The janitor premise.
 - 3D.
 
 ## Success signal
 
-- A new player can start a fresh seed, draft allies in town, explore all 5 science faces, solve each face's signature puzzle and beat the core boss. Three or more seeds play start to finish with no softlocks, and two different seeds visibly route the player through the faces in different orders.
+- A new player can start a fresh seed in town, explore every science face in the build (at least 3), solve each face's signature puzzle and trial, and beat the core boss. Three or more seeds play start to finish with no softlocks, and two different seeds visibly route the player through the faces in different orders.
 
 ## Assumptions
 
 - Faces are assembled by shuffling hand-built screen modules, not by generating rooms procedurally.
 - Meta progression is saved locally: browser storage on WebGL, or the local disk on desktop.
-- Run currency (CAP-24) is a Should, because the Must loop works with meta currency alone. By default it is spent at merchant-role NPCs.
+- Run currency (CAP-24) is cut for now. If it returns, it is spent at merchant-role NPCs.
 - An "improved" re-collected ability (CAP-17) is improved relative to its version in the previous run.
 
 ## Open Questions
 
-- What does run currency buy (healing, ammo, temporary items)?
-- Does "bosses" include a miniboss on each face, or only the core boss?
 - What is the final title? "Entropy Cube" is a working title.
 - Should Anning and Richter be locked in as the earth-face deities? (deferred)
 - What are the friendship threshold values? (deferred to playtesting)

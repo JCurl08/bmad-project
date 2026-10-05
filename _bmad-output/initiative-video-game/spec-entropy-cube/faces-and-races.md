@@ -1,6 +1,6 @@
 # Faces and Races
 
-The world has 6 faces of 3×3 screens each. The Town face is fixed as the start. The 5 science faces are rearranged each run, and the final boss lives in the cube's core.
+The world has 6 faces of N×N screens each (2×2 at Must tier, 3×3 at Should tier). The Town face is fixed as the start. The built science faces are rearranged each run, and faces not built yet are sealed. Each face ends in a harder trial puzzle, and the final boss lives in the cube's core.
 
 | Face | Deity | Race | Signature puzzle / item | Gate rule |
 |---|---|---|---|---|
