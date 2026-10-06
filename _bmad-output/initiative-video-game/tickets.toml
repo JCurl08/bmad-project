@@ -18,4 +18,4 @@ id = 3
 slug = "epic-stretch"
 title = "Deeper progression and chaos"
 covers = ["CAP-18", "CAP-19", "CAP-20", "CAP-21", "CAP-22", "CAP-23", "CAP-24"]
-after = [{ epic = 1, needs = "save system, ability collection, commitment mechanic, seed-sweep tool, enemies (currency drops), NPC merchant role" }, { epic = 2, needs = "town draft (CAP-14) for CAP-18/21; improved abilities (CAP-17) for CAP-19; weather hazards (CAP-8) for CAP-23" }]
+after = [{ epic = 1, needs = "save system, ability collection, commitment mechanic, seed-sweep tool, enemies (currency drops), NPC merchant role, weather hazards (CAP-8) for CAP-23" }, { epic = 2, needs = "town draft (CAP-14) for CAP-18/21; improved abilities (CAP-17) for CAP-19" }]

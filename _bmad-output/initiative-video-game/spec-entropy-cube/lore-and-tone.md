@@ -1,7 +1,7 @@
 # Lore and Tone
 
 ## Lore
-- Long ago, every race lived mixed together. **The Partition**, Maxwell's Demon's doing, split them onto separate faces.
+- Long ago, every race lived mixed together. **The Partition**, the doing of the Demon* (inspired by Maxwell's Demon; never named that in game), split them onto separate faces.
 - The town, built in ancient ruins that mix every face's style, is the last unpartitioned place. It is busy, mismatched and friendly.
 - The player is the embodiment of entropy and fights to undo the Partition. Entropy is the *positive* force: mixing means living together, and order means separation.
 - The world's arc runs from order to chaos. The cube starts out ordered, like a solved Rubik's cube, and grows more chaotic as the player wins.
