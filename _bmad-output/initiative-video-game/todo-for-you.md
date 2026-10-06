@@ -27,6 +27,17 @@ You told me to keep working while you were away, so I approved the build plans m
 - `epic-playable-cube/story-screen-modules-and-the-town-exit-shuffle-plan.md` (story 1.3)
 - `epic-playable-cube/story-items-gates-one-way-gates-and-trial-rooms-plan.md` (story 1.4)
 - `epic-playable-cube/story-lego-npcs-and-dialogue-plan.md` (story 1.5)
+- `epic-playable-cube/story-health-enemies-and-item-weak-combat-plan.md` (story 1.6)
+- `epic-playable-cube/story-town-face-hub-plan.md` (story 1.7)
+- `epic-playable-cube/story-biology-face-darwin-vertical-slice-plan.md` (story 1.8)
+- `epic-playable-cube/story-chemistry-face-curie-plan.md` (story 1.9)
+- `epic-playable-cube/story-physics-face-einstein-plan.md` (story 1.10)
+
+Design calls made without you, worth a quick yes or no:
+- **Biology:** the beak gate "difficulty" is the number of hits needed (1, or 2 when the face has 4+ beak gates).
+- **Chemistry:** isotope gates on *other* faces always use the lead stage, because glow and unstable expire too fast to cross faces. The dispenser takes spent lead back.
+- **Physics:** the walk time to timed doors is tuned per door, so the required boulder count is exact. Speed upgrades are compensated.
+- **Town:** NPCs are respawned (with identical results) when you first leave town.
 
 Each plan's "Review Triage Log" lists what the reviewer found and what was patched or rejected.
 
@@ -39,3 +50,5 @@ Things worth checking by eye, since only automated tests have looked at them:
 - Do face crossings look smooth, with no black flash?
 - Do the NPCs read as Lego-style mixes, and is the dialogue campy enough?
 - Do the gates, alcoves and item pickups make sense spatially?
+- **F7** spawns a test enemy. Hit it bare (about 8 hits) versus with its weakness item (2 hits).
+- Play each face: get the beak / isotope / Mass Mitt and use it on its gates and trial. Do the timed doors feel fair with keyboard movement?

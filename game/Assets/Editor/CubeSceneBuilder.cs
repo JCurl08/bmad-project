@@ -16,6 +16,9 @@ using UnityEngine.SceneManagement;
 /// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
 /// for Curie's (the player carries the Isotope it sets up for each run), and PhysicsFace for Einstein's (the player
 /// carries the MassMitt it sets up for each run).
+/// The run's outcome lives in a RunState (one per scene, reset on every rebuild). The CoreArena (Maxwell's Demon) puts a
+/// portal on each built face's active core-entrance slot on every reveal and raises RunState's run-end event on victory or
+/// defeat; a CoreHud shows its Order ↔ Entropy meter and the outcome.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -122,6 +125,15 @@ public static class CubeSceneBuilder
         var hud = new GameObject("Combat HUD").AddComponent<CombatHud>();
         hud.Health = health;
         hud.Equipment = equipment;
+
+        // The run's outcome (one per scene) and the core arena: portals on every built face's core slot lead to
+        // Maxwell's Demon; victory or defeat ends the run through the RunState.
+        var runState = new GameObject("Run State").AddComponent<RunState>();
+        runState.World = world;
+        var arena = new GameObject("Core Arena").AddComponent<CoreArena>();
+        arena.Configure(world, navigator, runState);
+        debug.CoreArena = arena;
+        new GameObject("Core HUD").AddComponent<CoreHud>().Arena = arena;
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
         {

@@ -9,6 +9,8 @@ namespace Game.Cube
     /// point on the next face, keeping the position along the edge. A step into a sealed face is a wall.
     /// Arriving on a built science face (the first crossing off Town, or a debug teleport) while the science
     /// faces are unrevealed reveals (lays out) them before the player is moved.
+    /// While the player is outside the cube (in the core arena, via EnterCoreArena) edge crossing is off; any teleport onto a
+    /// screen (a new run, a debug jump) turns it back on.
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class CubeNavigator : MonoBehaviour
@@ -32,6 +34,9 @@ namespace Game.Cube
 
         public ScreenAddress Current =>
             world != null ? new ScreenAddress(Face, world.CellAt(Face, Position)) : new ScreenAddress(Face, Vector2Int.zero);
+
+        /// <summary>True while the player is in the core arena (outside every face): edges are not checked and Current is meaningless.</summary>
+        public bool InCoreArena { get; private set; }
 
         /// <summary>Number of completed face crossings; handy for tests and the overlay.</summary>
         public int Crossings { get; private set; }
@@ -90,9 +95,20 @@ namespace Game.Cube
         public void TeleportTo(ScreenAddress address, Facing facing)
         {
             RevealIfArriving(address.Face);
+            InCoreArena = false;
             Face = address.Face;
             Facing = facing;
             SetPosition(world.ScreenCenter(address));
+        }
+
+        /// <summary>
+        /// Leaves the cube for a place outside every face (the core arena): snaps the player there and suspends edge
+        /// crossing until the next TeleportTo.
+        /// </summary>
+        public void EnterCoreArena(Vector2 position)
+        {
+            InCoreArena = true;
+            SetPosition(position);
         }
 
         /// <summary>Reveals the science layout when arriving on a built science face while it is still unrevealed.</summary>
@@ -104,7 +120,7 @@ namespace Game.Cube
 
         private void CheckEdges()
         {
-            if (world == null || world.Model == null) return;
+            if (world == null || world.Model == null || InCoreArena) return;
 
             Vector2 extent = world.FaceExtent;
             Vector2 origin = world.FaceOrigin(Face);

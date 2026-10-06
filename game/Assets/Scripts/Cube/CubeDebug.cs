@@ -13,12 +13,14 @@ namespace Game.Cube
     /// F3 spawns one NPC of each race around the player (true hints for the run at hintDensity), F4 toggles
     /// hostility for the race of the NPC nearest the player. F7 spawns a placeholder enemy near the player, weak
     /// to a random owned item (or the Biology item when nothing is owned). Spawned NPCs and enemies are
-    /// removed on a rebuild.
+    /// removed on a rebuild. While the player is in the core arena, the overlay says so (instead of a face and cell) and
+    /// F3/F7 spawn inside the arena's screen.
     /// </summary>
     public class CubeDebug : MonoBehaviour
     {
         [SerializeField] private CubeWorld world;
         [SerializeField] private CubeNavigator navigator;
+        [SerializeField] private CoreArena coreArena;
         [SerializeField] private bool overlayVisible = true;
         [SerializeField] private bool slotMarkersVisible;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
@@ -48,6 +50,31 @@ namespace Game.Cube
             get => navigator;
             set => navigator = value;
         }
+
+        /// <summary>The core arena (found in the scene when not set).</summary>
+        public CoreArena CoreArena
+        {
+            get
+            {
+                if (coreArena == null) coreArena = FindAnyObjectByType<CoreArena>();
+                return coreArena;
+            }
+            set => coreArena = value;
+        }
+
+        /// <summary>True while the player is in the core arena.</summary>
+        public bool PlayerInCoreArena => navigator != null && navigator.InCoreArena;
+
+        /// <summary>Centre of the screen the player is on: the arena's while in the core arena, else the face screen's.</summary>
+        public Vector2 PlayerScreenCentre()
+        {
+            if (PlayerInCoreArena && CoreArena != null) return CoreArena.Centre;
+            ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
+            return world.ScreenCenter(here);
+        }
+
+        /// <summary>What the overlay shows in place of the face while the player is in the core arena.</summary>
+        public const string CoreArenaLabel = "Core arena";
 
         public bool OverlayVisible => overlayVisible;
 
@@ -146,8 +173,7 @@ namespace Game.Cube
             if (npcRoot == null) npcRoot = new GameObject("Debug NPCs").transform;
 
             Transform player = navigator != null ? navigator.transform : null;
-            ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
-            Vector2 screenCentre = world.ScreenCenter(here);
+            Vector2 screenCentre = PlayerScreenCentre();
             Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
             const float margin = 1f;
             Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
@@ -216,8 +242,7 @@ namespace Game.Cube
             if (npcRoot == null) npcRoot = new GameObject("Debug NPCs").transform;
 
             Transform player = navigator != null ? navigator.transform : null;
-            ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
-            Vector2 screenCentre = world.ScreenCenter(here);
+            Vector2 screenCentre = PlayerScreenCentre();
             Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
             const float margin = 1f;
             Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
@@ -321,6 +346,30 @@ namespace Game.Cube
             return current;
         }
 
+        /// <summary>The overlay text: seed, then the face, theme, cell and module (or "Core arena" while in it), then hostility and keys.</summary>
+        public string OverlayText
+        {
+            get
+            {
+                if (world == null || world.Model == null) return "";
+                CubeModel model = world.Model;
+                string head = $"Seed {model.Seed}   N={model.FaceSize}   Science {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
+                string tail = $"Hostile races: {HostileText()}\n" +
+                              "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy";
+                if (PlayerInCoreArena)
+                    return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
+                ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
+                string facing = navigator != null ? navigator.Facing.ToString() : "-";
+                ScreenModule module = world.ModuleAt(here);
+                string moduleText = module != null ? module.name : model.IsSealed(here.Face) ? "-" : "(unrevealed)";
+                return head +
+                       $"Face {here.Face}   Theme {model.ThemeOf(here.Face)}{(model.IsSealed(here.Face) ? " (sealed)" : "")}\n" +
+                       $"Cell ({here.Cell.x},{here.Cell.y})   Entered facing {facing}\n" +
+                       $"Module {moduleText}\n" +
+                       tail;
+            }
+        }
+
         private void OnGUI()
         {
             if (world == null || world.Model == null) return;
@@ -335,18 +384,7 @@ namespace Game.Cube
             if (slotMarkersVisible) DrawSlotLabels();
             if (!overlayVisible) return;
 
-            CubeModel model = world.Model;
-            ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
-            string facing = navigator != null ? navigator.Facing.ToString() : "-";
-            ScreenModule module = world.ModuleAt(here);
-            string moduleText = module != null ? module.name : model.IsSealed(here.Face) ? "-" : "(unrevealed)";
-            string text =
-                $"Seed {model.Seed}   N={model.FaceSize}   Science {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n" +
-                $"Face {here.Face}   Theme {model.ThemeOf(here.Face)}{(model.IsSealed(here.Face) ? " (sealed)" : "")}\n" +
-                $"Cell ({here.Cell.x},{here.Cell.y})   Entered facing {facing}\n" +
-                $"Module {moduleText}\n" +
-                $"Hostile races: {HostileText()}\n" +
-                "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy";
+            string text = OverlayText;
 
             var rect = new Rect(8, 8, 820, 148);
             GUI.color = new Color(0f, 0f, 0f, 0.6f);

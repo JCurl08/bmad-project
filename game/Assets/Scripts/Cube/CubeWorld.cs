@@ -18,7 +18,8 @@ namespace Game.Cube
     /// and the other variants' optional gates go into leftover home slots. Face content (IFaceContent
     /// components on this object: BiologyFace, ChemistryFace, PhysicsFace) builds its theme's gates and adds its trial and
     /// population on the reveal, and is cleared on every rebuild; content that also implements IFacePickupContent
-    /// replaces its item's pickup (Chemistry's isotope dispenser).
+    /// replaces its item's pickup (Chemistry's isotope dispenser). Revealed is also where the CoreArena puts a portal to
+    /// the cube's core on each built face's active core-entrance slot.
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
