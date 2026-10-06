@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Cube.unity
+    guid: 01c9af2798325d34b8dcb494a94aab4e
+  - enabled: 1
     path: Assets/Scenes/Tracer.unity
     guid: d5b982ba63159ae46a5e7a391e8a81f5
   m_configObjects:

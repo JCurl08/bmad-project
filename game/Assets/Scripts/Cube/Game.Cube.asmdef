@@ -1,0 +1,17 @@
+{
+    "name": "Game.Cube",
+    "rootNamespace": "Game.Cube",
+    "references": [
+        "Game.Tracer",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

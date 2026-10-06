@@ -3,6 +3,7 @@
     "rootNamespace": "Game.Tracer.Tests",
     "references": [
         "Game.Tracer",
+        "Game.Cube",
         "Unity.InputSystem",
         "Unity.InputSystem.TestFramework",
         "UnityEngine.TestRunner",
