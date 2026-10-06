@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -91,13 +92,6 @@ namespace Game.Cube.Tests
             Assert.IsTrue(world.ScienceRevealed, "Leaving Town reveals the science faces");
             Assert.IsNotNull(physics.Plan);
             yield return null;
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
         }
 
         private IEnumerator PutPlayerAt(ScreenAddress screen, Vector2 at)
@@ -237,9 +231,7 @@ namespace Game.Cube.Tests
             // The mitt: walk onto it from its screen centre.
             navigator.TeleportTo(pickup.Screen, Facing.East);
             yield return null;
-            Press(keyboard.sKey, queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => mitt.IsHeld, Timeout);
-            Release(keyboard.sKey, queueEventOnly: true);
+            yield return this.HoldUntil(keyboard.sKey, () => mitt.IsHeld, Timeout);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(mitt.IsHeld, "Walking onto the mitt picks it up");
             navigator.GetComponent<Equipment>().Equip(mitt.Item);

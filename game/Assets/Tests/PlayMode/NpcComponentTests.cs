@@ -61,14 +61,6 @@ namespace Game.Cube.Tests
             return npc;
         }
 
-        private IEnumerator PressInteract()
-        {
-            Press(keyboard.eKey, queueEventOnly: true);
-            yield return null;
-            Release(keyboard.eKey, queueEventOnly: true);
-            yield return null;
-        }
-
         [UnityTest]
         public IEnumerator Spawn_StacksThreePartSprites_WithACollider()
         {
@@ -88,17 +80,17 @@ namespace Game.Cube.Tests
             NpcTalker npc = MakeNpc(Movement.Stand, Origin);
             yield return null;
 
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsTrue(box.IsOpen, "Interact in range did not open the dialogue");
             Assert.AreSame(npc, box.Owner);
             Assert.AreEqual(npc.Spec.DisplayName, box.Speaker);
             Assert.AreEqual("one", box.CurrentLine, "The opening press must not also advance");
 
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.AreEqual("two", box.CurrentLine);
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.AreEqual("three", box.CurrentLine);
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsFalse(box.IsOpen, "The box must close after the last line");
             Assert.IsNull(box.CurrentLine);
         }
@@ -110,7 +102,7 @@ namespace Game.Cube.Tests
             player.position = Origin + new Vector2(NpcTalker.DefaultRange + 1f, 0f);
             yield return null;
 
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsFalse(box.IsOpen);
         }
 
@@ -123,13 +115,13 @@ namespace Game.Cube.Tests
             yield return null;
 
             relations.SetHostile(Race.Shape, true);
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsFalse(box.IsOpen, "A hostile NPC opened a dialogue");
             Assert.AreEqual(1, refused);
 
             relations.SetHostile(Race.Mushroom, true); // another race: no effect on this NPC
             relations.SetHostile(Race.Shape, false);
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsTrue(box.IsOpen, "Clearing the flag must restore talking");
 
             relations.SetHostile(Race.Shape, true);
@@ -234,7 +226,7 @@ namespace Game.Cube.Tests
             NpcTalker near = MakeNpc(Movement.Stand, Origin + new Vector2(1.8f, 0f), Race.Alien); // 0.8
             yield return null;
 
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsTrue(box.IsOpen);
             Assert.AreSame(near, box.Owner, "A farther NPC answered");
         }
@@ -244,7 +236,7 @@ namespace Game.Cube.Tests
         {
             NpcTalker npc = MakeNpc(Movement.Stand, Origin);
             yield return null;
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.IsTrue(box.IsOpen);
 
             Object.Destroy(npc.gameObject);
@@ -263,7 +255,7 @@ namespace Game.Cube.Tests
             yield return null;
 
             Assert.IsTrue(box.Open(friend.Spec.DisplayName, TestLines, friend));
-            yield return PressInteract();
+            yield return this.Tap(keyboard.eKey);
             Assert.AreEqual("two", box.CurrentLine);
             Assert.AreEqual(0, refused, "Refused was raised by a press meant for the open conversation");
         }

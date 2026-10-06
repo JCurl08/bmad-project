@@ -33,15 +33,15 @@ namespace Game.Cube
 
     /// <summary>
     /// Pure, deterministic placement of the hidden meta-currency items: MinCount–MaxCount of them (fewer only when the
-    /// built faces have fewer slots) in distinct hidden-item slots on the built science faces, on its own RNG stream (16),
+    /// built faces have fewer slots) in distinct hidden-item slots on the built science faces, on its own RNG stream (RngStreams.HiddenCurrency),
     /// so it changes no other draw. Hidden-item slots sit outside every alcove and off the exit lanes (the module builder
     /// enforces it, FindProblems checks it), and modules keep all exits open, so every spot is reachable from Town with no
     /// item: never behind a required or optional gate, and a pickup is a trigger, so it blocks nothing.
     /// </summary>
     public sealed class HiddenCurrencyPlacement
     {
-        /// <summary>PCG32 stream (2–15 are taken by layout, items, NPCs, faces and the core arena).</summary>
-        public const ulong RngStream = 16;
+        /// <summary>PCG32 stream for the hidden currency (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.HiddenCurrency;
 
         public const int MinCount = 4;
         public const int MaxCount = 6;

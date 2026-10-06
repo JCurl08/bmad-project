@@ -15,8 +15,8 @@ namespace Game.Cube
     /// </summary>
     public class BiologyFace : MonoBehaviour, IFaceContent, IHintDensityTarget
     {
-        /// <summary>PCG32 stream for Biology population spots and screens (plan 9).</summary>
-        public const ulong PopulationRngStream = 10;
+        /// <summary>PCG32 stream for Biology population spots and screens (see RngStreams).</summary>
+        public const ulong PopulationRngStream = RngStreams.BiologyPopulation;
 
         public const int WeevilCount = 2;
         public const int PuffCount = 1;
@@ -134,20 +134,8 @@ namespace Game.Cube
 
         public void Clear()
         {
-            foreach (NpcTalker npc in finches)
-            {
-                if (npc == null) continue;
-                npc.gameObject.SetActive(false);
-                Destroy(npc.gameObject);
-            }
-            foreach (Enemy enemy in enemies)
-            {
-                if (enemy == null) continue;
-                enemy.gameObject.SetActive(false);
-                Destroy(enemy.gameObject);
-            }
-            finches.Clear();
-            enemies.Clear();
+            FaceContent.DestroyAll(finches);
+            FaceContent.DestroyAll(enemies);
             beakGates.Clear();
             Trial = null; // lives under its module, which the rebuild destroys
             Plan = null;
@@ -176,15 +164,7 @@ namespace Game.Cube
             Trial.Completed += currency => Debug.Log($"Biology trial complete: +{currency} (seed {world.Seed}).");
         }
 
-        private List<ScreenAddress> ShuffledScreens(SeededRng rng)
-        {
-            var screens = new List<ScreenAddress>();
-            for (int y = 0; y < Plan.FaceSize; y++)
-                for (int x = 0; x < Plan.FaceSize; x++)
-                    screens.Add(new ScreenAddress(Plan.Face, x, y));
-            rng.Shuffle(screens);
-            return screens;
-        }
+        private List<ScreenAddress> ShuffledScreens(SeededRng rng) => FaceContent.ShuffledScreens(Plan.Face, Plan.FaceSize, rng);
 
         private void SpawnFinches(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
@@ -194,14 +174,13 @@ namespace Game.Cube
             for (int i = 0; i < BiologyPopulation.FinchCount; i++)
             {
                 NpcSpec spec = BiologyPopulation.FinchSpec(world.Seed, i);
-                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
+                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
                 {
                     Debug.LogWarning($"BiologyFace: no clear spot for {spec} (seed {world.Seed}).");
                     continue;
                 }
                 Vector2 centre = world.ScreenCenter(screen);
-                Rect quadrant = TownPlan.QuadrantBounds(feet);
-                var bounds = new Rect(centre + quadrant.position, quadrant.size);
+                Rect bounds = FaceContent.WanderBounds(centre, feet);
                 List<string> lines = BiologyPopulation.LinesFor(spec, facts, hintDensity, Plan.Beak, i == 0);
                 NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
                 npc.name = $"Biology Finch {i} {spec.DisplayName}";
@@ -216,37 +195,16 @@ namespace Game.Cube
             for (int i = 0; i < WeevilCount + PuffCount; i++)
             {
                 BiologyEnemyKind kind = i < WeevilCount ? BiologyEnemyKind.SeedWeevil : BiologyEnemyKind.PollenPuff;
-                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
+                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
                 Vector2 centre = world.ScreenCenter(screen);
-                Rect quadrant = TownPlan.QuadrantBounds(feet);
-                var bounds = new Rect(centre + quadrant.position, quadrant.size);
-                Vector2 at = centre + feet + new Vector2(0f, Enemy.BodyRadius);
+                Rect bounds = FaceContent.WanderBounds(centre, feet);
+                Vector2 at = FaceContent.EnemyPosition(centre, feet);
                 enemies.Add(BiologyEnemies.Spawn(kind, BiologyEnemies.WeaknessFor(kind, world), at, bounds, target, root,
                     world.Material));
             }
         }
 
-        /// <summary>A spot on screens[start], else on the next screens round the face.</summary>
-        private static bool TryPickAnywhere(FaceSpots spots, List<ScreenAddress> screens, int start,
-            out ScreenAddress screen, out Vector2 feet)
-        {
-            for (int k = 0; k < screens.Count; k++)
-            {
-                screen = screens[(start + k) % screens.Count];
-                if (spots.TryPick(screen, out feet)) return true;
-            }
-            screen = default;
-            feet = default;
-            return false;
-        }
-
-        private Transform ResolvePlayer()
-        {
-            if (player != null) return player;
-            var navigator = FindAnyObjectByType<CubeNavigator>();
-            if (navigator != null) player = navigator.transform;
-            return player;
-        }
+        private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);
 
         private void OnDestroy()
         {

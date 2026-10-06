@@ -105,12 +105,6 @@ namespace Game.Cube.Tests
             return new[] { q + new Vector2(0f, below), q + new Vector2(-0.95f, below), q + new Vector2(0.95f, below) };
         }
 
-        private static IEnumerator Steps(int steps = 3)
-        {
-            for (int i = 0; i < steps; i++) yield return new WaitForFixedUpdate();
-            yield return null;
-        }
-
         private static void Put(Rigidbody2D body, Vector2 at)
         {
             body.position = at;
@@ -138,10 +132,10 @@ namespace Game.Cube.Tests
         private IEnumerator RunFromSwitch(Rigidbody2D body, TimedDoorGate door)
         {
             Put(body, door.Switch.transform.position);
-            yield return Steps(2);
+            yield return TestInput.PhysicsSteps(2);
             Assert.IsTrue(door.IsAjar || door.IsOpen, "Stepping on the switch opens the door");
             yield return MoveTo(body, door.Threshold, TimeField.BasePlayerSpeed, () => door.IsOpen);
-            yield return Steps(2);
+            yield return TestInput.PhysicsSteps(2);
         }
 
         // ---------- No mitt ----------
@@ -152,7 +146,7 @@ namespace Game.Cube.Tests
             MassMitt mitt = MakePlayer(Origin, false);
             var body = mitt.Body;
             Boulder boulder = MakeBoulder(Origin + new Vector2(0f, -1.0f));
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Vector2 start = boulder.Position;
 
             Assert.IsFalse(mitt.Interact(), "Interact without the mitt grabs nothing");
@@ -170,7 +164,7 @@ namespace Game.Cube.Tests
 
             // Walk straight into it for a second: it does not budge, and the player stops against it.
             yield return MoveTo(body, Origin + new Vector2(0f, -3f), TimeField.BasePlayerSpeed, null, 1f);
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.Less(Vector2.Distance(start, boulder.Position), 1e-3f, "Pushing does not move a boulder");
             Assert.Greater(body.position.y, boulder.Position.y + Boulder.Radius + TimeField.PlayerRadius - 0.1f, "The boulder stops the player");
         }
@@ -184,7 +178,7 @@ namespace Game.Cube.Tests
             Rigidbody2D body = mitt.Body;
             Assert.AreSame(mittItem, mitt.GetComponent<Equipment>().Equipped, "The mitt is equipped");
             Boulder boulder = MakeBoulder(Origin + new Vector2(1.2f, 0f));
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
 
             Assert.IsTrue(mitt.Interact(), "Interact with the mitt grabs the nearest boulder");
             Assert.AreSame(boulder, mitt.Held);
@@ -193,7 +187,7 @@ namespace Game.Cube.Tests
 
             // It follows the player (pulled to the left, keeping its offset).
             yield return MoveTo(body, Origin + new Vector2(-3f, 0f), TimeField.BasePlayerSpeed);
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.AreSame(boulder, mitt.Held, "Still held after the drag");
             Assert.Less(Vector2.Distance(boulder.Position, body.position + new Vector2(1.2f, 0f)), 0.2f, "The boulder follows at its offset");
 
@@ -201,22 +195,22 @@ namespace Game.Cube.Tests
             GameObject wall = Wall(Origin + new Vector2(2.05f, 0f), new Vector2(0.1f, 4f));
             float wallFace = 2.0f;
             yield return MoveTo(body, Origin + new Vector2(4f, 0f), TimeField.BasePlayerSpeed, null, 1.5f);
-            yield return Steps(5);
+            yield return TestInput.PhysicsSteps(5);
             Assert.LessOrEqual(boulder.Position.x - Origin.x, wallFace - Boulder.Radius + 0.03f, "The boulder stops at the wall");
             Assert.LessOrEqual(body.position.x - Origin.x, wallFace - TimeField.PlayerRadius + 0.03f, "The player is not pushed into the wall");
             Assert.IsNull(mitt.Held, "Stuck behind the player, the boulder is let go");
 
             // Let go while overlapping: the player is not shoved out (no depenetration push).
             Vector2 standing = body.position;
-            yield return Steps(5);
+            yield return TestInput.PhysicsSteps(5);
             Assert.Less(Vector2.Distance(standing, body.position), 0.02f, "Letting go never shoves the player");
 
             // Walk away, then back into it: once apart they collide again, and an unheld boulder does not move.
             yield return MoveTo(body, Origin + new Vector2(-1f, 0f), TimeField.BasePlayerSpeed);
-            yield return Steps(3);
+            yield return TestInput.PhysicsSteps(3);
             Vector2 resting = boulder.Position;
             yield return MoveTo(body, Origin + new Vector2(3f, 0f), TimeField.BasePlayerSpeed, null, 0.8f);
-            yield return Steps(3);
+            yield return TestInput.PhysicsSteps(3);
             Assert.Less(Vector2.Distance(resting, boulder.Position), 1e-3f, "An unheld boulder never moves");
             Assert.Less(body.position.x, boulder.Position.x - Boulder.Radius - TimeField.PlayerRadius + 0.1f, "The player bumps into it again");
             Object.Destroy(wall);
@@ -228,7 +222,7 @@ namespace Game.Cube.Tests
             Assert.IsNull(mitt.Held, "A second press lets go");
 
             Put(body, boulder.Position + Vector2.up * 1.0f); // above it, facing down (no PlayerMover: down)
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             var attack = mitt.GetComponent<PlayerAttack>();
             attack.TryAttack();
             Assert.AreSame(boulder, mitt.Held, "A swing with the mitt grabs");
@@ -238,7 +232,7 @@ namespace Game.Cube.Tests
             // Too far: the player leaves (a teleport), the boulder is let go.
             Assert.IsTrue(mitt.Interact());
             Put(body, body.position + new Vector2(0f, 6f));
-            yield return Steps(3);
+            yield return TestInput.PhysicsSteps(3);
             Assert.IsNull(mitt.Held, "Moving away lets go");
             Assert.IsFalse(boulder.IsGrabbed);
         }
@@ -254,7 +248,7 @@ namespace Game.Cube.Tests
             MassMitt mitt = MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f, true);
             Rigidbody2D body = mitt.Body;
             TimedDoorGate door = MakeDoor(layout);
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.IsFalse(door.IsAjar);
             Assert.IsTrue(door.Solid.enabled, "Shut until the switch is stepped on");
             Assert.AreEqual(0f, door.MassInField);
@@ -269,14 +263,14 @@ namespace Game.Cube.Tests
             Vector2[] spots = BesideTheDoor(layout);
             var boulders = new List<Boulder>();
             for (int i = 0; i < required - 1; i++) boulders.Add(MakeBoulder(Origin + spots[i]));
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(required - 1, door.MassInField, 1e-4f);
             yield return RunFromSwitch(body, door);
             Assert.IsFalse(door.IsOpen, $"Impassable with {required - 1} boulders");
 
             // The required boulders: it is still open when the player arrives, and stays open for good.
             boulders.Add(MakeBoulder(Origin + spots[required - 1]));
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(required, door.MassInField, 1e-4f);
             yield return RunFromSwitch(body, door);
             Assert.IsTrue(door.IsOpen, $"Passable with {required} boulders");
@@ -301,24 +295,24 @@ namespace Game.Cube.Tests
             TimedDoorGate door = MakeDoor(layout);
             Vector2[] spots = BesideTheDoor(layout);
             MakeBoulder(Origin + spots[0]);
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             // Unscaled, one boulder would be enough at this speed; scaled, it is not.
             Assert.IsTrue(TimeField.Passable(layout.BaseSeconds, required - 1, layout.WalkSeconds * TimeField.BasePlayerSpeed / speed));
 
             IEnumerator Run()
             {
                 Put(body, door.Switch.transform.position);
-                yield return Steps(2);
+                yield return TestInput.PhysicsSteps(2);
                 Assert.IsTrue(door.IsAjar || door.IsOpen);
                 Assert.AreEqual(layout.BaseSeconds * TimeField.BasePlayerSpeed / speed, door.ScaledBaseSeconds, 1e-3f, "Open time scaled to the speed");
                 yield return MoveTo(body, door.Threshold, speed, () => door.IsOpen);
-                yield return Steps(2);
+                yield return TestInput.PhysicsSteps(2);
             }
 
             yield return Run();
             Assert.IsFalse(door.IsOpen, "Sped up, one boulder short is still impassable");
             MakeBoulder(Origin + spots[1]);
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             yield return Run();
             Assert.IsTrue(door.IsOpen, "Sped up, the required boulders still pass");
         }
@@ -333,7 +327,7 @@ namespace Game.Cube.Tests
             for (int m = 0; m <= 3; m++)
             {
                 if (m > 0) MakeBoulder(Origin + spots[m - 1]);
-                yield return Steps();
+                yield return TestInput.PhysicsSteps();
                 int shut = door.Closings;
                 door.Trigger();
                 Assert.IsTrue(door.IsAjar);
@@ -371,7 +365,7 @@ namespace Game.Cube.Tests
             trial.Completed += c => fired.Add(c);
             MassMitt mitt = MakePlayer(Origin + new Vector2(0f, -3.5f), true);
             Rigidbody2D body = mitt.Body;
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(2, trial.Doors.Count);
             Assert.AreEqual(required, trial.Boulders.Count, "Only enough boulders for one door at a time");
 
@@ -379,13 +373,13 @@ namespace Game.Cube.Tests
             Vector2[] besideB = BesideTheDoor(b);
             var foreign = new List<Boulder>();
             for (int i = 0; i < required; i++) foreign.Add(MakeBoulder(Origin + besideB[i]));
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(0f, trial.Doors[1].MassInField, "Non-trial boulders cannot dilate a booth");
             Assert.AreEqual(required, TimeField.MassNear(trial.Doors[1].FieldCentre), 1e-4f, "They are in its field");
             yield return RunFromSwitch(body, trial.Doors[1]);
             Assert.IsFalse(trial.Doors[1].IsOpen, "Booth B does not pass on other boulders");
             foreach (Boulder f in foreign) Object.Destroy(f.gameObject);
-            yield return Steps();
+            yield return TestInput.PhysicsSteps();
 
             // The boulders beside booth A: in.
             Vector2[] nearA = BesideTheDoor(a);

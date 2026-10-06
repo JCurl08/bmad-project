@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -115,13 +116,6 @@ namespace Game.Cube.Tests
                 if (CubeLayout.IsLaidOut(world.Model, (FaceId)f)) yield return (FaceId)f;
         }
 
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.time + timeout;
-            while (!condition() && Time.time < end)
-                yield return null;
-        }
-
         private void PlacePlayer(Vector2 at)
         {
             body.position = at;
@@ -155,12 +149,7 @@ namespace Game.Cube.Tests
         {
             dir = new Vector2Int(Math.Sign(dir.x), Math.Sign(dir.y));
             if (dir == held) return;
-            var keys = new List<Key>();
-            if (dir.x > 0) keys.Add(Key.D);
-            if (dir.x < 0) keys.Add(Key.A);
-            if (dir.y > 0) keys.Add(Key.W);
-            if (dir.y < 0) keys.Add(Key.S);
-            InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(keys.ToArray()));
+            SetKeys(keyboard, WasdKeys(dir));
             held = dir;
         }
 
@@ -170,9 +159,9 @@ namespace Game.Cube.Tests
         private IEnumerator Face(Vector2Int dir)
         {
             Hold(dir);
-            yield return WaitUntilOrTimeout(() => Vector2.Angle(mover.Facing, Unit(dir)) < 0.5f, 1f);
+            yield return WaitUntilOrGameTimeout(() => Vector2.Angle(mover.Facing, Unit(dir)) < 0.5f, 1f);
             Hold(Vector2Int.zero);
-            yield return WaitUntilOrTimeout(() => body.linearVelocity.sqrMagnitude < 1e-6f, 1f);
+            yield return WaitUntilOrGameTimeout(() => body.linearVelocity.sqrMagnitude < 1e-6f, 1f);
             yield return new WaitForFixedUpdate();
             Assert.Less(Vector2.Angle(mover.Facing, Unit(dir)), 0.5f, "Facing set by the move keys");
         }
@@ -288,7 +277,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(1, particle.Knocks, "The swing reaches the particle");
             Assert.Less(Vector2.Angle(particle.Body.linearVelocity, dir), 1f, "Knocked away in the facing direction");
             Assert.AreEqual(Particle.KnockSpeed, particle.Body.linearVelocity.magnitude, 0.01f);
-            yield return WaitUntilOrTimeout(() => !particle.IsHome, 3f);
+            yield return WaitUntilOrGameTimeout(() => !particle.IsHome, 3f);
             Assert.IsFalse(particle.IsHome, "It crosses the membrane through the gap");
 
             // Straight at the shut door: it bounces back.
@@ -322,7 +311,7 @@ namespace Game.Cube.Tests
             yield return WaitAttackReady();
             attack.TryAttack();
             Assert.AreEqual(2, second.Knocks);
-            yield return WaitUntilOrTimeout(() => !second.IsHome, 2f);
+            yield return WaitUntilOrGameTimeout(() => !second.IsHome, 2f);
             Assert.IsFalse(second.IsHome, "Through the open door");
             Assert.Greater(arena.Meter, 0f, "Mixing raises the meter");
         }
@@ -376,7 +365,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(arena.FightActive, "Six across is not yet enough");
             Assert.IsEmpty(runEvents);
             warm[6].Teleport(c + new Vector2(6.5f, 3.6f));
-            yield return WaitUntilOrTimeout(() => !arena.FightActive, 1f);
+            yield return WaitUntilOrGameTimeout(() => !arena.FightActive, 1f);
 
             Assert.AreEqual(CoreOutcome.Victory, arena.Outcome);
             CollectionAssert.AreEqual(new[] { true }, runEvents, "RunEnded(true) once");
@@ -426,14 +415,14 @@ namespace Game.Cube.Tests
             PlacePlayer(c + new Vector2(-1.8f, -2f));
             yield return new WaitForFixedUpdate();
             OrderPulse pulse = demon.FirePulse((Vector2)navigator.transform.position - demon.Position);
-            yield return WaitUntilOrTimeout(() => pulse == null, 3f);
+            yield return WaitUntilOrGameTimeout(() => pulse == null, 3f);
             Assert.AreEqual(CombatMath.Incoming(MaxwellDemon.DefaultPulseDamage, 0), max - health.Current, 1e-4f, "A hit");
 
             // Within the invulnerability window: no damage.
             Assert.IsTrue(health.IsInvulnerable);
             float before = health.Current;
             OrderPulse second = demon.FirePulse((Vector2)navigator.transform.position - demon.Position);
-            yield return WaitUntilOrTimeout(() => second == null, 3f);
+            yield return WaitUntilOrGameTimeout(() => second == null, 3f);
             Assert.AreEqual(before, health.Current, 1e-4f, "Invulnerability applies");
 
             // Defence applies.
@@ -442,7 +431,7 @@ namespace Game.Cube.Tests
             demon.PulseDamage = 3f;
             before = health.Current;
             OrderPulse third = demon.FirePulse((Vector2)navigator.transform.position - demon.Position);
-            yield return WaitUntilOrTimeout(() => third == null, 3f);
+            yield return WaitUntilOrGameTimeout(() => third == null, 3f);
             Assert.AreEqual(CombatMath.Incoming(3f, 1), before - health.Current, 1e-4f, "Defence applies");
             stats.Defence = 0;
             demon.PulseDamage = MaxwellDemon.DefaultPulseDamage;
@@ -454,7 +443,7 @@ namespace Game.Cube.Tests
             PlacePlayer(c + new Vector2(-4f, 2.5f));
             demon.Firing = true;
             int fired = demon.PulsesFired;
-            yield return WaitUntilOrTimeout(() => demon.Telegraphing, MaxwellDemon.PulseInterval + 1f);
+            yield return WaitUntilOrGameTimeout(() => demon.Telegraphing, MaxwellDemon.PulseInterval + 1f);
             Assert.IsTrue(demon.Telegraphing, "A telegraph first");
             Assert.AreEqual(fired, demon.PulsesFired, "No pulse during the telegraph");
             Vector2 toPlayer = ((Vector2)navigator.transform.position - demon.Position).normalized;
@@ -465,9 +454,9 @@ namespace Game.Cube.Tests
             Vector2 side = Vector2.Perpendicular(demon.TelegraphAim);
             if ((body.position + side * 2f).y > c.y + CoreArena.InnerHalf.y - 0.5f) side = -side;
             yield return MoveTo(body.position + side * 2f, TimeField.BasePlayerSpeed);
-            yield return WaitUntilOrTimeout(() => demon.PulsesFired > fired, MaxwellDemon.TelegraphSeconds + 0.5f);
+            yield return WaitUntilOrGameTimeout(() => demon.PulsesFired > fired, MaxwellDemon.TelegraphSeconds + 0.5f);
             Assert.AreEqual(fired + 1, demon.PulsesFired, "Then the pulse");
-            yield return WaitUntilOrTimeout(() => arena.Pulses.Count == 0, 3f);
+            yield return WaitUntilOrGameTimeout(() => arena.Pulses.Count == 0, 3f);
             Assert.AreEqual(before, health.Current, 1e-4f, "A player who steps aside is not hit");
             Assert.IsTrue(arena.FightActive);
         }
@@ -483,7 +472,7 @@ namespace Game.Cube.Tests
             arena.FightEnded += v => order.Add($"fight {v}");
             runState.RunEnded += v => order.Add($"run {v} {arena.Outcome}");
             // Standing still: the first pulse lands.
-            yield return WaitUntilOrTimeout(() => health.IsDead, MaxwellDemon.FirstPulseDelay + MaxwellDemon.TelegraphSeconds + 3f);
+            yield return WaitUntilOrGameTimeout(() => health.IsDead, MaxwellDemon.FirstPulseDelay + MaxwellDemon.TelegraphSeconds + 3f);
             Assert.IsTrue(health.IsDead, "An order pulse finishes the player");
             yield return null;
             Assert.AreEqual(CoreOutcome.Defeat, arena.Outcome);
@@ -529,7 +518,7 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(hits + 1, arena.Demon.HitsTaken, $"swing {i} lands on the Demon");
                 yield return new WaitForFixedUpdate();
             }
-            yield return WaitUntilOrTimeout(() => !arena.FightActive, 1f);
+            yield return WaitUntilOrGameTimeout(() => !arena.FightActive, 1f);
             Assert.AreEqual(CoreOutcome.Victory, arena.Outcome);
             CollectionAssert.AreEqual(new[] { true }, runEvents, "Victory through RunState");
             Assert.AreEqual(CoreHud.VictoryMessage, hud.MessageText);
@@ -540,7 +529,7 @@ namespace Game.Cube.Tests
             stats.MaxHealth = 1;
             health.ResetHealth();
             PlacePlayer(arena.Centre + new Vector2(-5f, 0f));
-            yield return WaitUntilOrTimeout(() => health.IsDead, MaxwellDemon.FirstPulseDelay + MaxwellDemon.TelegraphSeconds + 3f);
+            yield return WaitUntilOrGameTimeout(() => health.IsDead, MaxwellDemon.FirstPulseDelay + MaxwellDemon.TelegraphSeconds + 3f);
             Assert.IsTrue(health.IsDead);
             yield return null;
             Assert.AreEqual(CoreOutcome.Defeat, arena.Outcome);

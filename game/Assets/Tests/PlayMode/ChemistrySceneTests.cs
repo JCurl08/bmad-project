@@ -8,6 +8,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -92,24 +93,6 @@ namespace Game.Cube.Tests
             yield return null;
         }
 
-        private KeyControl KeyFor(Facing direction)
-        {
-            switch (direction)
-            {
-                case Facing.North: return keyboard.wKey;
-                case Facing.East: return keyboard.dKey;
-                case Facing.South: return keyboard.sKey;
-                default: return keyboard.aKey;
-            }
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
-        }
-
         private IEnumerator PutPlayerAt(ScreenAddress screen, Vector2 at)
         {
             if (navigator.Current != screen) navigator.TeleportTo(screen, Facing.East);
@@ -147,14 +130,7 @@ namespace Game.Cube.Tests
 
         private IEnumerator Face(Facing direction)
         {
-            yield return null;
-            Press(KeyFor(direction), queueEventOnly: true);
-            yield return new WaitForFixedUpdate();
-            yield return new WaitForFixedUpdate();
-            yield return null;
-            Release(KeyFor(direction), queueEventOnly: true);
-            yield return new WaitForFixedUpdate();
-            yield return null;
+            yield return this.TapThroughPhysics(KeyFor(keyboard, direction));
             Assert.AreEqual((Vector2)direction.ToVector(), attack.Facing, "Facing");
         }
 
@@ -225,9 +201,7 @@ namespace Game.Cube.Tests
             // The dispenser: walk onto it from its screen centre.
             navigator.TeleportTo(plan.Dispenser.Screen, Facing.East);
             yield return null;
-            Press(keyboard.sKey, queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => isotope.IsHeld, Timeout);
-            Release(keyboard.sKey, queueEventOnly: true);
+            yield return this.HoldUntil(keyboard.sKey, () => isotope.IsHeld, Timeout);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(isotope.IsHeld, "Walking onto the dispenser hands out an isotope");
             Assert.AreEqual(IsotopeStage.Glow, isotope.Stage);
@@ -246,18 +220,14 @@ namespace Game.Cube.Tests
                 {
                     AgeInto(IsotopeStage.Unstable);
                     yield return PutPlayerAt(spec.Screen, before);
-                    Press(KeyFor(toward), queueEventOnly: true);
-                    yield return WaitUntilOrTimeout(() => gate.IsOpen, 1.0f);
-                    Release(KeyFor(toward), queueEventOnly: true);
+                    yield return this.HoldUntil(KeyFor(keyboard, toward), () => gate.IsOpen, 1.0f);
                     yield return null;
                     Assert.IsFalse(gate.IsOpen, "An unstable isotope does not light a dark room");
                     checkedWrong = true;
                 }
                 AgeInto(IsotopeStage.Glow);
                 yield return PutPlayerAt(spec.Screen, before);
-                Press(KeyFor(toward), queueEventOnly: true);
-                yield return WaitUntilOrTimeout(() => gate.IsOpen, Timeout);
-                Release(KeyFor(toward), queueEventOnly: true);
+                yield return this.HoldUntil(KeyFor(keyboard, toward), () => gate.IsOpen, Timeout);
                 yield return null;
                 Assert.IsTrue(gate.IsOpen, $"A glowing touch opens {spec}");
             }

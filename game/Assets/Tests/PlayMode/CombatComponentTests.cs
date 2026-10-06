@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -77,21 +78,6 @@ namespace Game.Cube.Tests
             return enemy;
         }
 
-        private IEnumerator Tap(UnityEngine.InputSystem.Controls.KeyControl key)
-        {
-            Press(key, queueEventOnly: true);
-            yield return null;
-            Release(key, queueEventOnly: true);
-            yield return null;
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
-        }
-
         [UnityTest]
         public IEnumerator WeaknessHit_DealsAtLeastThreeTimesAnOtherOrBareHit()
         {
@@ -109,20 +95,20 @@ namespace Game.Cube.Tests
             Health health = enemy.Health;
             yield return null;
 
-            yield return Tap(keyboard.enterKey);
+            yield return this.Tap(keyboard.enterKey);
             float weakHit = Enemy.DefaultHealth - health.Current;
             Assert.AreEqual(4f, weakHit, 1e-4f, "Player/Attack with the weakness item");
 
             yield return new WaitForSeconds(attack.Cooldown + 0.05f);
             equipment.Equip(other);
-            yield return Tap(keyboard.enterKey);
+            yield return this.Tap(keyboard.enterKey);
             float otherHit = Enemy.DefaultHealth - weakHit - health.Current;
             Assert.AreEqual(1f, otherHit, 1e-4f, "Another item does base damage");
 
             yield return new WaitForSeconds(attack.Cooldown + 0.05f);
             equipment.Equip(null);
             float before = health.Current;
-            yield return Tap(keyboard.enterKey);
+            yield return this.Tap(keyboard.enterKey);
             float bareHit = before - health.Current;
             Assert.AreEqual(1f, bareHit, 1e-4f, "A bare attack still does base damage");
             Assert.GreaterOrEqual(weakHit, 3f * otherHit);
@@ -131,7 +117,7 @@ namespace Game.Cube.Tests
             player.GetComponent<PlayerStats>().Power = 3;
             yield return new WaitForSeconds(attack.Cooldown + 0.05f);
             before = health.Current;
-            yield return Tap(keyboard.enterKey);
+            yield return this.Tap(keyboard.enterKey);
             Assert.AreEqual(1.5f, before - health.Current, 1e-4f, "Power 3 = x1.5");
         }
 
@@ -310,7 +296,7 @@ namespace Game.Cube.Tests
 
             Vector2 at = player.transform.position;
             Press(keyboard.dKey, queueEventOnly: true);
-            yield return Tap(keyboard.enterKey);
+            yield return this.Tap(keyboard.enterKey);
             yield return new WaitForSeconds(0.3f);
             Release(keyboard.dKey, queueEventOnly: true);
             yield return null;
@@ -318,9 +304,9 @@ namespace Game.Cube.Tests
             Assert.AreEqual(0, swings, "A dead player does not attack");
             Assert.AreEqual(1, died);
 
-            yield return Tap(keyboard.digit2Key);
+            yield return this.Tap(keyboard.digit2Key);
             Assert.AreSame(a, equipment.Equipped, "A dead player cannot cycle items");
-            yield return Tap(keyboard.eKey);
+            yield return this.Tap(keyboard.eKey);
             Assert.IsFalse(box.IsOpen, "A dead player cannot talk");
             Assert.IsFalse(npc.TryTalk());
         }
@@ -380,7 +366,7 @@ namespace Game.Cube.Tests
             hud.Equipment = equipment;
             yield return null;
 
-            yield return Tap(keyboard.digit2Key);
+            yield return this.Tap(keyboard.digit2Key);
             Assert.IsNull(equipment.Equipped, "With no items, Next does nothing");
             StringAssert.Contains(CombatHud.BareHandsLabel, hud.EquippedText);
 
@@ -389,12 +375,12 @@ namespace Game.Cube.Tests
             inventory.Add(b);
             Assert.AreSame(a, equipment.Equipped);
 
-            yield return Tap(keyboard.digit2Key);
+            yield return this.Tap(keyboard.digit2Key);
             Assert.AreSame(b, equipment.Equipped, "Next");
             StringAssert.Contains("Beta Item", hud.EquippedText);
-            yield return Tap(keyboard.digit2Key);
+            yield return this.Tap(keyboard.digit2Key);
             Assert.AreSame(a, equipment.Equipped, "Next wraps");
-            yield return Tap(keyboard.digit1Key);
+            yield return this.Tap(keyboard.digit1Key);
             Assert.AreSame(b, equipment.Equipped, "Previous wraps");
             StringAssert.Contains("Beta Item", hud.EquippedText);
         }

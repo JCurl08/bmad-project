@@ -7,8 +7,8 @@ namespace Game.Cube
     /// </summary>
     public static class ItemVariants
     {
-        /// <summary>PCG32 stream for variant rolls (layout 2, items 3, NPC parts 4, wander 5, F7 6, town 7).</summary>
-        public const ulong RngStream = 8;
+        /// <summary>PCG32 stream for variant rolls (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.ItemVariants;
 
         /// <summary>The rolled variant index in [0, count) for a seed and theme; 0 when count is 1 or less.</summary>
         public static int Roll(int seed, Theme theme, int count)

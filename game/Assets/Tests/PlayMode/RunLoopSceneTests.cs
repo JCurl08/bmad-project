@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -121,13 +122,6 @@ namespace Game.Cube.Tests
             body.linearVelocity = Vector2.zero;
             navigator.transform.position = new Vector3(at.x, at.y, navigator.transform.position.z);
             Physics2D.SyncTransforms();
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.time + timeout;
-            while (!condition() && Time.time < end)
-                yield return null;
         }
 
         private List<TrialRoom> Trials()
@@ -253,7 +247,7 @@ namespace Game.Cube.Tests
             health.ResetHealth();
             var boss = (FallbackBoss)arena.CurrentPhase;
             for (int i = 0; i < boss.HitsNeeded && arena.FightActive; i++) arena.DemonHit(null);
-            yield return WaitUntilOrTimeout(() => !arena.FightActive, 1f);
+            yield return WaitUntilOrGameTimeout(() => !arena.FightActive, 1f);
             Assert.AreEqual(CoreOutcome.Victory, arena.Outcome);
             CollectionAssert.AreEqual(new[] { true }, runEvents, "No double end");
             Assert.AreEqual(RunWallet.BossVictory, loop.LastRun.Earnings.Of(EarningSource.Boss));
@@ -321,7 +315,7 @@ namespace Game.Cube.Tests
             navigator.TeleportTo(AddressOf(home), Facing.East);
             yield return new WaitForFixedUpdate();
             PlacePlayer(first.transform.position);
-            yield return WaitUntilOrTimeout(() => first == null || first.IsCollected, 1f);
+            yield return WaitUntilOrGameTimeout(() => first == null || first.IsCollected, 1f);
             Assert.IsTrue(first == null || first.IsCollected, "Touching a hidden item collects it");
             Assert.AreEqual(HiddenCurrencyPlacement.Amount, wallet.Earnings.Of(EarningSource.Hidden));
             yield return null;
@@ -439,7 +433,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(HintDensity.Full, town.HintDensity, "Full hints after the first run");
             Assert.AreEqual(HintDensity.Full, world.GetComponent<BiologyFace>().HintDensity);
             Assert.AreEqual(HintDensity.Full, debug.HintDensity);
-            yield return WaitUntilOrTimeout(() => !town.Pending && town.PopulatedSeed == newSeed, 1f);
+            yield return WaitUntilOrGameTimeout(() => !town.Pending && town.PopulatedSeed == newSeed, 1f);
             Assert.AreEqual(newSeed, town.PopulatedSeed, "Town repopulated for the new run");
 
             // The new run plays: an item pickup counts again (once per run).
@@ -473,7 +467,7 @@ namespace Game.Cube.Tests
             yield return EnterArena(77);
             var boss = (FallbackBoss)arena.CurrentPhase;
             for (int i = 0; i < boss.HitsNeeded && arena.FightActive; i++) arena.DemonHit(null);
-            yield return WaitUntilOrTimeout(() => !arena.FightActive, 1f);
+            yield return WaitUntilOrGameTimeout(() => !arena.FightActive, 1f);
             Assert.IsTrue(loop.ScreenOpen);
             Assert.IsTrue(navigator.InCoreArena);
             loop.Continue();

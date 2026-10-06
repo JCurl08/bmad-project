@@ -43,8 +43,8 @@ namespace Game.Cube
     /// </summary>
     public sealed class ChemistryPlan
     {
-        /// <summary>PCG32 stream for the Chemistry face plan (variant roll 8, Biology plan 9 and population 10; Chemistry population 12).</summary>
-        public const ulong RngStream = 11;
+        /// <summary>PCG32 stream for the Chemistry face plan (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.ChemistryPlan;
 
         /// <summary>Currency the Chemistry trial pays out (fired with TrialRoom.Completed; spent in 1.12).</summary>
         public const int TrialCurrency = 25;

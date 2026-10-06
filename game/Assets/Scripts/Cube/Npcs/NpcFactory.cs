@@ -75,8 +75,8 @@ namespace Game.Cube
     /// </summary>
     public static class NpcFactory
     {
-        /// <summary>PCG32 stream for NPC parts (themes use the default stream, CubeLayout 2, ItemPlacement 3).</summary>
-        public const ulong RngStream = 4;
+        /// <summary>PCG32 stream for NPC parts (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.NpcParts;
 
         public const int SortingOrder = 6;
 

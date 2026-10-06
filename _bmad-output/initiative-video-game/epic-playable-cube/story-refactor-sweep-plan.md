@@ -3,14 +3,14 @@ title: 'Refactor sweep'
 type: 'refactor'
 ticket: '13'
 created: '2026-10-06'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'afea9ccb94a1ec0cce6cc6711c57e622695d72c8'
 route: 'full'
 route_source: 'auto'
 risk: 'low'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/initiative-video-game/spec-entropy-cube/stack.md'
@@ -62,8 +62,18 @@ context:
 
 ## Implementation Notes
 
-- STATUS (2026-10-06): code complete and UNCOMMITTED. EditMode 186/186 passed, and determinism signatures for seeds 1–50 are unchanged. The PlayMode run was stopped by Claude Code for low system memory and was not restarted automatically. Still to run: PlayMode with `-nographics` (set env `FACE_SNAPSHOT_OUT` to compare face spawn positions against the implementer's `faces-before.txt` in the session scratchpad, if still present), and the seed sweep. Then delete `Tests/PlayMode/TmpFaceSnapshot.cs` (+ .meta), commit, and run the review.
+- Verified 2026-10-06 after the user closed Unity: PlayMode 112/112 (plus the temporary snapshot test), seed sweep 50/50, EditMode 186/186. Face spawn snapshot for seeds 1–12 (TmpFaceSnapshot via FACE_SNAPSHOT_OUT) IDENTICAL to the pre-refactor `faces-before.txt`. The temporary test was then deleted.
 - Checkpoint 1 was approved under the user's standing instruction (2026-10-05) to keep building while they are away. Review the plan on return.
+
+## Review Triage Log
+
+Pass 1 (quick lens): high 0, medium 0, low 0, false 2, maybe-false 0. Plus 1 process note.
+
+| Verdict | Route | Finding | Evidence / action |
+|---|---|---|---|
+| false | reject | PlayMode suite and sweep not run | Ran before the review, but the notes weren't updated yet. PlayMode 112/112 and sweep 50/50 on 2026-10-06. |
+| false | reject | No record that face spawns are unchanged | The snapshot comparison for seeds 1–12 was IDENTICAL, and is now recorded in Implementation Notes. |
+| n/a | process | Unrelated planning changes (entry 15, art) in the working tree | Committed separately from this story. |
 
 ## Verification
 

@@ -44,10 +44,7 @@ namespace Game.Cube.Tests
         private IEnumerator SpawnEnemyInFront(System.Action<Enemy> result)
         {
             int before = debug.DebugEnemies.Count;
-            Press(keyboard.f7Key, queueEventOnly: true);
-            yield return null;
-            Release(keyboard.f7Key, queueEventOnly: true);
-            yield return null;
+            yield return this.Tap(keyboard.f7Key);
             Assert.AreEqual(before + 1, debug.DebugEnemies.Count, "F7 spawned an enemy");
             Enemy enemy = debug.DebugEnemies[debug.DebugEnemies.Count - 1];
             enemy.GetComponent<EnemyBrain>().enabled = false;
@@ -68,10 +65,7 @@ namespace Game.Cube.Tests
             int swings = 0;
             while (!health.IsDead && swings < 30)
             {
-                Press(keyboard.enterKey, queueEventOnly: true);
-                yield return null;
-                Release(keyboard.enterKey, queueEventOnly: true);
-                yield return null;
+                yield return this.Tap(keyboard.enterKey);
                 swings++;
                 yield return new WaitForSeconds(attack.Cooldown + 0.05f);
             }

@@ -13,8 +13,8 @@ namespace Game.Cube
     /// </summary>
     public class NpcMover : MonoBehaviour
     {
-        /// <summary>RNG stream for wander targets (NPC parts use NpcFactory.RngStream).</summary>
-        public const ulong RngStream = NpcFactory.RngStream + 1;
+        /// <summary>RNG stream for wander targets (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.NpcWander;
 
         [SerializeField] private Movement movement;
         [SerializeField] private Rect bounds;

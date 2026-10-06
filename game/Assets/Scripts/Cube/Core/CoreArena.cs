@@ -21,8 +21,8 @@ namespace Game.Cube
     /// </summary>
     public class CoreArena : MonoBehaviour, IBossArena
     {
-        /// <summary>RNG stream for particle drift (the face plans use 2..14).</summary>
-        public const ulong RngStream = 15;
+        /// <summary>RNG stream for particle drift (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.CoreArenaDrift;
 
         /// <summary>The arena's screen on the world grid: below the faces (which start at y = 0), at x = 0.</summary>
         public static readonly Vector2Int DefaultArenaScreen = new Vector2Int(0, -3);

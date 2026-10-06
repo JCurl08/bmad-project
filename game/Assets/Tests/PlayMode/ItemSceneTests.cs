@@ -7,6 +7,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -59,24 +60,6 @@ namespace Game.Cube.Tests
             Assert.IsTrue(world.ScienceRevealed);
             Assert.IsNotNull(world.ItemPlacement);
             yield return null;
-        }
-
-        private KeyControl KeyFor(Facing direction)
-        {
-            switch (direction)
-            {
-                case Facing.North: return keyboard.wKey;
-                case Facing.East: return keyboard.dKey;
-                case Facing.South: return keyboard.sKey;
-                default: return keyboard.aKey;
-            }
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
         }
 
         private Gate GateAt(GatePlacement placement) =>
@@ -171,9 +154,7 @@ namespace Game.Cube.Tests
 
             // Without the item the gate stays solid.
             yield return StandBefore(offHome, slot);
-            Press(KeyFor(toward), queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => gate.IsOpen, 1.5f);
-            Release(KeyFor(toward), queueEventOnly: true);
+            yield return this.HoldUntil(KeyFor(keyboard, toward), () => gate.IsOpen, 1.5f);
             yield return null;
             Assert.IsFalse(gate.IsOpen, "The gate opened without its item");
             Assert.IsTrue(gate.Solid.enabled);
@@ -181,17 +162,13 @@ namespace Game.Cube.Tests
             // Pick the item up: it lies in the open lane below its screen centre.
             navigator.TeleportTo(open.Screen, Facing.East);
             yield return null;
-            Press(keyboard.sKey, queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => inventory.Has(item), Timeout);
-            Release(keyboard.sKey, queueEventOnly: true);
+            yield return this.HoldUntil(keyboard.sKey, () => inventory.Has(item), Timeout);
             yield return null;
             Assert.IsTrue(inventory.Has(item), $"Walking onto {open} did not pick up the item");
 
             // Walk to its gate on the other face: it opens.
             yield return StandBefore(offHome, slot);
-            Press(KeyFor(toward), queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => gate.IsOpen, Timeout);
-            Release(KeyFor(toward), queueEventOnly: true);
+            yield return this.HoldUntil(KeyFor(keyboard, toward), () => gate.IsOpen, Timeout);
             yield return null;
             Assert.IsTrue(gate.IsOpen, $"Holding {item} did not open {offHome}");
             Assert.IsFalse(gate.Solid.enabled);

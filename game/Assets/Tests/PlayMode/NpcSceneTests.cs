@@ -42,22 +42,13 @@ namespace Game.Cube.Tests
             Assert.IsNotNull(debug);
         }
 
-        private IEnumerator Tap(UnityEngine.InputSystem.Controls.KeyControl key)
-        {
-            Press(key, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(key, queueEventOnly: true);
-            yield return null;
-        }
-
         [UnityTest]
         public IEnumerator F3_SpawnsOneNpcPerRace_WithRunTrueLines_AndTalkingOpensThem()
         {
             yield return Load();
             RunFacts beforeReveal = RunFacts.Of(world);
 
-            yield return Tap(keyboard.f3Key);
+            yield return this.Tap(keyboard.f3Key, holdFrames: 2);
             IReadOnlyList<NpcTalker> npcs = debug.DebugNpcs;
             Assert.AreEqual(RaceExtensions.All.Length, npcs.Count);
             CollectionAssert.AreEquivalent(RaceExtensions.All, npcs.Select(n => n.Race));
@@ -78,17 +69,17 @@ namespace Game.Cube.Tests
             target.transform.position = at;
             yield return new WaitForFixedUpdate();
             yield return null; // input state is only valid in dynamic update
-            yield return Tap(keyboard.eKey);
+            yield return this.Tap(keyboard.eKey, holdFrames: 2);
             DialogueBox box = DialogueBox.Shared;
             Assert.IsTrue(box.IsOpen, "Interact next to an NPC did not open its dialogue");
             Assert.AreSame(target, box.Owner);
             Assert.AreEqual(target.Lines[0], box.CurrentLine);
             for (int i = 1; i < target.Lines.Count; i++)
             {
-                yield return Tap(keyboard.eKey);
+                yield return this.Tap(keyboard.eKey, holdFrames: 2);
                 Assert.AreEqual(target.Lines[i], box.CurrentLine);
             }
-            yield return Tap(keyboard.eKey);
+            yield return this.Tap(keyboard.eKey, holdFrames: 2);
             Assert.IsFalse(box.IsOpen);
 
             // The pre-reveal facts are the ones the reveal builds, so town hints stay true.
@@ -110,12 +101,12 @@ namespace Game.Cube.Tests
             nearest.GetComponent<Rigidbody2D>().position = at;
             nearest.transform.position = at;
 
-            yield return Tap(keyboard.f4Key);
+            yield return this.Tap(keyboard.f4Key, holdFrames: 2);
             Assert.IsTrue(world.Relations.IsHostile(nearest.Race));
             Assert.IsTrue(nearest.IsHostile);
             Assert.AreEqual(1, RaceExtensions.All.Count(r => world.Relations.IsHostile(r)));
 
-            yield return Tap(keyboard.f4Key);
+            yield return this.Tap(keyboard.f4Key, holdFrames: 2);
             Assert.IsFalse(world.Relations.IsHostile(nearest.Race));
 
             world.Relations.SetHostile(Race.Alien, true);

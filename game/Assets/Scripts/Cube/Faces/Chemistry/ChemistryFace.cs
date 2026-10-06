@@ -17,8 +17,8 @@ namespace Game.Cube
     /// </summary>
     public class ChemistryFace : MonoBehaviour, IFaceContent, IFacePickupContent, IHintDensityTarget
     {
-        /// <summary>PCG32 stream for Chemistry population spots, trial spots and screens (plan 11).</summary>
-        public const ulong PopulationRngStream = 12;
+        /// <summary>PCG32 stream for Chemistry population spots, trial spots and screens (see RngStreams).</summary>
+        public const ulong PopulationRngStream = RngStreams.ChemistryPopulation;
 
         public const int RadicalCount = 2;
         public const int MiteCount = 1;
@@ -162,20 +162,8 @@ namespace Game.Cube
 
         public void Clear()
         {
-            foreach (NpcTalker npc in mushrooms)
-            {
-                if (npc == null) continue;
-                npc.gameObject.SetActive(false);
-                Destroy(npc.gameObject);
-            }
-            foreach (Enemy enemy in enemies)
-            {
-                if (enemy == null) continue;
-                enemy.gameObject.SetActive(false);
-                Destroy(enemy.gameObject);
-            }
-            mushrooms.Clear();
-            enemies.Clear();
+            FaceContent.DestroyAll(mushrooms);
+            FaceContent.DestroyAll(enemies);
             stageGates.Clear();
             Trial = null; // lives under its module, which the rebuild destroys
             Dispenser = null; // likewise
@@ -208,15 +196,7 @@ namespace Game.Cube
             Trial.Completed += currency => Debug.Log($"Chemistry trial complete: +{currency} (seed {world.Seed}).");
         }
 
-        private List<ScreenAddress> ShuffledScreens(SeededRng rng)
-        {
-            var screens = new List<ScreenAddress>();
-            for (int y = 0; y < Plan.FaceSize; y++)
-                for (int x = 0; x < Plan.FaceSize; x++)
-                    screens.Add(new ScreenAddress(Plan.Face, x, y));
-            rng.Shuffle(screens);
-            return screens;
-        }
+        private List<ScreenAddress> ShuffledScreens(SeededRng rng) => FaceContent.ShuffledScreens(Plan.Face, Plan.FaceSize, rng);
 
         private void SpawnMushrooms(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
@@ -226,14 +206,13 @@ namespace Game.Cube
             for (int i = 0; i < ChemistryPopulation.MushroomCount; i++)
             {
                 NpcSpec spec = ChemistryPopulation.MushroomSpec(world.Seed, i);
-                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
+                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
                 {
                     Debug.LogWarning($"ChemistryFace: no clear spot for {spec} (seed {world.Seed}).");
                     continue;
                 }
                 Vector2 centre = world.ScreenCenter(screen);
-                Rect quadrant = TownPlan.QuadrantBounds(feet);
-                var bounds = new Rect(centre + quadrant.position, quadrant.size);
+                Rect bounds = FaceContent.WanderBounds(centre, feet);
                 List<string> lines = ChemistryPopulation.LinesFor(spec, facts, hintDensity, i == 0);
                 NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
                 npc.name = $"Chemistry Mushroom {i} {spec.DisplayName}";
@@ -248,37 +227,16 @@ namespace Game.Cube
             for (int i = 0; i < RadicalCount + MiteCount; i++)
             {
                 ChemistryEnemyKind kind = i < RadicalCount ? ChemistryEnemyKind.FreeRadical : ChemistryEnemyKind.RustMite;
-                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
+                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
                 Vector2 centre = world.ScreenCenter(screen);
-                Rect quadrant = TownPlan.QuadrantBounds(feet);
-                var bounds = new Rect(centre + quadrant.position, quadrant.size);
-                Vector2 at = centre + feet + new Vector2(0f, Enemy.BodyRadius);
+                Rect bounds = FaceContent.WanderBounds(centre, feet);
+                Vector2 at = FaceContent.EnemyPosition(centre, feet);
                 enemies.Add(ChemistryEnemies.Spawn(kind, ChemistryEnemies.WeaknessFor(kind, world), at, bounds, target, root,
                     world.Material));
             }
         }
 
-        /// <summary>A spot on screens[start], else on the next screens round the face.</summary>
-        private static bool TryPickAnywhere(FaceSpots spots, List<ScreenAddress> screens, int start,
-            out ScreenAddress screen, out Vector2 feet)
-        {
-            for (int k = 0; k < screens.Count; k++)
-            {
-                screen = screens[(start + k) % screens.Count];
-                if (spots.TryPick(screen, out feet)) return true;
-            }
-            screen = default;
-            feet = default;
-            return false;
-        }
-
-        private Transform ResolvePlayer()
-        {
-            if (player != null) return player;
-            var navigator = FindAnyObjectByType<CubeNavigator>();
-            if (navigator != null) player = navigator.transform;
-            return player;
-        }
+        private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);
 
         private void OnDestroy()
         {

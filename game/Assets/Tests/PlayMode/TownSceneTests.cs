@@ -44,15 +44,6 @@ namespace Game.Cube.Tests
             Assert.IsNotNull(town, "The Cube scene has a TownPopulation");
         }
 
-        private IEnumerator Tap(KeyControl key)
-        {
-            Press(key, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(key, queueEventOnly: true);
-            yield return null;
-        }
-
         /// <summary>Waits until the population of the current seed is in place (a rebuild spawns on the next frame).</summary>
         private IEnumerator WaitForPopulation()
         {
@@ -156,16 +147,16 @@ namespace Game.Cube.Tests
                 target.transform.position = at;
                 yield return new WaitForFixedUpdate();
                 yield return null;
-                yield return Tap(keyboard.eKey);
+                yield return this.Tap(keyboard.eKey, holdFrames: 2);
                 Assert.IsTrue(box.IsOpen, $"Interact did not open {target.Spec}");
                 Assert.AreSame(target, box.Owner);
                 Assert.AreEqual(target.Lines[0], box.CurrentLine);
                 for (int line = 1; line < target.Lines.Count; line++)
                 {
-                    yield return Tap(keyboard.eKey);
+                    yield return this.Tap(keyboard.eKey, holdFrames: 2);
                     Assert.AreEqual(target.Lines[line], box.CurrentLine);
                 }
-                yield return Tap(keyboard.eKey);
+                yield return this.Tap(keyboard.eKey, holdFrames: 2);
                 Assert.IsFalse(box.IsOpen);
             }
             StringAssert.Contains("Partition", string.Join(" ", npcs[0].Lines));
@@ -180,7 +171,7 @@ namespace Game.Cube.Tests
             List<NpcTalker> old = town.Npcs.ToList();
             int oldSeed = world.Seed;
 
-            yield return Tap(keyboard.f5Key);
+            yield return this.Tap(keyboard.f5Key, holdFrames: 2);
             Assert.AreNotEqual(oldSeed, world.Seed);
             yield return WaitForPopulation();
             yield return null;
@@ -204,15 +195,8 @@ namespace Game.Cube.Tests
             List<NpcTalker> beforeReveal = town.Npcs.ToList();
             string[] signatures = town.Specs.Select(s => s.Signature()).ToArray();
             TownSpot[] spotsBefore = town.Spots.ToArray();
-            KeyControl key = direction == Facing.East ? keyboard.dKey
-                : direction == Facing.North ? keyboard.wKey
-                : direction == Facing.West ? keyboard.aKey : keyboard.sKey;
 
-            Press(key, queueEventOnly: true);
-            float end = Time.realtimeSinceStartup + 10f;
-            while (navigator.Face == CubeModel.StartFace && Time.realtimeSinceStartup < end)
-                yield return null;
-            Release(key, queueEventOnly: true);
+            yield return this.HoldUntil(TestInput.KeyFor(keyboard, direction), () => navigator.Face != CubeModel.StartFace, 10f);
             yield return null;
 
             Assert.AreNotEqual(CubeModel.StartFace, navigator.Face, $"Walking {direction} never left Town (an NPC in the lane?)");

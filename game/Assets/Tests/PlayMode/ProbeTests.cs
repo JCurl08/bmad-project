@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
+using Game.Cube.Tests;
 
 namespace Game.Tracer.Tests
 {
@@ -91,11 +92,7 @@ namespace Game.Tracer.Tests
             yield return null;
             Assert.AreEqual(5, save.Counter);
 
-            Press(keyboard.spaceKey, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(keyboard.spaceKey, queueEventOnly: true);
-            yield return null;
+            yield return this.Tap(keyboard.spaceKey, holdFrames: 2);
 
             Assert.AreEqual(6, save.Counter, "Space did not increment the counter");
             Assert.AreEqual(6, PlayerPrefs.GetInt(SaveProbe.CounterKey, 0), "Counter was not saved to PlayerPrefs");

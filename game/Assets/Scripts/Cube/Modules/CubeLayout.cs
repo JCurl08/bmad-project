@@ -53,8 +53,8 @@ namespace Game.Cube
     /// </summary>
     public sealed class CubeLayout
     {
-        /// <summary>PCG32 stream for the layout (the theme placement uses the default stream).</summary>
-        public const ulong RngStream = 2;
+        /// <summary>PCG32 stream for the layout (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.CubeLayout;
 
         private readonly Dictionary<FaceId, FaceLayout> faces = new Dictionary<FaceId, FaceLayout>();
 

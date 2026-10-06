@@ -108,8 +108,8 @@ namespace Game.Cube
     /// </summary>
     public sealed class ItemPlacement
     {
-        /// <summary>PCG32 stream for item placement (themes use the default stream, CubeLayout stream 2).</summary>
-        public const ulong RngStream = 3;
+        /// <summary>PCG32 stream for item placement (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.ItemPlacement;
 
         /// <summary>Target number of gates per item on its home face ("mostly on the home face").</summary>
         public const int HomeGatesPerItem = 2;

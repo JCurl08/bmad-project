@@ -39,8 +39,8 @@ namespace Game.Cube
     /// </summary>
     public static class TownPlan
     {
-        /// <summary>PCG32 stream for Town population (NPC parts 4, wander 5, F7 enemy 6).</summary>
-        public const ulong RngStream = 7;
+        /// <summary>PCG32 stream for Town population (see RngStreams).</summary>
+        public const ulong RngStream = RngStreams.TownPlan;
 
         public const int MinTownsfolk = 2;
         public const int MaxTownsfolk = 4;

@@ -95,25 +95,19 @@ namespace Game.Cube.Tests
             return attack.LastReceiversHit;
         }
 
-        private static IEnumerator Physics(int steps = 3)
-        {
-            for (int i = 0; i < steps; i++) yield return new WaitForFixedUpdate();
-            yield return null;
-        }
-
         [UnityTest]
         public IEnumerator Dispense_GivesAFreshGlowingIsotope_OnlyToAPlayerHoldingNone()
         {
             Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f));
             IsotopeDispenser dispenser = Track(IsotopeDispenser.Create(null, Origin, isotopeItem, null)).GetComponent<IsotopeDispenser>();
             Track(dispenser.gameObject);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsFalse(isotope.IsHeld);
             Assert.AreEqual(IsotopeStage.None, isotope.Stage);
 
             var body = isotope.GetComponent<Rigidbody2D>();
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(isotope.IsHeld, "Touching the dispenser hands out an isotope");
             Assert.AreEqual(IsotopeStage.Glow, isotope.Stage, "A fresh isotope glows");
             Assert.AreEqual(1, dispenser.Dispensed);
@@ -125,9 +119,9 @@ namespace Game.Cube.Tests
             // Holding one already (any stage): nothing happens.
             isotope.Age = 13f;
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(1, dispenser.Dispensed, "No second isotope while holding one");
             Assert.AreEqual(1, isotope.Serial);
             Assert.AreEqual(IsotopeStage.Unstable, isotope.Stage, "The held isotope is not refreshed");
@@ -219,24 +213,24 @@ namespace Game.Cube.Tests
             var body = isotope.GetComponent<Rigidbody2D>();
             LeadPlateGate dropped = LeadPlateGate.Build(Block(Origin + new Vector2(20f, 0f)), isotopeItem, Origin, null, null);
             Track(dropped.Plate.gameObject);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
 
             // Wrong stages: standing on the plate does nothing.
             foreach (IsotopeStage wrong in new[] { IsotopeStage.Glow, IsotopeStage.Unstable })
             {
                 Give(isotope, wrong);
                 body.position = Origin;
-                yield return Physics();
+                yield return TestInput.PhysicsSteps();
                 Assert.IsFalse(dropped.IsOpen, $"{wrong} on the plate: no effect");
                 Assert.IsTrue(isotope.IsHeld, $"{wrong} is not taken");
                 body.position = Origin + new Vector2(0f, 3f);
-                yield return Physics();
+                yield return TestInput.PhysicsSteps();
             }
 
             // Lead dropped on it (stepping on): the door opens and the lead is used up.
             Give(isotope, IsotopeStage.Lead);
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(dropped.IsOpen, "Lead holds the plate down: the door opens");
             Assert.IsFalse(isotope.IsHeld, "The lead is consumed");
             Assert.AreEqual(IsotopeStage.None, isotope.Stage);
@@ -244,7 +238,7 @@ namespace Game.Cube.Tests
 
             // Lead used on a plate (a swing with lead equipped) works too; an open door's plate takes no more lead.
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             LeadPlateGate used = LeadPlateGate.Build(Block(Origin + new Vector2(30f, 0f)), isotopeItem,
                 Origin + new Vector2(0f, 3f) + Vector2.down * 1.1f, null, null);
             Track(used.Plate.gameObject);
@@ -262,18 +256,18 @@ namespace Game.Cube.Tests
             IsotopeDispenser dispenser = IsotopeDispenser.Create(null, Origin, isotopeItem, null);
             Track(dispenser.gameObject);
             var body = isotope.GetComponent<Rigidbody2D>();
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(1, dispenser.Dispensed);
 
             isotope.Age = 25f;
             Assert.AreEqual(IsotopeStage.Lead, isotope.Stage);
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(isotope.ConsumeLead(), "A plate takes the lead");
             Assert.IsFalse(isotope.IsHeld);
 
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(isotope.IsHeld, "Back at the dispenser: a new isotope");
             Assert.AreEqual(IsotopeStage.Glow, isotope.Stage, "Fresh, at the glow stage");
             Assert.Less(isotope.Age, 1f);
@@ -358,25 +352,25 @@ namespace Game.Cube.Tests
             ChemistryTrial trial = MakeTrial();
             var fired = new List<int>();
             trial.Completed += c => fired.Add(c);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
 
             // The first isotope lights the lamp by touch.
             Give(isotope, IsotopeStage.Glow);
             int first = isotope.Serial;
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(trial.Lamp.Done, "A glowing touch lights the lamp");
             Assert.AreEqual(first, trial.IsotopeSerial);
 
             // A fresh isotope (a new dispense) glowing on the lamp relights it for the new isotope.
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             isotope.Inventory.Remove(isotopeItem);
             Give(isotope, IsotopeStage.Glow);
             int second = isotope.Serial;
             Assert.AreNotEqual(first, second);
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(trial.Lamp.Done, "The lamp is lit again");
             Assert.AreEqual(second, trial.IsotopeSerial, "...for the new isotope");
             Assert.AreEqual(1, trial.Progress);
@@ -384,7 +378,7 @@ namespace Game.Cube.Tests
             // The same isotope, unstable: a real swing blasts the wall (player above it, facing down).
             Give(isotope, IsotopeStage.Unstable);
             body.position = Origin + new Vector2(5f, 0.9f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.GreaterOrEqual(Swing(isotope, isotopeItem), 0);
             Assert.IsTrue(trial.Wall.Done, "The unstable isotope's swing blasts the wall");
             Assert.AreEqual(2, trial.Progress);
@@ -392,7 +386,7 @@ namespace Game.Cube.Tests
             // Its lead, dropped by stepping on the plate, completes the trial.
             Give(isotope, IsotopeStage.Lead);
             body.position = Origin + new Vector2(10f, 0f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(trial.IsComplete);
             CollectionAssert.AreEqual(new[] { 25 }, fired);
         }
@@ -405,19 +399,19 @@ namespace Game.Cube.Tests
             ChemistryTrial trial = MakeTrial();
             int resets = 0;
             trial.ResetPuzzle += _ => resets++;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
 
             Give(isotope, IsotopeStage.Glow);
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(1, trial.Progress);
 
             // Its lead goes on the trial plate before the wall was blasted: the puzzle restarts.
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Give(isotope, IsotopeStage.Lead);
             body.position = Origin + new Vector2(10f, 0f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsFalse(isotope.IsHeld, "The plate took the lead");
             Assert.AreEqual(0, trial.Progress, "Progress does not hang on a used-up isotope");
             Assert.IsFalse(trial.Lamp.Done, "The lamp goes dark");
@@ -425,15 +419,15 @@ namespace Game.Cube.Tests
 
             // Lit again, then the isotope is used up elsewhere (another plate): the trial notices and restarts.
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Give(isotope, IsotopeStage.Glow);
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(1, trial.Progress);
             isotope.Age = 25f;
             Assert.IsTrue(isotope.ConsumeLead());
             body.position = Origin + new Vector2(0f, 3f);
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.AreEqual(0, trial.Progress);
             Assert.IsFalse(trial.Lamp.Done);
         }
@@ -445,12 +439,12 @@ namespace Game.Cube.Tests
             IsotopeDispenser dispenser = IsotopeDispenser.Create(null, Origin, isotopeItem, null);
             Track(dispenser.gameObject);
             var body = isotope.GetComponent<Rigidbody2D>();
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Give(isotope, IsotopeStage.Lead);
             int before = isotope.Serial;
 
             body.position = Origin;
-            yield return Physics();
+            yield return TestInput.PhysicsSteps();
             Assert.IsTrue(isotope.IsHeld);
             Assert.AreEqual(IsotopeStage.Glow, isotope.Stage, "Lead swapped for a fresh glowing isotope");
             Assert.AreEqual(before + 1, isotope.Serial);

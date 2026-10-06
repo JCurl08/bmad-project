@@ -9,6 +9,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -50,17 +51,6 @@ namespace Game.Cube.Tests
             Assert.AreEqual(Theme.Town, world.Model.ThemeOf(navigator.Face));
         }
 
-        private KeyControl KeyFor(Facing direction)
-        {
-            switch (direction)
-            {
-                case Facing.North: return keyboard.wKey;
-                case Facing.East: return keyboard.dKey;
-                case Facing.South: return keyboard.sKey;
-                default: return keyboard.aKey;
-            }
-        }
-
         /// <summary>The screen a straight walk from the start screen leaves the face from.</summary>
         private ScreenAddress ExitScreen(Facing direction)
         {
@@ -68,13 +58,6 @@ namespace Game.Cube.Tests
             while (world.Model.IsInside(here.Cell + direction.ToVector()))
                 here = new ScreenAddress(here.Face, here.Cell + direction.ToVector());
             return here;
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
         }
 
 
@@ -103,7 +86,7 @@ namespace Game.Cube.Tests
             Assert.IsFalse(world.ScienceRevealed, "Science faces must stay unrevealed until leaving town");
             ScreenAddress arrived = default;
             bool crossed = false;
-            Press(KeyFor(direction), queueEventOnly: true);
+            Press(KeyFor(keyboard, direction), queueEventOnly: true);
             yield return WaitUntilOrTimeout(() =>
             {
                 CheckCamera("before crossing");
@@ -119,7 +102,7 @@ namespace Game.Cube.Tests
                 CheckCamera("after crossing");
                 yield return null;
             }
-            Release(KeyFor(direction), queueEventOnly: true);
+            Release(KeyFor(keyboard, direction), queueEventOnly: true);
             yield return null;
             yield return null;
 
@@ -218,11 +201,7 @@ namespace Game.Cube.Tests
             Assert.IsNotNull(debug);
             Assert.IsFalse(debug.SlotMarkersVisible, "Slot markers should start hidden");
 
-            Press(keyboard.f2Key, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(keyboard.f2Key, queueEventOnly: true);
-            yield return null;
+            yield return this.Tap(keyboard.f2Key, holdFrames: 2);
             Assert.IsTrue(debug.SlotMarkersVisible, "F2 did not turn slot markers on");
 
             ScreenModule here = world.ModuleAt(navigator.Current);
@@ -253,11 +232,7 @@ namespace Game.Cube.Tests
             }
             Assert.AreEqual(3, coreMarkers, "One core-entrance marker per built science face");
 
-            Press(keyboard.f2Key, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(keyboard.f2Key, queueEventOnly: true);
-            yield return null;
+            yield return this.Tap(keyboard.f2Key, holdFrames: 2);
             Assert.IsFalse(debug.SlotMarkersVisible, "F2 did not turn slot markers off");
             Assert.IsTrue(world.AllModules.SelectMany(m => m.AllSlots).All(s => !s.MarkerVisible));
         }
@@ -273,7 +248,7 @@ namespace Game.Cube.Tests
                 .First(d => model.IsSealed(CubeModel.NeighborFace(CubeModel.StartFace, d)));
 
             // Walk until the player stops advancing (pressed against the wall), with a generous timeout.
-            Press(KeyFor(direction), queueEventOnly: true);
+            Press(KeyFor(keyboard, direction), queueEventOnly: true);
             float end = Time.realtimeSinceStartup + 20f;
             Vector3 last = navigator.transform.position;
             float stillSince = Time.realtimeSinceStartup;
@@ -284,7 +259,7 @@ namespace Game.Cube.Tests
                 if ((now - last).sqrMagnitude > 1e-6f) stillSince = Time.realtimeSinceStartup;
                 last = now;
             }
-            Release(KeyFor(direction), queueEventOnly: true);
+            Release(KeyFor(keyboard, direction), queueEventOnly: true);
             yield return null;
 
             Assert.AreEqual(CubeModel.StartFace, navigator.Face, $"Player crossed into sealed {CubeModel.NeighborFace(CubeModel.StartFace, direction)}");
@@ -315,22 +290,14 @@ namespace Game.Cube.Tests
             Assert.IsTrue(debug.enabled, "Debug tools must be active in the editor");
 
             int oldSeed = world.Seed;
-            Press(keyboard.f5Key, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(keyboard.f5Key, queueEventOnly: true);
-            yield return null;
+            yield return this.Tap(keyboard.f5Key, holdFrames: 2);
             Assert.AreNotEqual(oldSeed, world.Seed, "F5 did not reroll the seed");
             Assert.AreEqual(world.Seed, world.Model.Seed);
             Assert.AreEqual(world.Model.StartScreen, navigator.Current, "Reroll should return the player to the start screen");
             Assert.IsFalse(world.ScienceRevealed, "A reroll starts a new run with the science faces unrevealed");
 
             ScreenAddress before = navigator.Current;
-            Press(keyboard.f6Key, queueEventOnly: true);
-            yield return null;
-            yield return null;
-            Release(keyboard.f6Key, queueEventOnly: true);
-            yield return null;
+            yield return this.Tap(keyboard.f6Key, holdFrames: 2);
             ScreenAddress after = navigator.Current;
             Assert.AreNotEqual(before, after, "F6 did not move the player");
             Assert.IsFalse(world.Model.IsSealed(after.Face), "F6 jumped onto a sealed face");

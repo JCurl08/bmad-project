@@ -16,8 +16,8 @@ namespace Game.Cube
     /// </summary>
     public class PhysicsFace : MonoBehaviour, IFaceContent, IHintDensityTarget
     {
-        /// <summary>PCG32 stream for Physics population spots and screens (plan 13).</summary>
-        public const ulong PopulationRngStream = 14;
+        /// <summary>PCG32 stream for Physics population spots and screens (see RngStreams).</summary>
+        public const ulong PopulationRngStream = RngStreams.PhysicsPopulation;
 
         public const int FleaCount = 2;
         public const int ClingCount = 1;
@@ -168,23 +168,13 @@ namespace Game.Cube
         {
             MassMitt mitt = player != null ? player.GetComponent<MassMitt>() : null;
             if (mitt != null) mitt.Release();
-            foreach (NpcTalker npc in aliens)
-            {
-                if (npc == null) continue;
-                npc.gameObject.SetActive(false);
-                Destroy(npc.gameObject);
-            }
+            FaceContent.DestroyAll(aliens);
             if (Newton != null)
             {
                 Newton.gameObject.SetActive(false);
                 Destroy(Newton.gameObject);
             }
-            foreach (Enemy enemy in enemies)
-            {
-                if (enemy == null) continue;
-                enemy.gameObject.SetActive(false);
-                Destroy(enemy.gameObject);
-            }
+            FaceContent.DestroyAll(enemies);
             // Doors, boulders and the trial live under their modules, which the rebuild destroys; deactivate the
             // boulders now so the time field never weighs a boulder of the old run.
             foreach (Boulder b in boulders)
@@ -192,8 +182,6 @@ namespace Game.Cube
             if (Trial != null)
                 foreach (Boulder b in Trial.Boulders)
                     if (b != null) b.gameObject.SetActive(false);
-            aliens.Clear();
-            enemies.Clear();
             doors.Clear();
             boulders.Clear();
             Newton = null;
@@ -220,15 +208,7 @@ namespace Game.Cube
             Trial.Completed += currency => Debug.Log($"Physics trial complete: +{currency} (seed {world.Seed}).");
         }
 
-        private List<ScreenAddress> ShuffledScreens(SeededRng rng)
-        {
-            var screens = new List<ScreenAddress>();
-            for (int y = 0; y < Plan.FaceSize; y++)
-                for (int x = 0; x < Plan.FaceSize; x++)
-                    screens.Add(new ScreenAddress(Plan.Face, x, y));
-            rng.Shuffle(screens);
-            return screens;
-        }
+        private List<ScreenAddress> ShuffledScreens(SeededRng rng) => FaceContent.ShuffledScreens(Plan.Face, Plan.FaceSize, rng);
 
         private void SpawnAliens(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
@@ -238,7 +218,7 @@ namespace Game.Cube
             for (int i = 0; i < PhysicsPopulation.AlienCount; i++)
             {
                 NpcSpec spec = PhysicsPopulation.AlienSpec(world.Seed, i);
-                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
+                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
                 {
                     Debug.LogWarning($"PhysicsFace: no clear spot for {spec} (seed {world.Seed}).");
                     continue;
@@ -249,7 +229,7 @@ namespace Game.Cube
             }
 
             NpcSpec newton = PhysicsPopulation.NewtonSpec(world.Seed);
-            if (TryPickAnywhere(spots, screens, PhysicsPopulation.AlienCount, out ScreenAddress at, out Vector2 newtonFeet))
+            if (FaceContent.TryPickAnywhere(spots, screens, PhysicsPopulation.AlienCount, out ScreenAddress at, out Vector2 newtonFeet))
             {
                 Newton = SpawnNpc(world, newton, PhysicsPopulation.NewtonLines(), at, newtonFeet, target);
                 Newton.name = $"Physics Cameo {PhysicsPopulation.NewtonName}";
@@ -260,8 +240,7 @@ namespace Game.Cube
         private NpcTalker SpawnNpc(CubeWorld world, NpcSpec spec, List<string> lines, ScreenAddress screen, Vector2 feet, Transform target)
         {
             Vector2 centre = world.ScreenCenter(screen);
-            Rect quadrant = TownPlan.QuadrantBounds(feet);
-            var bounds = new Rect(centre + quadrant.position, quadrant.size);
+            Rect bounds = FaceContent.WanderBounds(centre, feet);
             return NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
         }
 
@@ -272,37 +251,16 @@ namespace Game.Cube
             for (int i = 0; i < FleaCount + ClingCount; i++)
             {
                 PhysicsEnemyKind kind = i < FleaCount ? PhysicsEnemyKind.QuantumFlea : PhysicsEnemyKind.StaticCling;
-                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
+                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
                 Vector2 centre = world.ScreenCenter(screen);
-                Rect quadrant = TownPlan.QuadrantBounds(feet);
-                var bounds = new Rect(centre + quadrant.position, quadrant.size);
-                Vector2 position = centre + feet + new Vector2(0f, Enemy.BodyRadius);
+                Rect bounds = FaceContent.WanderBounds(centre, feet);
+                Vector2 position = FaceContent.EnemyPosition(centre, feet);
                 enemies.Add(PhysicsEnemies.Spawn(kind, PhysicsEnemies.WeaknessFor(kind, world), position, bounds, target, root,
                     world.Material));
             }
         }
 
-        /// <summary>A spot on screens[start], else on the next screens round the face.</summary>
-        private static bool TryPickAnywhere(FaceSpots spots, List<ScreenAddress> screens, int start,
-            out ScreenAddress screen, out Vector2 feet)
-        {
-            for (int k = 0; k < screens.Count; k++)
-            {
-                screen = screens[(start + k) % screens.Count];
-                if (spots.TryPick(screen, out feet)) return true;
-            }
-            screen = default;
-            feet = default;
-            return false;
-        }
-
-        private Transform ResolvePlayer()
-        {
-            if (player != null) return player;
-            var navigator = FindAnyObjectByType<CubeNavigator>();
-            if (navigator != null) player = navigator.transform;
-            return player;
-        }
+        private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);
 
         private void OnDestroy()
         {

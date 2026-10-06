@@ -8,6 +8,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Cube.Tests
 {
@@ -92,24 +93,6 @@ namespace Game.Cube.Tests
             yield return null;
         }
 
-        private KeyControl KeyFor(Facing direction)
-        {
-            switch (direction)
-            {
-                case Facing.North: return keyboard.wKey;
-                case Facing.East: return keyboard.dKey;
-                case Facing.South: return keyboard.sKey;
-                default: return keyboard.aKey;
-            }
-        }
-
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
-        }
-
         private IEnumerator PickUpBeak()
         {
             Assert.IsTrue(world.ItemPlacement.TryGetPickup(Theme.Biology, out PickupPlacement pickup));
@@ -117,9 +100,7 @@ namespace Game.Cube.Tests
             ItemDefinition beak = world.ItemFor(Theme.Biology);
             navigator.TeleportTo(pickup.Screen, Facing.East);
             yield return null;
-            Press(keyboard.sKey, queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => inventory.Has(beak), Timeout);
-            Release(keyboard.sKey, queueEventOnly: true);
+            yield return this.HoldUntil(keyboard.sKey, () => inventory.Has(beak), Timeout);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(inventory.Has(beak), "Walking onto the beak picks it up");
             Assert.AreSame(beak, navigator.GetComponent<Equipment>().Equipped, "The beak is equipped");
@@ -128,14 +109,7 @@ namespace Game.Cube.Tests
         /// <summary>Turns the player to face a direction with a short move press.</summary>
         private IEnumerator Face(Facing direction)
         {
-            yield return null; // input state is only valid in dynamic update
-            Press(KeyFor(direction), queueEventOnly: true);
-            yield return new WaitForFixedUpdate();
-            yield return new WaitForFixedUpdate();
-            yield return null;
-            Release(KeyFor(direction), queueEventOnly: true);
-            yield return new WaitForFixedUpdate();
-            yield return null;
+            yield return this.TapThroughPhysics(KeyFor(keyboard, direction));
             Assert.AreEqual((Vector2)direction.ToVector(), attack.Facing, "Facing");
         }
 

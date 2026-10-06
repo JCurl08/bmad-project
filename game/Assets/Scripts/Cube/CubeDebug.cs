@@ -28,8 +28,8 @@ namespace Game.Cube
         [SerializeField, Min(0.5f)] private float enemySpawnRadius = 3f;
 
         private readonly List<NpcTalker> debugNpcs = new List<NpcTalker>();
-        /// <summary>RNG stream for F7 weakness picks (NPC parts use 4, NPC wander 5).</summary>
-        public const ulong EnemySpawnRngStream = 6;
+        /// <summary>RNG stream for F7 weakness picks (see RngStreams).</summary>
+        public const ulong EnemySpawnRngStream = RngStreams.DebugEnemySpawn;
 
         private readonly List<Enemy> debugEnemies = new List<Enemy>();
         private int enemyCount;

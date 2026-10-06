@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using Game.Cube.Tests;
+using static Game.Cube.Tests.TestInput;
 
 namespace Game.Tracer.Tests
 {
@@ -40,20 +42,6 @@ namespace Game.Tracer.Tests
             Assert.AreEqual(new Vector2Int(0, 0), screenCamera.CurrentScreen, "Player should start in screen A");
         }
 
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> condition, float timeout)
-        {
-            float end = Time.realtimeSinceStartup + timeout;
-            while (!condition() && Time.realtimeSinceStartup < end)
-                yield return null;
-        }
-
-        private static IEnumerator WaitSeconds(float seconds)
-        {
-            float end = Time.realtimeSinceStartup + seconds;
-            while (Time.realtimeSinceStartup < end)
-                yield return null;
-        }
-
         private void AssertCameraOnScreen(Vector2Int screen)
         {
             Assert.AreEqual(screen, screenCamera.CurrentScreen);
@@ -70,9 +58,7 @@ namespace Game.Tracer.Tests
             yield return LoadTracerScene();
 
             // Walk across: hold right through the doorway into screen B.
-            Press(keyboard.dKey, queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => player.position.x > 18f, Timeout);
-            Release(keyboard.dKey, queueEventOnly: true);
+            yield return this.HoldUntil(keyboard.dKey, () => player.position.x > 18f, Timeout);
             yield return null;
             yield return null;
 
@@ -80,9 +66,7 @@ namespace Game.Tracer.Tests
             AssertCameraOnScreen(new Vector2Int(1, 0));
 
             // Walk back: hold left into screen A.
-            Press(keyboard.aKey, queueEventOnly: true);
-            yield return WaitUntilOrTimeout(() => player.position.x < 14f, Timeout);
-            Release(keyboard.aKey, queueEventOnly: true);
+            yield return this.HoldUntil(keyboard.aKey, () => player.position.x < 14f, Timeout);
             yield return null;
             yield return null;
 
@@ -98,7 +82,7 @@ namespace Game.Tracer.Tests
             // Push into the bottom-left corner (outer walls on both axes, no neighbour screen).
             Press(keyboard.aKey, queueEventOnly: true);
             Press(keyboard.sKey, queueEventOnly: true);
-            yield return WaitSeconds(1.5f);
+            yield return WaitRealSeconds(1.5f);
 
             Vector3 p = player.position;
             const float wallInner = 1f;   // wall thickness
@@ -113,7 +97,7 @@ namespace Game.Tracer.Tests
 
             // Push into the top wall as well.
             Press(keyboard.wKey, queueEventOnly: true);
-            yield return WaitSeconds(1.5f);
+            yield return WaitRealSeconds(1.5f);
             Release(keyboard.wKey, queueEventOnly: true);
             Assert.LessOrEqual(player.position.y, 10f - wallInner - radius + tolerance, "Player passed through the top wall");
             Assert.AreEqual(new Vector2Int(0, 0), screenCamera.CurrentScreen);
