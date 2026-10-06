@@ -13,6 +13,8 @@ using UnityEngine;
 /// variant list when they are missing, keeping every existing variant; each run uses the rolled one.
 /// The Chemistry item is Curie's isotope (ChemistryIsotope): a placeholder Chemistry entry is renamed to it in place,
 /// keeping its asset and its id ("chemistry-item"). It stays one item with no variants.
+/// The Physics item is Einstein's Mass Mitt (MassMittItem), renamed in place the same way (id "physics-item"), also
+/// one item with no variants.
 /// Also works from the command line via -executeMethod ItemCatalogBuilder.Build.
 /// </summary>
 public static class ItemCatalogBuilder
@@ -31,11 +33,14 @@ public static class ItemCatalogBuilder
     {
         new Placeholder { Theme = Theme.Biology, Id = "biology-item", Name = "Biology Item", Color = new Color(0.45f, 1f, 0.45f) },
         new Placeholder { Theme = Theme.Chemistry, Id = ChemistryIsotope.Id, Name = ChemistryIsotope.Name, Color = ChemistryIsotope.ItemColor },
-        new Placeholder { Theme = Theme.Physics, Id = "physics-item", Name = "Physics Item", Color = new Color(0.45f, 0.75f, 1f) },
+        new Placeholder { Theme = Theme.Physics, Id = MassMittItem.Id, Name = MassMittItem.Name, Color = MassMittItem.ItemColor },
     };
 
     /// <summary>The 1.4 placeholder name of the Chemistry item, renamed to the isotope on the next build.</summary>
     private const string PlaceholderChemistryName = "Chemistry Item";
+
+    /// <summary>The 1.4 placeholder name of the Physics item, renamed to the Mass Mitt on the next build.</summary>
+    private const string PlaceholderPhysicsName = "Physics Item";
 
     [MenuItem("Cube/Build Item Catalog")]
     public static void Build()
@@ -76,6 +81,14 @@ public static class ItemCatalogBuilder
         {
             chemistry.Set(chemistry.Id, ChemistryIsotope.Name, Theme.Chemistry, ChemistryIsotope.ItemColor);
             EditorUtility.SetDirty(chemistry);
+        }
+
+        // The Physics item is Einstein's Mass Mitt, renamed in place the same way (same asset, id "physics-item").
+        ItemDefinition physics = catalog.ForTheme(Theme.Physics);
+        if (physics != null && physics.Id == MassMittItem.Id && physics.DisplayName == PlaceholderPhysicsName)
+        {
+            physics.Set(physics.Id, MassMittItem.Name, Theme.Physics, MassMittItem.ItemColor);
+            EditorUtility.SetDirty(physics);
         }
 
         // Theme variants: keep what is there, add the beaks if missing (in roll order).

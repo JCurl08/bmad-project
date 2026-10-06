@@ -35,6 +35,9 @@ namespace Game.Cube
         /// <summary>Raised after every swing, with the item carried (null = bare) and the number of targets that took damage.</summary>
         public event Action<ItemDefinition, int> Swung;
 
+        /// <summary>Swings made so far (counted before the receivers are told, so they can tell one swing from the next).</summary>
+        public int SwingCount { get; private set; }
+
         /// <summary>Number of attack receivers that reacted to the last swing.</summary>
         public int LastReceiversHit { get; private set; }
 
@@ -134,6 +137,7 @@ namespace Game.Cube
             if (!isActiveAndEnabled || !Ready) return -1;
             if (Stats != null && Stats.IsDead) return -1;
             readyAt = Time.time + cooldown;
+            SwingCount++;
 
             Vector2 facing = Facing;
             Hitbox(out float distance, out Vector2 size);

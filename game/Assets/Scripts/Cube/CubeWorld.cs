@@ -16,7 +16,7 @@ namespace Game.Cube
     /// chosen module gate slot and one pickup per item on its home face. Unused gate slots get no gate,
     /// so their alcove stays open. A theme with item variants uses the run's rolled variant (ItemCatalog.ItemFor),
     /// and the other variants' optional gates go into leftover home slots. Face content (IFaceContent
-    /// components on this object, e.g. BiologyFace, ChemistryFace) builds its theme's gates and adds its trial and
+    /// components on this object: BiologyFace, ChemistryFace, PhysicsFace) builds its theme's gates and adds its trial and
     /// population on the reveal, and is cleared on every rebuild; content that also implements IFacePickupContent
     /// replaces its item's pickup (Chemistry's isotope dispenser).
     /// </summary>

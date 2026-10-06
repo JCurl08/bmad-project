@@ -18,7 +18,10 @@ namespace Game.Cube
     /// has an off-home gate, a thin-beak run has its flower-vine bridge, the trial is on Biology). With a Chemistry
     /// item, the Chemistry plan is checked too (ChemistryPlan.FindProblems: stage coverage, timed stages on the
     /// home face, an off-home gate, and dispenser-first: the isotope dispenser is reachable without passing any
-    /// Chemistry-stage gate).
+    /// Chemistry-stage gate). With a Physics item, the Physics plan is checked too (PhysicsPlan.FindProblems: the
+    /// Mass Mitt opens a timed door on another face, and, with the module library, every timed door's switch timing,
+    /// its own boulders on its screen with enough of them reachable, no boulder starting in a time field or on
+    /// another face's interactable, and the Physics trial fitting).
     /// Shared by the tests and the editor menu.
     /// </summary>
     public static class SeedSweep
@@ -292,19 +295,23 @@ namespace Game.Cube
                         result.ItemProblems = FindItemProblems(model, placement, items);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
-                        Func<ScreenAddress, ScreenModule> moduleAt = null;
-                        if (catalog is ModuleLibrary library)
-                            moduleAt = screen => layout.TryGetFace(screen.Face, out FaceLayout fl)
-                                ? library.Module(fl.Theme, fl.ModuleAt(screen.Cell))
-                                : null;
+                        Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
                         foreach (string problem in ChemistryPlan.FindProblems(model, placement, moduleAt))
                             result.ItemProblems.Add("chemistry: " + problem);
+                        foreach (string problem in PhysicsPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds))
+                            result.ItemProblems.Add("physics: " + problem);
                     }
                 }
                 results.Add(result);
             }
             return results;
         }
+
+        /// <summary>The module prefab of each screen of a layout (null off the laid-out faces).</summary>
+        public static Func<ScreenAddress, ScreenModule> ModuleLookup(CubeLayout layout, ModuleLibrary library) =>
+            screen => layout != null && library != null && layout.TryGetFace(screen.Face, out FaceLayout fl)
+                ? library.Module(fl.Theme, fl.ModuleAt(screen.Cell))
+                : null;
 
         /// <summary>Human-readable report naming every failing seed, its unreachable screens, core and item problems.</summary>
         public static string Describe(IEnumerable<SeedResult> results)
@@ -334,7 +341,8 @@ namespace Game.Cube
                 : "fully reachable";
             if (itemsChecked)
                 what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
-                        "the isotope dispenser before any Chemistry-stage gate, the Chemistry trial fitting";
+                        "the isotope dispenser before any Chemistry-stage gate, the Chemistry trial fitting, " +
+                        "every timed door with enough reachable boulders on its screen, the Physics trial fitting";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

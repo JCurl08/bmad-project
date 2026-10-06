@@ -130,8 +130,8 @@ namespace Game.Cube.Tests
 
         /// <summary>
         /// The first seed whose run has a plain (touch-opened, no variants, no face content) item with an open pickup
-        /// and a gate on another face. Face items (the Biology beaks, the Chemistry isotope) open by their own
-        /// mechanics (BiologySceneTests, ChemistrySceneTests).
+        /// and a gate on another face. Face items (the Biology beaks, the Chemistry isotope, the Physics Mass Mitt) open by
+        /// their own mechanics (BiologySceneTests, ChemistrySceneTests, PhysicsSceneTests).
         /// </summary>
         private static int SeedWithOpenPlainItem(CubeWorld w)
         {
@@ -153,7 +153,13 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator PickUpItem_ThenWalkToItsGateOnAnotherFace_GateOpens()
         {
-            yield return LoadAndReveal(SeedWithOpenPlainItem);
+            // Every built face now has face content (Biology, Chemistry, Physics), so the plain-gate path is checked with
+            // the Physics content hook taken off: its item then falls back to a plain touch-opened Gate.
+            yield return LoadAndReveal(w =>
+            {
+                UnityEngine.Object.DestroyImmediate(w.GetComponent<PhysicsFace>());
+                return SeedWithOpenPlainItem(w);
+            });
             ItemPlacement placement = world.ItemPlacement;
             PickupPlacement open = placement.Pickups.First(p => IsOpenPlain(world, placement, world.Model, p));
             ItemDefinition item = world.ItemCatalog.ItemFor(open.Item, world.Seed);

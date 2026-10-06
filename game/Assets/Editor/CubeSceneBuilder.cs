@@ -14,7 +14,8 @@ using UnityEngine.SceneManagement;
 /// the player carries an Inventory and the combat parts (Health, PlayerStats, Equipment, PlayerAttack), and a
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
 /// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
-/// for Curie's (the player carries the Isotope it sets up for each run).
+/// for Curie's (the player carries the Isotope it sets up for each run), and PhysicsFace for Einstein's (the player
+/// carries the MassMitt it sets up for each run).
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -76,6 +77,8 @@ public static class CubeSceneBuilder
         player.AddComponent<PlayerAttack>();
         // The held Chemistry isotope's decay stage and its HUD line (set up for each run by ChemistryFace).
         player.AddComponent<Isotope>();
+        // The Mass Mitt: grabs and drags Physics boulders (set up for each run by PhysicsFace).
+        player.AddComponent<MassMitt>();
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
 
@@ -83,6 +86,8 @@ public static class CubeSceneBuilder
         worldObject.AddComponent<BiologyFace>().Player = player.transform;
         // Curie's face (isotope dispenser, stage gates, trial, mushrooms and enemies) plugs in the same way.
         worldObject.AddComponent<ChemistryFace>().Player = player.transform;
+        // Einstein's face (timed doors, boulders, trial, aliens, Newton and enemies) plugs in the same way.
+        worldObject.AddComponent<PhysicsFace>().Player = player.transform;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -158,6 +163,28 @@ public static class CubeSceneBuilder
         }
         report += $"Isotope gates: {glow} glow, {unstable} unstable, {lead} lead; " +
                   $"{guarded} seeds with the dispenser behind another item's gate.\n";
+        var required = new int[PhysicsPlan.MaxRequiredCap + 1];
+        int doors = 0, offHome = 0, boulders = 0, trials = 0;
+        ModuleLibrary library = ModuleLibraryBuilder.LoadOrBuild();
+        List<BeakKind> kinds = BiologyBeaks.VariantKinds(items);
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Placement == null) continue;
+            var model = new CubeModel(r.Seed);
+            CubeLayout layout = CubeLayout.Generate(model, library);
+            PhysicsPlan plan = PhysicsPlan.Create(model, r.Placement, SeedSweep.ModuleLookup(layout, library), kinds);
+            if (plan == null) continue;
+            foreach (TimedDoorSpec d in plan.Doors)
+            {
+                doors++;
+                if (!d.OnHome) offHome++;
+                required[Mathf.Clamp(d.Required, 0, PhysicsPlan.MaxRequiredCap)]++;
+                boulders += d.Boulders.Count;
+            }
+            if (plan.Trial != null) trials++;
+        }
+        report += $"Timed doors: {doors} ({offHome} off-home), needing 1/2/3 boulders: {required[1]}/{required[2]}/{required[3]}; " +
+                  $"{boulders} gate boulders; the Physics trial fits on {trials} seeds.\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

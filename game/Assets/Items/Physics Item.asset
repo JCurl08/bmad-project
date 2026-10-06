@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Physics Item
   m_EditorClassIdentifier: Game.Cube::Game.Cube.ItemDefinition
   id: physics-item
-  displayName: Physics Item
+  displayName: Mass Mitt
   homeTheme: 3
   placeholderColor: {r: 0.45, g: 0.75, b: 1, a: 1}
+  attackReach: 0

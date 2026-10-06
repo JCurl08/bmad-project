@@ -26,7 +26,7 @@ namespace Game.Cube
     }
 
     /// <summary>
-    /// The hook a face's content plugs into CubeWorld through (Biology and Chemistry now; Physics later, the
+    /// The hook a face's content plugs into CubeWorld through (Biology, Chemistry and Physics, all the
     /// same way). Implementations live on the CubeWorld's GameObject, under Faces/&lt;Theme&gt;/, in three parts:
     /// gate behaviours, the trial and the population. On every reveal CubeWorld calls BeginReveal once the
     /// item placement is known, CreateGate for each gate whose item is this content's theme (null falls back

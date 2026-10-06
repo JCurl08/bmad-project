@@ -208,6 +208,31 @@ namespace Game.Cube
             "Fresh isotopes glow and light dark rooms. Then they go unstable: swing one at a cracked wall, boom! " +
             "Then they settle into lead. Drop lead on a plate and it stays put. The dispenser always has another.";
 
+        /// <summary>Einstein-flavoured lines the alien people of the Physics face say (one per alien, picked by salt).</summary>
+        public static readonly string[] EinsteinLines =
+        {
+            "It's all relative, darling! Herr Einstein says so, and he is never late. Relatively.",
+            "Herr Einstein says mass tells time how to move. Time mostly tells me to nap.",
+            "E equals MC squared! I don't know what the C is for. Cookies, I hope.",
+            "Stand next to a big boulder and time slows down. I've been twenty for six hundred years.",
+            "Herr Einstein's hair? Gravitational lensing. It bends light AND combs.",
+        };
+
+        /// <summary>How the timed doors work, as the aliens tell it (true for every run: the mechanics).</summary>
+        public const string MassMittLine =
+            "Timed doors open from a switch, then close again. Grab boulders with the Mass Mitt (press Interact or swing it) " +
+            "and drag them near the door: more mass, slower time, so it stays open longer. Then step on the switch and run!";
+
+        /// <summary>What Sir Isaac Newton says on the Physics face (the apple cameo).</summary>
+        public static readonly string[] NewtonLines =
+        {
+            "Ow! Another apple. That makes four hundred and twelve. I am beginning to suspect a pattern.",
+            "Every apple falls toward my head. Every single one. I shall call it... a grudge.",
+            "Herr Einstein says the apple isn't falling, the space is curving. My forehead disagrees.",
+        };
+
+        public static string EinsteinLine(uint salt) => EinsteinLines[(int)(salt / 3u % (uint)EinsteinLines.Length)];
+
         public static string CurieLine(uint salt) => CurieLines[(int)(salt / 3u % (uint)CurieLines.Length)];
 
         public static string DarwinLine(uint salt) => DarwinLines[(int)(salt / 3u % (uint)DarwinLines.Length)];
@@ -273,6 +298,9 @@ namespace Game.Cube
             foreach (string line in BeakLines) yield return line;
             foreach (string line in CurieLines) yield return line;
             yield return IsotopeStageLine;
+            foreach (string line in EinsteinLines) yield return line;
+            yield return MassMittLine;
+            foreach (string line in NewtonLines) yield return line;
         }
     }
 }
