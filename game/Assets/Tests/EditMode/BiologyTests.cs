@@ -123,7 +123,7 @@ namespace Game.Cube.Tests
                 ItemPlacement p = Place(seed, library, out CubeModel model);
                 int rolled = p.RolledVariant(Theme.Biology);
                 if (p.OptionalGates.Count > 0) seedsWithOptional++;
-                Assert.LessOrEqual(p.OptionalGates.Count, ItemPlacement.OptionalGatesPerVariant);
+                Assert.LessOrEqual(p.OptionalGates.Count, ItemPlacement.OptionalGatesPerVariant(model.FaceSize));
                 foreach (OptionalGatePlacement o in p.OptionalGates)
                 {
                     Assert.AreEqual(Theme.Biology, o.Item);
@@ -210,12 +210,15 @@ namespace Game.Cube.Tests
                 if (plan.Beak == BeakKind.Thin)
                 {
                     thin++;
-                    Assert.AreEqual(1, flowers.Count, $"seed {seed}");
-                    BeakGateSpec f = flowers[0];
-                    Assert.AreEqual(plan.Face, f.Screen.Face);
-                    Assert.AreEqual(f.Screen.Face, f.FlowerScreen.Face);
-                    Assert.AreEqual(1, Mathf.Abs(f.Screen.Cell.x - f.FlowerScreen.Cell.x) + Mathf.Abs(f.Screen.Cell.y - f.FlowerScreen.Cell.y),
-                        "The flower is on an adjacent screen");
+                    Assert.AreEqual(BiologyPlan.FlowerVineCount(model.FaceSize), flowers.Count, $"seed {seed}");
+                    Assert.AreEqual(flowers.Count, flowers.Select(x => x.FlowerScreen).Distinct().Count(), $"seed {seed}: one flower per screen");
+                    foreach (BeakGateSpec f in flowers)
+                    {
+                        Assert.AreEqual(plan.Face, f.Screen.Face);
+                        Assert.AreEqual(f.Screen.Face, f.FlowerScreen.Face);
+                        Assert.AreEqual(1, Mathf.Abs(f.Screen.Cell.x - f.FlowerScreen.Cell.x) + Mathf.Abs(f.Screen.Cell.y - f.FlowerScreen.Cell.y),
+                            "The flower is on an adjacent screen");
+                    }
                 }
                 else
                 {
@@ -327,11 +330,36 @@ namespace Game.Cube.Tests
         [Test]
         public void Difficulty_SetsTheBeakHitsAGateTakes()
         {
-            Assert.AreEqual(1, BiologyPlan.HitsFor(1));
-            Assert.AreEqual(1, BiologyPlan.HitsFor(3));
-            Assert.AreEqual(2, BiologyPlan.HitsFor(4));
-            Assert.AreEqual(3, BiologyPlan.HitsFor(7));
-            Assert.AreEqual(1, BiologyPlan.HitsFor(0));
+            // Tuned on a 2x2 face: one extra hit per three gates beyond the first.
+            Assert.AreEqual(1, BiologyPlan.HitsFor(1, 2));
+            Assert.AreEqual(1, BiologyPlan.HitsFor(3, 2));
+            Assert.AreEqual(2, BiologyPlan.HitsFor(4, 2));
+            Assert.AreEqual(3, BiologyPlan.HitsFor(7, 2));
+            Assert.AreEqual(1, BiologyPlan.HitsFor(0, 2));
+
+            // On any face the step follows the gate density per screen: the same hits for the same gates per screen.
+            int n = CubeSettings.DefaultFaceSize;
+            int step = BiologyPlan.GatesPerExtraHit(n);
+            Assert.AreEqual(CubeSettings.PerScreen(BiologyPlan.TunedGatesPerExtraHit, n), step);
+            Assert.AreEqual(1, BiologyPlan.HitsFor(0, n));
+            Assert.AreEqual(1, BiologyPlan.HitsFor(step, n));
+            Assert.AreEqual(2, BiologyPlan.HitsFor(step + 1, n));
+            Assert.AreEqual(3, BiologyPlan.HitsFor(2 * step + 1, n));
+            Assert.AreEqual(BiologyPlan.HitsFor(4, 2), BiologyPlan.HitsFor(CubeSettings.PerScreen(4, n), n),
+                "the same gate density per screen takes the same hits");
+        }
+
+        [Test]
+        public void PerScreen_KeepsTheTunedCountAt2x2_AndScalesItPerScreen()
+        {
+            for (int count = 0; count <= 6; count++) Assert.AreEqual(count, CubeSettings.PerScreen(count, 2));
+            Assert.AreEqual(5, CubeSettings.PerScreen(2, 3));
+            Assert.AreEqual(2, CubeSettings.PerScreen(1, 3));
+            Assert.AreEqual(7, CubeSettings.PerScreen(3, 3));
+            Assert.AreEqual(1, CubeSettings.PerScreen(1, 1));
+            Assert.AreEqual(0, CubeSettings.PerScreen(0, 3));
+            Assert.AreEqual(1, BiologyPlan.FlowerVineCount(2));
+            Assert.AreEqual(2, BiologyPlan.FlowerVineCount(3));
         }
 
         [Test]
@@ -356,7 +384,7 @@ namespace Game.Cube.Tests
         {
             var model = new CubeModel(3);
             var facts = new RunFacts(model);
-            for (int i = 0; i < BiologyPopulation.FinchCount; i++)
+            for (int i = 0; i < BiologyPopulation.FinchCount(model.FaceSize); i++)
             {
                 NpcSpec spec = BiologyPopulation.FinchSpec(3, i);
                 Assert.AreEqual(Race.Finch, spec.Race);

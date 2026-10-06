@@ -14,6 +14,9 @@ namespace Game.Cube
         [Tooltip("The number of beak gates on this gate's face; sets the beak hits it takes (BiologyPlan.HitsFor).")]
         [SerializeField, Min(1)] private int difficulty = 1;
 
+        [Tooltip("Screens per side of this gate's face (N); the hits scale with the gate density per screen (BiologyPlan.HitsFor).")]
+        [SerializeField, Min(1)] private int faceSize = CubeSettings.DefaultFaceSize;
+
         private int hits;
 
         public int Difficulty
@@ -22,7 +25,14 @@ namespace Game.Cube
             set => difficulty = Mathf.Max(1, value);
         }
 
-        public int HitsToOpen => BiologyPlan.HitsFor(difficulty);
+        /// <summary>N of the face the gate's difficulty counts gates on (BiologyFace sets it from the plan).</summary>
+        public int FaceSize
+        {
+            get => faceSize;
+            set => faceSize = Mathf.Max(1, value);
+        }
+
+        public int HitsToOpen => BiologyPlan.HitsFor(difficulty, faceSize);
 
         /// <summary>Beak hits taken so far.</summary>
         public int Hits => hits;

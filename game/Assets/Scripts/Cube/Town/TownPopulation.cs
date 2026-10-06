@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// Fills the Town face at every run start: one NPC of each face race plus 2-4 Townsfolk (TownPlan), on
+    /// Fills the Town face at every run start: one NPC of each face race plus a per-screen share of Townsfolk (TownPlan: the whole Town population scales per screen, 11-15 Townsfolk at 3x3), on
     /// seeded spots that are clear of the module's walls and alcoves, the exit lanes and the screen centre,
     /// and confirmed free with NpcFactory.IsClear. Each NPC talks with sparse first-run hints that are true
     /// for the run (RunFacts.Of works before the reveal); the greeter adds the TownSign welcome. Each NPC
@@ -124,7 +124,7 @@ namespace Game.Cube
 
             int seed = world.Seed;
             int faceSize = world.FaceSize;
-            List<NpcSpec> planSpecs = TownPlan.Specs(seed);
+            List<NpcSpec> planSpecs = TownPlan.Specs(seed, faceSize);
             List<TownSpot> planned = TownPlan.Spots(seed, faceSize, planSpecs.Count, BlockedFor,
                 (screen, local) => NpcFactory.IsClear(world.ScreenCenter(screen) + local, TownPlan.Margin));
             RunFacts facts = RunFacts.Of(world);

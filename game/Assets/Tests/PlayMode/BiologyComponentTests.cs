@@ -161,9 +161,17 @@ namespace Game.Cube.Tests
         public IEnumerator Difficulty_MoreBeakGatesOnTheFace_MeansMoreHits()
         {
             PlayerAttack attack = MakePlayer(Origin);
-            BreakableGate gate = BreakableGate.Build(Block(Origin + Vector2.down * 1.1f), thick, BreakableLook.Pot, 4, false, null);
+            // Tuned 2x2 face: four beak gates on the face take two hits each, three take one.
+            BreakableGate gate = BreakableGate.Build(Block(Origin + Vector2.down * 1.1f), thick, BreakableLook.Pot, 4, false, null, 2);
+            BreakableGate fewer = BreakableGate.Build(Block(Origin + new Vector2(30f, 0f)), thick, BreakableLook.Pot, 3, false, null, 2);
+            // 3x3 face: the same density per screen, so eight gates take two hits and seven take one.
+            BreakableGate big = BreakableGate.Build(Block(Origin + new Vector2(40f, 0f)), thick, BreakableLook.Rock, 8, false, null, 3);
+            BreakableGate bigFewer = BreakableGate.Build(Block(Origin + new Vector2(50f, 0f)), thick, BreakableLook.Rock, 7, false, null, 3);
             yield return null;
             Assert.AreEqual(2, gate.HitsToOpen);
+            Assert.AreEqual(1, fewer.HitsToOpen);
+            Assert.AreEqual(2, big.HitsToOpen);
+            Assert.AreEqual(1, bigFewer.HitsToOpen);
             Swing(attack, thick);
             Assert.IsFalse(gate.IsOpen);
             Assert.AreEqual(1, gate.Hits);

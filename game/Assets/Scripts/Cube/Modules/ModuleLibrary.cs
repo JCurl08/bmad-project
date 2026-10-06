@@ -29,12 +29,15 @@ namespace Game.Cube
             sciencePools = pools;
         }
 
-        /// <summary>The fixed Town module for a cell. Wraps if N needs more cells than the library has.</summary>
+        /// <summary>
+        /// The fixed Town module for a cell (row-major, y * N + x): one distinct module per cell while the library has
+        /// enough (9 at N = 3). Only a larger N than the library covers falls back to wrapping the index.
+        /// </summary>
         public ScreenModule TownModule(Vector2Int cell, int faceSize)
         {
             if (townModules.Count == 0) return null;
             int index = cell.y * faceSize + cell.x;
-            return townModules[index % townModules.Count];
+            return index < townModules.Count ? townModules[index] : townModules[index % townModules.Count];
         }
 
         public IReadOnlyList<ScreenModule> Pool(Theme theme)

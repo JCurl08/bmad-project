@@ -19,8 +19,17 @@ namespace Game.Cube
         /// <summary>PCG32 stream for Physics population spots and screens (see RngStreams).</summary>
         public const ulong PopulationRngStream = RngStreams.PhysicsPopulation;
 
-        public const int FleaCount = 2;
-        public const int ClingCount = 1;
+        /// <summary>Quantum Fleas on a face of CubeSettings.TunedScreensPerFace screens; FleaCount scales it per screen.</summary>
+        public const int TunedFleaCount = 2;
+
+        /// <summary>Quantum Fleas on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int FleaCount(int faceSize) => CubeSettings.PerScreen(TunedFleaCount, faceSize);
+
+        /// <summary>Static Clings on a face of CubeSettings.TunedScreensPerFace screens; ClingCount scales it per screen.</summary>
+        public const int TunedClingCount = 1;
+
+        /// <summary>Static Clings on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int ClingCount(int faceSize) => CubeSettings.PerScreen(TunedClingCount, faceSize);
 
         [SerializeField] private Transform player;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
@@ -215,7 +224,8 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < PhysicsPopulation.AlienCount; i++)
+            int alienCount = PhysicsPopulation.AlienCount(Plan.FaceSize);
+            for (int i = 0; i < alienCount; i++)
             {
                 NpcSpec spec = PhysicsPopulation.AlienSpec(world.Seed, i);
                 if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
@@ -229,7 +239,7 @@ namespace Game.Cube
             }
 
             NpcSpec newton = PhysicsPopulation.NewtonSpec(world.Seed);
-            if (FaceContent.TryPickAnywhere(spots, screens, PhysicsPopulation.AlienCount, out ScreenAddress at, out Vector2 newtonFeet))
+            if (FaceContent.TryPickAnywhere(spots, screens, alienCount, out ScreenAddress at, out Vector2 newtonFeet))
             {
                 Newton = SpawnNpc(world, newton, PhysicsPopulation.NewtonLines(), at, newtonFeet, target);
                 Newton.name = $"Physics Cameo {PhysicsPopulation.NewtonName}";
@@ -248,9 +258,10 @@ namespace Game.Cube
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < FleaCount + ClingCount; i++)
+            int fleas = FleaCount(Plan.FaceSize);
+            for (int i = 0; i < fleas + ClingCount(Plan.FaceSize); i++)
             {
-                PhysicsEnemyKind kind = i < FleaCount ? PhysicsEnemyKind.QuantumFlea : PhysicsEnemyKind.StaticCling;
+                PhysicsEnemyKind kind = i < fleas ? PhysicsEnemyKind.QuantumFlea : PhysicsEnemyKind.StaticCling;
                 if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
                 Vector2 centre = world.ScreenCenter(screen);
                 Rect bounds = FaceContent.WanderBounds(centre, feet);

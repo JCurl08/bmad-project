@@ -42,8 +42,21 @@ namespace Game.Cube
         /// <summary>PCG32 stream for Town population (see RngStreams).</summary>
         public const ulong RngStream = RngStreams.TownPlan;
 
-        public const int MinTownsfolk = 2;
-        public const int MaxTownsfolk = 4;
+        /// <summary>Townsfolk range on a face of CubeSettings.TunedScreensPerFace screens (with the FaceRaces NPCs, 7-9 Town NPCs).</summary>
+        public const int TunedMinTownsfolk = 2;
+        public const int TunedMaxTownsfolk = 4;
+
+        /// <summary>
+        /// Fewest Townsfolk on a Town face of faceSize x faceSize screens: the whole Town population (Townsfolk plus one
+        /// NPC per face race) scales per screen, and the race NPCs stay one each, so Townsfolk take the rest (2 at 2x2,
+        /// 11 at 3x3). Never below one (the greeter).
+        /// </summary>
+        public static int MinTownsfolk(int faceSize) =>
+            Math.Max(1, CubeSettings.PerScreen(TunedMinTownsfolk + FaceRaces.Length, faceSize) - FaceRaces.Length);
+
+        /// <summary>Most Townsfolk on a Town face of faceSize x faceSize screens (4 at 2x2, 15 at 3x3; see MinTownsfolk).</summary>
+        public static int MaxTownsfolk(int faceSize) =>
+            Math.Max(MinTownsfolk(faceSize), CubeSettings.PerScreen(TunedMaxTownsfolk + FaceRaces.Length, faceSize) - FaceRaces.Length);
 
         /// <summary>NPC index base for Town NPCs, so their parts never repeat the F3 debug batches (0, 1, ...).</summary>
         public const int IndexBase = 1000;
@@ -63,21 +76,22 @@ namespace Game.Cube
         /// <summary>The five face races, one NPC each, in a fixed order.</summary>
         public static readonly Race[] FaceRaces = { Race.Finch, Race.Mushroom, Race.Alien, Race.Shape, Race.Dinosaur };
 
-        /// <summary>How many Townsfolk stand in town this run (MinTownsfolk..MaxTownsfolk).</summary>
-        public static int TownsfolkCount(int seed)
+        /// <summary>How many Townsfolk stand in a Town of faceSize x faceSize screens this run (MinTownsfolk..MaxTownsfolk).</summary>
+        public static int TownsfolkCount(int seed, int faceSize)
         {
             var rng = new SeededRng(((ulong)(uint)seed << 32) | 0x544Fu, RngStream);
-            return MinTownsfolk + rng.NextInt(MaxTownsfolk - MinTownsfolk + 1);
+            int min = MinTownsfolk(faceSize);
+            return min + rng.NextInt(MaxTownsfolk(faceSize) - min + 1);
         }
 
         /// <summary>
-        /// The Town NPCs of a run: the greeter (Townsfolk 0) first, then one of each face race, then the other
-        /// Townsfolk. Face races take their own part sets; Townsfolk are already mixed, so their head and torso
-        /// come from any race's set (TownsfolkParts).
+        /// The Town NPCs of a run on a Town face of faceSize x faceSize screens: the greeter (Townsfolk 0) first, then
+        /// one of each face race, then the other Townsfolk. Face races take their own part sets; Townsfolk are already
+        /// mixed, so their head and torso come from any race's set (TownsfolkParts).
         /// </summary>
-        public static List<NpcSpec> Specs(int seed)
+        public static List<NpcSpec> Specs(int seed, int faceSize)
         {
-            int townsfolk = TownsfolkCount(seed);
+            int townsfolk = TownsfolkCount(seed, faceSize);
             var specs = new List<NpcSpec> { TownsfolkParts(seed, 0) };
             foreach (Race race in FaceRaces)
                 specs.Add(NpcFactory.ChooseParts(seed, race, IndexBase));
@@ -246,7 +260,7 @@ namespace Game.Cube
                 Vector2 centre = root.InverseTransformPoint(box.transform.TransformPoint(box.offset));
                 Vector2 size = Vector2.Scale(box.size, (Vector2)box.transform.lossyScale);
                 size = new Vector2(Mathf.Abs(size.x), Mathf.Abs(size.y));
-                rects.Add(new Rect(centre - size / 2f, size));
+                rects.Add(Snapped(new Rect(centre - size / 2f, size)));
             }
             foreach (GateSlot gate in module.Gates)
             {
@@ -258,9 +272,23 @@ namespace Game.Cube
                 float outward = Mathf.Sign(pocket.y - opening.y);
                 float far = pocket.y + (pocket.y - opening.y) + outward * GateSlot.GateThickness / 2f;
                 float near = opening.y - outward * GateSlot.GateThickness / 2f;
-                rects.Add(Rect.MinMaxRect(opening.x - halfWidth, Mathf.Min(near, far), opening.x + halfWidth, Mathf.Max(near, far)));
+                rects.Add(Snapped(Rect.MinMaxRect(opening.x - halfWidth, Mathf.Min(near, far), opening.x + halfWidth, Mathf.Max(near, far))));
             }
             return rects;
         }
+
+        /// <summary>Blocked rect edges are snapped to 1/SnapsPerUnit (module-local units).</summary>
+        public const float SnapsPerUnit = 1000f;
+
+        /// <summary>
+        /// A rect with its edges snapped to 1/SnapsPerUnit. A placed module's rects come back through InverseTransformPoint with
+        /// float noise (an edge at -5.4999995 instead of -5.5), and a candidate that just touches an edge on the prefab
+        /// would then overlap it on the instance, so the prefab and the placed module would give different spots for the
+        /// same seed. Snapping makes both the same.
+        /// </summary>
+        private static Rect Snapped(Rect r) =>
+            Rect.MinMaxRect(Snap(r.xMin), Snap(r.yMin), Snap(r.xMax), Snap(r.yMax));
+
+        private static float Snap(float v) => Mathf.Round(v * SnapsPerUnit) / SnapsPerUnit;
     }
 }

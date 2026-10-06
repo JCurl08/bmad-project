@@ -54,12 +54,13 @@ namespace Game.Cube
         }
 
         public static FlowerVineGate Build(GameObject block, ItemDefinition item, Vector2 flowerWorld, Transform flowerParent,
-            int difficulty, bool optional, Material material)
+            int difficulty, bool optional, Material material, int faceSize = CubeSettings.DefaultFaceSize)
         {
             block.name = $"Vine Gate ({item})";
             var gate = block.AddComponent<FlowerVineGate>();
             gate.bridgeMaterial = material;
             gate.Difficulty = difficulty;
+            gate.FaceSize = faceSize;
             gate.Optional = optional;
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;

@@ -349,7 +349,7 @@ namespace Game.Cube.Tests
             yield return Load();
             yield return StartRunOntoPhysics(SeedWithOpenMitt(), true);
             FaceId face = physics.Plan.Face;
-            Assert.AreEqual(PhysicsPopulation.AlienCount, physics.Aliens.Count);
+            Assert.AreEqual(PhysicsPopulation.AlienCount(physics.Plan.FaceSize), physics.Aliens.Count);
             var facts = new RunFacts(world.Model, world.Layout, world.ItemPlacement);
             for (int i = 0; i < physics.Aliens.Count; i++)
             {
@@ -387,7 +387,7 @@ namespace Game.Cube.Tests
             yield return new WaitForSeconds(AppleBonk.FallSeconds + 0.1f);
             Assert.GreaterOrEqual(bonk.Bonks, 1, "An apple has bonked Newton");
 
-            Assert.AreEqual(PhysicsFace.FleaCount + PhysicsFace.ClingCount, physics.Enemies.Count);
+            Assert.AreEqual(PhysicsFace.FleaCount(physics.Plan.FaceSize) + PhysicsFace.ClingCount(physics.Plan.FaceSize), physics.Enemies.Count);
             foreach (Enemy enemy in physics.Enemies)
             {
                 Assert.IsTrue(OnFace(enemy.transform.position, face, null), "Physics enemies live on the Physics face");

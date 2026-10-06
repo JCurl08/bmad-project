@@ -6,7 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// Cube > Build Module Library: generates the placeholder screen modules as prefabs from code (the
-/// 4 fixed Town modules, and a pool of 4 layouts with interior obstacles for each science theme) and
+/// 9 fixed Town modules, one distinct layout per Town cell at 3x3, and a pool of 4 layouts with interior obstacles for each science theme) and
 /// the ModuleLibrary asset that lists them. Every module has four open side exits, 1-2 gate slots and
 /// 1 hidden-item slot; two layouts per science theme carry core-entrance slots (one has two).
 /// Each gate slot sits in the opening of an alcove: a pocket about 2x2 walled on three sides, open
@@ -110,6 +110,80 @@ public static class ModuleLibraryBuilder
         },
     };
 
+    /// <summary>
+    /// Town-only layouts: after the four shared Designs, these give Town one distinct module per cell at 3x3 (9 in
+    /// all). They follow the same rules (KeepsExitsOpen, alcoves clear of obstacles) and leave room for the ruins
+    /// and the Town NPCs. Science pools never use them.
+    /// </summary>
+    private static readonly Design[] TownDesigns =
+    {
+        new Design
+        {
+            Name = "E Plaza",
+            Obstacles = new[]
+            {
+                new Block(3.5f, 2.4f, 0.8f, 0.8f), new Block(-3.5f, 2.4f, 0.8f, 0.8f),
+                new Block(3.5f, -2.4f, 0.8f, 0.8f), new Block(-3.5f, -2.4f, 0.8f, 0.8f),
+            },
+            Gates = new[] { new Vector2(5.2f, -AlcoveOpeningY) },
+            HiddenItem = new Vector2(-5.5f, 3f),
+            CoreEntrances = Array.Empty<Vector2>(),
+        },
+        new Design
+        {
+            Name = "F Colonnade",
+            Obstacles = new[]
+            {
+                new Block(-5f, 2.6f, 0.7f, 0.7f), new Block(-3f, 2.6f, 0.7f, 0.7f),
+                new Block(3f, 2.6f, 0.7f, 0.7f), new Block(5f, 2.6f, 0.7f, 0.7f),
+            },
+            Gates = new[] { new Vector2(4f, -AlcoveOpeningY) },
+            HiddenItem = new Vector2(-5.5f, -3f),
+            CoreEntrances = Array.Empty<Vector2>(),
+        },
+        new Design
+        {
+            Name = "G Walls",
+            Obstacles = new[] { new Block(-4f, 1.9f, 3f, 0.6f), new Block(4.5f, -3f, 2f, 0.6f) },
+            Gates = new[] { new Vector2(3.2f, AlcoveOpeningY) },
+            HiddenItem = new Vector2(-5.8f, -2.5f),
+            CoreEntrances = Array.Empty<Vector2>(),
+        },
+        new Design
+        {
+            Name = "H Garden",
+            Obstacles = new[]
+            {
+                new Block(-2.2f, -2.2f, 0.9f, 0.9f), new Block(2.2f, 2.2f, 0.9f, 0.9f),
+                new Block(-5.5f, 2.8f, 1.4f, 0.8f), new Block(5.5f, -2.8f, 1.4f, 0.8f),
+            },
+            Gates = new[] { new Vector2(-4.2f, -AlcoveOpeningY) },
+            HiddenItem = new Vector2(4.5f, 3f),
+            CoreEntrances = Array.Empty<Vector2>(),
+        },
+        new Design
+        {
+            Name = "I Ring",
+            Obstacles = new[]
+            {
+                new Block(-2.6f, 3f, 2.2f, 0.6f), new Block(2.6f, -3f, 2.2f, 0.6f),
+                new Block(-5.8f, -2.3f, 0.6f, 1.8f), new Block(5.8f, 2.3f, 0.6f, 1.8f),
+            },
+            Gates = new[] { new Vector2(-3.6f, -AlcoveOpeningY) },
+            HiddenItem = new Vector2(5.5f, -3f),
+            CoreEntrances = Array.Empty<Vector2>(),
+        },
+    };
+
+    /// <summary>Town's designs in cell order: the shared Designs first, then the Town-only ones (9 in all).</summary>
+    private static Design[] TownCellDesigns()
+    {
+        var all = new Design[Designs.Length + TownDesigns.Length];
+        Designs.CopyTo(all, 0);
+        TownDesigns.CopyTo(all, Designs.Length);
+        return all;
+    }
+
     [MenuItem("Cube/Build Module Library")]
     public static void Build()
     {
@@ -118,12 +192,16 @@ public static class ModuleLibraryBuilder
         Sprite round = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
         Material material = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
 
-        // Town: one fixed module per cell (row-major), ruins in every face's style, no core entrance.
+        // Town: one fixed, distinct module per cell (row-major), ruins in every face's style, no core entrance.
         var town = new List<ScreenModule>();
-        for (int i = 0; i < Designs.Length; i++)
+        Design[] townDesigns = TownCellDesigns();
+        if (townDesigns.Length < CubeSettings.DefaultFaceSize * CubeSettings.DefaultFaceSize)
+            Debug.LogWarning($"Cube: only {townDesigns.Length} Town designs for {CubeSettings.DefaultFaceSize}x{CubeSettings.DefaultFaceSize} " +
+                             "Town cells; some cells will repeat a module.");
+        for (int i = 0; i < townDesigns.Length; i++)
         {
             Vector2 mirror = MirrorFor(Theme.Town, i);
-            town.Add(SaveModule(Theme.Town, $"Town {i} {Designs[i].Name.Substring(2)}", Designs[i], mirror, false,
+            town.Add(SaveModule(Theme.Town, $"Town {i} {townDesigns[i].Name.Substring(2)}", townDesigns[i], mirror, false,
                 sprite, material, i, round));
         }
 
@@ -305,7 +383,7 @@ public static class ModuleLibraryBuilder
         for (int k = 0; k < ScienceThemes.Length; k++)
         {
             Theme theme = ScienceThemes[k];
-            var shape = (RuinShape)((k + townIndex) % ScienceThemes.Length);
+            var shape = RuinShapeFor(k, townIndex);
             // Full size where it fits; crowded screens get a smaller (more broken) piece.
             Vector2 at = default, size = default;
             float scale = 0f;
@@ -323,6 +401,18 @@ public static class ModuleLibraryBuilder
             piece.localScale = new Vector3(scale, scale, 1f);
             BuildRuinPiece(piece, shape, color, square, round != null ? round : square, material);
         }
+    }
+
+    /// <summary>
+    /// The shape of science face k's ruin in Town module townIndex: a rotation of the shapes per module, stepping by
+    /// 1 for the first five modules, by 2 for the next five, and so on (steps 1-4 are all coprime to the five shapes),
+    /// so each of the first 20 modules mixes its shapes differently.
+    /// </summary>
+    private static RuinShape RuinShapeFor(int k, int townIndex)
+    {
+        int shapes = ScienceThemes.Length;
+        int step = 1 + townIndex / shapes % (shapes - 1);
+        return (RuinShape)((k * step + townIndex) % shapes);
     }
 
     private static bool TryRuinSpot(Vector2 size, int quadrant, List<Rect> obstacles, List<Rect> alcoves,

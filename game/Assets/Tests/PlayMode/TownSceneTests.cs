@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace Game.Cube.Tests
 {
     /// <summary>
-    /// The Town hub in the real Cube scene: a run starts with one NPC of each face race plus 2-4 Townsfolk
+    /// The Town hub in the real Cube scene: a run starts with one NPC of each face race plus a per-screen share of Townsfolk
     /// on the Town face, on the seed's spots (clear of colliders, lanes and the centre); the same seed gives
     /// the same town; every Town NPC talks (sparse, run-true hints; the greeter adds the welcome); F5 replaces
     /// the population without leftovers; and walking off a Town edge still lands on the shuffled cube.
@@ -54,7 +54,7 @@ namespace Game.Cube.Tests
         }
 
         private List<TownSpot> ExpectedSpots(int seed) =>
-            TownPlan.Spots(seed, world.FaceSize, TownPlan.Specs(seed).Count,
+            TownPlan.Spots(seed, world.FaceSize, TownPlan.Specs(seed, world.FaceSize).Count,
                 cell => TownPlan.BlockedRects(world.Library.TownModule(cell, world.FaceSize)));
 
         [UnityTest]
@@ -69,9 +69,9 @@ namespace Game.Cube.Tests
             foreach (Race race in TownPlan.FaceRaces)
                 Assert.AreEqual(1, npcs.Count(n => n.Race == race), $"Town has exactly one {race}");
             int townsfolk = npcs.Count(n => n.Race == Race.Townsfolk);
-            Assert.That(townsfolk, Is.InRange(TownPlan.MinTownsfolk, TownPlan.MaxTownsfolk));
-            Assert.AreEqual(5 + townsfolk, npcs.Count);
-            CollectionAssert.AreEqual(TownPlan.Specs(world.Seed).Select(s => s.Signature()), npcs.Select(n => n.Spec.Signature()));
+            Assert.That(townsfolk, Is.InRange(TownPlan.MinTownsfolk(world.FaceSize), TownPlan.MaxTownsfolk(world.FaceSize)));
+            Assert.AreEqual(TownPlan.FaceRaces.Length + townsfolk, npcs.Count);
+            CollectionAssert.AreEqual(TownPlan.Specs(world.Seed, world.FaceSize).Select(s => s.Signature()), npcs.Select(n => n.Spec.Signature()));
             CollectionAssert.AreEqual(ExpectedSpots(world.Seed), town.Spots, "Spawn spots are the seed's pure spots");
 
             for (int i = 0; i < npcs.Count; i++)
@@ -177,7 +177,7 @@ namespace Game.Cube.Tests
             yield return null;
 
             Assert.IsTrue(old.All(n => n == null), "Every old Town NPC is gone");
-            CollectionAssert.AreEqual(TownPlan.Specs(world.Seed).Select(s => s.Signature()), town.Npcs.Select(n => n.Spec.Signature()));
+            CollectionAssert.AreEqual(TownPlan.Specs(world.Seed, world.FaceSize).Select(s => s.Signature()), town.Npcs.Select(n => n.Spec.Signature()));
             CollectionAssert.AreEqual(ExpectedSpots(world.Seed), town.Spots);
             NpcTalker[] all = Object.FindObjectsByType<NpcTalker>(FindObjectsSortMode.None);
             Assert.AreEqual(town.Npcs.Count, all.Length, "No duplicates or leftovers in the scene");

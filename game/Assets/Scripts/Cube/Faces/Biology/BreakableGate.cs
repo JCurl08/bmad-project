@@ -34,12 +34,13 @@ namespace Game.Cube
         /// gate opened by item. The beak's colour shows as a small mark so the player can tell which beak it wants.
         /// </summary>
         public static BreakableGate Build(GameObject block, ItemDefinition item, BreakableLook look, int difficulty,
-            bool optional, Material material)
+            bool optional, Material material, int faceSize = CubeSettings.DefaultFaceSize)
         {
             block.name = $"{look} Gate ({item})";
             var gate = block.AddComponent<BreakableGate>();
             gate.look = look;
             gate.Difficulty = difficulty;
+            gate.FaceSize = faceSize;
             gate.Optional = optional;
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;

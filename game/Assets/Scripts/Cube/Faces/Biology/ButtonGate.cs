@@ -52,11 +52,12 @@ namespace Game.Cube
 
         /// <summary>Turns a placeholder block into a button door opened by item, with its button at buttonWorld.</summary>
         public static ButtonGate Build(GameObject block, ItemDefinition item, Vector2 buttonWorld, Transform buttonParent,
-            int difficulty, bool optional, Material material)
+            int difficulty, bool optional, Material material, int faceSize = CubeSettings.DefaultFaceSize)
         {
             block.name = $"Button Door ({item})";
             var gate = block.AddComponent<ButtonGate>();
             gate.Difficulty = difficulty;
+            gate.FaceSize = faceSize;
             gate.Optional = optional;
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;

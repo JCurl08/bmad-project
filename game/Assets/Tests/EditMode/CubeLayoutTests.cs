@@ -181,6 +181,14 @@ namespace Game.Cube.Tests
             int n = CubeSettings.DefaultFaceSize;
             Assert.GreaterOrEqual(library.TownModules.Count, n * n);
             Assert.IsTrue(library.TownModules.All(m => m != null && m.Theme == Theme.Town));
+
+            // Every Town cell gets its own module (no wrap at N), and no two of them share a layout.
+            var cellModules = new List<ScreenModule>();
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                    cellModules.Add(library.TownModule(new Vector2Int(x, y), n));
+            Assert.AreEqual(n * n, cellModules.Distinct().Count(), "Each Town cell has a distinct module");
+            Assert.AreEqual(n * n, cellModules.Select(TownLayoutKey).Distinct().Count(), "Each Town module has its own layout");
             foreach (Theme theme in BuiltSciences)
             {
                 IReadOnlyList<ScreenModule> pool = library.Pool(theme);
@@ -190,6 +198,11 @@ namespace Game.Cube.Tests
             }
             Assert.IsTrue(library.TownModules.All(m => m.CoreEntranceCount == 0), "Town has no core entrance");
         }
+
+        /// <summary>A Town module's layout: its walls (solid colliders and alcoves) as rounded rects.</summary>
+        private static string TownLayoutKey(ScreenModule module) =>
+            string.Join(";", TownPlan.BlockedRects(module).Select(r => $"{r.xMin:0.00},{r.yMin:0.00},{r.width:0.00},{r.height:0.00}")
+                .OrderBy(s => s, StringComparer.Ordinal));
 
         [Test]
         public void Library_EveryModuleHasFourOpenExits_GatesAndOneHiddenItem()

@@ -121,7 +121,7 @@ namespace Game.Cube.Tests
         {
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
-            var homeStagesSeen = new HashSet<(IsotopeStage, IsotopeStage)>();
+            var homeStagesSeen = new HashSet<string>();
             for (int seed = 1; seed <= Seeds; seed++)
             {
                 ItemPlacement p = Place(seed, library, catalog, out CubeModel model);
@@ -139,7 +139,7 @@ namespace Game.Cube.Tests
                     if (!s.OnHome) Assert.AreEqual(IsotopeStage.Lead, s.Stage, $"seed {seed}: {s} is far from the dispenser");
                 }
                 List<IsotopeStage> home = plan.Gates.Where(s => s.OnHome).Select(s => s.Stage).ToList();
-                if (home.Count == 2) homeStagesSeen.Add((home[0], home[1]));
+                if (home.Count == ItemPlacement.HomeGatesPerItem(model.FaceSize)) homeStagesSeen.Add(string.Join(",", home));
             }
             Assert.Greater(homeStagesSeen.Count, 1, "The home stages are dealt by seed");
         }
@@ -365,7 +365,7 @@ namespace Game.Cube.Tests
         {
             var model = new CubeModel(3);
             var facts = new RunFacts(model);
-            for (int i = 0; i < ChemistryPopulation.MushroomCount; i++)
+            for (int i = 0; i < ChemistryPopulation.MushroomCount(model.FaceSize); i++)
             {
                 NpcSpec spec = ChemistryPopulation.MushroomSpec(3, i);
                 Assert.AreEqual(Race.Mushroom, spec.Race);

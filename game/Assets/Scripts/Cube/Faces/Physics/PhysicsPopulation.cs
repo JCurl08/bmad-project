@@ -11,7 +11,11 @@ namespace Game.Cube
     /// </summary>
     public static class PhysicsPopulation
     {
-        public const int AlienCount = 3;
+        /// <summary>Aliens on a face of CubeSettings.TunedScreensPerFace screens; AlienCount scales it per screen.</summary>
+        public const int TunedAlienCount = 3;
+
+        /// <summary>Aliens on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int AlienCount(int faceSize) => CubeSettings.PerScreen(TunedAlienCount, faceSize);
 
         /// <summary>NPC index base for Physics aliens (Town 1000, Biology finches 2000, Chemistry mushrooms 3000).</summary>
         public const int IndexBase = 4000;

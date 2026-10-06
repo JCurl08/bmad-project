@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Game.Cube.Tests
 {
     /// <summary>
-    /// The Town hub (pure): the population has one NPC of each face race plus 2-4 Townsfolk, chosen from the
+    /// The Town hub (pure): the population has one NPC of each face race plus a per-screen share of Townsfolk (TownPlan.MinTownsfolk..MaxTownsfolk), chosen from the
     /// seed alone; spawn spots are deterministic and valid against the real Town module geometry over 50
     /// seeds (inside the edge band, off both exit lanes and the centre, clear of walls, alcoves and each
     /// other); Townsfolk mix other races' parts; the welcome keeps the tone rules; and the Town modules carry
@@ -16,6 +16,9 @@ namespace Game.Cube.Tests
     public class TownTests
     {
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
+
+        /// <summary>The face size every run uses.</summary>
+        private const int N = CubeSettings.DefaultFaceSize;
 
         private static ModuleLibrary Library()
         {
@@ -26,33 +29,41 @@ namespace Game.Cube.Tests
 
         private static List<TownSpot> SpotsFor(int seed, int faceSize, ModuleLibrary library)
         {
-            return TownPlan.Spots(seed, faceSize, TownPlan.Specs(seed).Count,
+            return TownPlan.Spots(seed, faceSize, TownPlan.Specs(seed, faceSize).Count,
                 cell => TownPlan.BlockedRects(library.TownModule(cell, faceSize)));
         }
 
         [Test]
-        public void Specs_OneOfEachFaceRace_PlusTwoToFourTownsfolk_SameForTheSameSeed()
+        public void Specs_OneOfEachFaceRace_PlusAPerScreenShareOfTownsfolk_SameForTheSameSeed()
         {
             var townsfolkCounts = new HashSet<int>();
             for (int seed = 1; seed <= 50; seed++)
             {
-                List<NpcSpec> specs = TownPlan.Specs(seed);
+                List<NpcSpec> specs = TownPlan.Specs(seed, N);
                 foreach (Race race in TownPlan.FaceRaces)
                     Assert.AreEqual(1, specs.Count(s => s.Race == race), $"seed {seed}: {race}");
                 int townsfolk = specs.Count(s => s.Race == Race.Townsfolk);
-                Assert.That(townsfolk, Is.InRange(TownPlan.MinTownsfolk, TownPlan.MaxTownsfolk), $"seed {seed}");
+                Assert.That(townsfolk, Is.InRange(TownPlan.MinTownsfolk(N), TownPlan.MaxTownsfolk(N)), $"seed {seed}");
                 Assert.AreEqual(TownPlan.FaceRaces.Length + townsfolk, specs.Count);
                 Assert.AreEqual(Race.Townsfolk, specs[0].Race, "The greeter comes first");
                 Assert.IsTrue(TownPlan.IsGreeter(specs[0]), "The greeter comes first");
                 Assert.AreEqual(1, specs.Count(TownPlan.IsGreeter), "Exactly one greeter");
                 townsfolkCounts.Add(townsfolk);
 
-                CollectionAssert.AreEqual(specs.Select(s => s.Signature()), TownPlan.Specs(seed).Select(s => s.Signature()),
+                CollectionAssert.AreEqual(specs.Select(s => s.Signature()), TownPlan.Specs(seed, N).Select(s => s.Signature()),
                     $"seed {seed}: same seed, same NPCs");
             }
             Assert.Greater(townsfolkCounts.Count, 1, "The number of Townsfolk varies between seeds");
-            Assert.AreNotEqual(string.Join(",", TownPlan.Specs(1).Select(s => s.Signature())),
-                string.Join(",", TownPlan.Specs(2).Select(s => s.Signature())), "Different seeds, different NPCs");
+
+            // The whole Town population scales per screen (7-9 NPCs on 4 screens): the races stay one each, Townsfolk fill the rest.
+            Assert.AreEqual(2, TownPlan.MinTownsfolk(2));
+            Assert.AreEqual(4, TownPlan.MaxTownsfolk(2));
+            Assert.AreEqual(11, TownPlan.MinTownsfolk(3));
+            Assert.AreEqual(15, TownPlan.MaxTownsfolk(3));
+            Assert.AreEqual(CubeSettings.PerScreen(TownPlan.TunedMinTownsfolk + TownPlan.FaceRaces.Length, N),
+                TownPlan.MinTownsfolk(N) + TownPlan.FaceRaces.Length);
+            Assert.AreNotEqual(string.Join(",", TownPlan.Specs(1, N).Select(s => s.Signature())),
+                string.Join(",", TownPlan.Specs(2, N).Select(s => s.Signature())), "Different seeds, different NPCs");
         }
 
         [Test]
@@ -61,7 +72,7 @@ namespace Game.Cube.Tests
             int foreignHeads = 0, foreignTorsos = 0, total = 0;
             for (int seed = 1; seed <= 50; seed++)
             {
-                foreach (NpcSpec spec in TownPlan.Specs(seed).Where(s => s.Race == Race.Townsfolk))
+                foreach (NpcSpec spec in TownPlan.Specs(seed, N).Where(s => s.Race == Race.Townsfolk))
                 {
                     total++;
                     if (!RacePartSets.For(Race.Townsfolk).Heads.Contains(spec.Head)) foreignHeads++;
@@ -78,11 +89,11 @@ namespace Game.Cube.Tests
         public void Spots_AreValidAgainstTownModules_AndDeterministic_Over50Seeds()
         {
             ModuleLibrary library = Library();
-            foreach (int faceSize in new[] { CubeSettings.DefaultFaceSize, 3 })
+            foreach (int faceSize in new[] { 2, N })
             {
                 for (int seed = 1; seed <= 50; seed++)
                 {
-                    int count = TownPlan.Specs(seed).Count;
+                    int count = TownPlan.Specs(seed, faceSize).Count;
                     List<TownSpot> spots = SpotsFor(seed, faceSize, library);
                     Assert.AreEqual(count, spots.Count);
                     CollectionAssert.AreEqual(spots, SpotsFor(seed, faceSize, library), $"N={faceSize} seed {seed}: not deterministic");
@@ -136,7 +147,7 @@ namespace Game.Cube.Tests
         {
             ModuleLibrary library = Library();
             int faceSize = CubeSettings.DefaultFaceSize;
-            int count = TownPlan.Specs(7).Count;
+            int count = TownPlan.Specs(7, faceSize).Count;
             // Veto the whole start screen: everything moves to the other screens, still valid.
             List<TownSpot> spots = TownPlan.Spots(7, faceSize, count,
                 cell => TownPlan.BlockedRects(library.TownModule(cell, faceSize)),

@@ -323,7 +323,7 @@ namespace Game.Cube.Tests
             yield return Load();
             yield return StartRunOntoChemistry(SeedWithOpenDispenser(), true);
             FaceId face = chemistry.Plan.Face;
-            Assert.AreEqual(ChemistryPopulation.MushroomCount, chemistry.Mushrooms.Count);
+            Assert.AreEqual(ChemistryPopulation.MushroomCount(chemistry.Plan.FaceSize), chemistry.Mushrooms.Count);
             var facts = new RunFacts(world.Model, world.Layout, world.ItemPlacement);
             for (int i = 0; i < chemistry.Mushrooms.Count; i++)
             {
@@ -352,7 +352,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(talker.Box.IsOpen);
             talker.Box.Close();
 
-            Assert.AreEqual(ChemistryFace.RadicalCount + ChemistryFace.MiteCount, chemistry.Enemies.Count);
+            Assert.AreEqual(ChemistryFace.RadicalCount(chemistry.Plan.FaceSize) + ChemistryFace.MiteCount(chemistry.Plan.FaceSize), chemistry.Enemies.Count);
             foreach (Enemy enemy in chemistry.Enemies)
             {
                 Assert.IsTrue(OnFace(enemy.transform.position, face, null), "Chemistry enemies live on the Chemistry face");

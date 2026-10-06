@@ -20,8 +20,17 @@ namespace Game.Cube
         /// <summary>PCG32 stream for Chemistry population spots, trial spots and screens (see RngStreams).</summary>
         public const ulong PopulationRngStream = RngStreams.ChemistryPopulation;
 
-        public const int RadicalCount = 2;
-        public const int MiteCount = 1;
+        /// <summary>Free Radicals on a face of CubeSettings.TunedScreensPerFace screens; RadicalCount scales it per screen.</summary>
+        public const int TunedRadicalCount = 2;
+
+        /// <summary>Free Radicals on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int RadicalCount(int faceSize) => CubeSettings.PerScreen(TunedRadicalCount, faceSize);
+
+        /// <summary>Rust Mites on a face of CubeSettings.TunedScreensPerFace screens; MiteCount scales it per screen.</summary>
+        public const int TunedMiteCount = 1;
+
+        /// <summary>Rust Mites on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int MiteCount(int faceSize) => CubeSettings.PerScreen(TunedMiteCount, faceSize);
 
         [SerializeField] private Transform player;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
@@ -203,7 +212,7 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < ChemistryPopulation.MushroomCount; i++)
+            for (int i = 0; i < ChemistryPopulation.MushroomCount(Plan.FaceSize); i++)
             {
                 NpcSpec spec = ChemistryPopulation.MushroomSpec(world.Seed, i);
                 if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
@@ -224,9 +233,10 @@ namespace Game.Cube
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < RadicalCount + MiteCount; i++)
+            int radicals = RadicalCount(Plan.FaceSize);
+            for (int i = 0; i < radicals + MiteCount(Plan.FaceSize); i++)
             {
-                ChemistryEnemyKind kind = i < RadicalCount ? ChemistryEnemyKind.FreeRadical : ChemistryEnemyKind.RustMite;
+                ChemistryEnemyKind kind = i < radicals ? ChemistryEnemyKind.FreeRadical : ChemistryEnemyKind.RustMite;
                 if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
                 Vector2 centre = world.ScreenCenter(screen);
                 Rect bounds = FaceContent.WanderBounds(centre, feet);

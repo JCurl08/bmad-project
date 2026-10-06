@@ -111,14 +111,22 @@ namespace Game.Cube
         /// <summary>PCG32 stream for item placement (see RngStreams).</summary>
         public const ulong RngStream = RngStreams.ItemPlacement;
 
-        /// <summary>Target number of gates per item on its home face ("mostly on the home face").</summary>
-        public const int HomeGatesPerItem = 2;
+        /// <summary>Target gates per item on its home face ("mostly on the home face") on a face of
+        /// CubeSettings.TunedScreensPerFace screens; HomeGatesPerItem scales it per screen.</summary>
+        public const int TunedHomeGatesPerItem = 2;
 
-        /// <summary>Gates per item on another built face.</summary>
+        /// <summary>Target gates per item on its home face of faceSize x faceSize screens (about the same per screen).</summary>
+        public static int HomeGatesPerItem(int faceSize) => CubeSettings.PerScreen(TunedHomeGatesPerItem, faceSize);
+
+        /// <summary>Gates per item on another built face (a rule per item, not a density: the same at every N).</summary>
         public const int OffHomeGatesPerItem = 1;
 
-        /// <summary>Optional gates per non-rolled variant, placed only in home-face slots left free.</summary>
-        public const int OptionalGatesPerVariant = 2;
+        /// <summary>Optional gates per non-rolled variant, placed only in home-face slots left free, on a face of
+        /// CubeSettings.TunedScreensPerFace screens; OptionalGatesPerVariant scales it per screen.</summary>
+        public const int TunedOptionalGatesPerVariant = 2;
+
+        /// <summary>Optional gates per non-rolled variant on a home face of faceSize x faceSize screens.</summary>
+        public static int OptionalGatesPerVariant(int faceSize) => CubeSettings.PerScreen(TunedOptionalGatesPerVariant, faceSize);
 
         private readonly List<GatePlacement> gates;
         private readonly List<PickupPlacement> pickups;
@@ -277,7 +285,8 @@ namespace Game.Cube
             }
 
             // 2. Extra home gates while slots remain, so most of an item's gates sit on its home face.
-            for (int extra = 1; extra < HomeGatesPerItem; extra++)
+            int homeGates = HomeGatesPerItem(model.FaceSize);
+            for (int extra = 1; extra < homeGates; extra++)
                 foreach (Theme item in itemList)
                     if (freeSlots[homeFace[item]].Count > 0) TakeSlot(homeFace[item], item);
 
@@ -320,6 +329,7 @@ namespace Game.Cube
             // 4. Variants: roll each item's variant; the others get optional gates in leftover home slots.
             var rolled = new Dictionary<Theme, int>();
             var optional = new List<OptionalGatePlacement>();
+            int optionalPerVariant = OptionalGatesPerVariant(model.FaceSize);
             if (variantCounts != null)
             {
                 foreach (Theme item in itemList)
@@ -331,7 +341,7 @@ namespace Game.Cube
                     for (int v = 0; v < count; v++)
                     {
                         if (v == roll) continue;
-                        for (int k = 0; k < OptionalGatesPerVariant && free.Count > 0; k++)
+                        for (int k = 0; k < optionalPerVariant && free.Count > 0; k++)
                         {
                             int pick = rng.NextInt(free.Count);
                             (ScreenAddress screen, int slot) = free[pick];

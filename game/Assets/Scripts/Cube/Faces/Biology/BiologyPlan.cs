@@ -80,8 +80,25 @@ namespace Game.Cube
         /// <summary>Currency the Biology trial pays out (fired with TrialRoom.Completed; spent in 1.12).</summary>
         public const int TrialCurrency = 25;
 
-        /// <summary>Beak hits a gate needs: one, plus one for every three beak gates beyond the first on its face.</summary>
-        public static int HitsFor(int difficulty) => 1 + (Mathf.Max(1, difficulty) - 1) / 3;
+        /// <summary>Beak gates per extra hit on a face of CubeSettings.TunedScreensPerFace screens (scaled per screen by HitsFor).</summary>
+        public const int TunedGatesPerExtraHit = 3;
+
+        /// <summary>
+        /// Beak hits a gate needs on a face of faceSize x faceSize screens: one, plus one for every GatesPerExtraHit beak
+        /// gates beyond the first on its face (3 on a 2x2 face, 7 on a 3x3 one), so the toughness follows the gate density
+        /// per screen rather than the face size.
+        /// </summary>
+        public static int HitsFor(int difficulty, int faceSize) =>
+            1 + (Mathf.Max(1, difficulty) - 1) / GatesPerExtraHit(faceSize);
+
+        /// <summary>Beak gates per extra hit on a face of faceSize x faceSize screens.</summary>
+        public static int GatesPerExtraHit(int faceSize) => CubeSettings.PerScreen(TunedGatesPerExtraHit, faceSize);
+
+        /// <summary>Flower-vine gates of a thin-beak run on a face of CubeSettings.TunedScreensPerFace screens.</summary>
+        public const int TunedFlowerVineCount = 1;
+
+        /// <summary>Flower-vine gates of a thin-beak run on a face of faceSize x faceSize screens (1 at 2x2, 2 at 3x3).</summary>
+        public static int FlowerVineCount(int faceSize) => CubeSettings.PerScreen(TunedFlowerVineCount, faceSize);
 
         private readonly List<BeakGateSpec> gates;
 
@@ -134,26 +151,28 @@ namespace Game.Cube
             var rng = new SeededRng(unchecked((ulong)(uint)model.Seed), RngStream);
             var specs = new List<BeakGateSpec>();
 
-            bool flowerPlaced = false;
+            int flowerCount = n > 1 ? FlowerVineCount(n) : 0;
+            var flowerScreens = new List<ScreenAddress>();
             foreach (GatePlacement g in placement.Gates)
             {
                 if (g.Item != Theme.Biology) continue;
-                BeakGateKind kind;
+                BeakGateKind kind = BeakGateKind.Button;
                 var flower = default(ScreenAddress);
                 if (beak == BeakKind.Thick)
                 {
                     kind = BeakGateKind.Breakable;
                 }
-                else if (!flowerPlaced && g.Screen.Face == face && n > 1)
+                else if (flowerScreens.Count < flowerCount && g.Screen.Face == face)
                 {
-                    kind = BeakGateKind.FlowerVine;
+                    // Each flower on its own adjacent screen (a flower sits at the fixed FlowerLocal spot).
                     List<ScreenAddress> adjacent = Adjacent(g.Screen, n);
-                    flower = adjacent[rng.NextInt(adjacent.Count)];
-                    flowerPlaced = true;
-                }
-                else
-                {
-                    kind = BeakGateKind.Button;
+                    adjacent.RemoveAll(flowerScreens.Contains);
+                    if (adjacent.Count > 0)
+                    {
+                        kind = BeakGateKind.FlowerVine;
+                        flower = adjacent[rng.NextInt(adjacent.Count)];
+                        flowerScreens.Add(flower);
+                    }
                 }
                 var look = (BreakableLook)rng.NextInt(2);
                 specs.Add(new BeakGateSpec(g.Screen, g.Slot, beak, kind, false, flower, look, 1));
@@ -230,7 +249,7 @@ namespace Game.Cube
         /// <summary>
         /// Problems with a run's Biology plan: required gates use the rolled beak and optional ones the other;
         /// the rolled beak has a gate off its home face (when another face is built); a thin-beak run has
-        /// exactly one flower-vine gate whose flower is on an adjacent screen of the same face; the trial is on
+        /// FlowerVineCount flower-vine gates (fewer only with fewer home gates), each flower on its own adjacent screen of the same face; the trial is on
         /// the Biology face. Empty when all is well (or when the run has no beak variants).
         /// </summary>
         public static List<string> FindProblems(CubeModel model, ItemPlacement placement,
@@ -240,7 +259,8 @@ namespace Game.Cube
             BiologyPlan plan = Create(model, placement, variantKinds);
             if (plan == null) return problems;
 
-            int offHome = 0, flowers = 0;
+            int offHome = 0, flowers = 0, homeRequired = 0;
+            var flowerScreens = new HashSet<ScreenAddress>();
             int builtFaces = 0;
             for (int f = 0; f < CubeSettings.FaceCount; f++)
                 if (CubeLayout.IsLaidOut(model, (FaceId)f)) builtFaces++;
@@ -251,16 +271,20 @@ namespace Game.Cube
                 if (s.Optional && s.Beak == plan.Beak) problems.Add($"{s}: an optional gate uses the rolled beak");
                 if (s.Optional && s.Screen.Face != plan.Face) problems.Add($"{s}: optional beak gates belong on Biology");
                 if (!s.Optional && s.Screen.Face != plan.Face) offHome++;
+                if (!s.Optional && s.Screen.Face == plan.Face) homeRequired++;
                 if (s.Kind == BeakGateKind.FlowerVine)
                 {
                     flowers++;
+                    if (!flowerScreens.Add(s.FlowerScreen)) problems.Add($"{s}: shares its flower screen with another vine");
                     if (s.FlowerScreen.Face != s.Screen.Face || !Adjacent(s.Screen, plan.FaceSize).Contains(s.FlowerScreen))
                         problems.Add($"{s}: the flower is not on an adjacent screen of the same face");
                 }
                 if (s.Difficulty != plan.DifficultyOn(s.Screen.Face)) problems.Add($"{s}: wrong difficulty");
             }
             if (offHome < 1 && builtFaces > 1) problems.Add($"the {plan.Beak} beak opens no gate on another face");
-            if (plan.Beak == BeakKind.Thin && flowers != 1) problems.Add($"thin-beak run has {flowers} flower-vine gates (want 1)");
+            int wantFlowers = plan.FaceSize > 1 ? Mathf.Min(FlowerVineCount(plan.FaceSize), homeRequired) : 0;
+            if (plan.Beak == BeakKind.Thin && flowers != wantFlowers)
+                problems.Add($"thin-beak run has {flowers} flower-vine gates (want {wantFlowers})");
             if (plan.Beak == BeakKind.Thick && flowers != 0) problems.Add("thick-beak run has a flower-vine gate");
             if (plan.TrialScreen.Face != plan.Face) problems.Add($"the trial is on {plan.TrialScreen}, not on Biology");
             return problems;

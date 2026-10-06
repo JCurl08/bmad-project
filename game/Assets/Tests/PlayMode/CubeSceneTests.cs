@@ -180,6 +180,13 @@ namespace Game.Cube.Tests
                     Assert.IsNull(module, $"{screen} was laid out before leaving town");
                 }
             }
+            // Town is N x N distinct screens: one module per cell, none repeated.
+            List<ScreenModule> townModules = model.AllScreens().Where(s => s.Face == CubeModel.StartFace).Select(s => world.ModuleAt(s)).ToList();
+            Assert.AreEqual(model.FaceSize * model.FaceSize, townModules.Count);
+            foreach (ScreenAddress cell in model.AllScreens().Where(s => s.Face == CubeModel.StartFace))
+                Assert.IsNotNull(world.ModuleAt(cell), $"Town cell {cell} has a module");
+            Assert.AreEqual(townModules.Count, townModules.Select(m => m.name.Split(new[] { " @ " }, StringSplitOptions.None)[0]).Distinct().Count(),
+                "Every Town screen shows its own module");
 
             // Arriving on a built science face by debug teleport also reveals; a second reveal is a no-op.
             ScreenAddress science = model.AllScreens().First(s => CubeLayout.IsLaidOut(model, s.Face));

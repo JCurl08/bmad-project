@@ -432,7 +432,7 @@ namespace Game.Cube.Tests
         {
             var model = new CubeModel(3);
             var facts = new RunFacts(model);
-            for (int i = 0; i < PhysicsPopulation.AlienCount; i++)
+            for (int i = 0; i < PhysicsPopulation.AlienCount(model.FaceSize); i++)
             {
                 NpcSpec spec = PhysicsPopulation.AlienSpec(3, i);
                 Assert.AreEqual(Race.Alien, spec.Race);

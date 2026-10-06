@@ -10,7 +10,11 @@ namespace Game.Cube
     /// </summary>
     public static class ChemistryPopulation
     {
-        public const int MushroomCount = 3;
+        /// <summary>Mushroom people on a face of CubeSettings.TunedScreensPerFace screens; MushroomCount scales it per screen.</summary>
+        public const int TunedMushroomCount = 3;
+
+        /// <summary>Mushroom people on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int MushroomCount(int faceSize) => CubeSettings.PerScreen(TunedMushroomCount, faceSize);
 
         /// <summary>NPC index base for Chemistry mushrooms (Town 1000, Biology finches 2000).</summary>
         public const int IndexBase = 3000;

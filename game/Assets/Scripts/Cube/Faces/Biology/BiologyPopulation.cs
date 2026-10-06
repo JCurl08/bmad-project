@@ -11,7 +11,11 @@ namespace Game.Cube
     /// </summary>
     public static class BiologyPopulation
     {
-        public const int FinchCount = 3;
+        /// <summary>Finches on a face of CubeSettings.TunedScreensPerFace screens; FinchCount scales it per screen.</summary>
+        public const int TunedFinchCount = 3;
+
+        /// <summary>Finches on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int FinchCount(int faceSize) => CubeSettings.PerScreen(TunedFinchCount, faceSize);
 
         /// <summary>NPC index base for Biology finches (Town uses 1000, F3 debug batches 0, 1, ...).</summary>
         public const int IndexBase = 2000;

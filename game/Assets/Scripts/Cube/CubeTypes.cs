@@ -15,10 +15,28 @@ namespace Game.Cube
     /// <summary>Shared cube settings. The face size N is read from here everywhere.</summary>
     public static class CubeSettings
     {
-        /// <summary>Screens per face side (N). 2 at Must tier, 3 at Should tier.</summary>
-        public const int DefaultFaceSize = 2;
+        /// <summary>Screens per face side (N): every face is 3x3 at Must tier (CAP-1).</summary>
+        public const int DefaultFaceSize = 3;
 
         public const int FaceCount = 6;
+
+        /// <summary>
+        /// Screens per face that the per-face content counts (gates, NPCs, enemies) were first tuned on (a 2x2 face).
+        /// PerScreen scales those counts from here, so the tuning is kept as a density per screen.
+        /// </summary>
+        public const int TunedScreensPerFace = 4;
+
+        /// <summary>
+        /// A per-face count tuned on a face of TunedScreensPerFace screens, scaled to a face of faceSize x faceSize
+        /// screens so the number per screen stays about the same (rounded half up; at least 1 when tunedCount is
+        /// positive, 0 otherwise). On a face of the tuned size it returns tunedCount unchanged.
+        /// </summary>
+        public static int PerScreen(int tunedCount, int faceSize)
+        {
+            if (tunedCount <= 0) return 0;
+            int screens = Math.Max(1, faceSize * faceSize);
+            return Math.Max(1, (2 * tunedCount * screens + TunedScreensPerFace) / (2 * TunedScreensPerFace));
+        }
     }
 
     public static class FacingExtensions

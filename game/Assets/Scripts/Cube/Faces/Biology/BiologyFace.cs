@@ -18,8 +18,17 @@ namespace Game.Cube
         /// <summary>PCG32 stream for Biology population spots and screens (see RngStreams).</summary>
         public const ulong PopulationRngStream = RngStreams.BiologyPopulation;
 
-        public const int WeevilCount = 2;
-        public const int PuffCount = 1;
+        /// <summary>Seed Weevils on a face of CubeSettings.TunedScreensPerFace screens; WeevilCount scales it per screen.</summary>
+        public const int TunedWeevilCount = 2;
+
+        /// <summary>Seed Weevils on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int WeevilCount(int faceSize) => CubeSettings.PerScreen(TunedWeevilCount, faceSize);
+
+        /// <summary>Pollen Puffs on a face of CubeSettings.TunedScreensPerFace screens; PuffCount scales it per screen.</summary>
+        public const int TunedPuffCount = 1;
+
+        /// <summary>Pollen Puffs on a face of faceSize x faceSize screens (about the same number per screen).</summary>
+        public static int PuffCount(int faceSize) => CubeSettings.PerScreen(TunedPuffCount, faceSize);
 
         [SerializeField] private Transform player;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
@@ -97,14 +106,14 @@ namespace Game.Cube
             switch (spec.Kind)
             {
                 case BeakGateKind.Breakable:
-                    gate = BreakableGate.Build(block, item, spec.Look, spec.Difficulty, spec.Optional, world.Material);
+                    gate = BreakableGate.Build(block, item, spec.Look, spec.Difficulty, spec.Optional, world.Material, Plan.FaceSize);
                     break;
                 case BeakGateKind.FlowerVine:
                 {
                     ScreenModule flowerModule = world.ModuleAt(spec.FlowerScreen);
                     Transform parent = flowerModule != null ? flowerModule.transform : slot.transform;
                     Vector2 at = world.ScreenCenter(spec.FlowerScreen) + FlowerVineGate.FlowerLocal;
-                    gate = FlowerVineGate.Build(block, item, at, parent, spec.Difficulty, spec.Optional, world.Material);
+                    gate = FlowerVineGate.Build(block, item, at, parent, spec.Difficulty, spec.Optional, world.Material, Plan.FaceSize);
                     break;
                 }
                 default:
@@ -113,7 +122,7 @@ namespace Game.Cube
                     Vector2 slotLocal = (Vector2)slot.transform.position - centre;
                     Vector2 at = centre + ButtonGate.ButtonLocal(slotLocal);
                     gate = ButtonGate.Build(block, item, at, module != null ? module.transform : slot.transform,
-                        spec.Difficulty, spec.Optional, world.Material);
+                        spec.Difficulty, spec.Optional, world.Material, Plan.FaceSize);
                     break;
                 }
             }
@@ -171,7 +180,7 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < BiologyPopulation.FinchCount; i++)
+            for (int i = 0; i < BiologyPopulation.FinchCount(Plan.FaceSize); i++)
             {
                 NpcSpec spec = BiologyPopulation.FinchSpec(world.Seed, i);
                 if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
@@ -192,9 +201,10 @@ namespace Game.Cube
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < WeevilCount + PuffCount; i++)
+            int weevils = WeevilCount(Plan.FaceSize);
+            for (int i = 0; i < weevils + PuffCount(Plan.FaceSize); i++)
             {
-                BiologyEnemyKind kind = i < WeevilCount ? BiologyEnemyKind.SeedWeevil : BiologyEnemyKind.PollenPuff;
+                BiologyEnemyKind kind = i < weevils ? BiologyEnemyKind.SeedWeevil : BiologyEnemyKind.PollenPuff;
                 if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
                 Vector2 centre = world.ScreenCenter(screen);
                 Rect bounds = FaceContent.WanderBounds(centre, feet);

@@ -192,18 +192,22 @@ namespace Game.Cube.Tests
             Assert.AreEqual(BiologyBeaks.ThinReach, attack.EffectiveReach, 1e-4f);
 
             // The pollinated bridge: the flower on one screen opens the vine gate on the adjacent screen.
-            BeakGateSpec vineSpec = plan.Gates.Single(s => s.Kind == BeakGateKind.FlowerVine);
-            var vine = (FlowerVineGate)GateFor(vineSpec);
-            Vector2 flower = vine.Flower.transform.position;
-            Assert.AreEqual(vineSpec.FlowerScreen, ScreenOf(flower, plan.Face), "The flower is on the adjacent screen");
-            for (int hit = 0; hit < vine.HitsToOpen; hit++)
+            List<BeakGateSpec> vineSpecs = plan.Gates.Where(s => s.Kind == BeakGateKind.FlowerVine).ToList();
+            Assert.AreEqual(BiologyPlan.FlowerVineCount(plan.FaceSize), vineSpecs.Count);
+            foreach (BeakGateSpec vineSpec in vineSpecs)
             {
-                Assert.IsFalse(vine.IsOpen);
-                yield return StrikeFrom(vineSpec.FlowerScreen, flower, Facing.North, ThinDistance);
+                var vine = (FlowerVineGate)GateFor(vineSpec);
+                Vector2 flower = vine.Flower.transform.position;
+                Assert.AreEqual(vineSpec.FlowerScreen, ScreenOf(flower, plan.Face), "The flower is on the adjacent screen");
+                for (int hit = 0; hit < vine.HitsToOpen; hit++)
+                {
+                    Assert.IsFalse(vine.IsOpen);
+                    yield return StrikeFrom(vineSpec.FlowerScreen, flower, Facing.North, ThinDistance);
+                }
+                Assert.IsTrue(vine.IsOpen, $"Pollinating the flower on {vineSpec.FlowerScreen} opens {vineSpec}");
+                Assert.IsNotNull(vine.Bridge, "A vine bridge grows");
+                Assert.IsTrue(vine.Flower.Used);
             }
-            Assert.IsTrue(vine.IsOpen, $"Pollinating the flower on {vineSpec.FlowerScreen} opens {vineSpec}");
-            Assert.IsNotNull(vine.Bridge, "A vine bridge grows");
-            Assert.IsTrue(vine.Flower.Used);
 
             // Every required button door, including the one on another face.
             foreach (BeakGateSpec spec in plan.Gates.Where(s => !s.Optional && s.Kind == BeakGateKind.Button))
@@ -339,7 +343,7 @@ namespace Game.Cube.Tests
             int seed = SeedWith(BeakKind.Thin);
             yield return StartRunOntoBiology(seed, true);
             FaceId face = biology.Plan.Face;
-            Assert.AreEqual(BiologyPopulation.FinchCount, biology.Finches.Count);
+            Assert.AreEqual(BiologyPopulation.FinchCount(biology.Plan.FaceSize), biology.Finches.Count);
             RunFacts facts = new RunFacts(world.Model, world.Layout, world.ItemPlacement);
             for (int i = 0; i < biology.Finches.Count; i++)
             {
@@ -380,7 +384,7 @@ namespace Game.Cube.Tests
             talker.Box.Close();
 
             // Enemies: placed on Biology screens, a Seed Weevil weak to the beak and a Pollen Puff weak to another item.
-            Assert.AreEqual(BiologyFace.WeevilCount + BiologyFace.PuffCount, biology.Enemies.Count);
+            Assert.AreEqual(BiologyFace.WeevilCount(biology.Plan.FaceSize) + BiologyFace.PuffCount(biology.Plan.FaceSize), biology.Enemies.Count);
             foreach (Enemy enemy in biology.Enemies)
             {
                 Vector2 e = (Vector2)enemy.transform.position - world.FaceOrigin(face);

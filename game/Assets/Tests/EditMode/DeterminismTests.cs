@@ -126,11 +126,11 @@ namespace Game.Cube.Tests
             }
 
             Add("npcs", string.Join(" ",
-                Enumerable.Range(0, BiologyPopulation.FinchCount).Select(i => BiologyPopulation.FinchSpec(seed, i).Signature())
-                    .Concat(Enumerable.Range(0, ChemistryPopulation.MushroomCount).Select(i => ChemistryPopulation.MushroomSpec(seed, i).Signature()))
-                    .Concat(Enumerable.Range(0, PhysicsPopulation.AlienCount).Select(i => PhysicsPopulation.AlienSpec(seed, i).Signature()))
+                Enumerable.Range(0, BiologyPopulation.FinchCount(model.FaceSize)).Select(i => BiologyPopulation.FinchSpec(seed, i).Signature())
+                    .Concat(Enumerable.Range(0, ChemistryPopulation.MushroomCount(model.FaceSize)).Select(i => ChemistryPopulation.MushroomSpec(seed, i).Signature()))
+                    .Concat(Enumerable.Range(0, PhysicsPopulation.AlienCount(model.FaceSize)).Select(i => PhysicsPopulation.AlienSpec(seed, i).Signature()))
                     .Append(PhysicsPopulation.NewtonSpec(seed).Signature())));
-            Add("town", string.Join(" ", TownPlan.Specs(seed).Select(s => s.Signature())));
+            Add("town", string.Join(" ", TownPlan.Specs(seed, model.FaceSize).Select(s => s.Signature())));
 
             Add("streams", string.Join(" ", NamedStreams().Select(s =>
             {
