@@ -255,7 +255,7 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator Defence_LowersContactDamage_MinimumOne()
+        public IEnumerator Defence_LowersContactDamage_MinimumAQuarter()
         {
             GameObject player = MakePlayer(Origin, kinematic: true);
             Health health = player.GetComponent<Health>();
@@ -265,12 +265,12 @@ namespace Game.Cube.Tests
             enemy.ContactDamage = 3f;
 
             yield return WaitUntilOrTimeout(() => health.Current < health.Max, Timeout);
-            Assert.AreEqual(health.Max - 2f, health.Current, 1e-4f, "3 contact damage - 1 defence");
+            Assert.AreEqual(health.Max - 3f * 0.85f, health.Current, 1e-4f, "3 contact damage x 0.85 (1 defence)");
 
-            stats.Defence = 10;
+            stats.Defence = 20; // 3 x 0.85^20 is about 0.12: below the floor
             float before = health.Current;
             yield return WaitUntilOrTimeout(() => health.Current < before, Timeout);
-            Assert.AreEqual(before - 1f, health.Current, 1e-4f, "Defence never takes a hit below 1");
+            Assert.AreEqual(before - CombatMath.MinHit, health.Current, 1e-4f, "Defence never takes a hit below a quarter heart");
         }
 
         [UnityTest]

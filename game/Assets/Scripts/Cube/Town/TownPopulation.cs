@@ -14,7 +14,7 @@ namespace Game.Cube
     /// rebuilds the population at once (same seed: same NPCs on the same spots) with post-reveal lines.
     /// No draft or shop logic: Epic 2 reads Npcs.
     /// </summary>
-    public class TownPopulation : MonoBehaviour
+    public class TownPopulation : MonoBehaviour, IHintDensityTarget
     {
         [SerializeField] private CubeWorld world;
         [SerializeField] private Transform player;
@@ -39,7 +39,12 @@ namespace Game.Cube
             set => player = value;
         }
 
-        public HintDensity HintDensity => hintDensity;
+        /// <summary>Density of the next population's hints (the RunLoop sets it from the saved run count).</summary>
+        public HintDensity HintDensity
+        {
+            get => hintDensity;
+            set => hintDensity = value;
+        }
 
         /// <summary>The Town NPCs of this run, in TownPlan.Specs order (greeter first); destroyed ones are null.</summary>
         public IReadOnlyList<NpcTalker> Npcs => npcs;

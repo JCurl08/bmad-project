@@ -3,8 +3,9 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The player's combat HUD (OnGUI placeholder): a row of hearts at the bottom left (one per health point, half-filled for
-    /// a fraction), the equipped item's name, and a campy message once the player has died.
+    /// The player's combat HUD (OnGUI placeholder): a row of hearts at the bottom left (one per health point, partly filled for
+    /// a fraction, e.g. quarter hearts after defence) with the exact health as a number, the equipped item's name, and a campy
+    /// message once the player has died.
     /// </summary>
     public class CombatHud : MonoBehaviour
     {
@@ -33,6 +34,9 @@ namespace Game.Cube
         public string EquippedText =>
             "Equipped: " + (equipment != null && equipment.Equipped != null ? equipment.Equipped.ToString() : BareHandsLabel);
 
+        /// <summary>Health as shown next to the hearts, to two decimals (defence makes quarter-heart hits).</summary>
+        public string HealthText => health != null ? $"{health.Current:0.##}/{health.Max:0.##}" : "";
+
         /// <summary>The death message while the player is dead, otherwise null.</summary>
         public string MessageText => health != null && health.IsDead ? DeathMessage : null;
 
@@ -54,7 +58,7 @@ namespace Game.Cube
             float width = hearts * (size + gap) - gap;
             float x = margin + 8f;
             float y = Screen.height - dialogueBand - margin - (size + 40f) + 6f;
-            var back = new Rect(x - 8f, y - 6f, Mathf.Max(width, 300f) + 16f, size + 40f);
+            var back = new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, 300f) + 16f, size + 40f);
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(back, Texture2D.whiteTexture);
             for (int i = 0; i < hearts; i++)
@@ -70,6 +74,7 @@ namespace Game.Cube
                 }
             }
             GUI.color = Color.white;
+            GUI.Label(new Rect(x + width + 10f, y - 2f, 120f, 26f), HealthText, textStyle);
             GUI.Label(new Rect(x, y + size + 4f, Mathf.Max(width, 300f), 26f), EquippedText, textStyle);
 
             string message = MessageText;

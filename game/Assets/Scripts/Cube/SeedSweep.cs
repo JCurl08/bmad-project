@@ -21,7 +21,10 @@ namespace Game.Cube
     /// Chemistry-stage gate). With a Physics item, the Physics plan is checked too (PhysicsPlan.FindProblems: the
     /// Mass Mitt opens a timed door on another face, and, with the module library, every timed door's switch timing,
     /// its own boulders on its screen with enough of them reachable, no boulder starting in a time field or on
-    /// another face's interactable, and the Physics trial fitting).
+    /// another face's interactable, and the Physics trial fitting). When the catalog knows hidden-item slots
+    /// (IHiddenSlotCatalog), the hidden meta-currency placement is checked too (HiddenCurrencyPlacement.FindProblems:
+    /// 4-6 items in distinct hidden-item slots on built faces, each reachable from Town, outside every gated alcove
+    /// and off the exit lanes).
     /// Shared by the tests and the editor menu.
     /// </summary>
     public static class SeedSweep
@@ -43,11 +46,19 @@ namespace Game.Cube
             /// <summary>The item placement that was checked; null when items were not checked.</summary>
             public ItemPlacement Placement;
 
+            /// <summary>The hidden meta-currency placement that was checked; null when it was not checked.</summary>
+            public HiddenCurrencyPlacement HiddenCurrency;
+
+            /// <summary>Hidden meta-currency problems; null when it was not checked.</summary>
+            public List<string> HiddenProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
+            public bool HiddenChecked => HiddenProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
-                                  (ItemProblems == null || ItemProblems.Count == 0);
+                                  (ItemProblems == null || ItemProblems.Count == 0) &&
+                                  (HiddenProblems == null || HiddenProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -301,6 +312,13 @@ namespace Game.Cube
                         foreach (string problem in PhysicsPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds))
                             result.ItemProblems.Add("physics: " + problem);
                     }
+                    if (catalog is IHiddenSlotCatalog hiddenCatalog)
+                    {
+                        HiddenCurrencyPlacement hidden = HiddenCurrencyPlacement.Generate(model, layout, hiddenCatalog);
+                        result.HiddenCurrency = hidden;
+                        Func<ScreenAddress, ScreenModule> hiddenModuleAt = catalog is ModuleLibrary hiddenLibrary ? ModuleLookup(layout, hiddenLibrary) : null;
+                        result.HiddenProblems = HiddenCurrencyPlacement.FindProblems(model, layout, hidden, hiddenCatalog, hiddenModuleAt);
+                    }
                 }
                 results.Add(result);
             }
@@ -318,12 +336,13 @@ namespace Game.Cube
         {
             var failures = new StringBuilder();
             int total = 0, failed = 0;
-            bool coreChecked = false, itemsChecked = false;
+            bool coreChecked = false, itemsChecked = false, hiddenChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
                 coreChecked |= r.CoreChecked;
                 itemsChecked |= r.ItemsChecked;
+                hiddenChecked |= r.HiddenChecked;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -335,6 +354,9 @@ namespace Game.Cube
                 if (r.ItemProblems != null && r.ItemProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": items ")
                         .AppendLine(string.Join("; ", r.ItemProblems));
+                if (r.HiddenProblems != null && r.HiddenProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": hidden currency ")
+                        .AppendLine(string.Join("; ", r.HiddenProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -343,6 +365,8 @@ namespace Game.Cube
                 what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
                         "the isotope dispenser before any Chemistry-stage gate, the Chemistry trial fitting, " +
                         "every timed door with enough reachable boulders on its screen, the Physics trial fitting";
+            if (hiddenChecked)
+                what += ", hidden meta currency reachable and never behind a gate";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

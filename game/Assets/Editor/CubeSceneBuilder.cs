@@ -19,6 +19,9 @@ using UnityEngine.SceneManagement;
 /// The run's outcome lives in a RunState (one per scene, reset on every rebuild). The CoreArena (Maxwell's Demon) puts a
 /// portal on each built face's active core-entrance slot on every reveal and raises RunState's run-end event on victory or
 /// defeat; a CoreHud shows its Order ↔ Entropy meter and the outcome.
+/// The run loop: a RunWallet collects the run's meta currency (trials, the Demon, hidden items), and the RunLoop banks it
+/// on every run end (death anywhere or the boss outcome), saves the MetaSave, opens the BetweenRunsScreen (earnings and
+/// upgrade shop) and starts the next run on Continue.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -135,6 +138,13 @@ public static class CubeSceneBuilder
         debug.CoreArena = arena;
         new GameObject("Core HUD").AddComponent<CoreHud>().Arena = arena;
 
+        // The roguelite loop: this run's earnings, the meta save and upgrades, and the between-runs screen.
+        var wallet = new GameObject("Run Wallet").AddComponent<RunWallet>();
+        wallet.Configure(world, arena, runState);
+        var loop = new GameObject("Run Loop").AddComponent<RunLoop>();
+        loop.Configure(world, runState, arena, wallet, player.GetComponent<PlayerStats>());
+        new GameObject("Between Runs Screen").AddComponent<BetweenRunsScreen>().Loop = loop;
+
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
         {
             Debug.LogError($"Cube: failed to save {ScenePath}.");
@@ -195,6 +205,9 @@ public static class CubeSceneBuilder
             }
             if (plan.Trial != null) trials++;
         }
+        int hiddenTotal = results.Sum(r => r.HiddenCurrency != null ? r.HiddenCurrency.Spots.Count : 0);
+        report += $"Hidden meta currency: {hiddenTotal} items over {results.Count} seeds " +
+                  $"({HiddenCurrencyPlacement.MinCount}-{HiddenCurrencyPlacement.MaxCount} per run, {HiddenCurrencyPlacement.Amount} each).\n";
         report += $"Timed doors: {doors} ({offHome} off-home), needing 1/2/3 boulders: {required[1]}/{required[2]}/{required[3]}; " +
                   $"{boulders} gate boulders; the Physics trial fits on {trials} seeds.\n";
         if (results.All(r => r.Passed)) Debug.Log(report);

@@ -15,7 +15,7 @@ namespace Game.Cube
     /// seeded clear spots (FaceSpots, stream PopulationRngStream).
     /// Everything is removed on a rebuild.
     /// </summary>
-    public class ChemistryFace : MonoBehaviour, IFaceContent, IFacePickupContent
+    public class ChemistryFace : MonoBehaviour, IFaceContent, IFacePickupContent, IHintDensityTarget
     {
         /// <summary>PCG32 stream for Chemistry population spots, trial spots and screens (plan 11).</summary>
         public const ulong PopulationRngStream = 12;
@@ -61,6 +61,13 @@ namespace Game.Cube
         {
             get => player;
             set => player = value;
+        }
+
+        /// <summary>Density of the population's hints (the RunLoop sets it from the saved run count).</summary>
+        public HintDensity HintDensity
+        {
+            get => hintDensity;
+            set => hintDensity = value;
         }
 
         /// <summary>Spawn Chemistry enemies on the reveal (tests may switch it off).</summary>

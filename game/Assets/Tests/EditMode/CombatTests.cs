@@ -66,12 +66,13 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void Incoming_SubtractsDefence_NeverBelowOne()
+        public void Incoming_DefenceCutsFifteenPercentPerPoint_NeverBelowAQuarter()
         {
             Assert.AreEqual(3f, CombatMath.Incoming(3f, 0), 1e-5f);
-            Assert.AreEqual(2f, CombatMath.Incoming(3f, 1), 1e-5f);
-            Assert.AreEqual(1f, CombatMath.Incoming(3f, 2), 1e-5f);
-            Assert.AreEqual(1f, CombatMath.Incoming(1f, 10), 1e-5f, "Defence never takes a hit below 1");
+            Assert.AreEqual(3f * 0.85f, CombatMath.Incoming(3f, 1), 1e-5f);
+            Assert.AreEqual(3f * 0.85f * 0.85f, CombatMath.Incoming(3f, 2), 1e-5f);
+            Assert.AreEqual(0.85f, CombatMath.Incoming(1f, 1), 1e-5f, "Even a 1-damage hit is reduced");
+            Assert.AreEqual(0.25f, CombatMath.Incoming(1f, 10), 1e-5f, "Defence never takes a hit below a quarter heart");
             Assert.AreEqual(0f, CombatMath.Incoming(0f, 0), 1e-5f, "No hit, no damage");
         }
 
@@ -111,17 +112,38 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void PlayerDefence_ReducesDamageTaken_MinimumOne()
+        public void PlayerDefence_ReducesDamageTaken_MinimumAQuarter()
         {
             Health health = MakeHealth(10f, 0f);
             var stats = health.gameObject.AddComponent<PlayerStats>();
             stats.MaxHealth = 10;
             stats.Defence = 2;
-            Assert.AreEqual(3f, health.TakeDamage(5f, null), 1e-5f);
-            Assert.AreEqual(1f, health.TakeDamage(1f, null), 1e-5f);
+            Assert.AreEqual(5f * 0.7225f, health.TakeDamage(5f, null), 1e-5f);
+            Assert.AreEqual(0.7225f, health.TakeDamage(1f, null), 1e-5f);
             stats.Defence = 0;
             Assert.AreEqual(2f, health.TakeDamage(2f, null), 1e-5f);
-            Assert.AreEqual(4f, health.Current, 1e-5f);
+            Assert.AreEqual(10f - 5f * 0.7225f - 0.7225f - 2f, health.Current, 1e-5f);
+        }
+
+        [Test]
+        public void ThickSkin_EachLevelReducesDamageTaken()
+        {
+            float previous = float.MaxValue;
+            for (int level = 0; level <= UpgradeShop.MaxLevel; level++)
+            {
+                var save = new MetaSave();
+                save.SetUpgradeLevel(UpgradeShop.Id(UpgradeStat.Defence), level);
+                Health health = MakeHealth(10f, 0f);
+                var stats = health.gameObject.AddComponent<PlayerStats>();
+                UpgradeShop.Apply(new StatBlock(10, 0, 1, 1), save).ApplyTo(stats);
+                float taken = health.TakeDamage(1f, null);
+                Assert.Less(taken, previous, $"Thick Skin level {level} takes less than level {level - 1}");
+                Assert.AreEqual(Mathf.Pow(0.85f, level), taken, 1e-5f);
+                StringAssert.Contains($"-{Mathf.RoundToInt((1f - Mathf.Pow(0.85f, level)) * 100f)}%",
+                    UpgradeShop.EffectText(UpgradeStat.Defence, 0, level));
+                previous = taken;
+                Object.DestroyImmediate(health.gameObject);
+            }
         }
 
         [Test]

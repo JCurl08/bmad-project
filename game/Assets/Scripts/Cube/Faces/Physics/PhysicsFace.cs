@@ -14,7 +14,7 @@ namespace Game.Cube
     /// Cling) on seeded clear spots (FaceSpots, stream PopulationRngStream).
     /// Everything is removed on a rebuild.
     /// </summary>
-    public class PhysicsFace : MonoBehaviour, IFaceContent
+    public class PhysicsFace : MonoBehaviour, IFaceContent, IHintDensityTarget
     {
         /// <summary>PCG32 stream for Physics population spots and screens (plan 13).</summary>
         public const ulong PopulationRngStream = 14;
@@ -64,6 +64,13 @@ namespace Game.Cube
         {
             get => player;
             set => player = value;
+        }
+
+        /// <summary>Density of the population's hints (the RunLoop sets it from the saved run count).</summary>
+        public HintDensity HintDensity
+        {
+            get => hintDensity;
+            set => hintDensity = value;
         }
 
         public bool SpawnEnemies

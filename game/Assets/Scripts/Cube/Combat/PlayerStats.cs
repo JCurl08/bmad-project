@@ -34,7 +34,7 @@ namespace Game.Cube
             set => Set(ref maxHealth, Mathf.Max(1, value));
         }
 
-        /// <summary>Subtracted from every hit taken (a hit always does at least 1).</summary>
+        /// <summary>Each point cuts every hit taken by 15% (multiplicative; a hit always does at least a quarter heart).</summary>
         public int Defence
         {
             get => defence;

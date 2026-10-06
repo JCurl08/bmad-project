@@ -5,8 +5,8 @@ namespace Game.Cube
 {
     /// <summary>
     /// The run's outcome, one per scene. EndRun raises RunEnded(victory) exactly once per run; later calls are
-    /// ignored. A world rebuild (a new run) resets it. Everything that ends a run (the core boss today, the run loop of
-    /// story 1.12 later) goes through here, so listeners need only this one event.
+    /// ignored. A world rebuild (a new run) resets it. Everything that ends a run (the core boss's outcome, and the
+    /// RunLoop for a death outside a core fight) goes through here, so listeners (RunLoop) need only this one event.
     /// </summary>
     public class RunState : MonoBehaviour
     {

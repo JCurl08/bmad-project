@@ -19,7 +19,8 @@ namespace Game.Cube
     /// components on this object: BiologyFace, ChemistryFace, PhysicsFace) builds its theme's gates and adds its trial and
     /// population on the reveal, and is cleared on every rebuild; content that also implements IFacePickupContent
     /// replaces its item's pickup (Chemistry's isotope dispenser). Revealed is also where the CoreArena puts a portal to
-    /// the cube's core on each built face's active core-entrance slot.
+    /// the cube's core on each built face's active core-entrance slot. The reveal also scatters the run's hidden
+    /// meta-currency items (HiddenCurrencyPlacement) into hidden-item slots on the built science faces.
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -38,6 +39,7 @@ namespace Game.Cube
         private readonly List<Gate> gates = new List<Gate>();
         private readonly List<Gate> optionalGates = new List<Gate>();
         private readonly List<ItemPickup> pickups = new List<ItemPickup>();
+        private readonly List<HiddenCurrencyPickup> hiddenCurrency = new List<HiddenCurrencyPickup>();
         private static Sprite fallbackSprite;
 
         public CubeModel Model { get; private set; }
@@ -69,6 +71,12 @@ namespace Game.Cube
 
         /// <summary>Every pickup instantiated by the reveal; collected ones become null (destroyed).</summary>
         public IReadOnlyList<ItemPickup> Pickups => pickups;
+
+        /// <summary>The hidden meta-currency placement of this run; null until the science faces are revealed.</summary>
+        public HiddenCurrencyPlacement HiddenCurrency { get; private set; }
+
+        /// <summary>Every hidden meta-currency pickup instantiated by the reveal (same order as HiddenCurrency.Spots); collected ones become null.</summary>
+        public IReadOnlyList<HiddenCurrencyPickup> HiddenCurrencyPickups => hiddenCurrency;
 
         /// <summary>The science layout of this run; null until the science faces are revealed.</summary>
         public CubeLayout Layout { get; private set; }
@@ -111,6 +119,16 @@ namespace Game.Cube
         }
 
         /// <summary>
+        /// The seed of the session's first run (the RunLoop picks a fresh one): before this world has built, it only replaces
+        /// the scene's seed so Awake builds once; afterwards it rebuilds.
+        /// </summary>
+        public void StartOnSeed(int startSeed)
+        {
+            if (Model == null) seed = startSeed;
+            else if (Model.Seed != startSeed) Rebuild(startSeed);
+        }
+
+        /// <summary>
         /// Starts a new run: builds the model for the given seed, lays out Town and leaves the science
         /// faces unrevealed.
         /// </summary>
@@ -120,12 +138,14 @@ namespace Game.Cube
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize);
             Layout = null;
             ItemPlacement = null;
+            HiddenCurrency = null;
             ScienceRevealed = false;
             Relations.Reset();
             modules.Clear();
             gates.Clear();
             optionalGates.Clear();
             pickups.Clear();
+            hiddenCurrency.Clear();
             foreach (IFaceContent content in FaceContents) content.Clear();
 
             if (generated != null) Destroy(generated.gameObject);
@@ -161,6 +181,7 @@ namespace Game.Cube
                 BuildScienceModules(face);
             }
             PlaceItems();
+            PlaceHiddenCurrency();
 
             Revealed?.Invoke();
             return true;
@@ -321,6 +342,36 @@ namespace Game.Cube
             }
 
             foreach (IFaceContent content in contents) content.EndReveal(this);
+        }
+
+        /// <summary>Instantiates the run's hidden meta-currency items in their hidden-item slots (needs a layout).</summary>
+        private void PlaceHiddenCurrency()
+        {
+            if (Layout == null || library == null) return;
+            HiddenCurrency = HiddenCurrencyPlacement.Generate(Model, Layout, library);
+            for (int i = 0; i < HiddenCurrency.Spots.Count; i++)
+            {
+                HiddenCurrencySpot spot = HiddenCurrency.Spots[i];
+                ScreenModule module = ModuleAt(spot.Screen);
+                HiddenItemSlot[] slots = module != null ? module.HiddenItems : Array.Empty<HiddenItemSlot>();
+                if (spot.Slot >= slots.Length)
+                {
+                    Debug.LogError($"CubeWorld: cannot place {spot}");
+                    continue;
+                }
+                const float size = 0.45f;
+                Transform slot = slots[spot.Slot].transform;
+                GameObject go = CreateBlock($"Hidden Jumble {i}", slot, slot.position, new Vector2(size, size),
+                    HiddenCurrencyPickup.PlaceholderColor, 4, false);
+                go.transform.GetChild(0).localRotation = Quaternion.Euler(0f, 0f, 45f);
+                var trigger = go.AddComponent<CircleCollider2D>();
+                trigger.isTrigger = true;
+                trigger.radius = HiddenCurrencyPickup.Radius;
+                var pickup = go.AddComponent<HiddenCurrencyPickup>();
+                pickup.Index = i;
+                pickup.Amount = HiddenCurrencyPlacement.Amount;
+                hiddenCurrency.Add(pickup);
+            }
         }
 
         /// <summary>Builds one gate: through the face content of its item's theme when there is one, else a plain Gate.</summary>

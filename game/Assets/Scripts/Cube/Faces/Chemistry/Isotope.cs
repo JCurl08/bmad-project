@@ -255,6 +255,13 @@ namespace Game.Cube
             if (item != null && removed == item) Refresh();
         }
 
+        /// <summary>A new run (the inventory was emptied): the isotope clock restarts and the halo goes out.</summary>
+        public void ResetForRun()
+        {
+            age = 0f;
+            Refresh();
+        }
+
         /// <summary>Uses up the held isotope if it is lead (a plate took it). Returns true if it did.</summary>
         public bool ConsumeLead()
         {

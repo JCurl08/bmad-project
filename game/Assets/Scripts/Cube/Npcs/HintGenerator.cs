@@ -6,6 +6,12 @@ namespace Game.Cube
     /// <summary>How much hints give away. The first run uses Sparse: fewer hints that name only a face or theme.</summary>
     public enum HintDensity { Sparse = 0, Full = 1 }
 
+    /// <summary>Something that makes NPC lines at a hint density (the town, the face populations, the debug spawns); the RunLoop sets it each run.</summary>
+    public interface IHintDensityTarget
+    {
+        HintDensity HintDensity { get; set; }
+    }
+
     /// <summary>
     /// The run facts hints are made from: the model, plus the science layout and item placement when known.
     /// Layout and placement are pure functions of the seed, so they can be computed before the reveal
@@ -91,6 +97,9 @@ namespace Game.Cube
     {
         /// <summary>Density of the first run.</summary>
         public const HintDensity FirstRunDensity = HintDensity.Sparse;
+
+        /// <summary>Density for a run, from the saved run count (runs ended so far): sparse on the first run (0), full afterwards.</summary>
+        public static HintDensity DensityFor(int runCount) => runCount <= 0 ? FirstRunDensity : HintDensity.Full;
 
         public const int FullCount = 2;
         public const int SparseCount = 1;

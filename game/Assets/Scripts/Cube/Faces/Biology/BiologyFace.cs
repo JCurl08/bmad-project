@@ -13,7 +13,7 @@ namespace Game.Cube
     /// seeded clear spots (FaceSpots, stream PopulationRngStream).
     /// Everything is removed on a rebuild. Chemistry and Physics follow the same three-part pattern.
     /// </summary>
-    public class BiologyFace : MonoBehaviour, IFaceContent
+    public class BiologyFace : MonoBehaviour, IFaceContent, IHintDensityTarget
     {
         /// <summary>PCG32 stream for Biology population spots and screens (plan 9).</summary>
         public const ulong PopulationRngStream = 10;
@@ -53,6 +53,13 @@ namespace Game.Cube
         {
             get => player;
             set => player = value;
+        }
+
+        /// <summary>Density of the population's hints (the RunLoop sets it from the saved run count).</summary>
+        public HintDensity HintDensity
+        {
+            get => hintDensity;
+            set => hintDensity = value;
         }
 
         /// <summary>Spawn Biology enemies on the reveal (tests may switch it off).</summary>

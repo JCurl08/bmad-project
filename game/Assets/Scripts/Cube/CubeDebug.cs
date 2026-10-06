@@ -16,7 +16,7 @@ namespace Game.Cube
     /// removed on a rebuild. While the player is in the core arena, the overlay says so (instead of a face and cell) and
     /// F3/F7 spawn inside the arena's screen.
     /// </summary>
-    public class CubeDebug : MonoBehaviour
+    public class CubeDebug : MonoBehaviour, IHintDensityTarget
     {
         [SerializeField] private CubeWorld world;
         [SerializeField] private CubeNavigator navigator;
