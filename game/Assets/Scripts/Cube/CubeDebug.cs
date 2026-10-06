@@ -11,7 +11,9 @@ namespace Game.Cube
     /// every active slot of every module, with labels on the visible screen), F5 rerolls to a new random
     /// seed and rebuilds, F6 jumps to the next unsealed screen.
     /// F3 spawns one NPC of each race around the player (true hints for the run at hintDensity), F4 toggles
-    /// hostility for the race of the NPC nearest the player. Spawned NPCs are removed on a rebuild.
+    /// hostility for the race of the NPC nearest the player. F7 spawns a placeholder enemy near the player, weak
+    /// to a random owned item (or the Biology item when nothing is owned). Spawned NPCs and enemies are
+    /// removed on a rebuild.
     /// </summary>
     public class CubeDebug : MonoBehaviour
     {
@@ -21,8 +23,14 @@ namespace Game.Cube
         [SerializeField] private bool slotMarkersVisible;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
         [SerializeField, Min(0.5f)] private float npcSpawnRadius = 2.5f;
+        [SerializeField, Min(0.5f)] private float enemySpawnRadius = 3f;
 
         private readonly List<NpcTalker> debugNpcs = new List<NpcTalker>();
+        /// <summary>RNG stream for F7 weakness picks (NPC parts use 4, NPC wander 5).</summary>
+        public const ulong EnemySpawnRngStream = 6;
+
+        private readonly List<Enemy> debugEnemies = new List<Enemy>();
+        private int enemyCount;
         private Transform npcRoot;
         private int npcBatch;
 
@@ -106,6 +114,7 @@ namespace Game.Cube
             if (keyboard.f4Key.wasPressedThisFrame) ToggleNearestHostility();
             if (keyboard.f5Key.wasPressedThisFrame) Reroll();
             if (keyboard.f6Key.wasPressedThisFrame) JumpToNextUnsealed();
+            if (keyboard.f7Key.wasPressedThisFrame) SpawnEnemy();
         }
 
         /// <summary>Shows or hides the slot markers on every module in the world.</summary>
@@ -187,6 +196,69 @@ namespace Game.Cube
             return first;
         }
 
+        /// <summary>Enemies spawned by F7 in this run (dead or destroyed ones are dropped).</summary>
+        public IReadOnlyList<Enemy> DebugEnemies
+        {
+            get
+            {
+                debugEnemies.RemoveAll(e => e == null);
+                return debugEnemies;
+            }
+        }
+
+        /// <summary>
+        /// Spawns a placeholder enemy near the player, inside the player's screen, weak to a random owned item
+        /// (picked from the run seed and the spawn count) or, with nothing owned, the catalog's Biology item.
+        /// </summary>
+        public Enemy SpawnEnemy()
+        {
+            if (world == null || world.Model == null) return null;
+            if (npcRoot == null) npcRoot = new GameObject("Debug NPCs").transform;
+
+            Transform player = navigator != null ? navigator.transform : null;
+            ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
+            Vector2 screenCentre = world.ScreenCenter(here);
+            Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
+            const float margin = 1f;
+            Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
+            var bounds = new Rect(screenCentre - half, half * 2f);
+
+            ItemDefinition weakness = null;
+            var inventory = player != null ? player.GetComponent<Inventory>() : null;
+            if (inventory != null && inventory.Items.Count > 0)
+            {
+                var rng = new SeededRng(((ulong)(uint)world.Seed << 32) | (uint)enemyCount, EnemySpawnRngStream);
+                weakness = inventory.Items[rng.NextInt(inventory.Items.Count)];
+            }
+            else if (world.ItemCatalog != null)
+            {
+                weakness = world.ItemCatalog.ForTheme(Theme.Biology);
+            }
+
+            // First clear spot on a ring around the player (an enemy is smaller than an NPC, so IsClear is safe).
+            Vector2 at = Vector2.zero;
+            bool found = false;
+            for (int turn = 0; turn < 16 && !found; turn++)
+            {
+                float angle = (enemyCount * 47f + turn * 360f / 16f) * Mathf.Deg2Rad;
+                foreach (float radius in new[] { enemySpawnRadius, enemySpawnRadius * 1.5f, enemySpawnRadius * 0.7f })
+                {
+                    Vector2 candidate = centre + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                    candidate = new Vector2(Mathf.Clamp(candidate.x, bounds.xMin, bounds.xMax), Mathf.Clamp(candidate.y, bounds.yMin, bounds.yMax));
+                    if (turn == 0 && radius == enemySpawnRadius) at = candidate;
+                    if (!NpcFactory.IsClear(candidate - new Vector2(0f, Enemy.BodyRadius))) continue;
+                    at = candidate;
+                    found = true;
+                    break;
+                }
+            }
+
+            Enemy enemy = Enemy.Spawn(weakness, at, bounds, player, npcRoot, world.Material);
+            debugEnemies.Add(enemy);
+            enemyCount++;
+            return enemy;
+        }
+
         /// <summary>Toggles hostility for the race of the NPC nearest the player. Returns that race, or null if there is no NPC.</summary>
         public Race? ToggleNearestHostility()
         {
@@ -214,6 +286,10 @@ namespace Game.Cube
                 if (npc != null) Destroy(npc.gameObject);
             debugNpcs.Clear();
             npcBatch = 0;
+            foreach (Enemy enemy in debugEnemies)
+                if (enemy != null) Destroy(enemy.gameObject);
+            debugEnemies.Clear();
+            enemyCount = 0;
         }
 
         /// <summary>Rebuilds the world from a new random seed (differs from the current one).</summary>
@@ -270,9 +346,9 @@ namespace Game.Cube
                 $"Cell ({here.Cell.x},{here.Cell.y})   Entered facing {facing}\n" +
                 $"Module {moduleText}\n" +
                 $"Hostile races: {HostileText()}\n" +
-                "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen";
+                "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy";
 
-            var rect = new Rect(8, 8, 720, 148);
+            var rect = new Rect(8, 8, 820, 148);
             GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = Color.white;

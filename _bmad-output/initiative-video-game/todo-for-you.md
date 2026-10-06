@@ -25,8 +25,17 @@ The first push uploads a Git LFS file (the template's welcome image), and the LF
 You told me to keep working while you were away, so I approved the build plans myself. Skim each one tomorrow:
 - `epic-playable-cube/story-seeded-cube-model-and-debug-tools-plan.md` (story 1.2)
 - `epic-playable-cube/story-screen-modules-and-the-town-exit-shuffle-plan.md` (story 1.3)
+- `epic-playable-cube/story-items-gates-one-way-gates-and-trial-rooms-plan.md` (story 1.4)
+- `epic-playable-cube/story-lego-npcs-and-dialogue-plan.md` (story 1.5)
 
 Each plan's "Review Triage Log" lists what the reviewer found and what was patched or rejected.
 
 ## 4. Try it in the Unity editor
-Open `game/` in Unity Hub (6000.6.4f1). Open `Assets/Scenes/Cube.unity` and press Play. F1 toggles the debug overlay, F5 rerolls the seed, F6 jumps to the next screen.
+Open `game/` in Unity Hub (6000.6.4f1). Open `Assets/Scenes/Cube.unity` and press Play. Debug keys:
+- **F1** overlay, **F2** slot markers, **F3** spawn one NPC of each race, **F4** toggle hostility for the nearest NPC's race, **F5** reroll the seed, **F6** jump to the next screen
+- **Interact** (E or Enter) talks to the nearest NPC
+
+Things worth checking by eye, since only automated tests have looked at them:
+- Do face crossings look smooth, with no black flash?
+- Do the NPCs read as Lego-style mixes, and is the dialogue campy enough?
+- Do the gates, alcoves and item pickups make sense spatially?

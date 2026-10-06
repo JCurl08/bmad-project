@@ -113,16 +113,23 @@ namespace Game.Cube
         private void Drive(Vector2 velocity, float dt)
         {
             Vector2 here = Position;
-            if (bounds.width > 0f || bounds.height > 0f)
-            {
-                Vector2 next = here + velocity * dt;
-                next = new Vector2(
-                    Mathf.Clamp(next.x, Mathf.Min(here.x, bounds.xMin), Mathf.Max(here.x, bounds.xMax)),
-                    Mathf.Clamp(next.y, Mathf.Min(here.y, bounds.yMin), Mathf.Max(here.y, bounds.yMax)));
-                velocity = (next - here) / dt;
-            }
+            velocity = BoundedVelocity(here, velocity, bounds, dt);
             if (body != null) body.linearVelocity = velocity;
             else transform.position = (Vector3)(here + velocity * dt) + Vector3.forward * transform.position.z;
+        }
+
+        /// <summary>
+        /// The velocity trimmed so one step of dt from here stays inside bounds (an empty rect means no bounds).
+        /// A body already outside may move back in but not further out. Shared with EnemyBrain.
+        /// </summary>
+        public static Vector2 BoundedVelocity(Vector2 here, Vector2 velocity, Rect bounds, float dt)
+        {
+            if (dt <= 0f || (bounds.width <= 0f && bounds.height <= 0f)) return velocity;
+            Vector2 next = here + velocity * dt;
+            next = new Vector2(
+                Mathf.Clamp(next.x, Mathf.Min(here.x, bounds.xMin), Mathf.Max(here.x, bounds.xMax)),
+                Mathf.Clamp(next.y, Mathf.Min(here.y, bounds.yMin), Mathf.Max(here.y, bounds.yMax)));
+            return (next - here) / dt;
         }
 
         private Transform ResolvePlayer()

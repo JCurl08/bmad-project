@@ -11,6 +11,7 @@ namespace Game.Cube
     /// Player/Interact action opens the shared DialogueBox with this NPC's lines (the box then handles
     /// advancing and closing). While the NPC's race is hostile it refuses: no dialogue opens, the parts are
     /// tinted red, and an open conversation with it is closed. Clearing the flag restores talking.
+    /// It also refuses (silently) once the player's Health is dead.
     /// </summary>
     public class NpcTalker : MonoBehaviour
     {
@@ -130,6 +131,7 @@ namespace Game.Cube
         public bool TryTalk()
         {
             if (Spec == null || lines.Count == 0 || !PlayerInRange()) return false;
+            if (PlayerDead()) return false; // a dead player has no control, talking included
             DialogueBox target = Box;
             if (target.IsOpen || target.ClosedFrame == Time.frameCount) return false;
             if (!IsNearestInRange()) return false;
@@ -154,6 +156,14 @@ namespace Game.Cube
                 if (theirs < mine || (Mathf.Approximately(theirs, mine) && Active.IndexOf(other) < Active.IndexOf(this))) return false;
             }
             return true;
+        }
+
+        /// <summary>True if the player has a Health and it is dead.</summary>
+        private bool PlayerDead()
+        {
+            Transform target = ResolvePlayer();
+            Health health = target != null ? target.GetComponentInParent<Health>() : null;
+            return health != null && health.IsDead;
         }
 
         private Transform ResolvePlayer()

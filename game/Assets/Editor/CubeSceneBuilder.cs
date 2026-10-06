@@ -11,7 +11,8 @@ using UnityEngine.SceneManagement;
 /// Cube > Create Cube Scene: builds Assets/Scenes/Cube.unity from code with the player, the screen
 /// camera, the CubeWorld and the debug overlay, and puts it first in the build list (Tracer is kept).
 /// The CubeWorld is wired to the module library and the item catalog (each built first if missing);
-/// the player carries an Inventory.
+/// the player carries an Inventory and the combat parts (Health, PlayerStats, Equipment, PlayerAttack), and a
+/// CombatHud shows its hearts and equipped item.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -66,6 +67,11 @@ public static class CubeSceneBuilder
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         player.AddComponent<PlayerMover>();
         player.AddComponent<Inventory>();
+        // Combat: stats (with the Health they feed), the equipped item, the melee attack and the HUD.
+        var health = player.AddComponent<Health>();
+        player.AddComponent<PlayerStats>();
+        var equipment = player.AddComponent<Equipment>();
+        player.AddComponent<PlayerAttack>();
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
 
@@ -93,6 +99,10 @@ public static class CubeSceneBuilder
         var debug = new GameObject("Cube Debug").AddComponent<CubeDebug>();
         debug.World = world;
         debug.Navigator = navigator;
+
+        var hud = new GameObject("Combat HUD").AddComponent<CombatHud>();
+        hud.Health = health;
+        hud.Equipment = equipment;
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
         {

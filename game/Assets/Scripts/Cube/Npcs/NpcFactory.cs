@@ -69,7 +69,8 @@ namespace Game.Cube
     /// <summary>
     /// Builds NPCs. Part choice is pure: (seed, race, index) seeds its own PCG32 stream, so the same seed
     /// always gives the same NPCs and choosing one never disturbs another. Spawn builds the runtime object:
-    /// three stacked placeholder sprites (legs, torso, head), a collider, an NpcTalker and an NpcMover.
+    /// three stacked placeholder sprites (legs, torso, head), a collider, an NpcTalker, an NpcMover and the
+    /// dormant enemy parts (HostileNpc) that wake while its race is hostile.
     /// Placing NPCs in the world is up to the town and face code (and the F3 debug spawn).
     /// </summary>
     public static class NpcFactory
@@ -161,6 +162,9 @@ namespace Game.Cube
 
             var talker = go.AddComponent<NpcTalker>();
             talker.Configure(spec, lines, relations, player, renderers.ToArray());
+
+            // Peaceful until its race turns hostile; then it chases, hurts and can be hurt like any enemy.
+            HostileNpc.Attach(talker, bounds, player);
             return talker;
         }
 
