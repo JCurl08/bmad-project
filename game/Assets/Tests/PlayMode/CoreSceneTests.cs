@@ -602,6 +602,35 @@ namespace Game.Cube.Tests
             StringAssert.DoesNotContain(CubeDebug.CoreArenaLabel, debug.OverlayText);
         }
 
+        [UnityTest]
+        public IEnumerator DevKeys_F8LeavesTheArena_F9Rests_F10StartsANewRun()
+        {
+            yield return Load();
+            var debug = UnityEngine.Object.FindAnyObjectByType<CubeDebug>();
+            Assert.IsFalse(debug.LeaveCoreArena(), "F8 does nothing outside the arena");
+
+            yield return EnterThroughAPortal();
+            Assert.IsTrue(arena.FightActive);
+            Assert.IsTrue(debug.LeaveCoreArena(), "F8 in the arena");
+            Assert.IsFalse(navigator.InCoreArena);
+            Assert.AreEqual(world.Model.StartScreen, navigator.Current, "back on the Town start screen");
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.IsFalse(arena.FightActive, "the fight is abandoned");
+
+            var health = navigator.GetComponent<Health>();
+            health.TakeDamage(2f, null);
+            Assert.Less(health.Current, health.Max);
+            Assert.IsTrue(debug.Rest(), "F9 while alive");
+            Assert.AreEqual(health.Max, health.Current, 1e-4f, "full health");
+
+            int before = world.Seed;
+            Assert.IsTrue(debug.StartNewRun(), "F10");
+            Assert.AreNotEqual(before, world.Seed, "a new seed");
+            Assert.AreEqual(world.Model.StartScreen, navigator.Current, "starts in Town");
+            Assert.IsFalse(world.ScienceRevealed, "a fresh, unrevealed run");
+        }
+
         // ---- The keyboard-player bot ----
 
         /// <summary>

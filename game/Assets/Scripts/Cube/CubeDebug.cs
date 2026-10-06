@@ -142,6 +142,40 @@ namespace Game.Cube
             if (keyboard.f5Key.wasPressedThisFrame) Reroll();
             if (keyboard.f6Key.wasPressedThisFrame) JumpToNextUnsealed();
             if (keyboard.f7Key.wasPressedThisFrame) SpawnEnemy();
+            if (keyboard.f8Key.wasPressedThisFrame) LeaveCoreArena();
+            if (keyboard.f9Key.wasPressedThisFrame) Rest();
+            if (keyboard.f10Key.wasPressedThisFrame) StartNewRun();
+        }
+
+        /// <summary>
+        /// F8: leaves the core arena for the Town start screen. The arena abandons the fight on its own once the
+        /// player is outside it, and a fresh fight starts on the next portal entry. Does nothing outside the arena.
+        /// </summary>
+        public bool LeaveCoreArena()
+        {
+            if (!PlayerInCoreArena || world.Model == null) return false;
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            return true;
+        }
+
+        /// <summary>F9: back to full health. Only while alive; after a death use the between-runs screen or F10.</summary>
+        public bool Rest()
+        {
+            if (navigator == null || !navigator.TryGetComponent(out Health health) || health.IsDead) return false;
+            health.ResetHealth();
+            return true;
+        }
+
+        /// <summary>
+        /// F10: abandons the current run and starts a fresh one on a new seed (back in Town, reset like Continue).
+        /// No currency is banked and the run count is not changed.
+        /// </summary>
+        public bool StartNewRun()
+        {
+            RunLoop loop = FindAnyObjectByType<RunLoop>();
+            if (loop == null) return false;
+            loop.StartRun(RunLoop.NextSeed(world.Seed, DateTime.Now.Ticks));
+            return true;
         }
 
         /// <summary>Shows or hides the slot markers on every module in the world.</summary>
@@ -355,7 +389,8 @@ namespace Game.Cube
                 CubeModel model = world.Model;
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Science {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
-                              "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy";
+                              "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
+                              "F8 leave core   F9 rest (full health)   F10 new run";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
@@ -386,7 +421,7 @@ namespace Game.Cube
 
             string text = OverlayText;
 
-            var rect = new Rect(8, 8, 820, 148);
+            var rect = new Rect(8, 8, 820, 170);
             GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = Color.white;
