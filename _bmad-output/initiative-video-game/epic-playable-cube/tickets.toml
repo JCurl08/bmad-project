@@ -144,12 +144,24 @@ hitl = false
 risk = "low"
 
 [[entry]]
+id = 15
+type = "story"
+title = "Readability pass"
+description = "Replaces code-drawn placeholder shapes with Kenney Tiny Dungeon/Tiny Town sprites for the player, walls, floors, doors, gates, items and enemies; redraws NPC Lego parts as clean outlined parts with a distinct silhouette per race; adds feedback (hit flashes, gate-open effects, pickup popups, clear isotope stage); trims NPC dialogue to one flavour line plus the hint with a skip key; changes the death text to 'You were defeated'."
+verify = "A first-time player can tell the player, NPCs, enemies, items, gates and walls apart at a glance, sees feedback for hits, pickups and gate openings, and gets through each NPC conversation in one or two presses; all existing tests still pass."
+covers = ["CAP-9", "CAP-10", "CAP-3"]
+after = [13]
+hitl = true
+risk = "medium"
+notes = ["User: 'I would like everything to have more clear models. It is far too confusing currently.'", "User: 'The dialogue is a bit too long currently. Makes testing a little inefficient'", "User chose: Kenney asset pack for the world; keep the stacked Lego parts for NPCs (option 2)."]
+
+[[entry]]
 id = 14
 type = "story"
 title = "First itch.io release and full-run check"
 description = "Runs the seed sweep and full playtests against the epic's Done when and republishes the WebGL build to the itch.io page from entry 1."
 verify = "Three or more seeds play from town to boss with no softlock, and on the itch.io page in a fresh browser a full run ends, upgrades are bought, and they still apply in the next run after a tab reload."
 covers = ["CAP-12"]
-after = [13]
+after = [13, 15]
 hitl = true
 risk = "medium"

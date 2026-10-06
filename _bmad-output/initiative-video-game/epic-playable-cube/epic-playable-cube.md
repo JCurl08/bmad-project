@@ -63,3 +63,4 @@ Not the Math or Earth & Atmosphere faces, which belong to epic-varied-runs.
 - Decision: in a run, the beak type not rolled still has its gates placed, but they are optional (user approved, 2026-10-05).
 - Decision: town has every race, including the sealed faces' shape people and dinosaurs, with placeholder art (user approved, 2026-10-05).
 - Decision: 14 entries, above the typical 8–12, is accepted as one lane with one owner, so no split (user approved, 2026-10-05).
+- Decision: added entry 15 'Readability pass' before the release after the user's first playtest found the placeholder visuals and long dialogue confusing; world art from Kenney (CC0), NPCs keep stacked Lego parts redrawn clearly; 'fell apart' death text replaced (user, 2026-10-06).
