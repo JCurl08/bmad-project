@@ -58,6 +58,9 @@ namespace Game.Cube
         /// <summary>The science layout of this run; null until the science faces are revealed.</summary>
         public CubeLayout Layout { get; private set; }
 
+        /// <summary>Per-run hostility flags per race (NPCs of a hostile race refuse to talk). Reset on every rebuild.</summary>
+        public RaceRelations Relations { get; } = new RaceRelations();
+
         /// <summary>True once the built science faces have been laid out in this run.</summary>
         public bool ScienceRevealed { get; private set; }
 
@@ -103,6 +106,7 @@ namespace Game.Cube
             Layout = null;
             ItemPlacement = null;
             ScienceRevealed = false;
+            Relations.Reset();
             modules.Clear();
             gates.Clear();
             pickups.Clear();
