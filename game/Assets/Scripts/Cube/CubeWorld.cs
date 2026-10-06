@@ -12,6 +12,9 @@ namespace Game.Cube
     /// A run starts with only Town laid out (its fixed modules); the built science faces stay dark and
     /// unpatterned until RevealScience() (called on the first crossing off Town) lays them out from
     /// CubeLayout and instantiates their modules. Sealed faces are drawn dark and never laid out.
+    /// The reveal also places the items (ItemPlacement, resolved through the ItemCatalog): a gate in each
+    /// chosen module gate slot and one pickup per item on its home face. Unused gate slots get no gate,
+    /// so their alcove stays open.
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -21,11 +24,14 @@ namespace Game.Cube
         [SerializeField] private Sprite sprite;
         [SerializeField] private Material material;
         [SerializeField] private ModuleLibrary library;
+        [SerializeField] private ItemCatalog itemCatalog;
 
         private Transform generated;
         private readonly Transform[] floorRoots = new Transform[CubeSettings.FaceCount];
         private readonly Transform[] moduleRoots = new Transform[CubeSettings.FaceCount];
         private readonly Dictionary<ScreenAddress, ScreenModule> modules = new Dictionary<ScreenAddress, ScreenModule>();
+        private readonly List<Gate> gates = new List<Gate>();
+        private readonly List<ItemPickup> pickups = new List<ItemPickup>();
         private static Sprite fallbackSprite;
 
         public CubeModel Model { get; private set; }
@@ -34,6 +40,20 @@ namespace Game.Cube
         public int FaceSize => Model != null ? Model.FaceSize : CubeSettings.DefaultFaceSize;
 
         public ModuleLibrary Library => library;
+
+        public ItemCatalog ItemCatalog => itemCatalog;
+
+        /// <summary>Where an open (unguarded) pickup sits, relative to its screen centre: in the clear vertical lane.</summary>
+        public static readonly Vector2 OpenPickupOffset = new Vector2(0f, -2.5f);
+
+        /// <summary>The item and gate placement of this run; null until the science faces are revealed.</summary>
+        public ItemPlacement ItemPlacement { get; private set; }
+
+        /// <summary>Every gate instantiated by the reveal (open or not).</summary>
+        public IReadOnlyList<Gate> Gates => gates;
+
+        /// <summary>Every pickup instantiated by the reveal; collected ones become null (destroyed).</summary>
+        public IReadOnlyList<ItemPickup> Pickups => pickups;
 
         /// <summary>The science layout of this run; null until the science faces are revealed.</summary>
         public CubeLayout Layout { get; private set; }
@@ -57,12 +77,14 @@ namespace Game.Cube
         /// <summary>Raised once per run, after the science faces have been laid out.</summary>
         public event Action Revealed;
 
-        public void Configure(Sprite floorSprite, Material spriteMaterial, int startSeed, ModuleLibrary moduleLibrary)
+        public void Configure(Sprite floorSprite, Material spriteMaterial, int startSeed, ModuleLibrary moduleLibrary,
+            ItemCatalog items = null)
         {
             sprite = floorSprite;
             material = spriteMaterial;
             seed = startSeed;
             library = moduleLibrary;
+            itemCatalog = items;
         }
 
         private void Awake()
@@ -79,8 +101,11 @@ namespace Game.Cube
             seed = newSeed;
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize);
             Layout = null;
+            ItemPlacement = null;
             ScienceRevealed = false;
             modules.Clear();
+            gates.Clear();
+            pickups.Clear();
 
             if (generated != null) Destroy(generated.gameObject);
             generated = NewChild("Generated Faces", transform);
@@ -114,6 +139,7 @@ namespace Game.Cube
                 BuildFloor(face, floorRoots[f], ThemeColor(Model.ThemeOf(face)), true);
                 BuildScienceModules(face);
             }
+            PlaceItems();
 
             Revealed?.Invoke();
             return true;
@@ -229,6 +255,73 @@ namespace Game.Cube
                     PlaceModule(prefab, new ScreenAddress(face, cell), core);
                 }
             }
+        }
+
+        /// <summary>Instantiates the run's gates and pickups from ItemPlacement (needs a layout and an item catalog).</summary>
+        private void PlaceItems()
+        {
+            if (Layout == null) return;
+            if (itemCatalog == null)
+            {
+                Debug.LogWarning("CubeWorld: no ItemCatalog assigned; science faces revealed without items or gates.");
+                return;
+            }
+
+            ItemPlacement = ItemPlacement.ForRun(Model, Layout, library, itemCatalog.Themes());
+            foreach (GatePlacement placement in ItemPlacement.Gates)
+            {
+                ScreenModule module = ModuleAt(placement.Screen);
+                GateSlot[] slots = module != null ? module.Gates : Array.Empty<GateSlot>();
+                ItemDefinition item = itemCatalog.ForTheme(placement.Item);
+                if (placement.Slot >= slots.Length || item == null)
+                {
+                    Debug.LogError($"CubeWorld: cannot place {placement}");
+                    continue;
+                }
+                gates.Add(CreateGate(slots[placement.Slot], item));
+            }
+            foreach (PickupPlacement placement in ItemPlacement.Pickups)
+            {
+                ScreenModule module = ModuleAt(placement.Screen);
+                ItemDefinition item = itemCatalog.ForTheme(placement.Item);
+                if (module == null || item == null || (placement.IsGuarded && placement.GuardSlot >= module.Gates.Length))
+                {
+                    Debug.LogError($"CubeWorld: cannot place {placement}");
+                    continue;
+                }
+                Vector2 at = placement.IsGuarded
+                    ? module.Gates[placement.GuardSlot].PocketCentre
+                    : ScreenCenter(placement.Screen) + OpenPickupOffset;
+                pickups.Add(CreatePickup(module.transform, at, item));
+            }
+        }
+
+        private Gate CreateGate(GateSlot slot, ItemDefinition item)
+        {
+            bool across = slot.Opening == Facing.North || slot.Opening == Facing.South;
+            Vector2 size = across
+                ? new Vector2(GateSlot.GateWidth, GateSlot.GateThickness)
+                : new Vector2(GateSlot.GateThickness, GateSlot.GateWidth);
+            GameObject go = CreateBlock($"Gate ({item})", slot.transform, slot.transform.position, size,
+                item.PlaceholderColor, -4, true);
+            var gate = go.AddComponent<Gate>();
+            gate.Visual = go.GetComponentInChildren<SpriteRenderer>();
+            gate.RequiredItem = item;
+            return gate;
+        }
+
+        private ItemPickup CreatePickup(Transform parent, Vector2 position, ItemDefinition item)
+        {
+            const float size = 0.6f;
+            GameObject go = CreateBlock($"Pickup ({item})", parent, position, new Vector2(size, size),
+                item.PlaceholderColor, 5, false);
+            go.transform.GetChild(0).localRotation = Quaternion.Euler(0f, 0f, 45f); // a diamond
+            var trigger = go.AddComponent<CircleCollider2D>();
+            trigger.isTrigger = true;
+            trigger.radius = ItemPickup.Radius;
+            var pickup = go.AddComponent<ItemPickup>();
+            pickup.Item = item;
+            return pickup;
         }
 
         private void PlaceModule(ScreenModule prefab, ScreenAddress address, int activeCoreSlot)

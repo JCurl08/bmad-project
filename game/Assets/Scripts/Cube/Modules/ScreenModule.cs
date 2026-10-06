@@ -48,6 +48,9 @@ namespace Game.Cube
 
         public int CoreEntranceCount => CoreEntrances.Length;
 
+        /// <summary>Number of gate slots (each with its alcove), in a stable (hierarchy) order.</summary>
+        public int GateSlotCount => Gates.Length;
+
         /// <summary>Every slot of every kind, active or not.</summary>
         public ModuleSlot[] AllSlots => GetComponentsInChildren<ModuleSlot>(true);
 

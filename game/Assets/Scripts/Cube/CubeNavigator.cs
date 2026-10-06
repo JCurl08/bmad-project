@@ -81,6 +81,8 @@ namespace Game.Cube
 
         private void OnWorldRebuilt()
         {
+            // A new run: the player starts with nothing.
+            if (TryGetComponent(out Inventory inventory)) inventory.Clear();
             TeleportTo(world.Model.StartScreen, Facing.East);
         }
 

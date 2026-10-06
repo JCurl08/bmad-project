@@ -10,8 +10,9 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// Cube > Create Cube Scene: builds Assets/Scenes/Cube.unity from code with the player, the screen
 /// camera, the CubeWorld and the debug overlay, and puts it first in the build list (Tracer is kept).
-/// The CubeWorld is wired to the module library (built first if missing).
-/// Cube > Seed Sweep: runs the reachability and core-entrance sweep over 50 seeds and logs the result.
+/// The CubeWorld is wired to the module library and the item catalog (each built first if missing);
+/// the player carries an Inventory.
+/// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
 public static class CubeSceneBuilder
@@ -38,7 +39,8 @@ public static class CubeSceneBuilder
         // World: generates the faces at runtime from the seed.
         var worldObject = new GameObject("Cube World");
         var world = worldObject.AddComponent<CubeWorld>();
-        world.Configure(squareSprite, material, DefaultSeed, ModuleLibraryBuilder.LoadOrBuild());
+        world.Configure(squareSprite, material, DefaultSeed, ModuleLibraryBuilder.LoadOrBuild(),
+            ItemCatalogBuilder.LoadOrBuild());
 
         // Player at the centre of the Town start screen (face Front sits at the world origin).
         Vector2 start = ScreenMath.ScreenCenter(Vector2Int.zero);
@@ -63,6 +65,7 @@ public static class CubeSceneBuilder
         body.interpolation = RigidbodyInterpolation2D.Interpolate;
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         player.AddComponent<PlayerMover>();
+        player.AddComponent<Inventory>();
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
 
@@ -111,7 +114,8 @@ public static class CubeSceneBuilder
     public static void RunSeedSweep()
     {
         List<SeedSweep.SeedResult> results =
-            SeedSweep.Run(catalog: ModuleLibraryBuilder.LoadOrBuild());
+            SeedSweep.Run(catalog: ModuleLibraryBuilder.LoadOrBuild(),
+                itemThemes: ItemCatalogBuilder.LoadOrBuild().Themes());
         string report = SeedSweep.Describe(results);
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
