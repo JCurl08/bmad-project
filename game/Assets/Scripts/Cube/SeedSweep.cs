@@ -16,9 +16,9 @@ namespace Game.Cube
     /// guard nothing required: no pickup may sit behind one, and none may share a slot with a required gate.
     /// With Biology beak variants, the Biology plan is checked too (BiologyPlan.FindProblems: the rolled beak
     /// has an off-home gate, a thin-beak run has its flower-vine bridge, the trial is on Biology). With a Chemistry
-    /// item, the Chemistry plan is checked too (ChemistryPlan.FindProblems: stage coverage, timed stages on the
-    /// home face, an off-home gate, and dispenser-first: the isotope dispenser is reachable without passing any
-    /// Chemistry-stage gate). With a Physics item, the Physics plan is checked too (PhysicsPlan.FindProblems: the
+    /// stone (variant), the Chemistry plan is checked too (ChemistryPlan.FindProblems: required gates use the rolled
+    /// stone, optional ones the other stones, on Chemistry, the rolled stone opens a gate on another face, the trial
+    /// fits; the optional-gate rule above covers the other stones' gates too). With a Physics item, the Physics plan is checked too (PhysicsPlan.FindProblems: the
     /// Mass Mitt opens a timed door on another face, and, with the module library, every timed door's switch timing,
     /// its own boulders on its screen with enough of them reachable, no boulder starting in a time field or on
     /// another face's interactable, and the Physics trial fitting). When the catalog knows hidden-item slots
@@ -287,7 +287,7 @@ namespace Game.Cube
         public static List<SeedResult> Run(int firstSeed = DefaultFirstSeed, int count = DefaultSeedCount,
             int faceSize = CubeSettings.DefaultFaceSize, IModuleCatalog catalog = null,
             IEnumerable<Theme> itemThemes = null, IReadOnlyDictionary<Theme, int> variantCounts = null,
-            IReadOnlyList<BeakKind> biologyVariantKinds = null)
+            IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null)
         {
             var results = new List<SeedResult>(count);
             for (int s = firstSeed; s < firstSeed + count; s++)
@@ -307,9 +307,10 @@ namespace Game.Cube
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
                         Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
-                        foreach (string problem in ChemistryPlan.FindProblems(model, placement, moduleAt))
+                        foreach (string problem in ChemistryPlan.FindProblems(model, placement, chemistryVariantKinds, moduleAt))
                             result.ItemProblems.Add("chemistry: " + problem);
-                        foreach (string problem in PhysicsPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds))
+                        foreach (string problem in PhysicsPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds,
+                            PhysicsPlan.DefaultMaxRequired, chemistryVariantKinds))
                             result.ItemProblems.Add("physics: " + problem);
                     }
                     if (catalog is IHiddenSlotCatalog hiddenCatalog)
@@ -363,7 +364,7 @@ namespace Game.Cube
                 : "fully reachable";
             if (itemsChecked)
                 what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
-                        "the isotope dispenser before any Chemistry-stage gate, the Chemistry trial fitting, " +
+                        "the rolled stone opening a gate on another face, the Chemistry trial fitting, " +
                         "every timed door with enough reachable boulders on its screen, the Physics trial fitting";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";

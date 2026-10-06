@@ -118,7 +118,8 @@ namespace Game.Cube
         {
             MittItem = world.ItemFor(Theme.Physics);
             Plan = MittItem != null
-                ? PhysicsPlan.Create(world.Model, world.ItemPlacement, world.ModuleAt, BiologyBeaks.VariantKinds(world.ItemCatalog), maxRequired)
+                ? PhysicsPlan.Create(world.Model, world.ItemPlacement, world.ModuleAt, BiologyBeaks.VariantKinds(world.ItemCatalog), maxRequired,
+                    ChemistryIsotope.VariantKinds(world.ItemCatalog))
                 : null;
             if (Plan != null)
                 for (int i = 0; i < Plan.Doors.Count; i++) doors.Add(null);

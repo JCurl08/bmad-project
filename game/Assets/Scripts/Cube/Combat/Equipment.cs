@@ -6,7 +6,8 @@ namespace Game.Cube
 {
     /// <summary>
     /// The item the player attacks with, chosen from the Inventory. Player/Previous and Player/Next cycle
-    /// through owned items (nothing happens with none); the first item picked up is equipped automatically.
+    /// through owned items (nothing happens with none); every newly picked-up item is equipped automatically, so a
+    /// fresh item (a Chemistry stone picked up while holding a beak) is ready to use at once.
     /// Null means bare-handed.
     /// </summary>
     [RequireComponent(typeof(Inventory))]
@@ -77,9 +78,6 @@ namespace Game.Cube
             return -1;
         }
 
-        private void OnItemAdded(ItemDefinition item)
-        {
-            if (Equipped == null) Equip(item);
-        }
+        private void OnItemAdded(ItemDefinition item) => Equip(item);
     }
 }

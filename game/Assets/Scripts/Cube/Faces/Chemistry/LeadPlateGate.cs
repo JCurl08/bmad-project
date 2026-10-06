@@ -3,9 +3,9 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// A lead gate: a heavy door across the alcove opening, linked to a LeadPlate on the same screen (in the
-    /// horizontal centre lane at PlateLocal, nearer the centre than any Biology button). Dropping lead on the plate (step on
-    /// it holding lead, or swing at it with lead equipped) uses up the lead and opens the door for good. The door
+    /// A Leadstone* gate: a heavy door across the alcove opening, linked to a LeadPlate on the same screen (in the
+    /// horizontal centre lane at PlateLocal, nearer the centre than any Biology button). Swinging at the plate with the
+    /// Leadstone* equipped weighs it down (HitsToOpen swings) and opens the door for good; the stone is kept. The door
     /// itself ignores touches and swings.
     /// </summary>
     public class LeadPlateGate : IsotopeGate, ILeadSink
@@ -37,7 +37,13 @@ namespace Game.Cube
             return new Vector2(-sx * PlateLaneX, sy * ButtonGate.ButtonLaneY);
         }
 
-        public void TakeLead(int isotopeSerial) => OpenNow();
+        public bool TakeLead(LeadPlate struck, ItemDefinition item) => RegisterHit(item);
+
+        protected override void OnOpened()
+        {
+            base.OnOpened();
+            if (plate != null) plate.ShowLead();
+        }
 
         public void Link(LeadPlate linked)
         {
@@ -46,9 +52,10 @@ namespace Game.Cube
         }
 
         public static LeadPlateGate Build(GameObject block, ItemDefinition item, Vector2 plateWorld, Transform plateParent,
-            Material material)
+            int difficulty, bool optional, Material material, int faceSize = CubeSettings.DefaultFaceSize)
         {
-            LeadPlateGate gate = Setup<LeadPlateGate>(block, $"Lead Plate Door ({item})", item, PartShape.Square, material);
+            LeadPlateGate gate = Setup<LeadPlateGate>(block, $"Lead Plate Door ({item})", item, PartShape.Square, difficulty,
+                optional, faceSize, material);
             gate.Link(LeadPlate.Create(plateParent, plateWorld, item, material));
             ArtCatalog.DressGate(gate, ArtKey.GateLeadDoor);
             return gate;

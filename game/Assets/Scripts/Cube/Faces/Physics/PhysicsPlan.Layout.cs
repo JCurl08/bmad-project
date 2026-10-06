@@ -29,12 +29,12 @@ namespace Game.Cube
             public readonly Dictionary<ScreenAddress, ScreenContext> Contexts = new Dictionary<ScreenAddress, ScreenContext>();
 
             public LayoutBuilder(CubeModel model, ItemPlacement placement, Func<ScreenAddress, ScreenModule> moduleAt,
-                IReadOnlyList<BeakKind> kinds)
+                IReadOnlyList<BeakKind> kinds, IReadOnlyList<IsotopeStage> stoneKinds)
             {
                 this.model = model;
                 this.placement = placement;
                 this.moduleAt = moduleAt;
-                others = OtherFaceMarks(model, placement, moduleAt, kinds);
+                others = OtherFaceMarks(model, placement, moduleAt, kinds, stoneKinds);
             }
 
             private ScreenContext Ctx(ScreenAddress screen)
@@ -342,11 +342,10 @@ namespace Game.Cube
 
             /// <summary>
             /// Spots other faces' content uses on each screen (local): Biology buttons (required and optional),
-            /// flowers and trial pieces, Chemistry lead plates and trial pieces, and open pickups (the isotope
-            /// dispenser included).
+            /// flowers and trial pieces, Chemistry lead plates and trial pieces, and open pickups.
             /// </summary>
             private static Dictionary<ScreenAddress, List<ScreenMark>> OtherFaceMarks(CubeModel model, ItemPlacement placement,
-                Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> kinds)
+                Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> kinds, IReadOnlyList<IsotopeStage> stoneKinds)
             {
                 var marks = new Dictionary<ScreenAddress, List<ScreenMark>>();
                 void Add(ScreenAddress s, string what, Vector2 at, float r)
@@ -381,7 +380,7 @@ namespace Game.Cube
                     }
                 }
 
-                ChemistryPlan chemistry = ChemistryPlan.Create(model, placement);
+                ChemistryPlan chemistry = ChemistryPlan.Create(model, placement, stoneKinds); // stages read from the item ids
                 if (chemistry != null)
                 {
                     foreach (IsotopeGateSpec s in chemistry.Gates)

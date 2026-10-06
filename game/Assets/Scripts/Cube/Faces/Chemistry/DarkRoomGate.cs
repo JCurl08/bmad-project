@@ -3,9 +3,8 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// A glow gate: a curtain of darkness across the alcove opening. Touching it while holding a glowing isotope
-    /// lights the room and it opens; touching it with an unstable or lead isotope, another item or nothing does
-    /// nothing. A swing carrying the glowing isotope lights it too.
+    /// A Glowstone* gate: a curtain of darkness across the alcove opening. Swinging at it with the Glowstone* equipped
+    /// lights the room and it opens (after HitsToOpen swings); touching it, a bare swing or any other item does nothing.
     /// </summary>
     public class DarkRoomGate : IsotopeGate, IAttackReceiver
     {
@@ -13,22 +12,15 @@ namespace Game.Cube
 
         public override IsotopeStage Stage => IsotopeStage.Glow;
 
-        protected override bool OpensOnTouch => true;
-
         protected override Color ClosedColor => DarkColor;
 
-        protected override bool CanOpenFor(Inventory inventory) =>
-            inventory != null && Matches(inventory.GetComponent<Isotope>());
+        public bool ReceiveAttack(ItemDefinition item, GameObject attacker) => RegisterHit(item);
 
-        public bool ReceiveAttack(ItemDefinition item, GameObject attacker)
+        public static DarkRoomGate Build(GameObject block, ItemDefinition item, int difficulty, bool optional, Material material,
+            int faceSize = CubeSettings.DefaultFaceSize)
         {
-            if (IsOpen || item == null || item != RequiredItem) return false;
-            return Matches(Isotope.On(attacker)) && OpenNow();
-        }
-
-        public static DarkRoomGate Build(GameObject block, ItemDefinition item, Material material)
-        {
-            DarkRoomGate gate = Setup<DarkRoomGate>(block, $"Dark Room Gate ({item})", item, PartShape.Circle, material);
+            DarkRoomGate gate = Setup<DarkRoomGate>(block, $"Dark Room Gate ({item})", item, PartShape.Circle, difficulty,
+                optional, faceSize, material);
             ArtCatalog.DressGate(gate, ArtKey.GateDarkRoom);
             return gate;
         }

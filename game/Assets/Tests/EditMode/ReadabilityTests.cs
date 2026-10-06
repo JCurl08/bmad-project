@@ -127,18 +127,15 @@ namespace Game.Cube.Tests
                 float back = 2f * slot.PocketOffset.magnitude - thickness / 2f; // the pocket's back wall, from the slot
                 Vector2 dir = slot.PocketOffset.normalized;
 
-                // A plain item pickup and the isotope dispenser, both as the reveal places them behind a gate.
+                // A plain item pickup (every item, the Chemistry stones included, is one), as the reveal places it behind a gate.
                 GameObject plain = world.CreateBlock("Pickup", root.transform, pocket, Vector2.one * CubeWorld.PickupSize, Color.white,
                     5, false, ArtKey.ItemThickBeak);
                 CubeWorld.TuckIntoPocket(plain.transform, slot);
-                IsotopeDispenser dispenser = IsotopeDispenser.Create(root.transform, pocket, ChemistryIsotope.CreateItem(), null);
-                CubeWorld.TuckIntoPocket(dispenser.transform, slot);
 
                 float gateFar = Vector2.Dot((Vector2)gate.Visual.bounds.center - (Vector2)slot.transform.position, dir) +
                                 Mathf.Abs(Vector2.Dot(gate.Visual.bounds.extents, dir));
                 Assert.AreEqual(ArtCatalog.GateArtReach(thickness), gateFar, 1e-3f, "Gate art reaches one tile into the pocket");
-                foreach (SpriteRenderer r in plain.GetComponentsInChildren<SpriteRenderer>()
-                             .Concat(dispenser.GetComponentsInChildren<SpriteRenderer>()))
+                foreach (SpriteRenderer r in plain.GetComponentsInChildren<SpriteRenderer>())
                 {
                     float centre = Vector2.Dot((Vector2)r.bounds.center - (Vector2)slot.transform.position, dir);
                     float half = Mathf.Abs(Vector2.Dot(r.bounds.extents, dir));
@@ -147,7 +144,6 @@ namespace Game.Cube.Tests
                     Assert.Greater(gate.Visual.sortingOrder, r.sortingOrder, $"The closed gate draws in front of {r.name}");
                 }
                 Assert.AreEqual(pocket, (Vector2)plain.transform.position, "The pickup itself (its trigger) stays at the pocket centre");
-                Assert.AreEqual(pocket, (Vector2)dispenser.transform.position);
             }
             finally
             {
@@ -161,7 +157,8 @@ namespace Game.Cube.Tests
             var items = new[]
             {
                 ArtKeys.Item(BiologyBeaks.CreateItem(BeakKind.Thin)), ArtKeys.Item(BiologyBeaks.CreateItem(BeakKind.Thick)),
-                ArtKeys.Item(ChemistryIsotope.CreateItem()), ArtKeys.Item(MassMittItem.CreateItem()),
+                ArtKeys.Item(ChemistryIsotope.CreateItem(IsotopeStage.Glow)), ArtKeys.Item(ChemistryIsotope.CreateItem(IsotopeStage.Unstable)),
+                ArtKeys.Item(ChemistryIsotope.CreateItem(IsotopeStage.Lead)), ArtKeys.Item(MassMittItem.CreateItem()),
                 ArtKeys.Item(ItemDefinition.Create("other", "Other", Theme.Math, Color.white)),
             };
             Assert.AreEqual(items.Length, items.Distinct().Count(), "Each item has its own art");

@@ -179,7 +179,7 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// Sorting order of dressed gate art: above everything that can sit in its pocket (pickups, the isotope dispenser,
+        /// Sorting order of dressed gate art: above everything that can sit in its pocket (pickups and
         /// hidden Jumbles), so a closed gate is always drawn in front of what it guards. Its marks draw one above it.
         /// </summary>
         public const int GateArtOrder = 7;

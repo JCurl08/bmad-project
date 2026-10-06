@@ -23,7 +23,7 @@ namespace Game.Cube
     /// opens the between-runs screen. Purchases (Buy) spend the balance and save at once; their effect starts with the
     /// next run. Continue starts it: a new non-repeating seed (time-based; the old one stays on the screen for replays),
     /// the world rebuilt (back in Town, the arena and RunState reset), and the player reset (empty inventory, bare hands,
-    /// fresh isotope, mitt released, upgraded stats, full health, control back). Each item's first pickup in a run adds to
+    /// mitt released, upgraded stats, full health, control back). Each item's first pickup in a run adds to
     /// its per-ability count (Epic 2), saved with the run.
     /// </summary>
     [DefaultExecutionOrder(-100)] // Awake before CubeWorld's, so the first run is built once, on its fresh seed
@@ -289,7 +289,6 @@ namespace Game.Cube
                 equipment.Equip(null);
                 equipment.enabled = true;
             }
-            if (go.TryGetComponent(out Isotope isotope)) isotope.ResetForRun();
             if (go.TryGetComponent(out MassMitt mitt)) mitt.Release();
             ApplyStats(true);
             if (go.TryGetComponent(out PlayerMover mover)) mover.enabled = true;

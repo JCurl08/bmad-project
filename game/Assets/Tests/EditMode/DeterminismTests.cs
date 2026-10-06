@@ -97,9 +97,10 @@ namespace Game.Cube.Tests
             List<BeakKind> kinds = BiologyBeaks.VariantKinds(catalog);
             BiologyPlan biology = BiologyPlan.Create(model, placement, kinds);
             Add("biologyPlan", biology?.Signature());
-            ChemistryPlan chemistry = ChemistryPlan.Create(model, placement);
+            ChemistryPlan chemistry = ChemistryPlan.Create(model, placement, ChemistryIsotope.VariantKinds(catalog));
             Add("chemistryPlan", chemistry?.Signature());
-            PhysicsPlan physics = PhysicsPlan.Create(model, placement, moduleAt, kinds);
+            PhysicsPlan physics = PhysicsPlan.Create(model, placement, moduleAt, kinds, PhysicsPlan.DefaultMaxRequired,
+                ChemistryIsotope.VariantKinds(catalog));
             Add("physicsPlan", physics?.Signature());
             Add("hidden", HiddenCurrencyPlacement.Generate(model, layout, library).Signature());
 

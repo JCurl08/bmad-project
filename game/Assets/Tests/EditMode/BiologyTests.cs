@@ -79,7 +79,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(BiologyBeaks.ThinReach, beaks[0].AttackReach, 1e-4f);
             Assert.AreEqual(0f, beaks[1].AttackReach, 1e-4f);
             Assert.AreEqual(2, catalog.VariantCounts()[Theme.Biology]);
-            Assert.IsFalse(catalog.VariantCounts().ContainsKey(Theme.Chemistry));
+            Assert.AreEqual(ChemistryIsotope.VariantCount, catalog.VariantCounts()[Theme.Chemistry], "Chemistry has its stones");
 
             for (int seed = 1; seed <= Seeds; seed++)
             {
@@ -88,7 +88,7 @@ namespace Game.Cube.Tests
                 Assert.AreSame(rolled, catalog.ItemFor(Theme.Biology, seed));
                 Assert.AreEqual(1, catalog.UnrolledVariants(Theme.Biology, seed).Count);
                 Assert.AreNotSame(rolled, catalog.UnrolledVariants(Theme.Biology, seed)[0]);
-                Assert.AreSame(catalog.ForTheme(Theme.Chemistry), catalog.ItemFor(Theme.Chemistry, seed));
+                CollectionAssert.Contains(catalog.VariantsOf(Theme.Chemistry), catalog.ItemFor(Theme.Chemistry, seed));
             }
         }
 
@@ -313,7 +313,7 @@ namespace Game.Cube.Tests
                         BiologyPlan plan = BiologyPlan.Create(model, p, kinds);
                         Assert.AreEqual(BiologyBeaks.KindOf(c.ItemFor(Theme.Biology, seed)), plan.Beak, $"seed {seed}");
                         Assert.IsEmpty(BiologyPlan.FindProblems(model, p, kinds), $"seed {seed}");
-                        foreach (OptionalGatePlacement o in p.OptionalGates)
+                        foreach (OptionalGatePlacement o in p.OptionalGates.Where(g => g.Item == Theme.Biology))
                         {
                             Assert.IsTrue(plan.TryGetGate(o.Screen, o.Slot, true, out BeakGateSpec spec));
                             Assert.AreEqual(BiologyBeaks.KindOf(c.VariantsOf(o.Item)[o.Variant]), spec.Beak, $"seed {seed}: {o}");

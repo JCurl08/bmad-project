@@ -46,7 +46,8 @@ namespace Game.Cube.Tests
             out ItemPlacement placement, out Func<ScreenAddress, ScreenModule> moduleAt)
         {
             placement = Place(seed, library, catalog, out model, out moduleAt);
-            return PhysicsPlan.Create(model, placement, moduleAt, BiologyBeaks.VariantKinds(catalog));
+            return PhysicsPlan.Create(model, placement, moduleAt, BiologyBeaks.VariantKinds(catalog), PhysicsPlan.DefaultMaxRequired,
+                ChemistryIsotope.VariantKinds(catalog));
         }
 
         // ---------- Dilation maths ----------
@@ -142,7 +143,8 @@ namespace Game.Cube.Tests
                 Assert.IsNotNull(a, $"seed {seed}");
                 Assert.IsTrue(a.HasLayout);
                 Assert.AreEqual(a.Signature(), b.Signature(), $"seed {seed}: same seed, same plan");
-                List<string> problems = PhysicsPlan.FindProblems(model, p, moduleAt, BiologyBeaks.VariantKinds(catalog));
+                List<string> problems = PhysicsPlan.FindProblems(model, p, moduleAt, BiologyBeaks.VariantKinds(catalog), PhysicsPlan.DefaultMaxRequired,
+                    ChemistryIsotope.VariantKinds(catalog));
                 Assert.IsEmpty(problems, $"seed {seed}: {string.Join("; ", problems)}");
                 Assert.AreEqual(p.Gates.Count(g => g.Item == Theme.Physics), a.Doors.Count, $"seed {seed}: a timed door per Physics gate");
                 Assert.IsTrue(a.Doors.Any(d => !d.OnHome), $"seed {seed}: the mitt opens a door on another face");
@@ -169,9 +171,9 @@ namespace Game.Cube.Tests
             for (int seed = 1; seed <= 10; seed++)
             {
                 ItemPlacement p = Place(seed, library, catalog, out CubeModel model, out var moduleAt);
-                PhysicsPlan easy = PhysicsPlan.Create(model, p, moduleAt, BiologyBeaks.VariantKinds(catalog), 1);
+                PhysicsPlan easy = PhysicsPlan.Create(model, p, moduleAt, BiologyBeaks.VariantKinds(catalog), 1, ChemistryIsotope.VariantKinds(catalog));
                 Assert.IsTrue(easy.Doors.All(d => d.Required == 1), $"seed {seed}");
-                Assert.IsEmpty(PhysicsPlan.FindProblems(model, p, moduleAt, BiologyBeaks.VariantKinds(catalog), 1));
+                Assert.IsEmpty(PhysicsPlan.FindProblems(model, p, moduleAt, BiologyBeaks.VariantKinds(catalog), 1, ChemistryIsotope.VariantKinds(catalog)));
             }
         }
 
@@ -299,7 +301,8 @@ namespace Game.Cube.Tests
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
             List<SeedSweep.SeedResult> results = SeedSweep.Run(catalog: library, itemThemes: catalog.Themes(),
-                variantCounts: catalog.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(catalog));
+                variantCounts: catalog.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(catalog),
+                chemistryVariantKinds: ChemistryIsotope.VariantKinds(catalog));
             string report = SeedSweep.Describe(results);
             Assert.IsTrue(results.All(r => r.Passed), report);
             StringAssert.Contains("every timed door with enough reachable boulders on its screen", report);
@@ -333,7 +336,7 @@ namespace Game.Cube.Tests
             foreach (Vector2 v in BiologyTrial.PickSpots(BiologyTrial.LaneSideSpots(TownPlan.BlockedRects(moduleAt(bio.TrialScreen))),
                          BiologyTrial.PiecesFor(bio.Beak), bioRng))
                 Add(bio.TrialScreen, "Biology trial piece", v);
-            ChemistryPlan chem = ChemistryPlan.Create(model, p);
+            ChemistryPlan chem = ChemistryPlan.Create(model, p, ChemistryIsotope.VariantKinds(catalog));
             foreach (IsotopeGateSpec s in chem.Gates)
                 if (s.Stage == IsotopeStage.Lead) Add(s.Screen, $"plate {s}", LeadPlateGate.PlateLocal(SlotLocal(s.Screen, s.Slot)));
             foreach (Vector2 v in ChemistryPlan.TrialSpots(model.Seed, moduleAt(chem.TrialScreen)))

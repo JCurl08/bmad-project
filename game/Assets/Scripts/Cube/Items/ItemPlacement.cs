@@ -204,7 +204,7 @@ namespace Game.Cube
         /// theme). Items whose home face is not laid out are ignored. For an item with variants
         /// (variantCounts), the run's variant is rolled (ItemVariants.Roll) and every other variant gets up to
         /// OptionalGatesPerVariant optional gates in home-face slots still free after the required gates and
-        /// pickups, so they can never guard a pickup. The optional step runs last on the stream, so it does not
+        /// pickups (dealt a round at a time, one per non-rolled variant), so they can never guard a pickup. The optional step runs last on the stream, so it does not
         /// change any earlier draw.
         /// </summary>
         public static ItemPlacement Generate(CubeModel model, CubeLayout layout, IGateSlotCatalog catalog,
@@ -338,11 +338,13 @@ namespace Game.Cube
                     int roll = ItemVariants.Roll(model.Seed, item, count);
                     rolled[item] = roll;
                     List<(ScreenAddress screen, int slot)> free = freeSlots[homeFace[item]];
-                    for (int v = 0; v < count; v++)
+                    // Round by round, one gate per non-rolled variant each round, so with few free slots every
+                    // non-rolled variant still gets its share (with one non-rolled variant this is the plain loop).
+                    for (int k = 0; k < optionalPerVariant && free.Count > 0; k++)
                     {
-                        if (v == roll) continue;
-                        for (int k = 0; k < optionalPerVariant && free.Count > 0; k++)
+                        for (int v = 0; v < count && free.Count > 0; v++)
                         {
+                            if (v == roll) continue;
                             int pick = rng.NextInt(free.Count);
                             (ScreenAddress screen, int slot) = free[pick];
                             free.RemoveAt(pick);

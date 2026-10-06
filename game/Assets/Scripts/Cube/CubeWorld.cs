@@ -17,8 +17,8 @@ namespace Game.Cube
     /// so their alcove stays open. A theme with item variants uses the run's rolled variant (ItemCatalog.ItemFor),
     /// and the other variants' optional gates go into leftover home slots. Face content (IFaceContent
     /// components on this object: BiologyFace, ChemistryFace, PhysicsFace) builds its theme's gates and adds its trial and
-    /// population on the reveal, and is cleared on every rebuild; content that also implements IFacePickupContent
-    /// replaces its item's pickup (Chemistry's isotope dispenser). Revealed is also where the CoreArena puts a portal to
+    /// population on the reveal, and is cleared on every rebuild. Every item's pickup is a plain one-shot ItemPickup.
+    /// Revealed is also where the CoreArena puts a portal to
     /// the cube's core on each built face's active core-entrance slot. The reveal also scatters the run's hidden
     /// meta-currency items (HiddenCurrencyPlacement) into hidden-item slots on the built science faces.
     /// </summary>
@@ -339,7 +339,7 @@ namespace Game.Cube
                 Vector2 at = placement.IsGuarded
                     ? module.Gates[placement.GuardSlot].PocketCentre
                     : ScreenCenter(placement.Screen) + OpenPickupOffset;
-                ItemPickup built = BuildPickup(placement, module.transform, at, item, contents);
+                ItemPickup built = CreatePickup(module.transform, at, item);
                 if (placement.IsGuarded && built != null) TuckIntoPocket(built.transform, module.Gates[placement.GuardSlot]);
                 pickups.Add(built);
             }
@@ -394,19 +394,6 @@ namespace Game.Cube
                 if (built != null) return built;
             }
             return CreateGate(slot, item);
-        }
-
-        /// <summary>Builds one pickup: through face content of its theme that replaces pickups (IFacePickupContent), else a plain one.</summary>
-        private ItemPickup BuildPickup(PickupPlacement placement, Transform parent, Vector2 at, ItemDefinition item,
-            IFaceContent[] contents)
-        {
-            foreach (IFaceContent content in contents)
-            {
-                if (content.Theme != placement.Item || !(content is IFacePickupContent pickupContent)) continue;
-                ItemPickup built = pickupContent.CreatePickup(this, placement, parent, at, item);
-                if (built != null) return built;
-            }
-            return CreatePickup(parent, at, item);
         }
 
         /// <summary>How far a guarded pickup's visuals sit behind the pocket centre, clear of the gate art in front of it.</summary>

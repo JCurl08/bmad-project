@@ -4,18 +4,19 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// Curie's face, plugged into CubeWorld through IFaceContent (it sits on the CubeWorld's GameObject), in
-    /// Biology's three parts. On the reveal it builds the run's ChemistryPlan, sets the player's Isotope up (the
-    /// run's Chemistry item and the half-life difficulty) and then:
-    /// gate behaviours: every Chemistry gate (home or off-home) becomes a stage gate by the plan (dark room for
-    /// glow, cracked wall for unstable, plate door for lead), and the Chemistry pickup becomes the isotope
-    /// dispenser (IFacePickupContent);
-    /// the trial: a ChemistryTrial (lamp, cracked wall, plate) on the plan's trial screen;
+    /// Curie's face, plugged into CubeWorld through IFaceContent (it sits on the CubeWorld's GameObject), in Biology's
+    /// three parts. On the reveal it builds the run's ChemistryPlan around the rolled stone (the Chemistry item the
+    /// catalog rolled; its stage read from its id, never from the catalog's order), and then:
+    /// gate behaviours: every Chemistry gate (home or off-home) becomes the rolled stone's stage gate (dark room for the
+    /// Glowstone*, cracked wall for the Wildstone*, plate door for the Leadstone*), and every optional gate of another
+    /// stone becomes that stone's gate; all of them open to swings with their stone equipped. The stone itself is a
+    /// normal one-shot pickup (picked up once, kept for the run);
+    /// the trial: a ChemistryTrial of the rolled stone's targets on the plan's trial screen;
     /// the population: mushroom NPCs (ChemistryPopulation) and Chemistry enemies (Free Radicals, a Rust Mite) on
     /// seeded clear spots (FaceSpots, stream PopulationRngStream).
     /// Everything is removed on a rebuild.
     /// </summary>
-    public class ChemistryFace : MonoBehaviour, IFaceContent, IFacePickupContent, IHintDensityTarget
+    public class ChemistryFace : MonoBehaviour, IFaceContent, IHintDensityTarget
     {
         /// <summary>PCG32 stream for Chemistry population spots, trial spots and screens (see RngStreams).</summary>
         public const ulong PopulationRngStream = RngStreams.ChemistryPopulation;
@@ -36,9 +37,6 @@ namespace Game.Cube
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
         [SerializeField] private bool spawnEnemies = true;
 
-        [Tooltip("Difficulty: the isotope's half-life (seconds of glow; unstable lasts 2/3 of it more). Shorter is harder.")]
-        [SerializeField, Min(ChemistryIsotope.MinHalfLife)] private float halfLife = ChemistryIsotope.DefaultHalfLife;
-
         private readonly List<IsotopeGate> stageGates = new List<IsotopeGate>();
         private readonly List<NpcTalker> mushrooms = new List<NpcTalker>();
         private readonly List<Enemy> enemies = new List<Enemy>();
@@ -46,18 +44,15 @@ namespace Game.Cube
 
         public Theme Theme => Theme.Chemistry;
 
-        /// <summary>This run's Chemistry plan; null before the reveal (or when Chemistry is not an item of the run).</summary>
+        /// <summary>This run's Chemistry plan; null before the reveal (or without Chemistry stones).</summary>
         public ChemistryPlan Plan { get; private set; }
 
-        /// <summary>The run's isotope item (the Chemistry item ItemPlacement places).</summary>
+        /// <summary>The run's stone item (the rolled Chemistry item ItemPlacement places).</summary>
         public ItemDefinition IsotopeItem { get; private set; }
-
-        /// <summary>The isotope dispenser at the Chemistry pickup's spot (null before the reveal).</summary>
-        public IsotopeDispenser Dispenser { get; private set; }
 
         public ChemistryTrial Trial { get; private set; }
 
-        /// <summary>Every stage gate built this run (on any face).</summary>
+        /// <summary>Every stage gate built this run (required and optional, on any face).</summary>
         public IReadOnlyList<IsotopeGate> StageGates => stageGates;
 
         /// <summary>The mushroom NPCs of this run (destroyed ones become null).</summary>
@@ -86,44 +81,31 @@ namespace Game.Cube
             set => spawnEnemies = value;
         }
 
-        /// <summary>The half-life difficulty knob, applied to the player's Isotope on every reveal.</summary>
-        public float HalfLife
-        {
-            get => halfLife;
-            set
-            {
-                halfLife = Mathf.Max(ChemistryIsotope.MinHalfLife, value);
-                Isotope isotope = PlayerIsotope();
-                if (isotope != null) isotope.HalfLife = halfLife;
-            }
-        }
-
-        /// <summary>The player's Isotope (added when missing); null without a player.</summary>
-        public Isotope PlayerIsotope()
-        {
-            Transform target = ResolvePlayer();
-            if (target == null || target.GetComponent<Inventory>() == null) return null;
-            Isotope isotope = target.GetComponent<Isotope>();
-            if (isotope == null) isotope = target.gameObject.AddComponent<Isotope>();
-            return isotope;
-        }
-
         public void BeginReveal(CubeWorld world)
         {
+            // The stone's stage comes from the rolled item itself (by id), never from the catalog's order.
             IsotopeItem = world.ItemFor(Theme.Chemistry);
-            Plan = IsotopeItem != null ? ChemistryPlan.Create(world.Model, world.ItemPlacement) : null;
-            Isotope isotope = PlayerIsotope();
-            if (isotope != null)
+            List<IsotopeStage> kinds = ChemistryIsotope.VariantKinds(world.ItemCatalog);
+            IsotopeStage? rolled = ChemistryIsotope.KindOf(IsotopeItem);
+            if (kinds == null || rolled == null || world.ItemPlacement == null || world.ItemPlacement.RolledVariant(Theme.Chemistry) < 0)
             {
-                isotope.Item = IsotopeItem;
-                isotope.HalfLife = halfLife;
+                Plan = null;
+                if (world.ItemPlacement != null && world.ItemPlacement.RolledVariant(Theme.Chemistry) >= 0)
+                    Debug.LogWarning($"ChemistryFace: the catalog's Chemistry variants are not stones ({IsotopeItem}); no stage gates.");
+                return;
             }
+            Plan = ChemistryPlan.Create(world.Model, world.ItemPlacement, rolled.Value, kinds);
         }
 
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
         {
-            if (Plan == null || request.Optional || !Plan.TryGetGate(request.Screen, request.Slot, out IsotopeGateSpec spec))
+            if (Plan == null || !Plan.TryGetGate(request.Screen, request.Slot, request.Optional, out IsotopeGateSpec spec))
                 return null;
+            if (ChemistryIsotope.KindOf(item) != spec.Stage)
+            {
+                Debug.LogWarning($"ChemistryFace: {item} does not open a {spec.Stage} gate ({spec}); a plain gate instead.");
+                return null;
+            }
 
             GameObject block = world.CreateBlock("Stage Gate", slot.transform, slot.transform.position,
                 CubeWorld.GateSize(slot), Color.white, -4, true);
@@ -131,10 +113,10 @@ namespace Game.Cube
             switch (spec.Stage)
             {
                 case IsotopeStage.Glow:
-                    gate = DarkRoomGate.Build(block, item, world.Material);
+                    gate = DarkRoomGate.Build(block, item, spec.Difficulty, spec.Optional, world.Material, Plan.FaceSize);
                     break;
                 case IsotopeStage.Unstable:
-                    gate = CrackedWallGate.Build(block, item, world.Material);
+                    gate = CrackedWallGate.Build(block, item, spec.Difficulty, spec.Optional, world.Material, Plan.FaceSize);
                     break;
                 default:
                 {
@@ -142,20 +124,13 @@ namespace Game.Cube
                     Vector2 centre = world.ScreenCenter(request.Screen);
                     Vector2 slotLocal = (Vector2)slot.transform.position - centre;
                     Vector2 at = centre + LeadPlateGate.PlateLocal(slotLocal);
-                    gate = LeadPlateGate.Build(block, item, at, module != null ? module.transform : slot.transform, world.Material);
+                    gate = LeadPlateGate.Build(block, item, at, module != null ? module.transform : slot.transform,
+                        spec.Difficulty, spec.Optional, world.Material, Plan.FaceSize);
                     break;
                 }
             }
             stageGates.Add(gate);
             return gate;
-        }
-
-        public ItemPickup CreatePickup(CubeWorld world, PickupPlacement placement, Transform parent, Vector2 position,
-            ItemDefinition item)
-        {
-            if (Plan == null || item == null) return null;
-            Dispenser = IsotopeDispenser.Create(parent, position, item, world.Material);
-            return Dispenser;
         }
 
         public void EndReveal(CubeWorld world)
@@ -175,12 +150,11 @@ namespace Game.Cube
             FaceContent.DestroyAll(enemies);
             stageGates.Clear();
             Trial = null; // lives under its module, which the rebuild destroys
-            Dispenser = null; // likewise
             Plan = null;
             IsotopeItem = null;
         }
 
-        /// <summary>The trial's piece spots on a module (local to its centre): lamp, wall, plate; fewer when they do not fit.</summary>
+        /// <summary>The trial's piece spots on a module (local to its centre), in striking order; fewer when they do not fit.</summary>
         public static List<Vector2> TrialSpots(ScreenModule module, SeededRng rng) =>
             BiologyTrial.PickSpots(BiologyTrial.LaneSideSpots(TownPlan.BlockedRects(module)), ChemistryTrial.PieceCount, rng);
 
@@ -201,7 +175,7 @@ namespace Game.Cube
             go.transform.SetParent(module.transform, false);
             go.transform.position = centre;
             Trial = go.AddComponent<ChemistryTrial>();
-            Trial.Configure(IsotopeItem, positions, ChemistryPlan.TrialCurrency, world.Material);
+            Trial.Configure(Plan.Stage, IsotopeItem, positions, ChemistryPlan.TrialCurrency, world.Material);
             Trial.Completed += currency => Debug.Log($"Chemistry trial complete: +{currency} (seed {world.Seed}).");
         }
 
@@ -222,7 +196,7 @@ namespace Game.Cube
                 }
                 Vector2 centre = world.ScreenCenter(screen);
                 Rect bounds = FaceContent.WanderBounds(centre, feet);
-                List<string> lines = ChemistryPopulation.LinesFor(spec, facts, hintDensity, i == 0);
+                List<string> lines = ChemistryPopulation.LinesFor(spec, facts, hintDensity, Plan.Stage, i);
                 NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
                 npc.name = $"Chemistry Mushroom {i} {spec.DisplayName}";
                 mushrooms.Add(npc);

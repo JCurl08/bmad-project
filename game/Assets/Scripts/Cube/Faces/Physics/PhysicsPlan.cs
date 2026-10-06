@@ -153,11 +153,13 @@ namespace Game.Cube
         /// <summary>
         /// The plan of a run; null when Physics is not an item of the placement (no Physics pickup). With moduleAt
         /// (the module of a screen: prefabs in the sweep, instances at runtime) every position is laid out; pass the
-        /// Biology beak kinds (BiologyBeaks.VariantKinds) so Biology's trial spots are known. maxRequired is the
-        /// difficulty knob (1 to MaxRequiredCap boulders per door).
+        /// Biology beak kinds (BiologyBeaks.VariantKinds) so Biology's trial spots are known, and the Chemistry stone kinds
+        /// (ChemistryIsotope.VariantKinds) so the real Leadstone* plates are known (null: no Chemistry marks). maxRequired is
+        /// the difficulty knob (1 to MaxRequiredCap boulders per door).
         /// </summary>
         public static PhysicsPlan Create(CubeModel model, ItemPlacement placement, Func<ScreenAddress, ScreenModule> moduleAt = null,
-            IReadOnlyList<BeakKind> biologyVariantKinds = null, int maxRequired = DefaultMaxRequired)
+            IReadOnlyList<BeakKind> biologyVariantKinds = null, int maxRequired = DefaultMaxRequired,
+            IReadOnlyList<IsotopeStage> chemistryVariantKinds = null)
         {
             if (model == null) throw new ArgumentNullException(nameof(model));
             if (placement == null || !placement.TryGetPickup(Theme.Physics, out _)) return null;
@@ -185,7 +187,7 @@ namespace Game.Cube
             if (moduleAt == null)
                 return new PhysicsPlan(model.Seed, face, n, maxRequired, specs, trialOrder[0], null, null);
 
-            var builder = new LayoutBuilder(model, placement, moduleAt, biologyVariantKinds);
+            var builder = new LayoutBuilder(model, placement, moduleAt, biologyVariantKinds, chemistryVariantKinds);
             builder.Lay(specs, trialOrder, out ScreenAddress trialScreen, out PhysicsTrialSpec trial);
             return new PhysicsPlan(model.Seed, face, n, maxRequired, specs, trialScreen, trial, builder.Contexts);
         }
@@ -202,10 +204,10 @@ namespace Game.Cube
         /// </summary>
         public static List<string> FindProblems(CubeModel model, ItemPlacement placement,
             Func<ScreenAddress, ScreenModule> moduleAt = null, IReadOnlyList<BeakKind> biologyVariantKinds = null,
-            int maxRequired = DefaultMaxRequired)
+            int maxRequired = DefaultMaxRequired, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null)
         {
             var problems = new List<string>();
-            PhysicsPlan plan = Create(model, placement, moduleAt, biologyVariantKinds, maxRequired);
+            PhysicsPlan plan = Create(model, placement, moduleAt, biologyVariantKinds, maxRequired, chemistryVariantKinds);
             if (plan == null) return problems;
 
             int builtFaces = 0;

@@ -243,7 +243,7 @@ namespace Game.Cube
                 hudStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
                 hudStyle.normal.textColor = Color.white;
             }
-            // Above the isotope's HUD line (bottom left, above the combat panel and the dialogue band).
+            // Above the Chemistry stone's HUD line (bottom left, above the combat panel and the dialogue band).
             const float margin = 12f, dialogueBand = 150f, combatPanel = 62f, pip = 16f;
             float x = margin;
             float y = Screen.height - dialogueBand - margin - combatPanel - 66f;

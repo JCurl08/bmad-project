@@ -11,7 +11,7 @@ namespace Game.Cube.Tests
     /// <summary>
     /// The readability pass's feedback, on objects built in the test (far from anything a scene may hold): anything with
     /// Health flashes white for about 0.1 s when hit, every gate plays a short open effect, items and Jumbles pop up over
-    /// the player for about a second, the isotope's stage shows as a label in its colour, and Escape closes a conversation
+    /// the player for about a second, the held Chemistry stone shows its name as a label in its colour, and Escape closes a conversation
     /// at once (and does nothing when none is open).
     /// </summary>
     public class FeedbackTests : InputTestFixture
@@ -179,32 +179,32 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheIsotopeStage_ShowsAsALabelInItsColour_AndUpdatesWithTheStage()
+        public IEnumerator TheHeldStone_ShowsItsNameAsALabelInItsColour_WithNoTimer()
         {
-            GameObject player = Track(new GameObject("Isotope Player"));
-            player.transform.position = Origin;
-            var inventory = player.AddComponent<Inventory>();
-            var isotope = player.AddComponent<Isotope>();
-            ItemDefinition item = ChemistryIsotope.CreateItem();
-            isotope.Item = item;
-            isotope.HalfLife = 10f;
-            yield return null;
-            Assert.IsNull(isotope.StageLabel, "No label without an isotope");
+            foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)
+            {
+                GameObject player = Track(new GameObject("Stone Player"));
+                player.transform.position = Origin;
+                var inventory = player.AddComponent<Inventory>();
+                var isotope = player.AddComponent<Isotope>();
+                isotope.ShowHud = false;
+                ItemDefinition item = Track(ChemistryIsotope.CreateItem(stage));
+                yield return null;
+                Assert.IsNull(isotope.StageLabel, "No label without a stone");
+                Assert.IsNull(isotope.HudText);
 
-            var seen = new List<IsotopeStage>();
-            isotope.StageChanged += (_, stage) => seen.Add(stage);
-            inventory.Add(item);
-            Assert.AreEqual("GLOWING", isotope.StageLabel);
-            Assert.AreEqual(ChemistryIsotope.GlowColor, isotope.StageLabelColor);
-
-            isotope.Age = ChemistryIsotope.StageStart(IsotopeStage.Unstable, 10f) + 0.01f;
-            Assert.AreEqual("UNSTABLE", isotope.StageLabel);
-            Assert.AreEqual(ChemistryIsotope.UnstableColor, isotope.StageLabelColor);
-
-            isotope.Age = ChemistryIsotope.StageStart(IsotopeStage.Lead, 10f) + 0.01f;
-            Assert.AreEqual("LEAD", isotope.StageLabel);
-            Assert.AreEqual(ChemistryIsotope.LeadColor, isotope.StageLabelColor);
-            CollectionAssert.AreEqual(new[] { IsotopeStage.Glow, IsotopeStage.Unstable, IsotopeStage.Lead }, seen);
+                var seen = new List<IsotopeStage>();
+                isotope.StageChanged += (_, s) => seen.Add(s);
+                inventory.Add(item);
+                Assert.AreEqual(item.DisplayName, isotope.StageLabel, "The label is the stone's name");
+                StringAssert.EndsWith("*", isotope.StageLabel, "A placeholder name");
+                Assert.AreEqual(ChemistryIsotope.StageColor(stage), isotope.StageLabelColor);
+                StringAssert.StartsWith(item.DisplayName, isotope.HudText);
+                Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(isotope.HudText, @"\d"), "No timer in the HUD line");
+                yield return new WaitForSeconds(0.3f);
+                Assert.AreEqual(item.DisplayName, isotope.StageLabel, "It never changes on its own");
+                CollectionAssert.AreEqual(new[] { stage }, seen);
+            }
         }
 
         [UnityTest]

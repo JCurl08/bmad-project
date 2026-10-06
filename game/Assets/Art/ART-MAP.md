@@ -35,17 +35,19 @@ its generated placeholder shape, so nothing renders invisible.
 | GatePot | D 82 | barrel: a pot to break with the thick beak |
 | GateButtonDoor | D 46 | wooden door: opened by a distant button |
 | GateVine | T 5 | bush: the bramble a pollinated flower grows away |
-| GateDarkRoom | D 10 | pitch-black doorway (the arch's middle piece, so it tiles into one dark opening): needs a glowing isotope |
-| GateCrackedWall | D 28 | brick wall broken open in the middle: blast it with an unstable isotope (also the Chemistry trial's walls) |
-| GateLeadDoor | T 125 | heavy steel door: opened by lead on its plate |
+| GateDarkRoom | D 10 | pitch-black doorway (the arch's middle piece, so it tiles into one dark opening): light it with the Glowstone* |
+| GateCrackedWall | D 28 | brick wall broken open in the middle: blast it with the Wildstone* (also the Wildstone* trial's blocks) |
+| GateLeadDoor | T 125 | heavy steel door: opened by weighing its plate down with the Leadstone* |
 | GateTimedDoor | T 89 | wooden door in a pale stone frame (unlike the button door's dark frame): swings open, then shut again |
 | VineBridge | T 2 | flowery grass: the grown vine bridge |
 | ItemGeneric | T 107 | sack: an item with no art of its own |
 | ItemThinBeak | D 131 | long spear: the thin beak's long reach |
 | ItemThickBeak | D 117 | hammer: the thick beak breaks rocks and pots |
-| ItemIsotope | D 114 | green potion: the glowing isotope |
+| ItemGlowstone | D 114 | green potion: the Glowstone* |
 | ItemMassMitt | D 74 | anvil: the closest thing to a heavy mitt (mass); the packs have no gauntlet |
 | Jumbles | T 93 | gold coin: hidden Jumbles |
+| ItemWildstone | D 115 | red potion: the Wildstone* |
+| ItemLeadstone | D 113 | grey flask: the Leadstone* |
 | EnemyGeneric | D 109 | cyclops |
 | EnemySeedWeevil | D 122 | spider: a crawling seed weevil |
 | EnemyPollenPuff | D 121 | ghost, tinted yellow: a drifting pollen puff |
@@ -56,10 +58,9 @@ its generated placeholder shape, so nothing renders invisible.
 | Boulder | D 56 | round rock |
 | BeakButton | T 95 | target: peck it from afar (also the Biology trial's buttons) |
 | DoorSwitch | D 32 | crystal floor switch: step on it |
-| LeadPlate | D 31 | pressure plate: holds lead |
+| LeadPlate | D 31 | pressure plate: the Leadstone* weighs it down (also the Leadstone* trial's plates) |
 | Flower | T 17 | sprout, tinted as a bud then a bloom (also the Biology trial's flowers) |
-| Dispenser | D 55 | metal cabinet: the isotope dispenser |
-| TrialLamp | D 29 | flame banner: a lamp to light |
+| TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
 | Portal | T 104 | blue well in an arch: the way into the core |
 | Demon | D 19 | carved demon face: Maxwell's Demon |

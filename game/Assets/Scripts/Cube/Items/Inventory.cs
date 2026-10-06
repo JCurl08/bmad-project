@@ -5,8 +5,8 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The player's items. Lives on the player; pickups add to it and gates read it. Most items stay for the
-    /// whole run; a consumable one (the Chemistry isotope's lead, dropped on a plate) is removed with Remove.
+    /// The player's items. Lives on the player; pickups add to it and gates read it. Items stay for the
+    /// whole run; a consumable one (none in the game today) would be removed with Remove.
     /// </summary>
     public class Inventory : MonoBehaviour
     {

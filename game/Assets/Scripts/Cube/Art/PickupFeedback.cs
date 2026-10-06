@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// Pickup feedback on the player: a PickupPopup for every item its Inventory gains ("+Isotope") and every amount the
+    /// Pickup feedback on the player: a PickupPopup for every item its Inventory gains ("+Glowstone*") and every amount the
     /// scene's RunWallet earns ("+5 Jumbles").
     /// </summary>
     [RequireComponent(typeof(Inventory))]

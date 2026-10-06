@@ -11,8 +11,10 @@ using UnityEngine;
 /// (wherever its asset lives) is never replaced.
 /// It also adds the Biology beak variants (Thin Beak, Thick Beak; BiologyBeaks.VariantOrder) to the catalog's
 /// variant list when they are missing, keeping every existing variant; each run uses the rolled one.
-/// The Chemistry item is Curie's isotope (ChemistryIsotope): a placeholder Chemistry entry is renamed to it in place,
-/// keeping its asset and its id ("chemistry-item"). It stays one item with no variants.
+/// The Chemistry item follows the beak pattern: three stone variants (Glowstone*, Wildstone*, Leadstone*;
+/// ChemistryIsotope.VariantOrder) are added to the variant list when missing, and each run uses the rolled one. The
+/// Chemistry base entry keeps its asset and its id ("chemistry-item"); a 1.4 placeholder or 1.9 "Isotope" name is
+/// renamed in place to ChemistryIsotope.Name.
 /// The Physics item is Einstein's Mass Mitt (MassMittItem), renamed in place the same way (id "physics-item"), also
 /// one item with no variants.
 /// Also works from the command line via -executeMethod ItemCatalogBuilder.Build.
@@ -36,8 +38,8 @@ public static class ItemCatalogBuilder
         new Placeholder { Theme = Theme.Physics, Id = MassMittItem.Id, Name = MassMittItem.Name, Color = MassMittItem.ItemColor },
     };
 
-    /// <summary>The 1.4 placeholder name of the Chemistry item, renamed to the isotope on the next build.</summary>
-    private const string PlaceholderChemistryName = "Chemistry Item";
+    /// <summary>Earlier names of the Chemistry base item (the 1.4 placeholder, the 1.9 isotope), renamed on the next build.</summary>
+    private static readonly string[] OldChemistryNames = { "Chemistry Item", "Isotope" };
 
     /// <summary>The 1.4 placeholder name of the Physics item, renamed to the Mass Mitt on the next build.</summary>
     private const string PlaceholderPhysicsName = "Physics Item";
@@ -74,10 +76,10 @@ public static class ItemCatalogBuilder
 
         catalog.Set(items);
 
-        // The Chemistry item is Curie's isotope: the 1.4 placeholder entry becomes it in place (same asset, same
-        // id "chemistry-item", so every reference and the placer are unchanged); only its name and colour change.
+        // The Chemistry base entry is renamed in place (same asset, same id "chemistry-item", so every reference and the
+        // placer are unchanged); only its name and colour change. Runs use the rolled stone variant instead.
         ItemDefinition chemistry = catalog.ForTheme(Theme.Chemistry);
-        if (chemistry != null && chemistry.Id == ChemistryIsotope.Id && chemistry.DisplayName == PlaceholderChemistryName)
+        if (chemistry != null && chemistry.Id == ChemistryIsotope.Id && System.Array.IndexOf(OldChemistryNames, chemistry.DisplayName) >= 0)
         {
             chemistry.Set(chemistry.Id, ChemistryIsotope.Name, Theme.Chemistry, ChemistryIsotope.ItemColor);
             EditorUtility.SetDirty(chemistry);
@@ -112,11 +114,28 @@ public static class ItemCatalogBuilder
             }
             variants.Add(item);
         }
-        // Canonical order: the beaks in BiologyBeaks.VariantOrder first (consumers read the beak from the item id
-        // anyway), every other variant after them in its existing order.
+        // The Chemistry stones, the same way (in roll order, assets named after the stones without the placeholder star).
+        foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)
+        {
+            string id = ChemistryIsotope.IdOf(stage);
+            if (variants.Exists(v => v.Id == id)) continue;
+            string path = $"{Root}/{ChemistryIsotope.StageName(stage).TrimEnd('*')}.asset";
+            var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
+            if (item == null)
+            {
+                ItemDefinition template = ChemistryIsotope.CreateItem(stage);
+                item = ScriptableObject.CreateInstance<ItemDefinition>();
+                item.Set(template.Id, template.DisplayName, template.HomeTheme, template.PlaceholderColor);
+                Object.DestroyImmediate(template);
+                AssetDatabase.CreateAsset(item, path);
+            }
+            variants.Add(item);
+        }
+        // Canonical order: the beaks in BiologyBeaks.VariantOrder first, then the stones in ChemistryIsotope.VariantOrder
+        // (consumers read the kind from the item id anyway), every other variant after them in its existing order.
         List<ItemDefinition> ordered = variants
             .Select((item, index) => (item, index))
-            .OrderBy(e => BiologyBeaks.KindOf(e.item) is BeakKind k ? System.Array.IndexOf(BiologyBeaks.VariantOrder, k) : BiologyBeaks.VariantCount + e.index)
+            .OrderBy(e => CanonicalIndex(e.item, e.index))
             .Select(e => e.item)
             .ToList();
         variants = ordered;
@@ -124,6 +143,15 @@ public static class ItemCatalogBuilder
         EditorUtility.SetDirty(catalog);
         AssetDatabase.SaveAssets();
         Debug.Log($"Cube: built item catalog at {CatalogPath} ({items.Count} items, {variants.Count} variants).");
+    }
+
+    /// <summary>Sort key of a variant: beaks, then stones, then anything else by its existing position.</summary>
+    private static int CanonicalIndex(ItemDefinition item, int index)
+    {
+        if (BiologyBeaks.KindOf(item) is BeakKind beak) return System.Array.IndexOf(BiologyBeaks.VariantOrder, beak);
+        if (ChemistryIsotope.KindOf(item) is IsotopeStage stage)
+            return BiologyBeaks.VariantCount + System.Array.IndexOf(ChemistryIsotope.VariantOrder, stage);
+        return BiologyBeaks.VariantCount + ChemistryIsotope.VariantCount + index;
     }
 
     /// <summary>Loads the catalog asset, building it first if it does not exist.</summary>

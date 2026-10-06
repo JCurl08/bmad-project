@@ -84,14 +84,14 @@ namespace Game.Cube
                 Errand = "fetch me a nice damp log. For reasons. Fungal reasons",
                 Rumours = new[]
                 {
-                    "old Marcel is half a skeleton already, and he's *thrilled* about the fingers.",
-                    "Madame Curie says I glow with potential. Mostly I just glow.",
+                    "old Marcel* is half a skeleton already, and he's *thrilled* about the fingers.",
+                    "the Glowmother* says I glow with potential. Mostly I just glow.",
                     "the skeleton-key folk can open any door. Nobody invites them anywhere, though.",
                 },
                 Greetings = new[]
                 {
                     "Hello, I'm a fun-gi! ...Every time. I say it every time.",
-                    "Greetings! Please excuse the glow. It's a phase. A half-life phase.",
+                    "Greetings! Please excuse the glow. It's a phase. The stones go through phases too.",
                     "Oh! A visitor! Mind the spores, they're friendly.",
                 },
             },
@@ -198,20 +198,40 @@ namespace Game.Cube
             "This season it's all thick beaks! Big and blunt: rocks, pots, crack 'em like seeds.",
         };
 
-        /// <summary>Curie-flavoured lines the mushroom people of the Chemistry face say (one per mushroom, picked by salt).</summary>
+        /// <summary>
+        /// Lines the mushroom people of the Chemistry face say about their patron, the Glowmother* (one per mushroom,
+        /// picked by salt). Subtle science: no real names and no science words, only glowing, stones and changing.
+        /// </summary>
         public static readonly string[] CurieLines =
         {
-            "Glow responsibly! Madame Curie's first rule. Her second rule: also glow responsibly.",
-            "Madame Curie says decay is just change on a schedule. I'm on page three of my schedule.",
+            "Rule one from the Glowmother*: glow responsibly! Rule two: also glow responsibly.",
+            "The Glowmother* says everything changes, given time. I'm changing too. Very, very slowly.",
             "When I'm old I'll be all skeleton, with skeleton-key fingers! Every lock on the face, mine. Can't wait.",
-            "Half-life, full heart! Madame Curie taught us that. Then she wrote it down in a glowing notebook.",
-            "Radium? Polonium? I prefer Mush-ium. Madame Curie says that isn't an element. Yet.",
+            "Full heart, steady glow! The Glowmother* taught us that. Then she wrote it down in a notebook that glows.",
+            "Spores? Stones? I prefer mush. The Glowmother* says mush isn't a proper stone. Yet.",
         };
 
-        /// <summary>How the isotope works, as the mushrooms tell it (true for every run: the mechanics).</summary>
-        public const string IsotopeStageLine =
-            "Fresh isotopes glow and light dark rooms. Then they go unstable: swing one at a cracked wall, boom! " +
-            "Then they settle into lead. Drop lead on a plate and it stays put. The dispenser always has another.";
+        /// <summary>
+        /// The lore line about the stones (a mushroom says it every run): they change between visits, in no set order
+        /// (each run rolls its stone), never while you hold one.
+        /// </summary>
+        public const string StoneLoreLine =
+            "The stones here never stay the same from one visit to the next. Leave, come back, and yours might glow, " +
+            "might go wild, might turn heavy. Nobody can guess which. That's half the fun!";
+
+        /// <summary>
+        /// This visit's stone, as the mushrooms tell it, by stage: [0] Glowstone*, [1] Wildstone*, [2] Leadstone*. True for
+        /// the run that says it (it names the rolled stone and what it does).
+        /// </summary>
+        public static readonly string[] StoneLines =
+        {
+            "This visit the stones glow! Find the Glowstone* and swing it at the dark doorways to light them up.",
+            "This visit the stones are wild! Find the Wildstone* and swing it at the cracked walls. Boom!",
+            "This visit the stones are heavy! Find the Leadstone* and swing it at the pressure plates to weigh them down.",
+        };
+
+        /// <summary>The line naming a run's stone (see StoneLines).</summary>
+        public static string StoneLine(IsotopeStage stage) => StoneLines[stage == IsotopeStage.None ? 0 : (int)stage];
 
         /// <summary>Einstein-flavoured lines the alien people of the Physics face say (one per alien, picked by salt).</summary>
         public static readonly string[] EinsteinLines =
@@ -305,7 +325,8 @@ namespace Game.Cube
             foreach (string line in DarwinLines) yield return line;
             foreach (string line in BeakLines) yield return line;
             foreach (string line in CurieLines) yield return line;
-            yield return IsotopeStageLine;
+            yield return StoneLoreLine;
+            foreach (string line in StoneLines) yield return line;
             foreach (string line in EinsteinLines) yield return line;
             yield return MassMittLine;
             foreach (string line in NewtonLines) yield return line;

@@ -14,7 +14,7 @@ using UnityEngine.SceneManagement;
 /// the player carries an Inventory and the combat parts (Health, PlayerStats, Equipment, PlayerAttack), and a
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
 /// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
-/// for Curie's (the player carries the Isotope it sets up for each run), and PhysicsFace for Einstein's (the player
+/// for Curie's (the player carries the Isotope that shows the held stone), and PhysicsFace for Einstein's (the player
 /// carries the MassMitt it sets up for each run).
 /// The run's outcome lives in a RunState (one per scene, reset on every rebuild). The CoreArena (Maxwell's Demon) puts a
 /// portal on each built face's active core-entrance slot on every reveal and raises RunState's run-end event on victory or
@@ -82,7 +82,7 @@ public static class CubeSceneBuilder
         player.AddComponent<PlayerStats>();
         var equipment = player.AddComponent<Equipment>();
         player.AddComponent<PlayerAttack>();
-        // The held Chemistry isotope's decay stage and its HUD line (set up for each run by ChemistryFace).
+        // The held Chemistry stone's label, halo and HUD line (read from the inventory; no timer).
         player.AddComponent<Isotope>();
         // The Mass Mitt: grabs and drags Physics boulders (set up for each run by PhysicsFace).
         player.AddComponent<MassMitt>();
@@ -91,7 +91,7 @@ public static class CubeSceneBuilder
 
         // Face content: Darwin's face (beak gates, trial, finches and enemies) plugs in on the reveal.
         worldObject.AddComponent<BiologyFace>().Player = player.transform;
-        // Curie's face (isotope dispenser, stage gates, trial, mushrooms and enemies) plugs in the same way.
+        // Curie's face (stage gates, trial, mushrooms and enemies) plugs in the same way.
         worldObject.AddComponent<ChemistryFace>().Player = player.transform;
         // Einstein's face (timed doors, boulders, trial, aliens, Newton and enemies) plugs in the same way.
         worldObject.AddComponent<PhysicsFace>().Player = player.transform;
@@ -169,24 +169,29 @@ public static class CubeSceneBuilder
         ItemCatalog items = ItemCatalogBuilder.LoadOrBuild();
         List<SeedSweep.SeedResult> results =
             SeedSweep.Run(catalog: ModuleLibraryBuilder.LoadOrBuild(), itemThemes: items.Themes(),
-                variantCounts: items.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(items));
+                variantCounts: items.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(items),
+                chemistryVariantKinds: ChemistryIsotope.VariantKinds(items));
         string report = SeedSweep.Describe(results);
         int thin = results.Count(r => r.Placement != null && r.Placement.RolledVariant(Theme.Biology) == (int)BeakKind.Thin);
         int withOptional = results.Count(r => r.Placement != null && r.Placement.OptionalGates.Count > 0);
         report += $"Beaks: {thin} thin, {results.Count - thin} thick; {withOptional} seeds with optional beak gates.\n";
-        int glow = 0, unstable = 0, lead = 0, guarded = 0;
+        var stones = new int[ChemistryIsotope.VariantCount];
+        int stageGates = 0, optionalStageGates = 0;
+        List<IsotopeStage> stoneKinds = ChemistryIsotope.VariantKinds(items);
         foreach (SeedSweep.SeedResult r in results)
         {
             if (r.Placement == null) continue;
-            ChemistryPlan plan = ChemistryPlan.Create(new CubeModel(r.Seed), r.Placement);
+            ChemistryPlan plan = ChemistryPlan.Create(new CubeModel(r.Seed), r.Placement, stoneKinds);
             if (plan == null) continue;
-            glow += plan.CountOf(IsotopeStage.Glow);
-            unstable += plan.CountOf(IsotopeStage.Unstable);
-            lead += plan.CountOf(IsotopeStage.Lead);
-            if (plan.Dispenser.IsGuarded) guarded++;
+            stones[(int)plan.Stage]++;
+            foreach (IsotopeGateSpec s in plan.Gates)
+            {
+                stageGates++;
+                if (s.Optional) optionalStageGates++;
+            }
         }
-        report += $"Isotope gates: {glow} glow, {unstable} unstable, {lead} lead; " +
-                  $"{guarded} seeds with the dispenser behind another item's gate.\n";
+        report += $"Stones: {stones[0]} Glowstone*, {stones[1]} Wildstone*, {stones[2]} Leadstone*; " +
+                  $"{stageGates} stage gates ({optionalStageGates} optional).\n";
         var required = new int[PhysicsPlan.MaxRequiredCap + 1];
         int doors = 0, offHome = 0, boulders = 0, trials = 0;
         ModuleLibrary library = ModuleLibraryBuilder.LoadOrBuild();
@@ -196,7 +201,8 @@ public static class CubeSceneBuilder
             if (r.Placement == null) continue;
             var model = new CubeModel(r.Seed);
             CubeLayout layout = CubeLayout.Generate(model, library);
-            PhysicsPlan plan = PhysicsPlan.Create(model, r.Placement, SeedSweep.ModuleLookup(layout, library), kinds);
+            PhysicsPlan plan = PhysicsPlan.Create(model, r.Placement, SeedSweep.ModuleLookup(layout, library), kinds,
+                PhysicsPlan.DefaultMaxRequired, stoneKinds);
             if (plan == null) continue;
             foreach (TimedDoorSpec d in plan.Doors)
             {

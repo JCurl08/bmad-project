@@ -162,7 +162,7 @@ namespace Game.Cube.Tests
         {
             ItemCatalog catalog = LoadItemCatalog();
             List<SeedSweep.SeedResult> results = SeedSweep.Run(1, 50, n, LoadLibrary(), catalog.Themes(),
-                catalog.VariantCounts(), BiologyBeaks.VariantKinds(catalog));
+                catalog.VariantCounts(), BiologyBeaks.VariantKinds(catalog), ChemistryIsotope.VariantKinds(catalog));
             string report = SeedSweep.Describe(results);
             Assert.AreEqual(50, results.Count);
             Assert.IsTrue(results.All(r => r.ItemsChecked), "The library knows gate slots, so items must be checked");

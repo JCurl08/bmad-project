@@ -86,9 +86,9 @@ namespace Game.Cube.Tests
             var inventory = player.GetComponent<Inventory>();
             var equipment = player.GetComponent<Equipment>();
             var attack = player.GetComponent<PlayerAttack>();
-            inventory.Add(weak);
             inventory.Add(other);
-            Assert.AreSame(weak, equipment.Equipped, "The first item picked up is equipped");
+            inventory.Add(weak);
+            Assert.AreSame(weak, equipment.Equipped, "The newest item picked up is equipped");
 
             Vector2 front = Origin + player.GetComponent<PlayerMover>().Facing * attack.Reach;
             Enemy enemy = MakeEnemy(weak, front, player.transform, brain: false);
@@ -305,7 +305,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(1, died);
 
             yield return this.Tap(keyboard.digit2Key);
-            Assert.AreSame(a, equipment.Equipped, "A dead player cannot cycle items");
+            Assert.AreSame(b, equipment.Equipped, "A dead player cannot cycle items");
             yield return this.Tap(keyboard.eKey);
             Assert.IsFalse(box.IsOpen, "A dead player cannot talk");
             Assert.IsFalse(npc.TryTalk());
@@ -372,14 +372,18 @@ namespace Game.Cube.Tests
 
             ItemDefinition a = Item("Alpha Item", Color.green), b = Item("Beta Item", Color.blue);
             inventory.Add(a);
-            inventory.Add(b);
             Assert.AreSame(a, equipment.Equipped);
+            inventory.Add(b);
+            Assert.AreSame(b, equipment.Equipped, "Each newly picked-up item is equipped");
+            StringAssert.Contains("Beta Item", hud.EquippedText);
 
             yield return this.Tap(keyboard.digit2Key);
-            Assert.AreSame(b, equipment.Equipped, "Next");
-            StringAssert.Contains("Beta Item", hud.EquippedText);
-            yield return this.Tap(keyboard.digit2Key);
             Assert.AreSame(a, equipment.Equipped, "Next wraps");
+            StringAssert.Contains("Alpha Item", hud.EquippedText);
+            yield return this.Tap(keyboard.digit2Key);
+            Assert.AreSame(b, equipment.Equipped, "Next");
+            yield return this.Tap(keyboard.digit1Key);
+            Assert.AreSame(a, equipment.Equipped, "Previous");
             yield return this.Tap(keyboard.digit1Key);
             Assert.AreSame(b, equipment.Equipped, "Previous wraps");
             StringAssert.Contains("Beta Item", hud.EquippedText);

@@ -256,7 +256,7 @@ namespace Game.Cube
             switch (theme)
             {
                 case Theme.Biology: return "beak-thing";
-                case Theme.Chemistry: return "glowy decay-thing";
+                case Theme.Chemistry: return "changing stone";
                 case Theme.Physics: return "heavy time-rock";
                 case Theme.Math: return "pointy proof-thing";
                 case Theme.EarthAtmosphere: return "weather wand";

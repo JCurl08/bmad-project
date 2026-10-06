@@ -3,8 +3,8 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// An unstable gate: a cracked wall across the alcove opening. Swinging at it with the unstable isotope
-    /// equipped blasts it open; a glowing or lead isotope, another item, a bare swing or a touch does nothing.
+    /// A Wildstone* gate: a cracked wall across the alcove opening. Swinging at it with the Wildstone* equipped blasts it
+    /// open (after HitsToOpen swings); any other item, a bare swing or a touch does nothing.
     /// </summary>
     public class CrackedWallGate : IsotopeGate, IAttackReceiver
     {
@@ -20,11 +20,7 @@ namespace Game.Cube
         /// <summary>The blast scorch left once open (null before).</summary>
         public SpriteRenderer Scorch { get; private set; }
 
-        public bool ReceiveAttack(ItemDefinition item, GameObject attacker)
-        {
-            if (IsOpen || item == null || item != RequiredItem) return false;
-            return Matches(Isotope.On(attacker)) && OpenNow();
-        }
+        public bool ReceiveAttack(ItemDefinition item, GameObject attacker) => RegisterHit(item);
 
         protected override void OnOpened()
         {
@@ -38,9 +34,11 @@ namespace Game.Cube
             Scorch = BeakGate.AddSprite(transform, "Blast Scorch", PartShape.Diamond, at, Solid.size * 0.9f, scorch, order, blastMaterial);
         }
 
-        public static CrackedWallGate Build(GameObject block, ItemDefinition item, Material material)
+        public static CrackedWallGate Build(GameObject block, ItemDefinition item, int difficulty, bool optional, Material material,
+            int faceSize = CubeSettings.DefaultFaceSize)
         {
-            CrackedWallGate gate = Setup<CrackedWallGate>(block, $"Cracked Wall Gate ({item})", item, PartShape.Triangle, material);
+            CrackedWallGate gate = Setup<CrackedWallGate>(block, $"Cracked Wall Gate ({item})", item, PartShape.Triangle, difficulty,
+                optional, faceSize, material);
             gate.blastMaterial = material;
             Vector2 size = gate.Solid.size;
             Vector2 crack = size.x >= size.y ? new Vector2(size.x * 0.8f, 0.08f) : new Vector2(0.08f, size.y * 0.8f);

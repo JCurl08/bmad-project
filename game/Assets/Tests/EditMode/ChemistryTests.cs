@@ -7,15 +7,24 @@ using UnityEngine;
 namespace Game.Cube.Tests
 {
     /// <summary>
-    /// The Chemistry face as pure data: the isotope's decay timing and half-life knob, the catalog's isotope (the
-    /// placeholder's stable id), plan determinism, stage coverage (timed stages near the dispenser, lead off-home),
-    /// the dispenser-first sweep rule, the trial fitting on every seed, and the mushrooms' Curie lines.
+    /// The Chemistry face as pure data, on the beak pattern: the stone roll (each stage across seeds 1-50, same seed same
+    /// stone), the catalog's three stones (placeholder names, stable ids, stage by id), plan determinism, required gates
+    /// on the rolled stone with one off the home face, the other stones' optional gates guarding nothing required (the
+    /// sweep flags violations), the difficulty parameter, the trial fitting on every seed, the mushrooms' lines and the
+    /// subtle-science text rule for every Chemistry string.
     /// </summary>
     public class ChemistryTests
     {
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
         private const int Seeds = 50;
+
+        /// <summary>Science words in-world text never uses (lore-and-tone.md, subtle science), plus the real patron's name.</summary>
+        private static readonly string[] BannedWords =
+        {
+            "isotope", "radioactive", "radioactivity", "radiation", "radium", "polonium", "uranium", "decay", "half-life",
+            "half life", "element", "atom", "nuclear", "neutron", "proton", "electron", "chemical", "curie",
+        };
 
         private static ModuleLibrary Library()
         {
@@ -39,52 +48,98 @@ namespace Game.Cube.Tests
                 catalog.VariantCounts());
         }
 
-        // ---------- Decay ----------
+        private static ChemistryPlan Plan(CubeModel model, ItemPlacement p, ItemCatalog catalog) =>
+            ChemistryPlan.Create(model, p, ChemistryIsotope.VariantKinds(catalog));
+
+        // ---------- The roll and the catalog ----------
 
         [Test]
-        public void Decay_GlowsThenTurnsUnstableThenLead_AtTheHalfLifeThresholds()
-        {
-            const float h = ChemistryIsotope.DefaultHalfLife;
-            Assert.AreEqual(12f, ChemistryIsotope.GlowEnds(h), 1e-4f, "Glow 0-12 s");
-            Assert.AreEqual(20f, ChemistryIsotope.UnstableEnds(h), 1e-4f, "Unstable 12-20 s");
-            Assert.AreEqual(IsotopeStage.Glow, ChemistryIsotope.StageAt(0f, h));
-            Assert.AreEqual(IsotopeStage.Glow, ChemistryIsotope.StageAt(11.99f, h));
-            Assert.AreEqual(IsotopeStage.Unstable, ChemistryIsotope.StageAt(12f, h));
-            Assert.AreEqual(IsotopeStage.Unstable, ChemistryIsotope.StageAt(19.99f, h));
-            Assert.AreEqual(IsotopeStage.Lead, ChemistryIsotope.StageAt(20f, h));
-            foreach (float age in new[] { 25f, 100f, 1e6f })
-                Assert.AreEqual(IsotopeStage.Lead, ChemistryIsotope.StageAt(age, h), "Lead stays lead");
-            Assert.AreEqual(0f, ChemistryIsotope.StageStart(IsotopeStage.Glow, h));
-            Assert.AreEqual(12f, ChemistryIsotope.StageStart(IsotopeStage.Unstable, h), 1e-4f);
-            Assert.AreEqual(20f, ChemistryIsotope.StageStart(IsotopeStage.Lead, h), 1e-4f);
-        }
-
-        [Test]
-        public void HalfLife_IsTheDifficultyKnob_ShorterMeansEveryStageComesSooner()
-        {
-            Assert.AreEqual(6f, ChemistryIsotope.GlowEnds(6f), 1e-4f);
-            Assert.AreEqual(10f, ChemistryIsotope.UnstableEnds(6f), 1e-4f);
-            Assert.AreEqual(IsotopeStage.Unstable, ChemistryIsotope.StageAt(8f, 6f), "Harder: unstable at 8 s");
-            Assert.AreEqual(IsotopeStage.Glow, ChemistryIsotope.StageAt(8f, 12f), "Default: still glowing at 8 s");
-            Assert.AreEqual(IsotopeStage.Lead, ChemistryIsotope.StageAt(10f, 6f));
-            Assert.AreEqual(ChemistryIsotope.MinHalfLife, ChemistryIsotope.GlowEnds(0f), 1e-4f, "Clamped to the minimum");
-        }
-
-        // ---------- The item ----------
-
-        [Test]
-        public void Catalog_ChemistryItem_IsTheIsotope_WithThePlaceholdersId_AndNoVariants()
+        public void Roll_EachStoneComesUpAcrossSeeds1To50_AndTheSameSeedRollsTheSameStone()
         {
             ItemCatalog catalog = Catalog();
-            ItemDefinition isotope = catalog.ForTheme(Theme.Chemistry);
-            Assert.IsNotNull(isotope);
-            Assert.AreEqual("chemistry-item", isotope.Id, "The id stays stable");
-            Assert.AreEqual(ChemistryIsotope.Id, isotope.Id);
-            Assert.AreEqual(ChemistryIsotope.Name, isotope.DisplayName);
-            Assert.AreEqual(Theme.Chemistry, isotope.HomeTheme);
-            Assert.IsEmpty(catalog.VariantsOf(Theme.Chemistry), "One logical item for the 1.4 placer");
+            var seen = new HashSet<IsotopeStage>();
             for (int seed = 1; seed <= Seeds; seed++)
-                Assert.AreSame(isotope, catalog.ItemFor(Theme.Chemistry, seed));
+            {
+                ItemDefinition rolled = catalog.ItemFor(Theme.Chemistry, seed);
+                IsotopeStage? stage = ChemistryIsotope.KindOf(rolled);
+                Assert.IsNotNull(stage, $"seed {seed}: the run's Chemistry item is a stone ({rolled})");
+                Assert.AreSame(rolled, catalog.ItemFor(Theme.Chemistry, seed), $"seed {seed}: same seed, same stone");
+                Assert.AreEqual(catalog.RollVariant(seed, Theme.Chemistry), catalog.RollVariant(seed, Theme.Chemistry));
+                Assert.AreEqual(2, catalog.UnrolledVariants(Theme.Chemistry, seed).Count);
+                CollectionAssert.DoesNotContain(catalog.UnrolledVariants(Theme.Chemistry, seed), rolled);
+                seen.Add(stage.Value);
+            }
+            CollectionAssert.AreEquivalent(ChemistryIsotope.VariantOrder, seen, "Every stone is rolled at least once");
+        }
+
+        [Test]
+        public void Catalog_HasTheThreeStones_AsChemistryVariants_WithPlaceholderNames_AndKeepsTheBaseEntry()
+        {
+            ItemCatalog catalog = Catalog();
+            ItemDefinition baseItem = catalog.ForTheme(Theme.Chemistry);
+            Assert.IsNotNull(baseItem);
+            Assert.AreEqual("chemistry-item", baseItem.Id, "The base id stays stable");
+            Assert.AreEqual(ChemistryIsotope.Name, baseItem.DisplayName);
+            Assert.AreEqual(3, catalog.Items.Count, "Existing entries are kept");
+
+            List<ItemDefinition> stones = catalog.VariantsOf(Theme.Chemistry);
+            CollectionAssert.AreEqual(new[] { "glowstone", "wildstone", "leadstone" }, stones.Select(s => s.Id).ToArray());
+            CollectionAssert.AreEqual(new[] { "Glowstone*", "Wildstone*", "Leadstone*" }, stones.Select(s => s.DisplayName).ToArray());
+            CollectionAssert.AreEqual(ChemistryIsotope.VariantOrder, ChemistryIsotope.VariantKinds(catalog));
+            foreach (ItemDefinition stone in stones)
+            {
+                Assert.AreEqual(Theme.Chemistry, stone.HomeTheme);
+                Assert.AreEqual(0f, stone.AttackReach, 1e-4f, "Stones swing at the default reach");
+                Assert.AreNotEqual(ArtKey.ItemGeneric, ArtKeys.Item(stone), $"{stone} has its own art key");
+            }
+            Assert.AreEqual(3, stones.Select(ArtKeys.Item).Distinct().Count(), "A key per stone");
+            Assert.AreEqual(3, catalog.VariantCounts()[Theme.Chemistry]);
+            CollectionAssert.Contains(catalog.Themes(), Theme.Chemistry, "Still one logical Chemistry item for the placer");
+        }
+
+        [Test]
+        public void StageKinds_AreReadFromTheItemIds_NeverFromTheCatalogOrder()
+        {
+            ItemDefinition glow = ChemistryIsotope.CreateItem(IsotopeStage.Glow);
+            ItemDefinition wild = ChemistryIsotope.CreateItem(IsotopeStage.Unstable);
+            ItemDefinition lead = ChemistryIsotope.CreateItem(IsotopeStage.Lead);
+            ItemDefinition baseItem = ChemistryIsotope.CreateItem();
+            var shuffled = ScriptableObject.CreateInstance<ItemCatalog>();
+            try
+            {
+                Assert.AreEqual(IsotopeStage.Glow, ChemistryIsotope.KindOf(glow));
+                Assert.AreEqual(IsotopeStage.Unstable, ChemistryIsotope.KindOf(wild));
+                Assert.AreEqual(IsotopeStage.Lead, ChemistryIsotope.KindOf(lead));
+                Assert.IsNull(ChemistryIsotope.KindOf(baseItem), "The base item is no stone");
+                Assert.IsNull(ChemistryIsotope.KindOf(null));
+
+                shuffled.Set(new List<ItemDefinition> { baseItem });
+                shuffled.SetVariants(new List<ItemDefinition> { lead, glow, wild });
+                List<IsotopeStage> kinds = ChemistryIsotope.VariantKinds(shuffled);
+                CollectionAssert.AreEqual(new[] { IsotopeStage.Lead, IsotopeStage.Glow, IsotopeStage.Unstable }, kinds);
+
+                // The plan's stone follows the rolled item's id, whatever its catalog index.
+                ModuleLibrary library = Library();
+                for (int seed = 1; seed <= 10; seed++)
+                {
+                    var model = new CubeModel(seed);
+                    ItemPlacement p = ItemPlacement.ForRun(model, CubeLayout.Generate(model, library), library, shuffled.Themes(),
+                        shuffled.VariantCounts());
+                    ChemistryPlan plan = ChemistryPlan.Create(model, p, kinds);
+                    Assert.AreEqual(ChemistryIsotope.KindOf(shuffled.ItemFor(Theme.Chemistry, seed)), plan.Stage, $"seed {seed}");
+                    foreach (IsotopeGateSpec s in plan.Gates.Where(g => g.Optional))
+                        Assert.AreNotEqual(plan.Stage, s.Stage, s.ToString());
+                    Assert.IsEmpty(ChemistryPlan.FindProblems(model, p, kinds), $"seed {seed}");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(shuffled);
+                Object.DestroyImmediate(glow);
+                Object.DestroyImmediate(wild);
+                Object.DestroyImmediate(lead);
+                Object.DestroyImmediate(baseItem);
+            }
         }
 
         // ---------- The plan ----------
@@ -103,113 +158,150 @@ namespace Game.Cube.Tests
             for (int seed = 1; seed <= Seeds; seed++)
             {
                 ItemPlacement p = Place(seed, library, catalog, out CubeModel model);
-                ChemistryPlan a = ChemistryPlan.Create(model, p);
-                ChemistryPlan b = ChemistryPlan.Create(new CubeModel(seed), Place(seed, library, catalog, out _));
+                ChemistryPlan a = Plan(model, p, catalog);
+                ChemistryPlan b = Plan(new CubeModel(seed), Place(seed, library, catalog, out _), catalog);
                 Assert.IsNotNull(a, $"seed {seed}");
                 Assert.AreEqual(a.Signature(), b.Signature(), $"seed {seed}: same seed, same plan");
-                Assert.IsEmpty(ChemistryPlan.FindProblems(model, p), $"seed {seed}");
+                Assert.AreEqual(ChemistryIsotope.KindOf(catalog.ItemFor(Theme.Chemistry, seed)), a.Stage, $"seed {seed}");
+                Assert.IsEmpty(ChemistryPlan.FindProblems(model, p, ChemistryIsotope.VariantKinds(catalog)), $"seed {seed}");
                 Assert.AreEqual(model.FaceOf(Theme.Chemistry), a.TrialScreen.Face);
-                Assert.IsTrue(p.TryGetPickup(Theme.Chemistry, out PickupPlacement pickup));
-                Assert.AreEqual(pickup, a.Dispenser, "The dispenser sits at the Chemistry pickup's spot");
                 signatures.Add(a.Signature());
             }
             Assert.Greater(signatures.Count, Seeds / 2, "Plans vary across seeds");
         }
 
         [Test]
-        public void Plan_StageCoverage_EveryStageUsed_TimedStagesNearTheDispenser_LeadOffHome()
+        public void Plan_RequiredGatesUseTheRolledStone_OneOffTheHomeFace_OtherStonesAreOptionalOnChemistry()
         {
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
-            var homeStagesSeen = new HashSet<string>();
             for (int seed = 1; seed <= Seeds; seed++)
             {
                 ItemPlacement p = Place(seed, library, catalog, out CubeModel model);
-                ChemistryPlan plan = ChemistryPlan.Create(model, p);
+                ChemistryPlan plan = Plan(model, p, catalog);
+                string context = $"seed {seed} ({plan.Stage})";
                 int required = p.Gates.Count(g => g.Item == Theme.Chemistry);
-                Assert.AreEqual(required, plan.Gates.Count, $"seed {seed}: a stage for every Chemistry gate");
-                Assert.GreaterOrEqual(plan.Gates.Count, 3, $"seed {seed}");
-                foreach (IsotopeStage stage in ChemistryPlan.Stages)
-                    Assert.Greater(plan.CountOf(stage), 0, $"seed {seed}: some {stage} gate");
-                Assert.IsTrue(plan.Gates.Any(s => s.Screen.Face != plan.Face), $"seed {seed}: the isotope opens a gate on another face");
-                foreach (IsotopeGateSpec s in plan.Gates)
+                Assert.AreEqual(required, plan.Gates.Count(s => !s.Optional), $"{context}: a stage gate for every Chemistry gate");
+                foreach (IsotopeGateSpec s in plan.Gates.Where(g => !g.Optional))
                 {
+                    Assert.AreEqual(plan.Stage, s.Stage, $"{context}: {s}");
                     Assert.IsTrue(p.TryGetGate(s.Screen, s.Slot, out GatePlacement g) && g.Item == Theme.Chemistry, s.ToString());
-                    Assert.AreEqual(s.Screen.Face == plan.Face, s.OnHome);
-                    if (!s.OnHome) Assert.AreEqual(IsotopeStage.Lead, s.Stage, $"seed {seed}: {s} is far from the dispenser");
                 }
-                List<IsotopeStage> home = plan.Gates.Where(s => s.OnHome).Select(s => s.Stage).ToList();
-                if (home.Count == ItemPlacement.HomeGatesPerItem(model.FaceSize)) homeStagesSeen.Add(string.Join(",", home));
-            }
-            Assert.Greater(homeStagesSeen.Count, 1, "The home stages are dealt by seed");
-        }
+                Assert.IsTrue(plan.Gates.Any(s => !s.Optional && s.Screen.Face != plan.Face),
+                    $"{context}: the rolled stone opens a gate on another face");
 
-        [Test]
-        public void Plan_WithFewGates_CoversWhatItCan_AndWithManyEveryStage()
-        {
-            var model = new CubeModel(5);
-            FaceId chem = model.FaceOf(Theme.Chemistry);
-            var pickup = new PickupPlacement(Theme.Chemistry, new ScreenAddress(chem, 0, 0));
-
-            // One home gate and one off-home gate: lead goes off-home, the home gate gets a timed stage.
-            FaceId bio = model.FaceOf(Theme.Biology);
-            var two = new ItemPlacement(5, new[]
-            {
-                new GatePlacement(new ScreenAddress(chem, 1, 0), 0, Theme.Chemistry),
-                new GatePlacement(new ScreenAddress(bio, 0, 0), 0, Theme.Chemistry),
-            }, new[] { pickup });
-            ChemistryPlan small = ChemistryPlan.Create(model, two);
-            Assert.AreEqual(2, small.Gates.Count);
-            Assert.AreNotEqual(IsotopeStage.Lead, small.Gates[0].Stage, "The home gate gets a timed stage");
-            Assert.AreEqual(IsotopeStage.Lead, small.Gates[1].Stage, "The off-home gate is lead");
-
-            // Four home gates and no off-home gate: every stage, lead included, is used.
-            var gates = new List<GatePlacement>();
-            for (int i = 0; i < 4; i++) gates.Add(new GatePlacement(new ScreenAddress(chem, i % 2, i / 2), 0, Theme.Chemistry));
-            ChemistryPlan big = ChemistryPlan.Create(model, new ItemPlacement(5, gates, new[] { pickup }));
-            foreach (IsotopeStage stage in ChemistryPlan.Stages)
-                Assert.Greater(big.CountOf(stage), 0, stage.ToString());
-
-            Assert.IsNull(ChemistryPlan.Create(model, new ItemPlacement(5, gates, new PickupPlacement[0])),
-                "No Chemistry pickup: Chemistry is not an item of the run");
-        }
-
-        [Test]
-        public void Plan_SmallHandMadeLayouts_AlwaysMeetTheCoverageRuleFindProblemsChecks()
-        {
-            // (home gates, off-home gates) -> the stages the rule requires.
-            var cases = new (int home, int off, IsotopeStage[] required)[]
-            {
-                (1, 0, new IsotopeStage[0]),
-                (1, 1, new[] { IsotopeStage.Lead }),
-                (1, 2, new[] { IsotopeStage.Lead }),
-                (2, 0, new[] { IsotopeStage.Glow, IsotopeStage.Unstable }),
-                (2, 1, ChemistryPlan.Stages),
-                (3, 0, ChemistryPlan.Stages),
-                (4, 0, ChemistryPlan.Stages),
-            };
-            foreach ((int home, int off, IsotopeStage[] required) in cases)
-            {
-                CollectionAssert.AreEquivalent(required, ChemistryPlan.RequiredStages(home, off), $"{home} home, {off} off-home");
-                for (int seed = 1; seed <= 30; seed++)
+                List<IsotopeGateSpec> optional = plan.Gates.Where(s => s.Optional).ToList();
+                foreach (IsotopeStage other in ChemistryIsotope.VariantOrder.Where(s => s != plan.Stage))
+                    Assert.IsTrue(optional.Any(s => s.Stage == other), $"{context}: optional {other} gates exist");
+                foreach (IsotopeGateSpec s in optional)
                 {
-                    var model = new CubeModel(seed);
-                    FaceId chem = model.FaceOf(Theme.Chemistry);
-                    FaceId[] others = Enumerable.Range(0, CubeSettings.FaceCount).Select(f => (FaceId)f)
-                        .Where(f => f != chem && CubeLayout.IsLaidOut(model, f)).ToArray();
-                    var gates = new List<GatePlacement>();
-                    for (int i = 0; i < home; i++) gates.Add(new GatePlacement(new ScreenAddress(chem, i % 2, i / 2), 0, Theme.Chemistry));
-                    for (int i = 0; i < off; i++) gates.Add(new GatePlacement(new ScreenAddress(others[i % others.Length], i % 2, 0), 1, Theme.Chemistry));
-                    var placement = new ItemPlacement(seed, gates, new[] { new PickupPlacement(Theme.Chemistry, new ScreenAddress(chem, 1, 1)) });
-                    ChemistryPlan plan = ChemistryPlan.Create(model, placement);
-                    string context = $"seed {seed}, {home} home, {off} off-home: {plan.Signature()}";
-                    foreach (IsotopeStage stage in required) Assert.Greater(plan.CountOf(stage), 0, context);
-                    Assert.IsTrue(plan.Gates.Where(s => s.OnHome).Any(s => s.Stage != IsotopeStage.Lead), $"{context}: a timed home gate");
-                    Assert.IsTrue(plan.Gates.Where(s => !s.OnHome).All(s => s.Stage == IsotopeStage.Lead), context);
-                    List<string> problems = ChemistryPlan.FindProblems(model, placement);
-                    Assert.IsFalse(problems.Any(p => p.Contains(" gate (") || p.Contains("timed")), $"{context}: {string.Join("; ", problems)}");
+                    Assert.AreNotEqual(plan.Stage, s.Stage, $"{context}: {s}");
+                    Assert.AreEqual(plan.Face, s.Screen.Face, $"{context}: {s} sits on Chemistry");
+                    Assert.IsTrue(p.TryGetOptionalGate(s.Screen, s.Slot, out OptionalGatePlacement o) && o.Item == Theme.Chemistry);
+                    Assert.IsFalse(p.Pickups.Any(k => k.IsGuarded && k.Screen == s.Screen && k.GuardSlot == s.Slot),
+                        $"{context}: {s} guards a pickup");
                 }
+                Assert.IsEmpty(SeedSweep.FindOptionalGateProblems(model, p), context);
             }
+        }
+
+        [Test]
+        public void Plan_Difficulty_IsTheStageGatesOnTheFace_AndSetsTheSwings()
+        {
+            ModuleLibrary library = Library();
+            ItemCatalog catalog = Catalog();
+            for (int seed = 1; seed <= 10; seed++)
+            {
+                ItemPlacement p = Place(seed, library, catalog, out CubeModel model);
+                ChemistryPlan plan = Plan(model, p, catalog);
+                foreach (IsotopeGateSpec s in plan.Gates)
+                    Assert.AreEqual(plan.Gates.Count(g => g.Screen.Face == s.Screen.Face), s.Difficulty, s.ToString());
+            }
+            // Tuned like the beak gates: one swing, plus one per GatesPerExtraHit gates beyond the first on the face.
+            Assert.AreEqual(3, ChemistryPlan.GatesPerExtraHit(2));
+            Assert.AreEqual(7, ChemistryPlan.GatesPerExtraHit(3));
+            Assert.AreEqual(1, ChemistryPlan.HitsFor(1, 3));
+            Assert.AreEqual(1, ChemistryPlan.HitsFor(7, 3));
+            Assert.AreEqual(2, ChemistryPlan.HitsFor(8, 3));
+            Assert.AreEqual(3, ChemistryPlan.HitsFor(15, 3));
+            Assert.AreEqual(2, ChemistryPlan.HitsFor(4, 2));
+            Assert.AreEqual(1, ChemistryPlan.HitsFor(0, 3), "Clamped to one swing");
+        }
+
+        [Test]
+        public void SweepRules_FlagOptionalGatesGuardingRequiredContent_UsingTheRolledStone_OrOffChemistry_AndNoOffFaceGate()
+        {
+            var model = new CubeModel(11);
+            FaceId bio = model.FaceOf(Theme.Biology), chem = model.FaceOf(Theme.Chemistry);
+            int rolled = 0; // Glowstone*
+            var required = new[]
+            {
+                new GatePlacement(new ScreenAddress(chem, 0, 0), 0, Theme.Chemistry),
+                new GatePlacement(new ScreenAddress(bio, 0, 0), 0, Theme.Chemistry),
+            };
+            var pickup = new PickupPlacement(Theme.Chemistry, new ScreenAddress(chem, 1, 1));
+            var rolls = new Dictionary<Theme, int> { [Theme.Chemistry] = rolled };
+            IReadOnlyList<IsotopeStage> order = ChemistryIsotope.VariantOrder; // hand-made variants, listed in this order
+
+            var ok = new ItemPlacement(11, required, new[] { pickup }, new[]
+            {
+                new OptionalGatePlacement(new ScreenAddress(chem, 1, 0), 0, Theme.Chemistry, 2),
+                new OptionalGatePlacement(new ScreenAddress(chem, 0, 1), 0, Theme.Chemistry, 1),
+            }, rolls);
+            Assert.IsEmpty(ChemistryPlan.FindProblems(model, ok, order));
+            Assert.IsEmpty(SeedSweep.FindOptionalGateProblems(model, ok));
+            ChemistryPlan plan = ChemistryPlan.Create(model, ok, order);
+            Assert.AreEqual(IsotopeStage.Glow, plan.Stage);
+            CollectionAssert.AreEquivalent(new[] { IsotopeStage.Lead, IsotopeStage.Unstable },
+                plan.Gates.Where(s => s.Optional).Select(s => s.Stage));
+
+            // Room for both other stones, but one has no optional gate: flagged.
+            var missingOne = new ItemPlacement(11, required, new[] { pickup }, new[]
+            {
+                new OptionalGatePlacement(new ScreenAddress(chem, 1, 0), 0, Theme.Chemistry, 2),
+                new OptionalGatePlacement(new ScreenAddress(chem, 0, 1), 0, Theme.Chemistry, 2),
+            }, rolls);
+            Assert.IsTrue(ChemistryPlan.FindProblems(model, missingOne, order).Any(x => x.Contains("no optional Unstable gate")));
+
+            // An optional gate guarding the stone's pickup: the sweep's optional-gate rule flags it.
+            var guarding = new ItemPlacement(11, required, new[] { new PickupPlacement(Theme.Chemistry, new ScreenAddress(chem, 1, 0), 0) },
+                new[] { new OptionalGatePlacement(new ScreenAddress(chem, 1, 0), 0, Theme.Chemistry, 2) }, rolls);
+            Assert.IsTrue(SeedSweep.FindOptionalGateProblems(model, guarding).Any(x => x.Contains("guards required content")));
+
+            // An optional gate of the rolled stone, and one off Chemistry.
+            var wrong = new ItemPlacement(11, required, new[] { pickup }, new[]
+            {
+                new OptionalGatePlacement(new ScreenAddress(chem, 1, 0), 0, Theme.Chemistry, rolled),
+                new OptionalGatePlacement(new ScreenAddress(bio, 1, 0), 0, Theme.Chemistry, 1),
+            }, rolls);
+            List<string> sweep = SeedSweep.FindOptionalGateProblems(model, wrong);
+            Assert.IsTrue(sweep.Any(x => x.Contains("rolled variant")), string.Join("; ", sweep));
+            Assert.IsTrue(sweep.Any(x => x.Contains("home face")), string.Join("; ", sweep));
+            List<string> chemistry = ChemistryPlan.FindProblems(model, wrong, order);
+            Assert.IsTrue(chemistry.Any(x => x.Contains("belong on Chemistry")), string.Join("; ", chemistry));
+
+            // No required gate off the home face.
+            var homeOnly = new ItemPlacement(11, new[] { required[0] }, new[] { pickup }, null, rolls);
+            Assert.IsTrue(ChemistryPlan.FindProblems(model, homeOnly, order).Any(x => x.Contains("no gate on another face")));
+
+            Assert.IsNull(ChemistryPlan.Create(model, new ItemPlacement(11, required, new[] { pickup }), order),
+                "No rolled Chemistry variant: no stones in the run");
+            Assert.IsNull(ChemistryPlan.Create(model, ok, null), "No stone kinds: no guessing from the catalog order");
+        }
+
+        [Test]
+        public void Sweep_Passes50Of50_WithTheChemistryRules()
+        {
+            ModuleLibrary library = Library();
+            ItemCatalog catalog = Catalog();
+            List<SeedSweep.SeedResult> results = SeedSweep.Run(catalog: library, itemThemes: catalog.Themes(),
+                variantCounts: catalog.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(catalog),
+                chemistryVariantKinds: ChemistryIsotope.VariantKinds(catalog));
+            string report = SeedSweep.Describe(results);
+            Assert.IsTrue(results.All(r => r.Passed), report);
+            StringAssert.Contains("the rolled stone opening a gate on another face", report);
+            StringAssert.Contains("optional gates guarding nothing required", report);
+            StringAssert.DoesNotContain("dispenser", report);
         }
 
         [Test]
@@ -218,12 +310,10 @@ namespace Game.Cube.Tests
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
             ItemPlacement p = Place(1, library, catalog, out CubeModel model);
-            List<string> missing = ChemistryPlan.FindProblems(model, p, _ => null);
+            List<string> missing = ChemistryPlan.FindProblems(model, p, ChemistryIsotope.VariantKinds(catalog), _ => null);
             Assert.IsTrue(missing.Any(x => x.Contains("trial screen")), string.Join("; ", missing));
             CubeLayout layout = CubeLayout.Generate(model, library);
-            List<string> real = ChemistryPlan.FindProblems(model, p, s =>
-                layout.TryGetFace(s.Face, out FaceLayout fl) ? library.Module(fl.Theme, fl.ModuleAt(s.Cell)) : null);
-            Assert.IsEmpty(real);
+            Assert.IsEmpty(ChemistryPlan.FindProblems(model, p, ChemistryIsotope.VariantKinds(catalog), SeedSweep.ModuleLookup(layout, library)));
         }
 
         [Test]
@@ -261,7 +351,7 @@ namespace Game.Cube.Tests
                     if (s.Kind == BeakGateKind.Button) Add(s.Screen, $"button {s}", ButtonGate.ButtonLocal(SlotLocal(s.Screen, s.Slot)));
                     if (s.Kind == BeakGateKind.FlowerVine) Add(s.FlowerScreen, $"flower {s}", FlowerVineGate.FlowerLocal);
                 }
-                foreach (IsotopeGateSpec s in ChemistryPlan.Create(model, p).Gates)
+                foreach (IsotopeGateSpec s in Plan(model, p, catalog).Gates) // optional plates included
                     if (s.Stage == IsotopeStage.Lead) Add(s.Screen, $"plate {s}", LeadPlateGate.PlateLocal(SlotLocal(s.Screen, s.Slot)));
                 foreach (PickupPlacement k in p.Pickups)
                     if (!k.IsGuarded) Add(k.Screen, $"pickup {k}", CubeWorld.OpenPickupOffset);
@@ -274,65 +364,56 @@ namespace Game.Cube.Tests
             }
         }
 
-        // ---------- Dispenser first ----------
-
         [Test]
-        public void DispenserFirst_HoldsOnEverySeed_AndTheSweepRunsIt()
+        public void PhysicsMarksTheRealLeadPlates_ReadFromTheItemIds_InAnyCatalogOrder()
         {
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
-            int guarded = 0;
-            for (int seed = 1; seed <= Seeds; seed++)
+            var reversed = ScriptableObject.CreateInstance<ItemCatalog>();
+            try
             {
-                ItemPlacement p = Place(seed, library, catalog, out CubeModel model);
-                Assert.IsEmpty(ChemistryPlan.DispenserProblems(model, p), $"seed {seed}");
-                if (p.TryGetPickup(Theme.Chemistry, out PickupPlacement k) && k.IsGuarded) guarded++;
+                reversed.Set(catalog.Items.ToList());
+                reversed.SetVariants(catalog.VariantsOf(Theme.Biology)
+                    .Concat(catalog.VariantsOf(Theme.Chemistry).AsEnumerable().Reverse()).ToList());
+                List<IsotopeStage> kinds = ChemistryIsotope.VariantKinds(reversed);
+                CollectionAssert.AreEqual(ChemistryIsotope.VariantOrder.Reverse(), kinds);
+                List<BeakKind> beaks = BiologyBeaks.VariantKinds(reversed);
+                int plates = 0, wrongOrderDiffers = 0;
+                for (int seed = 1; seed <= Seeds; seed++)
+                {
+                    var model = new CubeModel(seed);
+                    CubeLayout layout = CubeLayout.Generate(model, library);
+                    ItemPlacement p = ItemPlacement.ForRun(model, layout, library, reversed.Themes(), reversed.VariantCounts());
+                    var moduleAt = SeedSweep.ModuleLookup(layout, library);
+
+                    // The real plates, straight from the items the reveal builds the gates with.
+                    bool leadRun = ChemistryIsotope.KindOf(reversed.ItemFor(Theme.Chemistry, seed)) == IsotopeStage.Lead;
+                    var real = new List<ScreenAddress>();
+                    foreach (GatePlacement g in p.Gates)
+                        if (g.Item == Theme.Chemistry && leadRun) real.Add(g.Screen);
+                    foreach (OptionalGatePlacement o in p.OptionalGates)
+                        if (o.Item == Theme.Chemistry &&
+                            ChemistryIsotope.KindOf(reversed.VariantsOf(Theme.Chemistry)[o.Variant]) == IsotopeStage.Lead)
+                            real.Add(o.Screen);
+
+                    PhysicsPlan physics = PhysicsPlan.Create(model, p, moduleAt, beaks, PhysicsPlan.DefaultMaxRequired, kinds);
+                    PhysicsPlan byOrder = PhysicsPlan.Create(model, p, moduleAt, beaks, PhysicsPlan.DefaultMaxRequired,
+                        ChemistryIsotope.VariantOrder);
+                    foreach (ScreenAddress screen in physics.Doors.Select(d => d.Screen).Append(physics.TrialScreen).Distinct())
+                    {
+                        int marked = physics.OtherMarks(screen).Count(m => m.What.StartsWith("lead plate"));
+                        Assert.AreEqual(real.Count(s => s == screen), marked, $"seed {seed} {screen}: Physics marks the real plates");
+                        plates += marked;
+                        if (byOrder.OtherMarks(screen).Count(m => m.What.StartsWith("lead plate")) != marked) wrongOrderDiffers++;
+                    }
+                }
+                Assert.Greater(plates, 0, "Some Physics screens carry a Leadstone* plate");
+                Assert.Greater(wrongOrderDiffers, 0, "Reading stages from the catalog order would mark the wrong plates");
             }
-            Assert.Greater(guarded, 0, "Some seeds put the dispenser behind another item's gate (still no Chemistry gate first)");
-
-            List<SeedSweep.SeedResult> results = SeedSweep.Run(catalog: library, itemThemes: catalog.Themes(),
-                variantCounts: catalog.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(catalog));
-            Assert.IsTrue(results.All(r => r.Passed), SeedSweep.Describe(results));
-            StringAssert.Contains("isotope dispenser before any Chemistry-stage gate", SeedSweep.Describe(results));
-        }
-
-        [Test]
-        public void DispenserFirst_FlagsADispenserBehindAChemistryStageGate_DirectlyOrDownTheChain()
-        {
-            var model = new CubeModel(11);
-            FaceId bio = model.FaceOf(Theme.Biology), chem = model.FaceOf(Theme.Chemistry);
-            var chemHome = new GatePlacement(new ScreenAddress(chem, 0, 0), 0, Theme.Chemistry);
-            var chemOff = new GatePlacement(new ScreenAddress(bio, 0, 0), 0, Theme.Chemistry);
-            var bioOnChem = new GatePlacement(new ScreenAddress(chem, 1, 1), 0, Theme.Biology);
-            var bioHome = new GatePlacement(new ScreenAddress(bio, 1, 0), 0, Theme.Biology);
-            var gates = new[] { chemHome, chemOff, bioOnChem, bioHome };
-
-            // Fine: the dispenser behind a Biology gate whose beak lies in the open.
-            var ok = new ItemPlacement(11, gates, new[]
+            finally
             {
-                new PickupPlacement(Theme.Biology, new ScreenAddress(bio, 1, 1)),
-                new PickupPlacement(Theme.Chemistry, bioOnChem.Screen, bioOnChem.Slot),
-            });
-            Assert.IsEmpty(ChemistryPlan.DispenserProblems(model, ok));
-
-            // Directly behind a Chemistry-stage gate.
-            var direct = new ItemPlacement(11, gates, new[]
-            {
-                new PickupPlacement(Theme.Biology, new ScreenAddress(bio, 1, 1)),
-                new PickupPlacement(Theme.Chemistry, chemHome.Screen, chemHome.Slot),
-            });
-            List<string> d = ChemistryPlan.DispenserProblems(model, direct);
-            Assert.IsTrue(d.Any(p => p.Contains("dispenser-first") && p.Contains("Chemistry-stage gate")), string.Join("; ", d));
-
-            // Down the chain: behind a Biology gate, whose beak is behind a Chemistry gate.
-            var chain = new ItemPlacement(11, gates, new[]
-            {
-                new PickupPlacement(Theme.Biology, chemOff.Screen, chemOff.Slot),
-                new PickupPlacement(Theme.Chemistry, bioOnChem.Screen, bioOnChem.Slot),
-            });
-            List<string> c = ChemistryPlan.DispenserProblems(model, chain);
-            Assert.IsTrue(c.Any(p => p.Contains("dispenser-first") && p.Contains("Chemistry-stage gate")), string.Join("; ", c));
-            Assert.IsTrue(ChemistryPlan.FindProblems(model, chain).Any(p => p.Contains("dispenser-first")), "FindProblems runs the rule");
+                Object.DestroyImmediate(reversed);
+            }
         }
 
         // ---------- The trial ----------
@@ -345,7 +426,7 @@ namespace Game.Cube.Tests
             for (int seed = 1; seed <= Seeds; seed++)
             {
                 ItemPlacement p = Place(seed, library, catalog, out CubeModel model);
-                ChemistryPlan plan = ChemistryPlan.Create(model, p);
+                ChemistryPlan plan = Plan(model, p, catalog);
                 Assert.IsTrue(CubeLayout.Generate(model, library).TryGetFace(plan.Face, out FaceLayout fl));
                 ScreenModule module = library.Module(Theme.Chemistry, fl.ModuleAt(plan.TrialScreen.Cell));
                 // The trial takes the first draws of the population stream, as ChemistryFace.EndReveal does.
@@ -356,43 +437,130 @@ namespace Game.Cube.Tests
                     for (int j = i + 1; j < picked.Count; j++)
                         Assert.GreaterOrEqual(Vector2.Distance(picked[i], picked[j]), BiologyTrial.PieceSpacing - 1e-4f);
             }
+            Assert.AreEqual(ChemistryTrialPieceKind.Lamp, ChemistryTrial.KindFor(IsotopeStage.Glow));
+            Assert.AreEqual(ChemistryTrialPieceKind.CrackedWall, ChemistryTrial.KindFor(IsotopeStage.Unstable));
+            Assert.AreEqual(ChemistryTrialPieceKind.Plate, ChemistryTrial.KindFor(IsotopeStage.Lead));
         }
 
         // ---------- Mushroom lines ----------
 
         [Test]
-        public void MushroomLines_AreCurieFlavoured_WithTheSkeletonKeyGag_AndTheStageLine()
+        public void MushroomLines_NameTheRolledStone_TellTheChangingStonesLore_AndEndWithATrueHint()
         {
-            var model = new CubeModel(3);
-            var facts = new RunFacts(model);
-            for (int i = 0; i < ChemistryPopulation.MushroomCount(model.FaceSize); i++)
+            ItemCatalog catalog = Catalog();
+            foreach (int seed in new[] { 3, 4, 5, 6, 7, 8 })
             {
-                NpcSpec spec = ChemistryPopulation.MushroomSpec(3, i);
-                Assert.AreEqual(Race.Mushroom, spec.Race);
-                Assert.AreEqual(spec.Signature(), ChemistryPopulation.MushroomSpec(3, i).Signature());
-                List<string> lines = ChemistryPopulation.LinesFor(spec, facts, HintDensity.Sparse, i == 0);
-                Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
-                if (i == 0) Assert.AreEqual(Dialogue.IsotopeStageLine, lines[0], "Mushroom 0's flavour is the stage line");
-                else
+                var model = new CubeModel(seed);
+                var facts = new RunFacts(model);
+                IsotopeStage stage = ChemistryIsotope.KindOf(catalog.ItemFor(Theme.Chemistry, seed)).Value;
+                for (int i = 0; i < ChemistryPopulation.MushroomCount(model.FaceSize); i++)
                 {
-                    CollectionAssert.Contains(Dialogue.CurieLines, lines[0]);
-                    CollectionAssert.DoesNotContain(lines, Dialogue.IsotopeStageLine);
+                    NpcSpec spec = ChemistryPopulation.MushroomSpec(seed, i);
+                    Assert.AreEqual(Race.Mushroom, spec.Race);
+                    Assert.AreEqual(spec.Signature(), ChemistryPopulation.MushroomSpec(seed, i).Signature());
+                    List<string> lines = ChemistryPopulation.LinesFor(spec, facts, HintDensity.Sparse, stage, i);
+                    Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                    if (i == ChemistryPopulation.StoneTeller)
+                    {
+                        Assert.AreEqual(Dialogue.StoneLine(stage), lines[0], "Mushroom 0 names this visit's stone");
+                        StringAssert.Contains(ChemistryIsotope.StageName(stage), lines[0]);
+                        foreach (IsotopeStage other in ChemistryIsotope.VariantOrder.Where(s => s != stage))
+                            StringAssert.DoesNotContain(ChemistryIsotope.StageName(other), lines[0]);
+                    }
+                    else if (i == ChemistryPopulation.LoreTeller) Assert.AreEqual(Dialogue.StoneLoreLine, lines[0]);
+                    else CollectionAssert.Contains(Dialogue.CurieLines, lines[0]);
+                    Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                    Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                 }
-                Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
-                Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
-                foreach (string line in lines)
-                    StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
             }
-            Assert.IsTrue(Dialogue.CurieLines.Any(l => l.Contains("Glow responsibly!")));
-            Assert.IsTrue(Dialogue.CurieLines.Any(l => l.Contains("skeleton-key fingers")));
-            CollectionAssert.Contains(Dialogue.AllFixedText().ToList(), Dialogue.IsotopeStageLine);
-            // The stage line is true: it names what each stage does, in decay order.
-            string stageLine = Dialogue.IsotopeStageLine.ToLowerInvariant();
-            Assert.Less(stageLine.IndexOf("glow"), stageLine.IndexOf("unstable"));
-            Assert.Less(stageLine.IndexOf("unstable"), stageLine.IndexOf("lead"));
-            StringAssert.Contains("dark room", stageLine);
-            StringAssert.Contains("cracked wall", stageLine);
-            StringAssert.Contains("plate", stageLine);
+            // The stone lines are true: each names its stone and what it opens.
+            StringAssert.Contains("dark doorway", Dialogue.StoneLine(IsotopeStage.Glow));
+            StringAssert.Contains("cracked wall", Dialogue.StoneLine(IsotopeStage.Unstable));
+            StringAssert.Contains("pressure plate", Dialogue.StoneLine(IsotopeStage.Lead));
+            foreach (string line in Dialogue.StoneLines) StringAssert.Contains("swing", line);
+            // The lore: the stones turn into one another between visits.
+            string lore = Dialogue.StoneLoreLine.ToLowerInvariant();
+            StringAssert.Contains("stones", lore);
+            StringAssert.Contains("come back", lore);
+            StringAssert.DoesNotContain("round and round", lore, "No fixed order: each run rolls its stone");
+            Assert.IsTrue(Dialogue.CurieLines.Any(l => l.Contains("skeleton-key fingers")), "The skeleton-key gag stays");
+            CollectionAssert.IsSubsetOf(Dialogue.StoneLines.Append(Dialogue.StoneLoreLine).Concat(Dialogue.CurieLines),
+                Dialogue.AllFixedText().ToList());
+        }
+
+        // ---------- The subtle-science text rule ----------
+
+        /// <summary>Every in-game string the Chemistry face shows (lines, names, HUD uses, hint nickname, catalog names).</summary>
+        private static List<string> ChemistryStrings()
+        {
+            var strings = new List<string>();
+            strings.AddRange(Dialogue.CurieLines);
+            strings.Add(Dialogue.StoneLoreLine);
+            strings.AddRange(Dialogue.StoneLines);
+            Dialogue.RaceFlavour mushroom = Dialogue.Flavours[Race.Mushroom];
+            strings.Add(mushroom.Wares);
+            strings.Add(mushroom.Metal);
+            strings.Add(mushroom.Errand);
+            strings.AddRange(mushroom.Rumours);
+            strings.AddRange(mushroom.Greetings);
+            strings.AddRange(ChemistryIsotope.AllText());
+            strings.Add(HintGenerator.ItemNickname(Theme.Chemistry));
+            ItemCatalog catalog = Catalog();
+            strings.Add(catalog.ForTheme(Theme.Chemistry).DisplayName);
+            strings.AddRange(catalog.VariantsOf(Theme.Chemistry).Select(i => i.DisplayName));
+            strings.AddRange(catalog.VariantsOf(Theme.Chemistry).Select(PickupFeedback.ItemText));
+            return strings;
+        }
+
+        [Test]
+        public void ChemistryText_UsesNoBannedScienceWords_AndPlaceholderNamesCarryAStar()
+        {
+            List<string> strings = ChemistryStrings();
+            Assert.Greater(strings.Count, 20);
+            foreach (string text in strings)
+            {
+                string lower = text.ToLowerInvariant();
+                foreach (string banned in BannedWords)
+                    StringAssert.DoesNotContain(banned, lower, $"\"{text}\" uses a science word");
+                StringAssert.DoesNotContain(Dialogue.ForbiddenWord, lower, text);
+            }
+
+            // Proper names: a capitalised word that does not start a sentence is a name, and names carry a star.
+            var notNames = new HashSet<string> { "I", "I'm", "I'll", "I've", "I'd" };
+            foreach (string text in strings)
+            {
+                string[] words = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < words.Length; i++)
+                {
+                    string word = words[i].TrimStart('.', '"', '\'', '(', '+', '*');
+                    if (word.Length == 0 || !char.IsUpper(word[0])) continue;
+                    bool sentenceStart = i == 0 || ".!?:".IndexOf(words[i - 1][words[i - 1].Length - 1]) >= 0;
+                    int end = 0;
+                    while (end < word.Length && (char.IsLetter(word[end]) || word[end] == '\'' || word[end] == '-')) end++;
+                    string core = word.Substring(0, end);
+                    bool starred = end < word.Length && word[end] == '*';
+                    if (sentenceStart || notNames.Contains(core)) continue;
+                    Assert.IsTrue(starred, $"\"{core}\" looks like a name without its star in \"{text}\"");
+                }
+            }
+            StringAssert.Contains("Marcel*", string.Join(" ", Dialogue.Flavours[Race.Mushroom].Rumours));
+
+            // Placeholder names: every stone, the base item and the patron carry a trailing star wherever they appear.
+            var names = ChemistryIsotope.VariantOrder.Select(ChemistryIsotope.StageName).Append(ChemistryIsotope.Name).ToList();
+            foreach (string name in names) StringAssert.EndsWith("*", name);
+            foreach (string text in strings)
+            {
+                foreach (string bare in names.Select(n => n.TrimEnd('*')).Append("Glowmother").Append("Marcel"))
+                {
+                    int at = text.IndexOf(bare, System.StringComparison.Ordinal);
+                    while (at >= 0)
+                    {
+                        int after = at + bare.Length;
+                        Assert.IsTrue(after < text.Length && text[after] == '*', $"\"{bare}\" without its star in \"{text}\"");
+                        at = text.IndexOf(bare, after, System.StringComparison.Ordinal);
+                    }
+                }
+            }
         }
     }
 }

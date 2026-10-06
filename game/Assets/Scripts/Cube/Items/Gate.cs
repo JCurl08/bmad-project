@@ -7,7 +7,7 @@ namespace Game.Cube
     /// A gate bound to the item that opens it (gates are data: the required ItemDefinition is all a gate
     /// knows). Solid until something whose Inventory holds that item touches it; then it opens for good:
     /// the collider is switched off, a short GateOpenEffect plays and the visual fades. Face gates (the Biology beak gates, the Chemistry
-    /// isotope gates) derive from it: they turn OpensOnTouch off and open through their own mechanic (OpenNow),
+    /// stage gates) derive from it: they turn OpensOnTouch off and open through their own mechanic (OpenNow),
     /// or keep it on with their own touch condition (CanOpenFor), keeping the same IsOpen/Opened contract.
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
@@ -80,8 +80,7 @@ namespace Game.Cube
 
         /// <summary>
         /// Whether a toucher's inventory opens this gate (OpensOnTouch gates only): holding the required item by
-        /// default. Face gates that open on touch under a condition (the Chemistry dark-room gate: a glowing
-        /// isotope) override it.
+        /// default. Face gates that open on touch under a condition override it.
         /// </summary>
         protected virtual bool CanOpenFor(Inventory inventory) => inventory.Has(requiredItem);
 

@@ -1,70 +1,103 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Game.Cube
 {
-    /// <summary>The decay stages of the Chemistry isotope, in order. None: no isotope held.</summary>
+    /// <summary>The Chemistry stone stages (one is rolled per run). None: no stone held.</summary>
     public enum IsotopeStage
     {
         None = -1,
 
-        /// <summary>Fresh: glows, and lights dark-room gates on touch.</summary>
+        /// <summary>The Glowstone*: lights dark-room gates when swung at them.</summary>
         Glow = 0,
 
-        /// <summary>Middle-aged: unstable, blasts cracked walls when swung.</summary>
+        /// <summary>The Wildstone*: blasts cracked walls when swung at them.</summary>
         Unstable = 1,
 
-        /// <summary>Spent: lead, holds a pressure plate down when dropped on it (and is used up). Lead stays lead.</summary>
+        /// <summary>The Leadstone*: weighs pressure plates down when swung at them (it is not used up).</summary>
         Lead = 2,
     }
 
     /// <summary>
-    /// Curie's isotope as data: the Chemistry item (one logical item for ItemPlacement; its id stays the
-    /// placeholder's "chemistry-item") and its decay timing. With half-life H, a fresh isotope glows for H seconds,
-    /// is unstable until H * (1 + UnstableFraction), then is lead for good. The default H = 12 gives glow 0-12 s,
-    /// unstable 12-20 s, then lead. H is the difficulty knob: shorter is harder.
+    /// The Chemistry item as data, on the beak pattern (story 1.8): three stage variants (Glowstone*, Wildstone*,
+    /// Leadstone*), listed in the catalog in VariantOrder; each run rolls one (ItemVariants.Roll), it is picked up once,
+    /// kept for the run and used by swinging it. The stage of an item is always read from its id (KindOf), never from
+    /// the catalog's order. The 1.4 placeholder entry ("chemistry-item") stays as the theme's base item, so the placer
+    /// still sees one logical Chemistry item. In-world, the stones turn into one another between visits; within a run
+    /// a stone never changes.
     /// </summary>
     public static class ChemistryIsotope
     {
-        /// <summary>The Chemistry item's id: the 1.4 placeholder's, kept stable.</summary>
+        /// <summary>The Chemistry base item's id: the 1.4 placeholder's, kept stable.</summary>
         public const string Id = "chemistry-item";
 
-        public const string Name = "Isotope";
+        /// <summary>The base item's name (never shown in a run: the rolled stone replaces it).</summary>
+        public const string Name = "Changing Stone*";
 
-        public const float DefaultHalfLife = 12f;
-        public const float MinHalfLife = 0.5f;
+        public const string GlowId = "glowstone";
+        public const string UnstableId = "wildstone";
+        public const string LeadId = "leadstone";
 
-        /// <summary>The unstable stage lasts this fraction of the half-life (8 s at the default 12 s).</summary>
-        public const float UnstableFraction = 2f / 3f;
+        public const string GlowName = "Glowstone*";
+        public const string UnstableName = "Wildstone*";
+        public const string LeadName = "Leadstone*";
 
-        public static readonly Color ItemColor = new Color(0.55f, 1f, 0.35f);
+        public static readonly Color ItemColor = new Color(0.75f, 0.7f, 0.85f);
         public static readonly Color GlowColor = new Color(0.6f, 1f, 0.35f);
         public static readonly Color UnstableColor = new Color(1f, 0.45f, 0.15f);
         public static readonly Color LeadColor = new Color(0.5f, 0.52f, 0.58f);
 
-        /// <summary>The age (seconds) at which the isotope stops glowing and turns unstable.</summary>
-        public static float GlowEnds(float halfLife) => Mathf.Max(MinHalfLife, halfLife);
+        /// <summary>The order the catalog builder lists the stones in (0 Glowstone*, 1 Wildstone*, 2 Leadstone*). Consumers
+        /// never read a stage from it: they read it from the item id (KindOf, VariantKinds).</summary>
+        public static readonly IsotopeStage[] VariantOrder = { IsotopeStage.Glow, IsotopeStage.Unstable, IsotopeStage.Lead };
 
-        /// <summary>The age (seconds) at which the isotope turns to lead.</summary>
-        public static float UnstableEnds(float halfLife) => GlowEnds(halfLife) * (1f + UnstableFraction);
+        public static int VariantCount => VariantOrder.Length;
 
-        /// <summary>The stage of an isotope of this age. Pure; lead from UnstableEnds on, for good.</summary>
-        public static IsotopeStage StageAt(float age, float halfLife)
-        {
-            if (age < GlowEnds(halfLife)) return IsotopeStage.Glow;
-            if (age < UnstableEnds(halfLife)) return IsotopeStage.Unstable;
-            return IsotopeStage.Lead;
-        }
-
-        /// <summary>The first age at which an isotope is in a stage (0 for glow).</summary>
-        public static float StageStart(IsotopeStage stage, float halfLife)
+        public static string IdOf(IsotopeStage stage)
         {
             switch (stage)
             {
-                case IsotopeStage.Unstable: return GlowEnds(halfLife);
-                case IsotopeStage.Lead: return UnstableEnds(halfLife);
-                default: return 0f;
+                case IsotopeStage.Glow: return GlowId;
+                case IsotopeStage.Unstable: return UnstableId;
+                case IsotopeStage.Lead: return LeadId;
+                default: return null;
             }
+        }
+
+        /// <summary>The stage an item is, from its id; null for anything else (the base item included).</summary>
+        public static IsotopeStage? KindOf(ItemDefinition item)
+        {
+            if (item == null) return null;
+            switch (item.Id)
+            {
+                case GlowId: return IsotopeStage.Glow;
+                case UnstableId: return IsotopeStage.Unstable;
+                case LeadId: return IsotopeStage.Lead;
+                default: return null;
+            }
+        }
+
+        /// <summary>True if an item is a Chemistry stone of this stage.</summary>
+        public static bool Is(ItemDefinition item, IsotopeStage stage) => stage != IsotopeStage.None && KindOf(item) == stage;
+
+        /// <summary>
+        /// The stage of each Chemistry variant in a catalog, in variant-index order, read from the items' ids (so the
+        /// catalog's order never matters). Null when the catalog has no Chemistry variants or one is not a stone.
+        /// </summary>
+        public static List<IsotopeStage> VariantKinds(ItemCatalog catalog)
+        {
+            if (catalog == null) return null;
+            List<ItemDefinition> variants = catalog.VariantsOf(Theme.Chemistry);
+            if (variants.Count == 0) return null;
+            var kinds = new List<IsotopeStage>(variants.Count);
+            foreach (ItemDefinition item in variants)
+            {
+                IsotopeStage? kind = KindOf(item);
+                if (kind == null) return null;
+                kinds.Add(kind.Value);
+            }
+            return kinds;
         }
 
         public static Color StageColor(IsotopeStage stage)
@@ -78,140 +111,107 @@ namespace Game.Cube
             }
         }
 
+        /// <summary>The stone's in-world name ("Glowstone*", "Wildstone*", "Leadstone*").</summary>
         public static string StageName(IsotopeStage stage)
         {
             switch (stage)
             {
-                case IsotopeStage.Glow: return "Glowing";
-                case IsotopeStage.Unstable: return "Unstable";
-                case IsotopeStage.Lead: return "Lead";
+                case IsotopeStage.Glow: return GlowName;
+                case IsotopeStage.Unstable: return UnstableName;
+                case IsotopeStage.Lead: return LeadName;
                 default: return "None";
             }
         }
 
-        /// <summary>What a stage does, as the HUD tells it.</summary>
+        /// <summary>What a stone does, as the HUD tells it.</summary>
         public static string StageUse(IsotopeStage stage)
         {
             switch (stage)
             {
-                case IsotopeStage.Glow: return "lights dark rooms";
+                case IsotopeStage.Glow: return "swing it at dark doorways";
                 case IsotopeStage.Unstable: return "swing it at cracked walls";
-                case IsotopeStage.Lead: return "drop it on a plate";
+                case IsotopeStage.Lead: return "swing it at pressure plates";
                 default: return "";
             }
         }
 
-        /// <summary>An unsaved runtime isotope item (tests and tools); the catalog builder keeps the real asset.</summary>
+        /// <summary>Every in-world string the Chemistry item system shows (names and uses), for the text checks.</summary>
+        public static IEnumerable<string> AllText()
+        {
+            yield return Name;
+            foreach (IsotopeStage stage in VariantOrder)
+            {
+                yield return StageName(stage);
+                yield return StageUse(stage);
+            }
+        }
+
+        /// <summary>An unsaved runtime base item (tests and tools); the catalog builder keeps the real asset.</summary>
         public static ItemDefinition CreateItem() => ItemDefinition.Create(Id, Name, Theme.Chemistry, ItemColor);
+
+        /// <summary>An unsaved runtime stone of a stage (tests and tools); the catalog builder makes the real assets.</summary>
+        public static ItemDefinition CreateItem(IsotopeStage stage) =>
+            ItemDefinition.Create(IdOf(stage), StageName(stage), Theme.Chemistry, StageColor(stage));
     }
 
     /// <summary>
-    /// The player's held isotope: lives on the player beside its Inventory. Whenever the isotope item is added
-    /// (a dispenser hands one out) it starts fresh at the glow stage and decays on its half-life timer while
-    /// held: glow, then unstable, then lead, which stays until a plate takes it (ConsumeLead removes it from the
-    /// inventory, so a dispenser can hand out another). The stage is what the equipped isotope does to the
-    /// Chemistry gates. A halo around the player shows the stage, a label in the stage's colour names it just
-    /// above the player (StageLabel), and a HUD line names it with a coloured pip.
+    /// The player's held Chemistry stone, read from the Inventory (no timer, no state of its own): the stage of the stone
+    /// the player holds, if any, and whether it is the equipped item (what a swing carries). A halo around the player
+    /// shows the stone's colour, a label just above the player names it (StageLabel: the item's name), and a HUD line
+    /// names it with what it does and a coloured pip. The stone never changes during a run.
     /// </summary>
     [RequireComponent(typeof(Inventory))]
     public class Isotope : MonoBehaviour
     {
-        [SerializeField] private ItemDefinition item;
-
-        [Tooltip("Difficulty: seconds of glow; unstable lasts 2/3 of it more, then lead. Shorter is harder.")]
-        [SerializeField, Min(ChemistryIsotope.MinHalfLife)] private float halfLife = ChemistryIsotope.DefaultHalfLife;
-
         [SerializeField] private bool showHud = true;
 
         private Inventory inventory;
         private Equipment equipment;
-        private float age;
-        private int serial;
         private IsotopeStage shown = IsotopeStage.None;
         private SpriteRenderer halo;
         private GUIStyle hudStyle;
         private GUIStyle labelStyle;
 
-        /// <summary>The isotope item this tracks (the run's Chemistry item).</summary>
-        public ItemDefinition Item
-        {
-            get => item;
-            set
-            {
-                item = value;
-                Refresh();
-            }
-        }
-
-        /// <summary>The half-life difficulty knob (seconds of glow).</summary>
-        public float HalfLife
-        {
-            get => halfLife;
-            set
-            {
-                halfLife = Mathf.Max(ChemistryIsotope.MinHalfLife, value);
-                Refresh();
-            }
-        }
-
         public Inventory Inventory => inventory != null ? inventory : inventory = GetComponent<Inventory>();
 
-        public bool IsHeld => item != null && Inventory.Has(item);
+        /// <summary>The Chemistry stone the player holds (the first in the inventory), or null.</summary>
+        public ItemDefinition Item
+        {
+            get
+            {
+                foreach (ItemDefinition held in Inventory.Items)
+                    if (ChemistryIsotope.KindOf(held) != null) return held;
+                return null;
+            }
+        }
 
-        /// <summary>True when the held isotope is the equipped item (what a swing carries).</summary>
+        public bool IsHeld => Item != null;
+
+        /// <summary>True when the held stone is the equipped item (what a swing carries).</summary>
         public bool IsEquipped
         {
             get
             {
                 if (equipment == null) equipment = GetComponent<Equipment>();
-                return IsHeld && equipment != null && equipment.Equipped == item;
+                ItemDefinition item = Item;
+                return item != null && equipment != null && equipment.Equipped == item;
             }
         }
 
-        /// <summary>Seconds since the held isotope was handed out (settable, for tests and tools).</summary>
-        public float Age
-        {
-            get => age;
-            set
-            {
-                age = Mathf.Max(0f, value);
-                Refresh();
-            }
-        }
+        /// <summary>The held stone's stage, or None. Read from the item's id; it never changes on its own.</summary>
+        public IsotopeStage Stage => ChemistryIsotope.KindOf(Item) ?? IsotopeStage.None;
 
-        /// <summary>Counts isotopes handed out; tells one isotope from the next (the trial needs one isotope throughout).</summary>
-        public int Serial => serial;
-
-        /// <summary>The held isotope's stage, or None.</summary>
-        public IsotopeStage Stage => IsHeld ? ChemistryIsotope.StageAt(age, halfLife) : IsotopeStage.None;
-
-        /// <summary>Seconds until the next stage (0 once lead or when none is held).</summary>
-        public float SecondsToNextStage
-        {
-            get
-            {
-                IsotopeStage stage = Stage;
-                if (stage == IsotopeStage.Glow) return ChemistryIsotope.GlowEnds(halfLife) - age;
-                if (stage == IsotopeStage.Unstable) return ChemistryIsotope.UnstableEnds(halfLife) - age;
-                return 0f;
-            }
-        }
-
-        /// <summary>Raised when the stage changes (including to None when the lead is used up).</summary>
+        /// <summary>Raised when the held stage changes (a stone picked up, or the inventory emptied for a new run).</summary>
         public event Action<Isotope, IsotopeStage> StageChanged;
 
-        /// <summary>Raised when a fresh isotope is received.</summary>
-        public event Action<Isotope> Received;
-
-        /// <summary>The HUD line, or null when no isotope is held.</summary>
+        /// <summary>The HUD line ("Glowstone*: swing it at dark doorways"), or null when no stone is held.</summary>
         public string HudText
         {
             get
             {
-                IsotopeStage stage = Stage;
-                if (stage == IsotopeStage.None) return null;
-                string next = stage == IsotopeStage.Lead ? "" : $" ({Mathf.CeilToInt(SecondsToNextStage)}s)";
-                return $"Isotope: {ChemistryIsotope.StageName(stage)}{next}, {ChemistryIsotope.StageUse(stage)}";
+                ItemDefinition item = Item;
+                if (item == null) return null;
+                return $"{item}: {ChemistryIsotope.StageUse(Stage)}";
             }
         }
 
@@ -221,83 +221,33 @@ namespace Game.Cube
             set => showHud = value;
         }
 
-        /// <summary>The stage label shown just above the player ("GLOWING", "UNSTABLE", "LEAD"), or null when none is held.</summary>
-        public string StageLabel
-        {
-            get
-            {
-                IsotopeStage stage = Stage;
-                return stage == IsotopeStage.None ? null : ChemistryIsotope.StageName(stage).ToUpperInvariant();
-            }
-        }
+        /// <summary>The label shown just above the player: the held stone's name, or null when none is held.</summary>
+        public string StageLabel => Item?.ToString();
 
-        /// <summary>The stage label's colour (the stage's colour).</summary>
+        /// <summary>The stage label's colour (the stone's colour).</summary>
         public Color StageLabelColor => ChemistryIsotope.StageColor(Stage);
 
         private void OnEnable()
         {
-            Inventory.ItemAdded += OnItemAdded;
-            Inventory.ItemRemoved += OnItemRemoved;
+            Inventory.ItemAdded += OnInventoryChanged;
+            Inventory.ItemRemoved += OnInventoryChanged;
             Refresh();
         }
 
         private void OnDisable()
         {
             if (inventory == null) return;
-            inventory.ItemAdded -= OnItemAdded;
-            inventory.ItemRemoved -= OnItemRemoved;
+            inventory.ItemAdded -= OnInventoryChanged;
+            inventory.ItemRemoved -= OnInventoryChanged;
         }
 
-        private void Update()
+        // Inventory.Clear (a new run) raises no event, so the halo is also kept in step here.
+        private void Update() => Refresh();
+
+        private void OnInventoryChanged(ItemDefinition item)
         {
-            if (IsHeld) age += Time.deltaTime;
-            Refresh();
+            if (ChemistryIsotope.KindOf(item) != null) Refresh();
         }
-
-        private void OnItemAdded(ItemDefinition added)
-        {
-            if (item == null || added != item) return;
-            age = 0f;
-            serial++;
-            shown = IsotopeStage.None; // a fresh isotope always announces its glow
-            Received?.Invoke(this);
-            Refresh();
-        }
-
-        private void OnItemRemoved(ItemDefinition removed)
-        {
-            if (item != null && removed == item) Refresh();
-        }
-
-        /// <summary>A new run (the inventory was emptied): the isotope clock restarts and the halo goes out.</summary>
-        public void ResetForRun()
-        {
-            age = 0f;
-            Refresh();
-        }
-
-        /// <summary>Uses up the held isotope if it is lead (a plate took it). Returns true if it did.</summary>
-        public bool ConsumeLead()
-        {
-            if (Stage != IsotopeStage.Lead) return false;
-            Inventory.Remove(item);
-            Refresh();
-            return true;
-        }
-
-        /// <summary>The isotope of whatever a collider belongs to (the player), or null.</summary>
-        public static Isotope On(Collider2D collider)
-        {
-            Inventory inventory = ItemPickup.FindInventory(collider);
-            return inventory != null ? inventory.GetComponent<Isotope>() : null;
-        }
-
-        /// <summary>The isotope of an attacker or toucher object, or null.</summary>
-        public static Isotope On(GameObject owner) => owner != null ? owner.GetComponentInParent<Isotope>() : null;
-
-        /// <summary>True if this isotope is item, held and in stage.</summary>
-        public bool Is(ItemDefinition required, IsotopeStage stage) =>
-            required != null && item == required && Stage == stage;
 
         private void Refresh()
         {
@@ -323,9 +273,9 @@ namespace Game.Cube
             }
             halo.enabled = stage != IsotopeStage.None;
             Color color = ChemistryIsotope.StageColor(stage);
-            color.a = stage == IsotopeStage.Glow ? 0.35f : 0.2f;
+            color.a = stage == IsotopeStage.Glow ? 0.3f : 0.2f;
             halo.color = color;
-            float size = stage == IsotopeStage.Glow ? 2.6f : stage == IsotopeStage.Unstable ? 1.5f : 1.1f;
+            float size = stage == IsotopeStage.Glow ? 2.2f : 1.3f;
             halo.transform.localScale = new Vector3(size, size, 1f);
         }
 
@@ -352,7 +302,7 @@ namespace Game.Cube
             GUI.Label(new Rect(x + 8f + pip + 8f, y + 2f, 400f, 26f), text, hudStyle);
         }
 
-        /// <summary>The stage, in its colour, on a dark tag just above the player's head.</summary>
+        /// <summary>The stone's name, in its colour, on a dark tag just above the player's head.</summary>
         private void DrawStageLabel()
         {
             string label = StageLabel;
@@ -362,7 +312,7 @@ namespace Game.Cube
                 labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * 0.75f);
             if (screen.z < 0f) return;
-            var rect = new Rect(screen.x - 46f, Screen.height - screen.y - 22f, 92f, 20f);
+            var rect = new Rect(screen.x - 52f, Screen.height - screen.y - 22f, 104f, 20f);
             GUI.color = new Color(0f, 0f, 0f, 0.7f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = StageLabelColor;

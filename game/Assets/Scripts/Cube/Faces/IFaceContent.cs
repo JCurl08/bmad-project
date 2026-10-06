@@ -47,14 +47,4 @@ namespace Game.Cube
 
         void Clear();
     }
-
-    /// <summary>
-    /// Optional extra hook for face content that replaces its item's one-shot pickup (Chemistry: the isotope
-    /// dispenser). CubeWorld calls it for the pickup of the content's theme, after the gates; null falls back to
-    /// a plain ItemPickup. The returned pickup goes into CubeWorld.Pickups like any other.
-    /// </summary>
-    public interface IFacePickupContent
-    {
-        ItemPickup CreatePickup(CubeWorld world, PickupPlacement placement, Transform parent, Vector2 position, ItemDefinition item);
-    }
 }

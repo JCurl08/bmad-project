@@ -41,9 +41,11 @@ namespace Game.Cube
         ItemGeneric = 50,
         ItemThinBeak = 51,
         ItemThickBeak = 52,
-        ItemIsotope = 53,
+        ItemGlowstone = 53,
         ItemMassMitt = 54,
         Jumbles = 55,
+        ItemWildstone = 56,
+        ItemLeadstone = 57,
 
         EnemyGeneric = 60,
         EnemySeedWeevil = 61,
@@ -58,7 +60,6 @@ namespace Game.Cube
         DoorSwitch = 72,
         LeadPlate = 73,
         Flower = 74,
-        Dispenser = 75,
         TrialLamp = 76,
         GoalPad = 77,
 
@@ -111,7 +112,6 @@ namespace Game.Cube
                 case ArtKey.LeadPlate:
                 case ArtKey.GoalPad: return ArtCategory.Switch;
                 case ArtKey.Flower: return ArtCategory.Plant;
-                case ArtKey.Dispenser:
                 case ArtKey.TrialLamp: return ArtCategory.Prop;
                 case ArtKey.Portal: return ArtCategory.Portal;
                 case ArtKey.Demon: return ArtCategory.Demon;
@@ -159,7 +159,7 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>The art of an item, by its stable id (the beaks, the isotope, the Mass Mitt; anything else is generic).</summary>
+        /// <summary>The art of an item, by its stable id (the beaks, the three Chemistry stones, the Mass Mitt; anything else is generic).</summary>
         public static ArtKey Item(ItemDefinition item)
         {
             if (item == null) return ArtKey.ItemGeneric;
@@ -167,7 +167,9 @@ namespace Game.Cube
             {
                 case BiologyBeaks.ThinId: return ArtKey.ItemThinBeak;
                 case BiologyBeaks.ThickId: return ArtKey.ItemThickBeak;
-                case ChemistryIsotope.Id: return ArtKey.ItemIsotope;
+                case ChemistryIsotope.GlowId: return ArtKey.ItemGlowstone;
+                case ChemistryIsotope.UnstableId: return ArtKey.ItemWildstone;
+                case ChemistryIsotope.LeadId: return ArtKey.ItemLeadstone;
                 case MassMittItem.Id: return ArtKey.ItemMassMitt;
                 default: return ArtKey.ItemGeneric;
             }

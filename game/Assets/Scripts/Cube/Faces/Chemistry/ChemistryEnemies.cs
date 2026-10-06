@@ -5,7 +5,7 @@ namespace Game.Cube
     /// <summary>The Chemistry enemy types.</summary>
     public enum ChemistryEnemyKind
     {
-        /// <summary>A jittery free radical, weak to the isotope (it pairs up with the isotope's spare electrons).</summary>
+        /// <summary>A jittery free radical, weak to the run's Chemistry stone.</summary>
         FreeRadical = 0,
 
         /// <summary>A crusty rust mite, weak to another built face's item (the run's Biology beak, else Physics').</summary>
@@ -28,7 +28,7 @@ namespace Game.Cube
 
         public static string Name(ChemistryEnemyKind kind) => kind == ChemistryEnemyKind.FreeRadical ? "Free Radical" : "Rust Mite";
 
-        /// <summary>The weakness item of a kind in a world's run: the isotope, or another built theme's item.</summary>
+        /// <summary>The weakness item of a kind in a world's run: the rolled stone, or another built theme's item.</summary>
         public static ItemDefinition WeaknessFor(ChemistryEnemyKind kind, CubeWorld world)
         {
             if (world == null) return null;
