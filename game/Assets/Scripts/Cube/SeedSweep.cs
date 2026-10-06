@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -14,7 +15,10 @@ namespace Game.Cube
     /// left uncollected is a softlock. Optional gates (non-rolled item variants, e.g. the other beak) must
     /// guard nothing required: no pickup may sit behind one, and none may share a slot with a required gate.
     /// With Biology beak variants, the Biology plan is checked too (BiologyPlan.FindProblems: the rolled beak
-    /// has an off-home gate, a thin-beak run has its flower-vine bridge, the trial is on Biology).
+    /// has an off-home gate, a thin-beak run has its flower-vine bridge, the trial is on Biology). With a Chemistry
+    /// item, the Chemistry plan is checked too (ChemistryPlan.FindProblems: stage coverage, timed stages on the
+    /// home face, an off-home gate, and dispenser-first: the isotope dispenser is reachable without passing any
+    /// Chemistry-stage gate).
     /// Shared by the tests and the editor menu.
     /// </summary>
     public static class SeedSweep
@@ -288,6 +292,13 @@ namespace Game.Cube
                         result.ItemProblems = FindItemProblems(model, placement, items);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
+                        Func<ScreenAddress, ScreenModule> moduleAt = null;
+                        if (catalog is ModuleLibrary library)
+                            moduleAt = screen => layout.TryGetFace(screen.Face, out FaceLayout fl)
+                                ? library.Module(fl.Theme, fl.ModuleAt(screen.Cell))
+                                : null;
+                        foreach (string problem in ChemistryPlan.FindProblems(model, placement, moduleAt))
+                            result.ItemProblems.Add("chemistry: " + problem);
                     }
                 }
                 results.Add(result);
@@ -321,7 +332,9 @@ namespace Game.Cube
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
                 : "fully reachable";
-            if (itemsChecked) what += ", every item collectable with no softlocks, optional gates guarding nothing required";
+            if (itemsChecked)
+                what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
+                        "the isotope dispenser before any Chemistry-stage gate, the Chemistry trial fitting";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

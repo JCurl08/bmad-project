@@ -129,8 +129,9 @@ namespace Game.Cube.Tests
         }
 
         /// <summary>
-        /// The first seed whose run has a plain (touch-opened, no variants) item with an open pickup and a gate on
-        /// another face. Themes with variants (the Biology beaks) open by their own mechanics (BiologySceneTests).
+        /// The first seed whose run has a plain (touch-opened, no variants, no face content) item with an open pickup
+        /// and a gate on another face. Face items (the Biology beaks, the Chemistry isotope) open by their own
+        /// mechanics (BiologySceneTests, ChemistrySceneTests).
         /// </summary>
         private static int SeedWithOpenPlainItem(CubeWorld w)
         {
@@ -146,7 +147,7 @@ namespace Game.Cube.Tests
         }
 
         private static bool IsOpenPlain(CubeWorld w, ItemPlacement p, CubeModel model, PickupPlacement k) =>
-            !k.IsGuarded && w.ItemCatalog.VariantsOf(k.Item).Count == 0 &&
+            !k.IsGuarded && w.ItemCatalog.VariantsOf(k.Item).Count == 0 && w.FaceContents.All(c => c.Theme != k.Item) &&
             p.Gates.Any(g => g.Item == k.Item && g.Screen.Face != model.FaceOf(k.Item));
 
         [UnityTest]

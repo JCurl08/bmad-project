@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Chemistry Item
   m_EditorClassIdentifier: Game.Cube::Game.Cube.ItemDefinition
   id: chemistry-item
-  displayName: Chemistry Item
+  displayName: Isotope
   homeTheme: 2
-  placeholderColor: {r: 0.9, g: 0.5, b: 1, a: 1}
+  placeholderColor: {r: 0.55, g: 1, b: 0.35, a: 1}
+  attackReach: 0

@@ -13,7 +13,8 @@ using UnityEngine.SceneManagement;
 /// The CubeWorld is wired to the module library and the item catalog (each built first if missing);
 /// the player carries an Inventory and the combat parts (Health, PlayerStats, Equipment, PlayerAttack), and a
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
-/// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face.
+/// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
+/// for Curie's (the player carries the Isotope it sets up for each run).
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -73,11 +74,15 @@ public static class CubeSceneBuilder
         player.AddComponent<PlayerStats>();
         var equipment = player.AddComponent<Equipment>();
         player.AddComponent<PlayerAttack>();
+        // The held Chemistry isotope's decay stage and its HUD line (set up for each run by ChemistryFace).
+        player.AddComponent<Isotope>();
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
 
         // Face content: Darwin's face (beak gates, trial, finches and enemies) plugs in on the reveal.
         worldObject.AddComponent<BiologyFace>().Player = player.transform;
+        // Curie's face (isotope dispenser, stage gates, trial, mushrooms and enemies) plugs in the same way.
+        worldObject.AddComponent<ChemistryFace>().Player = player.transform;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -140,6 +145,19 @@ public static class CubeSceneBuilder
         int thin = results.Count(r => r.Placement != null && r.Placement.RolledVariant(Theme.Biology) == (int)BeakKind.Thin);
         int withOptional = results.Count(r => r.Placement != null && r.Placement.OptionalGates.Count > 0);
         report += $"Beaks: {thin} thin, {results.Count - thin} thick; {withOptional} seeds with optional beak gates.\n";
+        int glow = 0, unstable = 0, lead = 0, guarded = 0;
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Placement == null) continue;
+            ChemistryPlan plan = ChemistryPlan.Create(new CubeModel(r.Seed), r.Placement);
+            if (plan == null) continue;
+            glow += plan.CountOf(IsotopeStage.Glow);
+            unstable += plan.CountOf(IsotopeStage.Unstable);
+            lead += plan.CountOf(IsotopeStage.Lead);
+            if (plan.Dispenser.IsGuarded) guarded++;
+        }
+        report += $"Isotope gates: {glow} glow, {unstable} unstable, {lead} lead; " +
+                  $"{guarded} seeds with the dispenser behind another item's gate.\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

@@ -11,6 +11,8 @@ using UnityEngine;
 /// (wherever its asset lives) is never replaced.
 /// It also adds the Biology beak variants (Thin Beak, Thick Beak; BiologyBeaks.VariantOrder) to the catalog's
 /// variant list when they are missing, keeping every existing variant; each run uses the rolled one.
+/// The Chemistry item is Curie's isotope (ChemistryIsotope): a placeholder Chemistry entry is renamed to it in place,
+/// keeping its asset and its id ("chemistry-item"). It stays one item with no variants.
 /// Also works from the command line via -executeMethod ItemCatalogBuilder.Build.
 /// </summary>
 public static class ItemCatalogBuilder
@@ -28,9 +30,12 @@ public static class ItemCatalogBuilder
     private static readonly Placeholder[] Placeholders =
     {
         new Placeholder { Theme = Theme.Biology, Id = "biology-item", Name = "Biology Item", Color = new Color(0.45f, 1f, 0.45f) },
-        new Placeholder { Theme = Theme.Chemistry, Id = "chemistry-item", Name = "Chemistry Item", Color = new Color(0.9f, 0.5f, 1f) },
+        new Placeholder { Theme = Theme.Chemistry, Id = ChemistryIsotope.Id, Name = ChemistryIsotope.Name, Color = ChemistryIsotope.ItemColor },
         new Placeholder { Theme = Theme.Physics, Id = "physics-item", Name = "Physics Item", Color = new Color(0.45f, 0.75f, 1f) },
     };
+
+    /// <summary>The 1.4 placeholder name of the Chemistry item, renamed to the isotope on the next build.</summary>
+    private const string PlaceholderChemistryName = "Chemistry Item";
 
     [MenuItem("Cube/Build Item Catalog")]
     public static void Build()
@@ -63,6 +68,15 @@ public static class ItemCatalogBuilder
         }
 
         catalog.Set(items);
+
+        // The Chemistry item is Curie's isotope: the 1.4 placeholder entry becomes it in place (same asset, same
+        // id "chemistry-item", so every reference and the placer are unchanged); only its name and colour change.
+        ItemDefinition chemistry = catalog.ForTheme(Theme.Chemistry);
+        if (chemistry != null && chemistry.Id == ChemistryIsotope.Id && chemistry.DisplayName == PlaceholderChemistryName)
+        {
+            chemistry.Set(chemistry.Id, ChemistryIsotope.Name, Theme.Chemistry, ChemistryIsotope.ItemColor);
+            EditorUtility.SetDirty(chemistry);
+        }
 
         // Theme variants: keep what is there, add the beaks if missing (in roll order).
         var variants = new List<ItemDefinition>();

@@ -193,6 +193,23 @@ namespace Game.Cube
             "This season it's all thick beaks! Big and blunt: rocks, pots, crack 'em like seeds.",
         };
 
+        /// <summary>Curie-flavoured lines the mushroom people of the Chemistry face say (one per mushroom, picked by salt).</summary>
+        public static readonly string[] CurieLines =
+        {
+            "Glow responsibly! Madame Curie's first rule. Her second rule: also glow responsibly.",
+            "Madame Curie says decay is just change on a schedule. I'm on page three of my schedule.",
+            "When I'm old I'll be all skeleton, with skeleton-key fingers! Every lock on the face, mine. Can't wait.",
+            "Half-life, full heart! Madame Curie taught us that. Then she wrote it down in a glowing notebook.",
+            "Radium? Polonium? I prefer Mush-ium. Madame Curie says that isn't an element. Yet.",
+        };
+
+        /// <summary>How the isotope works, as the mushrooms tell it (true for every run: the mechanics).</summary>
+        public const string IsotopeStageLine =
+            "Fresh isotopes glow and light dark rooms. Then they go unstable: swing one at a cracked wall, boom! " +
+            "Then they settle into lead. Drop lead on a plate and it stays put. The dispenser always has another.";
+
+        public static string CurieLine(uint salt) => CurieLines[(int)(salt / 3u % (uint)CurieLines.Length)];
+
         public static string DarwinLine(uint salt) => DarwinLines[(int)(salt / 3u % (uint)DarwinLines.Length)];
 
         public static string BeakLine(bool thin) => BeakLines[thin ? 0 : 1];
@@ -254,6 +271,8 @@ namespace Game.Cube
                 foreach (string line in table) yield return line;
             foreach (string line in DarwinLines) yield return line;
             foreach (string line in BeakLines) yield return line;
+            foreach (string line in CurieLines) yield return line;
+            yield return IsotopeStageLine;
         }
     }
 }

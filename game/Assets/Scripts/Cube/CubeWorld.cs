@@ -16,8 +16,9 @@ namespace Game.Cube
     /// chosen module gate slot and one pickup per item on its home face. Unused gate slots get no gate,
     /// so their alcove stays open. A theme with item variants uses the run's rolled variant (ItemCatalog.ItemFor),
     /// and the other variants' optional gates go into leftover home slots. Face content (IFaceContent
-    /// components on this object, e.g. BiologyFace) builds its theme's gates and adds its trial and population
-    /// on the reveal, and is cleared on every rebuild.
+    /// components on this object, e.g. BiologyFace, ChemistryFace) builds its theme's gates and adds its trial and
+    /// population on the reveal, and is cleared on every rebuild; content that also implements IFacePickupContent
+    /// replaces its item's pickup (Chemistry's isotope dispenser).
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -315,7 +316,7 @@ namespace Game.Cube
                 Vector2 at = placement.IsGuarded
                     ? module.Gates[placement.GuardSlot].PocketCentre
                     : ScreenCenter(placement.Screen) + OpenPickupOffset;
-                pickups.Add(CreatePickup(module.transform, at, item));
+                pickups.Add(BuildPickup(placement, module.transform, at, item, contents));
             }
 
             foreach (IFaceContent content in contents) content.EndReveal(this);
@@ -339,6 +340,19 @@ namespace Game.Cube
                 if (built != null) return built;
             }
             return CreateGate(slot, item);
+        }
+
+        /// <summary>Builds one pickup: through face content of its theme that replaces pickups (IFacePickupContent), else a plain one.</summary>
+        private ItemPickup BuildPickup(PickupPlacement placement, Transform parent, Vector2 at, ItemDefinition item,
+            IFaceContent[] contents)
+        {
+            foreach (IFaceContent content in contents)
+            {
+                if (content.Theme != placement.Item || !(content is IFacePickupContent pickupContent)) continue;
+                ItemPickup built = pickupContent.CreatePickup(this, placement, parent, at, item);
+                if (built != null) return built;
+            }
+            return CreatePickup(parent, at, item);
         }
 
         /// <summary>The size of a gate in a slot: GateWidth across the alcove opening, GateThickness deep.</summary>

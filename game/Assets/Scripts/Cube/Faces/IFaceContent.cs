@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Game.Cube
 {
     /// <summary>One gate CubeWorld is about to build: required (ItemPlacement.Gates) or optional (a non-rolled variant's).</summary>
@@ -24,7 +26,7 @@ namespace Game.Cube
     }
 
     /// <summary>
-    /// The hook a face's content plugs into CubeWorld through (Biology now; Chemistry and Physics later, the
+    /// The hook a face's content plugs into CubeWorld through (Biology and Chemistry now; Physics later, the
     /// same way). Implementations live on the CubeWorld's GameObject, under Faces/&lt;Theme&gt;/, in three parts:
     /// gate behaviours, the trial and the population. On every reveal CubeWorld calls BeginReveal once the
     /// item placement is known, CreateGate for each gate whose item is this content's theme (null falls back
@@ -44,5 +46,15 @@ namespace Game.Cube
         void EndReveal(CubeWorld world);
 
         void Clear();
+    }
+
+    /// <summary>
+    /// Optional extra hook for face content that replaces its item's one-shot pickup (Chemistry: the isotope
+    /// dispenser). CubeWorld calls it for the pickup of the content's theme, after the gates; null falls back to
+    /// a plain ItemPickup. The returned pickup goes into CubeWorld.Pickups like any other.
+    /// </summary>
+    public interface IFacePickupContent
+    {
+        ItemPickup CreatePickup(CubeWorld world, PickupPlacement placement, Transform parent, Vector2 position, ItemDefinition item);
     }
 }
