@@ -118,17 +118,26 @@ namespace Game.Cube
             else transform.position = (Vector3)(here + velocity * dt) + Vector3.forward * transform.position.z;
         }
 
+        /// <summary>Speed at which a body pushed outside its bounds walks back in (at least; faster if it was moving faster).</summary>
+        public const float ReturnSpeed = 1.5f;
+
         /// <summary>
         /// The velocity trimmed so one step of dt from here stays inside bounds (an empty rect means no bounds).
-        /// A body already outside may move back in but not further out. Shared with EnemyBrain.
+        /// A body already outside (e.g. pushed out) is steered straight back toward the nearest point inside,
+        /// whatever it wanted to do. Shared with EnemyBrain.
         /// </summary>
         public static Vector2 BoundedVelocity(Vector2 here, Vector2 velocity, Rect bounds, float dt)
         {
             if (dt <= 0f || (bounds.width <= 0f && bounds.height <= 0f)) return velocity;
+            var inside = new Vector2(Mathf.Clamp(here.x, bounds.xMin, bounds.xMax), Mathf.Clamp(here.y, bounds.yMin, bounds.yMax));
+            Vector2 back = inside - here;
+            if (back.sqrMagnitude > 0f)
+            {
+                float speed = Mathf.Max(velocity.magnitude, ReturnSpeed);
+                return back.magnitude <= speed * dt ? back / dt : back.normalized * speed;
+            }
             Vector2 next = here + velocity * dt;
-            next = new Vector2(
-                Mathf.Clamp(next.x, Mathf.Min(here.x, bounds.xMin), Mathf.Max(here.x, bounds.xMax)),
-                Mathf.Clamp(next.y, Mathf.Min(here.y, bounds.yMin), Mathf.Max(here.y, bounds.yMax)));
+            next = new Vector2(Mathf.Clamp(next.x, bounds.xMin, bounds.xMax), Mathf.Clamp(next.y, bounds.yMin, bounds.yMax));
             return (next - here) / dt;
         }
 

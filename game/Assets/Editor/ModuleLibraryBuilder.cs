@@ -12,6 +12,11 @@ using UnityEngine;
 /// Each gate slot sits in the opening of an alcove: a pocket about 2x2 walled on three sides, open
 /// toward the screen's horizontal centre lane. Alcoves follow ScreenModule.KeepsExitsOpen, so gates
 /// only ever close the alcove, never a screen exit.
+/// Town modules are dressed as mixed-style ruins: their pillars are tinted in the science faces' colours
+/// (a different face per pillar and per module), and a "Ruins" group adds one visual-only piece per science
+/// face (pillar, arch, round stone, diamond tile or broken column, a mismatched shape per module) in that
+/// face's colour. Ruin pieces have no colliders and are placed where KeepsExitsOpen holds, clear of walls,
+/// alcoves and the hidden-item slot.
 /// Also works from the command line via -executeMethod ModuleLibraryBuilder.Build.
 /// </summary>
 public static class ModuleLibraryBuilder
@@ -107,6 +112,7 @@ public static class ModuleLibraryBuilder
     public static void Build()
     {
         Sprite sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        Sprite round = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
         Material material = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
 
         // Town: one fixed module per cell (row-major), ruins in every face's style, no core entrance.
@@ -115,7 +121,7 @@ public static class ModuleLibraryBuilder
         {
             Vector2 mirror = MirrorFor(Theme.Town, i);
             town.Add(SaveModule(Theme.Town, $"Town {i} {Designs[i].Name.Substring(2)}", Designs[i], mirror, false,
-                sprite, material));
+                sprite, material, i, round));
         }
 
         var pools = new List<ModuleLibrary.ThemePool>();
@@ -163,8 +169,9 @@ public static class ModuleLibraryBuilder
     }
 
     private static ScreenModule SaveModule(Theme theme, string name, Design design, Vector2 mirror, bool withCore,
-        Sprite sprite, Material material)
+        Sprite sprite, Material material, int townIndex = -1, Sprite round = null)
     {
+        bool town = theme == Theme.Town;
         var root = new GameObject(name);
         try
         {
@@ -184,7 +191,11 @@ public static class ModuleLibraryBuilder
                 obstacleRects.Add(local);
                 Transform obstacle = Child($"Obstacle {i}", obstacles, centre);
                 obstacle.gameObject.AddComponent<BoxCollider2D>().size = block.Size;
-                AddVisual(obstacle, block.Size, obstacleColor, -5, sprite, material);
+                // Town pillars are ruins of every face: each one in a different science face's colour.
+                Color color = town
+                    ? Color.Lerp(CubeWorld.ThemeColor(ScienceThemes[(i + townIndex) % ScienceThemes.Length]), Color.black, 0.45f)
+                    : obstacleColor;
+                AddVisual(obstacle, block.Size, color, -5, sprite, material);
             }
 
             // Alcoves: three walls around each gate slot, open toward the screen centre.
@@ -211,6 +222,10 @@ public static class ModuleLibraryBuilder
                     AddVisual(piece, wall.size, obstacleColor, -5, sprite, material);
                 }
             }
+
+            if (town)
+                AddRuins(name, root.transform, townIndex, obstacleRects, alcoveRects, Vector2.Scale(design.HiddenItem, mirror),
+                    sprite, round, material);
 
             Transform slots = Child("Slots", root.transform, Vector2.zero);
             Vector2 half = CubeWorld.ScreenSize / 2f;
@@ -251,6 +266,138 @@ public static class ModuleLibraryBuilder
         {
             UnityEngine.Object.DestroyImmediate(root);
         }
+    }
+
+    /// <summary>Shapes of the visual-only ruin pieces in town.</summary>
+    private enum RuinShape { Pillar = 0, Arch = 1, Stone = 2, Tile = 3, Broken = 4 }
+
+    /// <summary>Bounding size of each ruin shape (module-local units).</summary>
+    private static Vector2 RuinSize(RuinShape shape)
+    {
+        switch (shape)
+        {
+            case RuinShape.Pillar: return new Vector2(0.5f, 1.3f);
+            case RuinShape.Arch: return new Vector2(1.6f, 1.55f); // posts reach -0.75, the tilted lintel ~0.77
+            case RuinShape.Stone: return new Vector2(0.9f, 0.9f);
+            case RuinShape.Tile: return new Vector2(1.1f, 1.1f);
+            default: return new Vector2(1.6f, 1.0f);
+        }
+    }
+
+    /// <summary>Gap kept between a ruin piece and walls, alcoves, other pieces and the hidden-item slot.</summary>
+    private const float RuinGap = 0.15f;
+
+    /// <summary>
+    /// One ruin piece per science face, in that face's colour, with the shape rotating per module so
+    /// neighbouring screens never match. Each piece takes the first free spot of a fixed scan that starts in
+    /// a different quadrant per piece. Visual only (no colliders), and still kept where KeepsExitsOpen holds.
+    /// </summary>
+    private static void AddRuins(string module, Transform root, int townIndex, List<Rect> obstacles, List<Rect> alcoves,
+        Vector2 hidden, Sprite square, Sprite round, Material material)
+    {
+        Transform ruins = Child("Ruins", root, Vector2.zero);
+        var placed = new List<Rect>();
+        var hiddenRect = new Rect(hidden - new Vector2(0.4f, 0.4f), new Vector2(0.8f, 0.8f));
+        for (int k = 0; k < ScienceThemes.Length; k++)
+        {
+            Theme theme = ScienceThemes[k];
+            var shape = (RuinShape)((k + townIndex) % ScienceThemes.Length);
+            // Full size where it fits; crowded screens get a smaller (more broken) piece.
+            Vector2 at = default, size = default;
+            float scale = 0f;
+            foreach (float s in new[] { 1f, 0.8f, 0.6f })
+            {
+                size = RuinSize(shape) * s;
+                if (!TryRuinSpot(size, (k + townIndex) % 4, obstacles, alcoves, placed, hiddenRect, out at)) continue;
+                scale = s;
+                break;
+            }
+            if (scale <= 0f) throw new InvalidOperationException($"{module}: no room for the {theme} ruin ({shape})");
+            placed.Add(new Rect(at - size / 2f, size));
+            Color color = Color.Lerp(CubeWorld.ThemeColor(theme), new Color(0.8f, 0.78f, 0.72f), 0.25f);
+            Transform piece = Child($"Ruin {theme} {shape}", ruins, at);
+            piece.localScale = new Vector3(scale, scale, 1f);
+            BuildRuinPiece(piece, shape, color, square, round != null ? round : square, material);
+        }
+    }
+
+    private static bool TryRuinSpot(Vector2 size, int quadrant, List<Rect> obstacles, List<Rect> alcoves,
+        List<Rect> placed, Rect hidden, out Vector2 at)
+    {
+        Vector2 half = CubeWorld.ScreenSize / 2f;
+        const float step = 0.25f;
+        int nx = Mathf.FloorToInt(half.x / step), ny = Mathf.FloorToInt(half.y / step);
+        for (int q = 0; q < 4; q++)
+        {
+            int quad = (quadrant + q) % 4;
+            float sx = quad == 0 || quad == 3 ? 1f : -1f;
+            float sy = quad < 2 ? 1f : -1f;
+            // Scan from the outer corner of the quadrant inward.
+            for (int iy = ny; iy >= 0; iy--)
+            {
+                for (int ix = nx; ix >= 0; ix--)
+                {
+                    var centre = new Vector2(sx * ix * step, sy * iy * step);
+                    var rect = new Rect(centre - size / 2f, size);
+                    if (!ScreenModule.KeepsExitsOpen(rect)) continue;
+                    Rect padded = Grow(rect, RuinGap);
+                    if (padded.Overlaps(hidden) || OverlapsAny(padded, obstacles) || OverlapsAny(padded, alcoves) ||
+                        OverlapsAny(padded, placed)) continue;
+                    at = centre;
+                    return true;
+                }
+            }
+        }
+        at = default;
+        return false;
+    }
+
+    private static void BuildRuinPiece(Transform piece, RuinShape shape, Color color, Sprite square, Sprite round,
+        Material material)
+    {
+        const int order = -7; // above the floor (-10), below walls (-5) and NPCs
+        Color dark = Color.Lerp(color, Color.black, 0.3f);
+        switch (shape)
+        {
+            case RuinShape.Pillar:
+                AddPiece(piece, "Shaft", Vector2.zero, new Vector2(0.4f, 1.3f), 0f, color, order, square, material);
+                AddPiece(piece, "Capital", new Vector2(0f, 0.55f), new Vector2(0.5f, 0.2f), 0f, dark, order + 1, square, material);
+                break;
+            case RuinShape.Arch:
+                AddPiece(piece, "Post L", new Vector2(-0.65f, -0.1f), new Vector2(0.3f, 1.3f), 0f, color, order, square, material);
+                AddPiece(piece, "Post R", new Vector2(0.65f, -0.25f), new Vector2(0.3f, 1.0f), 0f, color, order, square, material);
+                AddPiece(piece, "Lintel", new Vector2(-0.1f, 0.55f), new Vector2(1.3f, 0.3f), -6f, dark, order + 1, square, material);
+                break;
+            case RuinShape.Stone:
+                AddPiece(piece, "Stone", Vector2.zero, new Vector2(0.9f, 0.9f), 0f, color, order, round, material);
+                AddPiece(piece, "Ring", Vector2.zero, new Vector2(0.45f, 0.45f), 0f, dark, order + 1, round, material);
+                break;
+            case RuinShape.Tile:
+                AddPiece(piece, "Tile", Vector2.zero, new Vector2(0.75f, 0.75f), 45f, color, order, square, material);
+                AddPiece(piece, "Inlay", Vector2.zero, new Vector2(0.35f, 0.35f), 45f, dark, order + 1, square, material);
+                break;
+            default:
+                AddPiece(piece, "Stump", new Vector2(-0.5f, -0.15f), new Vector2(0.45f, 0.6f), 0f, color, order, square, material);
+                AddPiece(piece, "Fallen", new Vector2(0.25f, -0.1f), new Vector2(1.0f, 0.35f), 15f, dark, order + 1, square, material);
+                break;
+        }
+    }
+
+    private static void AddPiece(Transform parent, string name, Vector2 at, Vector2 size, float angle, Color color,
+        int sortingOrder, Sprite sprite, Material material)
+    {
+        Transform t = Child(name, parent, at);
+        t.localRotation = Quaternion.Euler(0f, 0f, angle);
+        AddVisual(t, size, color, sortingOrder, sprite, material);
+    }
+
+    private static Rect Grow(Rect r, float by) => Rect.MinMaxRect(r.xMin - by, r.yMin - by, r.xMax + by, r.yMax + by);
+
+    private static bool OverlapsAny(Rect rect, List<Rect> others)
+    {
+        foreach (Rect o in others)
+            if (o.Overlaps(rect)) return true;
+        return false;
     }
 
     /// <summary>|y| of the pocket centre: midway between the inside of the gate and the back wall.</summary>

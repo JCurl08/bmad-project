@@ -12,7 +12,7 @@ using UnityEngine.SceneManagement;
 /// camera, the CubeWorld and the debug overlay, and puts it first in the build list (Tracer is kept).
 /// The CubeWorld is wired to the module library and the item catalog (each built first if missing);
 /// the player carries an Inventory and the combat parts (Health, PlayerStats, Equipment, PlayerAttack), and a
-/// CombatHud shows its hearts and equipped item.
+/// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -99,6 +99,11 @@ public static class CubeSceneBuilder
         var debug = new GameObject("Cube Debug").AddComponent<CubeDebug>();
         debug.World = world;
         debug.Navigator = navigator;
+
+        // Town: one NPC of each face race plus a few Townsfolk, respawned on every run start.
+        var town = new GameObject("Town Population").AddComponent<TownPopulation>();
+        town.World = world;
+        town.Player = player.transform;
 
         var hud = new GameObject("Combat HUD").AddComponent<CombatHud>();
         hud.Health = health;
