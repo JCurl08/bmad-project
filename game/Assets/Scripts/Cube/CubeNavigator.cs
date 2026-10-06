@@ -7,6 +7,8 @@ namespace Game.Cube
     /// Moves the player between cube faces. When the player leaves a face's outer edge it asks
     /// CubeModel.TryStep for the next screen and facing, then places the player at the matching entry
     /// point on the next face, keeping the position along the edge. A step into a sealed face is a wall.
+    /// Arriving on a built science face (the first crossing off Town, or a debug teleport) while the science
+    /// faces are unrevealed reveals (lays out) them before the player is moved.
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class CubeNavigator : MonoBehaviour
@@ -85,9 +87,17 @@ namespace Game.Cube
         /// <summary>Places the player at the centre of a screen.</summary>
         public void TeleportTo(ScreenAddress address, Facing facing)
         {
+            RevealIfArriving(address.Face);
             Face = address.Face;
             Facing = facing;
             SetPosition(world.ScreenCenter(address));
+        }
+
+        /// <summary>Reveals the science layout when arriving on a built science face while it is still unrevealed.</summary>
+        private void RevealIfArriving(FaceId face)
+        {
+            if (world != null && world.Model != null && !world.ScienceRevealed && CubeLayout.IsLaidOut(world.Model, face))
+                world.RevealScience();
         }
 
         private void CheckEdges()
@@ -128,6 +138,9 @@ namespace Game.Cube
                 if (body != null) body.linearVelocity = velocity;
                 return;
             }
+
+            // Leaving town for the first time in this run: lay out the science faces before arriving.
+            RevealIfArriving(next.Face);
 
             float newT = CubeModel.MapAlongEdge(Face, direction, t, out _, out _);
             Face = next.Face;

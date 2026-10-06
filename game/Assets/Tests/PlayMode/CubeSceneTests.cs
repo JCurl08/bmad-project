@@ -100,6 +100,7 @@ namespace Game.Cube.Tests
                     offFace = $"{phase}: camera on screen {screenCamera.CurrentScreen}, player at {navigator.transform.position}";
             }
 
+            Assert.IsFalse(world.ScienceRevealed, "Science faces must stay unrevealed until leaving town");
             ScreenAddress arrived = default;
             bool crossed = false;
             Press(KeyFor(direction), queueEventOnly: true);
@@ -133,6 +134,132 @@ namespace Game.Cube.Tests
             Assert.That(local.y, Is.InRange(0f, world.FaceExtent.y), "Player y outside the new face");
             Assert.AreEqual(ScreenMath.ScreenIndex(navigator.transform.position), screenCamera.CurrentScreen,
                 "Camera did not follow the player onto the new face");
+
+            // Leaving town revealed the science layout, generated from the run seed alone.
+            Assert.IsTrue(world.ScienceRevealed, "Crossing off Town did not reveal the science faces");
+            Assert.IsNotNull(world.Layout);
+            Assert.AreEqual(CubeLayout.Generate(new CubeModel(world.Seed), world.Library).Signature(),
+                world.Layout.Signature(), "Revealed layout differs from the seed's layout");
+            ScreenModule landedOn = world.ModuleAt(arrived);
+            Assert.IsNotNull(landedOn, $"Landed on {arrived}, which has no module");
+            Assert.AreEqual(model.ThemeOf(arrived.Face), landedOn.Theme);
+            AssertLaidOut(model);
+        }
+
+        /// <summary>Every built science screen has a module of its theme; one active core entrance per face; sealed faces are empty.</summary>
+        private void AssertLaidOut(CubeModel model)
+        {
+            foreach (FaceId face in Enum.GetValues(typeof(FaceId)))
+            {
+                var screens = model.AllScreens().Where(s => s.Face == face).ToList();
+                if (model.IsSealed(face))
+                {
+                    Assert.IsTrue(screens.All(s => world.ModuleAt(s) == null), $"Sealed {face} has modules");
+                    continue;
+                }
+                Assert.IsTrue(screens.All(s => world.ModuleAt(s) != null && world.ModuleAt(s).Theme == model.ThemeOf(face)),
+                    $"{face} is not fully laid out with {model.ThemeOf(face)} modules");
+                foreach (ScreenAddress s in screens)
+                {
+                    foreach (ExitSlot exit in world.ModuleAt(s).Exits)
+                    {
+                        bool open = model.TryStep(s, exit.Facing, out _, out _);
+                        Assert.AreEqual(open, exit.gameObject.activeSelf,
+                            $"{s} {exit.Label}: active exit slots must not face a sealed face, open ones must stay active");
+                    }
+                }
+                if (face == CubeModel.StartFace) continue;
+                int activeCores = screens.Sum(s => world.ModuleAt(s).ActiveCoreEntrances().Count);
+                Assert.AreEqual(1, activeCores, $"{face} ({model.ThemeOf(face)}) active core entrances");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator RunStart_OnlyTownIsLaidOut_ScienceUnrevealed()
+        {
+            yield return LoadCubeScene();
+            CubeModel model = world.Model;
+            Assert.IsNotNull(world.Library, "CubeWorld has no ModuleLibrary wired in");
+            Assert.IsFalse(world.ScienceRevealed);
+            Assert.IsNull(world.Layout);
+            foreach (ScreenAddress screen in model.AllScreens())
+            {
+                ScreenModule module = world.ModuleAt(screen);
+                if (screen.Face == CubeModel.StartFace)
+                {
+                    Assert.IsNotNull(module, $"Town screen {screen} has no module");
+                    Assert.AreEqual(Theme.Town, module.Theme);
+                    Assert.AreEqual(world.Library.TownModule(screen.Cell, model.FaceSize).name,
+                        module.name.Split(new[] { " @ " }, StringSplitOptions.None)[0], $"Town module on {screen} is not the fixed one");
+                }
+                else
+                {
+                    Assert.IsNull(module, $"{screen} was laid out before leaving town");
+                }
+            }
+
+            // Arriving on a built science face by debug teleport also reveals; a second reveal is a no-op.
+            ScreenAddress science = model.AllScreens().First(s => CubeLayout.IsLaidOut(model, s.Face));
+            navigator.TeleportTo(science, Facing.East);
+            Assert.IsTrue(world.ScienceRevealed, "Teleporting onto a science face did not reveal it");
+            Assert.IsNotNull(world.ModuleAt(science));
+            string signature = world.Layout.Signature();
+            Assert.IsFalse(world.RevealScience());
+            Assert.AreEqual(signature, world.Layout.Signature());
+            yield return null;
+            AssertLaidOut(model);
+        }
+
+        [UnityTest]
+        public IEnumerator DebugF2_ShowsLabelledMarkersOnEverySlot()
+        {
+            yield return LoadCubeScene();
+            var debug = UnityEngine.Object.FindAnyObjectByType<CubeDebug>();
+            Assert.IsNotNull(debug);
+            Assert.IsFalse(debug.SlotMarkersVisible, "Slot markers should start hidden");
+
+            Press(keyboard.f2Key, queueEventOnly: true);
+            yield return null;
+            yield return null;
+            Release(keyboard.f2Key, queueEventOnly: true);
+            yield return null;
+            Assert.IsTrue(debug.SlotMarkersVisible, "F2 did not turn slot markers on");
+
+            ScreenModule here = world.ModuleAt(navigator.Current);
+            Assert.IsNotNull(here);
+            var active = here.AllSlots.Where(s => s.gameObject.activeInHierarchy).ToList();
+            int openSides = Enum.GetValues(typeof(Facing)).Cast<Facing>()
+                .Count(f => world.Model.TryStep(navigator.Current, f, out _, out _));
+            Assert.AreEqual(openSides, active.OfType<ExitSlot>().Count(), "One active exit per open side");
+            Assert.GreaterOrEqual(active.OfType<GateSlot>().Count(), 1);
+            Assert.AreEqual(1, active.OfType<HiddenItemSlot>().Count());
+            foreach (ModuleSlot slot in active)
+            {
+                Assert.IsTrue(slot.MarkerVisible, $"{slot.Label} on {here.name} has no visible marker");
+                Assert.IsNotEmpty(slot.Label);
+            }
+
+            // Modules created later (the science reveal) get markers too, including the active core entrance.
+            world.RevealScience();
+            yield return null;
+            int coreMarkers = 0;
+            foreach (ScreenModule module in world.AllModules)
+            {
+                foreach (ModuleSlot slot in module.AllSlots.Where(s => s.gameObject.activeInHierarchy))
+                {
+                    Assert.IsTrue(slot.MarkerVisible, $"{slot.Label} on {module.name} has no visible marker");
+                    if (slot is CoreEntranceSlot) coreMarkers++;
+                }
+            }
+            Assert.AreEqual(3, coreMarkers, "One core-entrance marker per built science face");
+
+            Press(keyboard.f2Key, queueEventOnly: true);
+            yield return null;
+            yield return null;
+            Release(keyboard.f2Key, queueEventOnly: true);
+            yield return null;
+            Assert.IsFalse(debug.SlotMarkersVisible, "F2 did not turn slot markers off");
+            Assert.IsTrue(world.AllModules.SelectMany(m => m.AllSlots).All(s => !s.MarkerVisible));
         }
 
         [UnityTest]
@@ -196,6 +323,7 @@ namespace Game.Cube.Tests
             Assert.AreNotEqual(oldSeed, world.Seed, "F5 did not reroll the seed");
             Assert.AreEqual(world.Seed, world.Model.Seed);
             Assert.AreEqual(world.Model.StartScreen, navigator.Current, "Reroll should return the player to the start screen");
+            Assert.IsFalse(world.ScienceRevealed, "A reroll starts a new run with the science faces unrevealed");
 
             ScreenAddress before = navigator.Current;
             Press(keyboard.f6Key, queueEventOnly: true);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Game.Tracer;
 using UnityEngine;
 
@@ -6,9 +7,11 @@ namespace Game.Cube
 {
     /// <summary>
     /// Runtime cube world. Owns the CubeModel for the current seed and lays each face out as an
-    /// N x N block of screens in its own world region (one empty screen column between faces), with
-    /// placeholder floors tinted per theme. Sealed faces are drawn dark, and edges that lead into a
-    /// sealed face get a wall.
+    /// N x N block of screens in its own world region (one empty screen column between faces). Edges
+    /// that lead into a sealed face get a wall.
+    /// A run starts with only Town laid out (its fixed modules); the built science faces stay dark and
+    /// unpatterned until RevealScience() (called on the first crossing off Town) lays them out from
+    /// CubeLayout and instantiates their modules. Sealed faces are drawn dark and never laid out.
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -17,14 +20,30 @@ namespace Game.Cube
         [SerializeField] private int seed = 1234;
         [SerializeField] private Sprite sprite;
         [SerializeField] private Material material;
+        [SerializeField] private ModuleLibrary library;
 
         private Transform generated;
+        private readonly Transform[] floorRoots = new Transform[CubeSettings.FaceCount];
+        private readonly Transform[] moduleRoots = new Transform[CubeSettings.FaceCount];
+        private readonly Dictionary<ScreenAddress, ScreenModule> modules = new Dictionary<ScreenAddress, ScreenModule>();
         private static Sprite fallbackSprite;
 
         public CubeModel Model { get; private set; }
         public int Seed => Model != null ? Model.Seed : seed;
         /// <summary>N, read from the model (built from CubeSettings.DefaultFaceSize).</summary>
         public int FaceSize => Model != null ? Model.FaceSize : CubeSettings.DefaultFaceSize;
+
+        public ModuleLibrary Library => library;
+
+        /// <summary>The science layout of this run; null until the science faces are revealed.</summary>
+        public CubeLayout Layout { get; private set; }
+
+        /// <summary>True once the built science faces have been laid out in this run.</summary>
+        public bool ScienceRevealed { get; private set; }
+
+        /// <summary>Sprite and material used for generated visuals (also used by debug markers).</summary>
+        public Sprite Sprite => sprite != null ? sprite : GetFallbackSprite();
+        public Material Material => material;
 
         /// <summary>One screen is ScreenMath.DefaultScreenSize (16x10); never duplicated here.</summary>
         public static Vector2 ScreenSize => ScreenMath.DefaultScreenSize;
@@ -35,11 +54,15 @@ namespace Game.Cube
         /// <summary>Raised after every (re)build, once the new model and visuals exist.</summary>
         public event Action Rebuilt;
 
-        public void Configure(Sprite floorSprite, Material spriteMaterial, int startSeed)
+        /// <summary>Raised once per run, after the science faces have been laid out.</summary>
+        public event Action Revealed;
+
+        public void Configure(Sprite floorSprite, Material spriteMaterial, int startSeed, ModuleLibrary moduleLibrary)
         {
             sprite = floorSprite;
             material = spriteMaterial;
             seed = startSeed;
+            library = moduleLibrary;
         }
 
         private void Awake()
@@ -47,21 +70,61 @@ namespace Game.Cube
             if (Model == null) Rebuild(seed);
         }
 
-        /// <summary>Builds the model for the given seed and regenerates every face's visuals.</summary>
+        /// <summary>
+        /// Starts a new run: builds the model for the given seed, lays out Town and leaves the science
+        /// faces unrevealed.
+        /// </summary>
         public void Rebuild(int newSeed)
         {
             seed = newSeed;
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize);
+            Layout = null;
+            ScienceRevealed = false;
+            modules.Clear();
 
             if (generated != null) Destroy(generated.gameObject);
-            generated = new GameObject("Generated Faces").transform;
-            generated.SetParent(transform, false);
+            generated = NewChild("Generated Faces", transform);
 
             for (int f = 0; f < CubeSettings.FaceCount; f++)
                 BuildFace((FaceId)f);
 
             Rebuilt?.Invoke();
         }
+
+        /// <summary>
+        /// Lays out the built science faces from CubeLayout (seeded by the run seed only) and instantiates
+        /// their modules, with exactly one active core-entrance slot per face. Does nothing if already
+        /// revealed in this run. Returns true if it revealed.
+        /// </summary>
+        public bool RevealScience()
+        {
+            if (Model == null || ScienceRevealed) return false;
+            ScienceRevealed = true;
+            if (library != null) Layout = CubeLayout.Generate(Model, library);
+            else Debug.LogWarning("CubeWorld: no ModuleLibrary assigned; science faces revealed without modules.");
+
+            for (int f = 0; f < CubeSettings.FaceCount; f++)
+            {
+                var face = (FaceId)f;
+                if (!CubeLayout.IsLaidOut(Model, face)) continue;
+                Transform parent = floorRoots[f].parent;
+                Destroy(floorRoots[f].gameObject);
+                floorRoots[f] = NewChild("Floor", parent);
+                parent.name = $"Face {face} ({Model.ThemeOf(face)})";
+                BuildFloor(face, floorRoots[f], ThemeColor(Model.ThemeOf(face)), true);
+                BuildScienceModules(face);
+            }
+
+            Revealed?.Invoke();
+            return true;
+        }
+
+        /// <summary>The module instance on a screen, or null (unrevealed or sealed face).</summary>
+        public ScreenModule ModuleAt(ScreenAddress address) =>
+            modules.TryGetValue(address, out ScreenModule module) ? module : null;
+
+        /// <summary>Every module instance currently in the world.</summary>
+        public IEnumerable<ScreenModule> AllModules => modules.Values;
 
         /// <summary>Lower-left corner of a face's region; aligned to the screen grid so ScreenCamera snaps cleanly.</summary>
         public Vector2 FaceOrigin(FaceId face)
@@ -96,25 +159,92 @@ namespace Game.Cube
 
         private void BuildFace(FaceId face)
         {
+            int f = (int)face;
             Theme theme = Model.ThemeOf(face);
             bool sealedFace = Model.IsSealed(face);
-            var root = new GameObject($"Face {face} ({theme}{(sealedFace ? ", sealed" : "")})").transform;
-            root.SetParent(generated, false);
+            bool town = face == CubeModel.StartFace;
+            string state = sealedFace ? ", sealed" : town ? "" : ", unrevealed";
+            Transform root = NewChild($"Face {face} ({theme}{state})", generated);
+            floorRoots[f] = NewChild("Floor", root);
+            moduleRoots[f] = NewChild("Modules", root);
 
-            Color baseColor = sealedFace ? Color.Lerp(ThemeColor(theme), Color.black, 0.8f) : ThemeColor(theme);
+            if (sealedFace)
+            {
+                BuildFloor(face, floorRoots[f], Color.Lerp(ThemeColor(theme), Color.black, 0.8f), true);
+                return;
+            }
+
+            if (town)
+            {
+                BuildFloor(face, floorRoots[f], ThemeColor(theme), true);
+                BuildTownModules();
+            }
+            else
+            {
+                // Unrevealed science face: dark and unpatterned until the player first leaves town.
+                BuildFloor(face, floorRoots[f], new Color(0.08f, 0.08f, 0.09f), false);
+            }
+
+            BuildSealedWalls(face, root);
+        }
+
+        private void BuildFloor(FaceId face, Transform parent, Color baseColor, bool checkered)
+        {
             for (int y = 0; y < FaceSize; y++)
             {
                 for (int x = 0; x < FaceSize; x++)
                 {
                     var address = new ScreenAddress(face, x, y);
                     // Checkerboard shading so neighbouring screens are distinguishable.
-                    Color color = ((x + y) & 1) == 0 ? baseColor : Color.Lerp(baseColor, Color.black, 0.15f);
-                    CreateBlock($"Screen {x},{y}", root, ScreenCenter(address), ScreenSize * 0.98f, color, -10, false);
+                    Color color = !checkered || ((x + y) & 1) == 0 ? baseColor : Color.Lerp(baseColor, Color.black, 0.15f);
+                    CreateBlock($"Screen {x},{y}", parent, ScreenCenter(address), ScreenSize * 0.98f, color, -10, false);
                 }
             }
+        }
 
-            if (sealedFace) return;
+        private void BuildTownModules()
+        {
+            if (library == null) return;
+            for (int y = 0; y < FaceSize; y++)
+            {
+                for (int x = 0; x < FaceSize; x++)
+                {
+                    var address = new ScreenAddress(CubeModel.StartFace, x, y);
+                    ScreenModule prefab = library.TownModule(address.Cell, FaceSize);
+                    if (prefab != null) PlaceModule(prefab, address, -1);
+                }
+            }
+        }
 
+        private void BuildScienceModules(FaceId face)
+        {
+            if (Layout == null || !Layout.TryGetFace(face, out FaceLayout faceLayout)) return;
+            for (int y = 0; y < FaceSize; y++)
+            {
+                for (int x = 0; x < FaceSize; x++)
+                {
+                    var cell = new Vector2Int(x, y);
+                    ScreenModule prefab = library.Module(faceLayout.Theme, faceLayout.ModuleAt(cell));
+                    int core = cell == faceLayout.CoreCell ? faceLayout.CoreSlot : -1;
+                    PlaceModule(prefab, new ScreenAddress(face, cell), core);
+                }
+            }
+        }
+
+        private void PlaceModule(ScreenModule prefab, ScreenAddress address, int activeCoreSlot)
+        {
+            ScreenModule module = Instantiate(prefab, moduleRoots[(int)address.Face]);
+            module.name = $"{prefab.name} @ {address.Cell.x},{address.Cell.y}";
+            module.transform.position = ScreenCenter(address);
+            module.SetActiveCoreEntrance(activeCoreSlot);
+            // Exits whose edge leads into a sealed face are closed (that edge is a wall).
+            foreach (ExitSlot exit in module.Exits)
+                exit.gameObject.SetActive(Model.TryStep(address, exit.Facing, out _, out _));
+            modules[address] = module;
+        }
+
+        private void BuildSealedWalls(FaceId face, Transform root)
+        {
             // Edges into a sealed face are walls (inside the face region, so the player never leaves it).
             Vector2 origin = FaceOrigin(face);
             Vector2 extent = FaceExtent;
@@ -148,6 +278,13 @@ namespace Game.Cube
             }
         }
 
+        private static Transform NewChild(string name, Transform parent)
+        {
+            Transform child = new GameObject(name).transform;
+            child.SetParent(parent, false);
+            return child;
+        }
+
         private GameObject CreateBlock(string name, Transform parent, Vector2 centre, Vector2 size, Color color,
             int sortingOrder, bool collider)
         {
@@ -156,7 +293,7 @@ namespace Game.Cube
             go.transform.position = centre;
 
             // Visual is a scaled child so the collider on the parent keeps world-unit sizes.
-            Sprite s = sprite != null ? sprite : GetFallbackSprite();
+            Sprite s = Sprite;
             var visual = new GameObject("Visual");
             visual.transform.SetParent(go.transform, false);
             Vector2 spriteSize = s.bounds.size;

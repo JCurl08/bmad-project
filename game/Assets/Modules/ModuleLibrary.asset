@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de193d5609a92eb49b80631f575a0761, type: 3}
+  m_Name: ModuleLibrary
+  m_EditorClassIdentifier: Game.Cube::Game.Cube.ModuleLibrary
+  townModules:
+  - {fileID: 6554476652862171411, guid: 91e40c3e7b11c7246813bbf3739e6a29, type: 3}
+  - {fileID: 4303767524969567261, guid: 0d66b1ea621007349bd6429129c7382e, type: 3}
+  - {fileID: 4760788316226484787, guid: 47f007ef673e5d74a8cd120b848be96a, type: 3}
+  - {fileID: 7915575705381170384, guid: ca63c04631f63f54282b352907832232, type: 3}
+  sciencePools:
+  - Theme: 1
+    Modules:
+    - {fileID: 1970328105836763458, guid: 0a778ffce449df94e807566434037f67, type: 3}
+    - {fileID: 6045739423014154458, guid: 5bfd9681a5ff38547970a6244c95ec63, type: 3}
+    - {fileID: 6260043653057277291, guid: 1aceab0aa181c854dbea69bd4cfbbf2d, type: 3}
+    - {fileID: 6237013415389807613, guid: 2ece9eeaa153fef48b026956e8236351, type: 3}
+  - Theme: 2
+    Modules:
+    - {fileID: 753416825705432497, guid: d941836b072a64a41873ee73e87d724a, type: 3}
+    - {fileID: 965991847005068414, guid: 758cd3cd3a0039842a1c2f15382cdbd3, type: 3}
+    - {fileID: 1678147227484023621, guid: 8c6e18a8d7f3182448ad18f68599fff1, type: 3}
+    - {fileID: 7881133358286547757, guid: 3890d62dad5a30d48bad0c4ecacc4c63, type: 3}
+  - Theme: 3
+    Modules:
+    - {fileID: 763967117624206627, guid: b8b74909d05fab947a94727cd7c582e1, type: 3}
+    - {fileID: 9046460337289979449, guid: 00b4cab665b70ed4f8e4f5c46f7f9b49, type: 3}
+    - {fileID: 4451946658487381839, guid: e3445678db3d8e04b88983cb10f33eef, type: 3}
+    - {fileID: 2428851742805951879, guid: e21493056cb88514cb65e9b89fd7743c, type: 3}
+  - Theme: 4
+    Modules:
+    - {fileID: 8822063538039512774, guid: 4081661ca0cdd4a43a07274e0bba0f73, type: 3}
+    - {fileID: 1953035684256480317, guid: 89ee70a061a5dc84ca0bffcfd2b0a2bf, type: 3}
+    - {fileID: 2408622820342213468, guid: 99123161d40c93b4eb4cfb5d89872670, type: 3}
+    - {fileID: 3394788020727259955, guid: ea6fad23cb83a4b49b7d9e5b59123a5e, type: 3}
+  - Theme: 5
+    Modules:
+    - {fileID: 3295227103635387758, guid: 74eb3278d1057f84aa3b6bd86a3d693a, type: 3}
+    - {fileID: 1543250130134614892, guid: ec593fcd802d5c44aa3d751461e12023, type: 3}
+    - {fileID: 4243245622382851748, guid: 15a0976fe1410e0499a59da82d9c2eef, type: 3}
+    - {fileID: 7007914730419771452, guid: b425bd74bbd72dd49bced6d5f8aedace, type: 3}
