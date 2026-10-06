@@ -88,6 +88,7 @@ namespace Game.Cube.Tests
             physics.SpawnEnemies = enemies;
             world.GetComponent<BiologyFace>().SpawnEnemies = false;
             world.GetComponent<ChemistryFace>().SpawnEnemies = false;
+            world.GetComponent<MathFace>().SpawnEnemies = false;
             navigator.TeleportTo(new ScreenAddress(world.Model.FaceOf(Theme.Physics), 0, 0), Facing.East);
             Assert.IsTrue(world.ScienceRevealed, "Leaving Town reveals the science faces");
             Assert.IsNotNull(physics.Plan);
@@ -143,25 +144,27 @@ namespace Game.Cube.Tests
         }
 
         /// <summary>A direction from a point along which the player fits at near and at far (no solid collider but boulders).</summary>
-        private static Vector2 ClearDirection(Vector2 from, float near, float far)
+        private static Vector2 ClearDirection(Vector2 from, float near, float far, Boulder dragged = null, Rect? boulderBounds = null)
         {
             Physics2D.SyncTransforms();
             for (int k = 0; k < 16; k++)
             {
                 float a = k * Mathf.PI / 8f;
                 var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                if (Fits(from + dir * near) && Fits(from + dir * far) && Fits(from + dir * (near + far) / 2f) &&
-                    Fits(from + dir * 0.4f) && Fits(from + dir * 0.8f)) return dir;
+                if (Fits(from + dir * near, dragged) && Fits(from + dir * far, dragged) && Fits(from + dir * (near + far) / 2f, dragged) &&
+                    Fits(from + dir * 0.4f, dragged) && Fits(from + dir * 0.8f, dragged) &&
+                    (boulderBounds == null || boulderBounds.Value.Contains(from + dir * 0.8f))) return dir;
             }
             Assert.Fail($"No room beside the boulder at {from}");
             return Vector2.up;
         }
 
-        private static bool Fits(Vector2 at)
+        /// <summary>True when the player (and the dragged boulder) fit at a point: nothing solid but the dragged boulder there.</summary>
+        private static bool Fits(Vector2 at, Boulder dragged = null)
         {
             foreach (Collider2D c in Physics2D.OverlapCircleAll(at, TimeField.PlayerRadius + 0.05f))
                 if (c != null && c.enabled && !c.isTrigger && c.GetComponentInParent<CubeNavigator>() == null &&
-                    c.GetComponent<Boulder>() == null) return false;
+                    (dragged == null ? c.GetComponent<Boulder>() == null : c.GetComponent<Boulder>() != dragged)) return false;
             return true;
         }
 
@@ -264,7 +267,7 @@ namespace Game.Cube.Tests
                     // A real drag: stand clear beside one of the door's boulders, grab it with the mitt and pull it a little.
                     Boulder dragged = mine[0];
                     Vector2 from = dragged.Position;
-                    Vector2 away = ClearDirection(from, 1.0f, 1.8f);
+                    Vector2 away = ClearDirection(from, 1.0f, 1.8f, dragged, Boulder.ScreenBounds(world.ScreenCenter(spec.Screen)));
                     yield return PutPlayerAt(spec.Screen, from + away * 1.0f);
                     Assert.IsTrue(mitt.Grab(dragged), "The mitt grabs the boulder");
                     Assert.AreSame(dragged, mitt.Held);

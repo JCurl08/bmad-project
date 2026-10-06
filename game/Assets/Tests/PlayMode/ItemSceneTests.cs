@@ -74,7 +74,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(expected.Signature(), world.ItemPlacement.Signature(), "Placement differs from the seed's");
             Assert.AreEqual(world.ItemPlacement.Gates.Count, world.Gates.Count);
             Assert.AreEqual(world.ItemPlacement.OptionalGates.Count, world.OptionalGates.Count);
-            Assert.AreEqual(3, world.Pickups.Count);
+            Assert.AreEqual(4, world.Pickups.Count, "One pickup per built science face");
 
             foreach (ScreenModule module in world.AllModules.Where(m => m.Theme != Theme.Town))
             {

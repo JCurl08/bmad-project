@@ -70,7 +70,7 @@ namespace Game.Cube.Tests
         public void Catalog_HasBothBeaks_AsBiologyVariants_InRollOrder_AndKeepsItsItems()
         {
             ItemCatalog catalog = Catalog();
-            Assert.AreEqual(3, catalog.Items.Count, "Existing entries are kept");
+            Assert.AreEqual(4, catalog.Items.Count, "Existing entries are kept");
             List<ItemDefinition> beaks = catalog.VariantsOf(Theme.Biology);
             Assert.AreEqual(2, beaks.Count);
             Assert.AreEqual(BiologyBeaks.ThinId, beaks[0].Id);

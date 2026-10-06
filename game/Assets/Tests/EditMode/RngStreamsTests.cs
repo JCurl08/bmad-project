@@ -29,6 +29,8 @@ namespace Game.Cube.Tests
             { nameof(RngStreams.PhysicsPopulation), 14 },
             { nameof(RngStreams.CoreArenaDrift), 15 },
             { nameof(RngStreams.HiddenCurrency), 16 },
+            { nameof(RngStreams.MathPlan), 17 },
+            { nameof(RngStreams.MathPopulation), 18 },
         };
 
         private static Dictionary<string, ulong> Registry() =>
@@ -77,6 +79,8 @@ namespace Game.Cube.Tests
             Assert.AreEqual(RngStreams.PhysicsPopulation, PhysicsFace.PopulationRngStream);
             Assert.AreEqual(RngStreams.CoreArenaDrift, CoreArena.RngStream);
             Assert.AreEqual(RngStreams.HiddenCurrency, HiddenCurrencyPlacement.RngStream);
+            Assert.AreEqual(RngStreams.MathPlan, MathPlan.RngStream);
+            Assert.AreEqual(RngStreams.MathPopulation, MathFace.PopulationRngStream);
         }
     }
 }

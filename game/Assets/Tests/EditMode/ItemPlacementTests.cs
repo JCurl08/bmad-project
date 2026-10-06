@@ -17,7 +17,10 @@ namespace Game.Cube.Tests
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
         private static readonly int[] FaceSizes = { 2, 3 };
-        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics };
+        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math };
+
+        /// <summary>The items of the hand-made placements below (the three faces they were written for).</summary>
+        private static readonly Theme[] HandMadeItems = { Theme.Biology, Theme.Chemistry, Theme.Physics };
 
         /// <summary>Four modules per theme with 1, 2, 1, 2 gate slots; modules 0 and 2 have core slots.</summary>
         private sealed class FakeCatalog : IModuleCatalog, IGateSlotCatalog
@@ -211,11 +214,11 @@ namespace Game.Cube.Tests
         {
             var model = new CubeModel(1234);
             var gates = new List<GatePlacement>();
-            var home = BuiltSciences.ToDictionary(t => t, t => new ScreenAddress(model.FaceOf(t), 0, 0));
-            for (int i = 0; i < BuiltSciences.Length; i++)
+            var home = HandMadeItems.ToDictionary(t => t, t => new ScreenAddress(model.FaceOf(t), 0, 0));
+            for (int i = 0; i < HandMadeItems.Length; i++)
             {
-                Theme item = BuiltSciences[i];
-                Theme other = BuiltSciences[(i + 1) % BuiltSciences.Length];
+                Theme item = HandMadeItems[i];
+                Theme other = HandMadeItems[(i + 1) % HandMadeItems.Length];
                 gates.Add(new GatePlacement(new ScreenAddress(model.FaceOf(item), 1, 1), 0, item));
                 gates.Add(new GatePlacement(new ScreenAddress(model.FaceOf(other), 1, 0), 0, item));
             }
@@ -237,7 +240,7 @@ namespace Game.Cube.Tests
             var placement = new ItemPlacement(model.Seed, gates, pickups);
             Assert.IsTrue(placement.TryGetGate(pickups[2].Screen, 0, out GatePlacement guard));
             Assert.AreEqual(physicsGuard, guard.Item);
-            Assert.IsEmpty(SeedSweep.FindItemProblems(model, placement, BuiltSciences));
+            Assert.IsEmpty(SeedSweep.FindItemProblems(model, placement, HandMadeItems));
         }
 
         [Test]
@@ -251,7 +254,7 @@ namespace Game.Cube.Tests
                 new PickupPlacement(Theme.Chemistry, home[Theme.Chemistry]),
                 new PickupPlacement(Theme.Physics, home[Theme.Physics]),
             };
-            List<string> problems = SeedSweep.FindItemProblems(model, new ItemPlacement(model.Seed, gates, pickups), BuiltSciences);
+            List<string> problems = SeedSweep.FindItemProblems(model, new ItemPlacement(model.Seed, gates, pickups), HandMadeItems);
             Assert.AreEqual(1, problems.Count, string.Join("; ", problems));
             StringAssert.Contains("softlock", problems[0]);
             StringAssert.Contains("Biology", problems[0]);
@@ -282,7 +285,7 @@ namespace Game.Cube.Tests
             var placement = new ItemPlacement(model.Seed, gates, pickups);
             Assert.IsTrue(placement.TryGetGate(pickups[1].Screen, 0, out GatePlacement guard));
             Assert.AreEqual(Theme.Biology, guard.Item);
-            List<string> problems = SeedSweep.FindItemProblems(model, placement, BuiltSciences);
+            List<string> problems = SeedSweep.FindItemProblems(model, placement, HandMadeItems);
             string all = string.Join("; ", problems);
             Assert.AreEqual(2, problems.Count, all);
             Assert.IsTrue(problems.Any(p => p.Contains("softlock: Biology") && p.Contains("own gate")), all);
@@ -311,7 +314,7 @@ namespace Game.Cube.Tests
                 new PickupPlacement(Theme.Chemistry, new ScreenAddress(chem, 0, 1), 0),
                 new PickupPlacement(Theme.Physics, new ScreenAddress(phys, 1, 1)),
             };
-            List<string> problems = SeedSweep.FindItemProblems(model, new ItemPlacement(model.Seed, gates, pickups), BuiltSciences);
+            List<string> problems = SeedSweep.FindItemProblems(model, new ItemPlacement(model.Seed, gates, pickups), HandMadeItems);
             Assert.AreEqual(2, problems.Count, string.Join("; ", problems));
             Assert.IsTrue(problems.Any(p => p.Contains("softlock: Biology") && p.Contains("cycle")), string.Join("; ", problems));
             Assert.IsTrue(problems.Any(p => p.Contains("softlock: Chemistry") && p.Contains("cycle")), string.Join("; ", problems));

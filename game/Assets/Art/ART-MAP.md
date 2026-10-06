@@ -13,7 +13,9 @@ its generated placeholder shape, so nothing renders invisible.
   D 57-59), so a solid gate never reads as a walkable ruin (a test checks it).
 - **Tints:** a tint separates variants (floor themes, enemy kinds, the arena halves, a gate's item colour), but every
   category differs by shape. No tile is used by two keys (a test checks it).
-- **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`), and marks, pips, effects,
+- **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`; shape people have a round
+  face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories), the water
+  under a bridge layout and its flag, and marks, pips, effects,
   the membrane and the Demon's door (`ArtCatalog.Shape`). Newton's apple has no tile and stays a red circle.
 
 | Key | Tile | Why |
@@ -40,6 +42,9 @@ its generated placeholder shape, so nothing renders invisible.
 | GateLeadDoor | T 125 | heavy steel door: opened by weighing its plate down with the Leadstone* |
 | GateTimedDoor | T 89 | wooden door in a pale stone frame (unlike the button door's dark frame): swings open, then shut again |
 | VineBridge | T 2 | flowery grass: the grown vine bridge |
+| PlankBridge | D 80 | planks on rails: a bridge between islands, and the crossing the gap-crosser* lays (stretched, not tiled) |
+| GateGap | D 12 | floor crumbled into pits: a gap nobody can step over (the gap-crosser* lays a crossing over it) |
+| GateBridgeDoor | T 85 | plank door in a timber frame: opened by walking its bridges (its flag mark matches its layout's flag) |
 | ItemGeneric | T 107 | sack: an item with no art of its own |
 | ItemThinBeak | D 131 | long spear: the thin beak's long reach |
 | ItemThickBeak | D 117 | hammer: the thick beak breaks rocks and pots |
@@ -48,6 +53,7 @@ its generated placeholder shape, so nothing renders invisible.
 | Jumbles | T 93 | gold coin: hidden Jumbles |
 | ItemWildstone | D 115 | red potion: the Wildstone* |
 | ItemLeadstone | D 113 | grey flask: the Leadstone* |
+| ItemGapCrosser | D 68 | short ladder: the gap-crosser* lays it over a gap |
 | EnemyGeneric | D 109 | cyclops |
 | EnemySeedWeevil | D 122 | spider: a crawling seed weevil |
 | EnemyPollenPuff | D 121 | ghost, tinted yellow: a drifting pollen puff |
@@ -55,12 +61,15 @@ its generated placeholder shape, so nothing renders invisible.
 | EnemyRustMite | D 110 | crab: a crusty rust mite |
 | EnemyQuantumFlea | D 120 | bat: a twitchy flea |
 | EnemyStaticCling | D 124 | grey rat: a clingy ball of static |
+| EnemyDeadEnd | D 111 | hooded figure with red eyes: a stubborn dead end |
+| EnemyLooseEnd | T 105 | bomb with a fizzing fuse: a loose end |
 | Boulder | D 56 | round rock |
 | BeakButton | T 95 | target: peck it from afar (also the Biology trial's buttons) |
 | DoorSwitch | D 32 | crystal floor switch: step on it |
 | LeadPlate | D 31 | pressure plate: the Leadstone* weighs it down (also the Leadstone* trial's plates) |
 | Flower | T 17 | sprout, tinted as a bud then a bloom (also the Biology trial's flowers) |
 | TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
+| Island | D 66 | rounded sandy pad: an island in a bridge layout (doors' and the Math trial's) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
 | Portal | T 104 | blue well in an arch: the way into the core |
 | Demon | D 19 | carved demon face: Maxwell's Demon |

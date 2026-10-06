@@ -89,6 +89,7 @@ namespace Game.Cube.Tests
             world.GetComponent<BiologyFace>().SpawnEnemies = false;
             world.GetComponent<ChemistryFace>().SpawnEnemies = false;
             world.GetComponent<PhysicsFace>().SpawnEnemies = false;
+            world.GetComponent<MathFace>().SpawnEnemies = false;
         }
 
         /// <summary>A new run on a seed, enemies off, science revealed (teleport to a built face), then through its portal.</summary>
@@ -104,6 +105,27 @@ namespace Game.Cube.Tests
             yield return new WaitForFixedUpdate();
             Assert.IsNotEmpty(arena.Portals, "Portals on the core slots");
             Assert.IsTrue(arena.Portals[0].TryEnter(navigator));
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.IsTrue(arena.FightActive, "Entering starts the fight");
+            Assert.IsTrue(arena.PlayerInArena);
+        }
+
+        /// <summary>
+        /// A new run on a seed, straight into the fight from Town with the science faces unrevealed: the physics world holds
+        /// only Town, the player and the arena, so a timing check measures the fight alone. (The fight's outcome is
+        /// sensitive to every physics body in the scene, however far away: any face content changes the solver's order.)
+        /// Portal entry itself is covered by Enter_WalkingIntoThePortalOnEveryBuiltFace.
+        /// </summary>
+        private IEnumerator EnterFightFromTown(int seed)
+        {
+            world.Rebuild(seed);
+            yield return null;
+            NoFaceEnemies();
+            arena.UseFallbackBoss = false;
+            Assert.IsFalse(world.ScienceRevealed, "No face content in the physics world");
+            yield return new WaitForFixedUpdate();
+            Assert.IsTrue(arena.Enter(navigator));
             yield return new WaitForFixedUpdate();
             yield return null;
             Assert.IsTrue(arena.FightActive, "Entering starts the fight");
@@ -855,7 +877,7 @@ namespace Game.Cube.Tests
         public IEnumerator SkillCheck_AKeyboardPlayerWithTheStartingKit_WinsIn60To120Seconds([Values(1234, 7, 42)] int seed)
         {
             yield return Load();
-            yield return EnterThroughAPortal(seed);
+            yield return EnterFightFromTown(seed);
             Assert.AreEqual(PlayerStats.DefaultMaxHealth, stats.MaxHealth, "Base stats");
             Assert.AreEqual(1, stats.Power);
             Assert.AreEqual(1, stats.Speed);

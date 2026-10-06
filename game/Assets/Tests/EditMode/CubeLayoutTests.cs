@@ -16,7 +16,7 @@ namespace Game.Cube.Tests
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
         private static readonly int[] FaceSizes = { 2, 3 };
         private static readonly FaceId[] Faces = (FaceId[])Enum.GetValues(typeof(FaceId));
-        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics };
+        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math };
 
         /// <summary>Four modules per theme; modules 0 and 2 have one and two core slots.</summary>
         private sealed class FakeCatalog : IModuleCatalog
@@ -99,7 +99,7 @@ namespace Game.Cube.Tests
 
                     var expected = Faces.Where(f => f != CubeModel.StartFace && !model.IsSealed(f)).ToList();
                     CollectionAssert.AreEquivalent(expected, layout.Faces.Keys, $"seed {seed}");
-                    Assert.AreEqual(3, layout.Faces.Count, $"seed {seed}: Biology, Chemistry and Physics");
+                    Assert.AreEqual(4, layout.Faces.Count, $"seed {seed}: Biology, Chemistry, Physics and Math");
                     Assert.IsFalse(layout.TryGetFace(CubeModel.StartFace, out _), "Town uses its fixed modules");
                     foreach (FaceId face in Faces.Where(model.IsSealed))
                         Assert.IsFalse(layout.TryGetFace(face, out _), $"seed {seed}: sealed {face} got modules");

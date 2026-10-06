@@ -88,6 +88,7 @@ namespace Game.Cube.Tests
             world.GetComponent<BiologyFace>().SpawnEnemies = false;
             world.GetComponent<ChemistryFace>().SpawnEnemies = false;
             world.GetComponent<PhysicsFace>().SpawnEnemies = false;
+            world.GetComponent<MathFace>().SpawnEnemies = false;
         }
 
         private IEnumerable<FaceId> BuiltFaces()

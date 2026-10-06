@@ -194,7 +194,7 @@ namespace Game.Cube
                     string where;
                     if (TryTownEdge(face, out Facing edge))
                         where = full
-                            ? $"walk off town's {EdgeName(edge)} edge and you're in {ThemeName(theme)}"
+                            ? $"walk off town's {EdgeName(edge)} side and you're in {ThemeName(theme)}"
                             : $"{ThemeName(theme)} is right next door to town";
                     else
                         where = full
@@ -241,10 +241,17 @@ namespace Game.Cube
             return "centre";
         }
 
+        /// <summary>
+        /// A face's name in hints. Math goes by its in-world placeholder region name (subtle science: never "Math"); the
+        /// other faces keep their working names until story 1.22 renames them all.
+        /// </summary>
+        public const string MathRegionName = "Bridgelands*";
+
         public static string ThemeName(Theme theme)
         {
             switch (theme)
             {
+                case Theme.Math: return MathRegionName;
                 case Theme.EarthAtmosphere: return "Earth & Atmosphere";
                 default: return theme.ToString();
             }
@@ -258,7 +265,7 @@ namespace Game.Cube
                 case Theme.Biology: return "beak-thing";
                 case Theme.Chemistry: return "changing stone";
                 case Theme.Physics: return "heavy time-rock";
-                case Theme.Math: return "pointy proof-thing";
+                case Theme.Math: return "gap-crossing plank";
                 case Theme.EarthAtmosphere: return "weather wand";
                 default: return "town trinket";
             }

@@ -81,7 +81,7 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void TownIsFixedOnTheStartFace_AndOnlyMathAndEarthAreSealed([ValueSource(nameof(FaceSizes))] int n)
+        public void TownIsFixedOnTheStartFace_AndOnlyEarthIsSealed([ValueSource(nameof(FaceSizes))] int n)
         {
             for (int seed = 1; seed <= 50; seed++)
             {
@@ -98,7 +98,7 @@ namespace Game.Cube.Tests
                 {
                     Theme theme = m.ThemeOf(face);
                     Assert.AreEqual(face, m.FaceOf(theme));
-                    bool shouldBeSealed = theme == Theme.Math || theme == Theme.EarthAtmosphere;
+                    bool shouldBeSealed = theme == Theme.EarthAtmosphere;
                     Assert.AreEqual(shouldBeSealed, m.IsSealed(face), $"seed {seed}: {face} ({theme})");
                 }
             }
@@ -345,9 +345,9 @@ namespace Game.Cube.Tests
             Assert.AreEqual(50, results.Count);
             Assert.IsTrue(results.All(r => r.Passed), SeedSweep.Describe(results));
 
-            // Sanity: the sweep covers all unsealed screens (4 unsealed faces this epic).
+            // Sanity: the sweep covers all unsealed screens (5 unsealed faces since Math was built).
             var m = new CubeModel(1, n);
-            Assert.AreEqual(4 * n * n, m.AllScreens().Count(s => !m.IsSealed(s.Face)));
+            Assert.AreEqual(5 * n * n, m.AllScreens().Count(s => !m.IsSealed(s.Face)));
         }
 
         [Test]

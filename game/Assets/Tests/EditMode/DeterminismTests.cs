@@ -69,6 +69,8 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("physicsPopulation", PhysicsFace.PopulationRngStream),
             new KeyValuePair<string, ulong>("coreArena", CoreArena.RngStream),
             new KeyValuePair<string, ulong>("hiddenCurrency", HiddenCurrencyPlacement.RngStream),
+            new KeyValuePair<string, ulong>("mathPlan", MathPlan.RngStream),
+            new KeyValuePair<string, ulong>("mathPopulation", MathFace.PopulationRngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -102,6 +104,8 @@ namespace Game.Cube.Tests
             PhysicsPlan physics = PhysicsPlan.Create(model, placement, moduleAt, kinds, PhysicsPlan.DefaultMaxRequired,
                 ChemistryIsotope.VariantKinds(catalog));
             Add("physicsPlan", physics?.Signature());
+            MathPlan math = MathPlan.Create(model, placement, moduleAt, kinds, ChemistryIsotope.VariantKinds(catalog));
+            Add("mathPlan", math?.Signature());
             Add("hidden", HiddenCurrencyPlacement.Generate(model, layout, library).Signature());
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
@@ -124,6 +128,13 @@ namespace Game.Cube.Tests
             {
                 var rng = new SeededRng(unchecked((ulong)(uint)seed), PhysicsFace.PopulationRngStream);
                 Add("physicsPopulation", $"screens {Screens(model.FaceOf(Theme.Physics), model.FaceSize, rng)}");
+            }
+            if (math != null)
+            {
+                var rng = new SeededRng(unchecked((ulong)(uint)seed), MathFace.PopulationRngStream);
+                Add("mathPopulation", $"screens {Screens(math.Face, math.FaceSize, rng)}");
+                Add("mathNpcs", string.Join(" ", Enumerable.Range(0, MathPopulation.ShapeCount(model.FaceSize))
+                    .Select(i => MathPopulation.ShapeSpec(seed, i).Signature())));
             }
 
             Add("npcs", string.Join(" ",

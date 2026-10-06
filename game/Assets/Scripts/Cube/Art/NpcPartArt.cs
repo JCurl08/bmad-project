@@ -6,7 +6,7 @@ namespace Game.Cube
 {
     /// <summary>
     /// The NPC Lego parts, drawn in code as clean outlined pixel sprites (32 px per world unit, sized to the part).
-    /// The race gives the silhouette (a finch's beak, a mushroom cap, alien antennae and big eyes, a polyhedron, a dinosaur
+    /// The race gives the silhouette (a finch's beak, a mushroom cap, alien antennae and big eyes, a shape person's round face, a dinosaur
     /// snout, a townsperson's hat), and what the slot controls gives the variant: heads by HintKind, torsos by role
     /// (a merchant's bag, a quest-giver's sash, a smith's apron, a gossip's frill), legs by movement. Sprites are white
     /// with a light shade and a dark outline, so the part's colour tints them and the outline stays dark.
@@ -159,20 +159,32 @@ namespace Game.Cube
                     break;
 
                 case Race.Shape:
+                    // Every shape person has a round, human face; the kind shows in the accessory.
+                    c.Ellipse(0.5f, 0.4f, 0.27f, 0.36f, Fill);
                     switch (part.Shape)
                     {
-                        case PartShape.Circle: c.Ellipse(0.5f, 0.5f, 0.38f, 0.45f, Fill); break;
-                        case PartShape.Triangle: c.Poly(Fill, 0.1f, 0.06f, 0.9f, 0.06f, 0.5f, 0.96f); break;
-                        case PartShape.Diamond: c.Poly(Fill, 0.5f, 0.04f, 0.92f, 0.5f, 0.5f, 0.96f, 0.08f, 0.5f); break;
-                        default:
-                            c.Rect(0.16f, 0.06f, 0.76f, 0.78f, Fill);
-                            c.Poly(Shade, 0.16f, 0.78f, 0.76f, 0.78f, 0.88f, 0.94f, 0.28f, 0.94f); // top face
-                            c.Poly(Shade, 0.76f, 0.06f, 0.88f, 0.22f, 0.88f, 0.94f, 0.76f, 0.78f); // side face
+                        case PartShape.Circle: // fast: a headband with speed streaks trailing behind
+                            c.Rect(0.24f, 0.52f, 0.76f, 0.6f, Shade);
+                            c.Poly(Light, 0.24f, 0.6f, 0.24f, 0.5f, 0.04f, 0.62f);
+                            c.Poly(Light, 0.24f, 0.56f, 0.24f, 0.48f, 0.08f, 0.4f);
+                            break;
+                        case PartShape.Triangle: // stable: a sturdy little peaked hat
+                            c.Poly(Shade, 0.22f, 0.66f, 0.78f, 0.66f, 0.5f, 0.99f);
+                            c.Rect(0.16f, 0.62f, 0.84f, 0.7f, Shade);
+                            break;
+                        case PartShape.Diamond: // glide: goggles pushed up on the brow
+                            c.Rect(0.22f, 0.6f, 0.78f, 0.68f, Dark);
+                            c.Ellipse(0.38f, 0.68f, 0.09f, 0.09f, Light);
+                            c.Ellipse(0.62f, 0.68f, 0.09f, 0.09f, Light);
+                            break;
+                        default: // a flat square cap
+                            c.Rect(0.22f, 0.66f, 0.78f, 0.8f, Shade);
+                            c.Rect(0.5f, 0.66f, 0.9f, 0.7f, Shade);
                             break;
                     }
-                    c.Ellipse(0.42f, 0.62f, 0.07f, 0.06f, Light); // shine
-                    c.Dot(0.4f, 0.4f, Dark);
-                    c.Dot(0.6f, 0.4f, Dark);
+                    c.Dot(0.42f, 0.38f, Dark);
+                    c.Dot(0.58f, 0.38f, Dark);
+                    c.Line(0.44f, 0.22f, 0.56f, 0.22f, Shade); // a smile
                     break;
 
                 case Race.Dinosaur:
@@ -255,17 +267,11 @@ namespace Game.Cube
                     c.Ellipse(0.5f, 0.7f, 0.08f, 0.1f, Light); // chest light
                     break;
                 case Race.Shape:
-                    string id = part.Id ?? "";
-                    if (id.Contains("hexagon")) c.Poly(Fill, 0.28f, 0.04f, 0.72f, 0.04f, 0.94f, 0.5f, 0.72f, 0.96f, 0.28f, 0.96f, 0.06f, 0.5f);
-                    else if (id.Contains("trapezoid")) c.Poly(Fill, 0.06f, 0.04f, 0.94f, 0.04f, 0.74f, 0.94f, 0.26f, 0.94f);
-                    else if (id.Contains("kite")) c.Poly(Fill, 0.5f, 0.02f, 0.9f, 0.62f, 0.5f, 0.98f, 0.1f, 0.62f);
-                    else
-                    {
-                        c.Rect(0.14f, 0.04f, 0.74f, 0.78f, Fill);
-                        c.Poly(Shade, 0.14f, 0.78f, 0.74f, 0.78f, 0.88f, 0.96f, 0.28f, 0.96f);
-                        c.Poly(Shade, 0.74f, 0.04f, 0.88f, 0.22f, 0.88f, 0.96f, 0.74f, 0.78f);
-                    }
-                    c.Line(0.3f, 0.3f, 0.5f, 0.6f, Light); // facet glint
+                    // Every shape person has a triangular body (wide at the hem, pointed at the neck) and stick arms.
+                    c.Poly(Fill, 0.14f, 0.02f, 0.86f, 0.02f, 0.5f, 0.98f);
+                    c.Line(0.34f, 0.6f, 0.08f, 0.36f, Fill);
+                    c.Line(0.66f, 0.6f, 0.92f, 0.36f, Fill);
+                    c.Line(0.5f, 0.86f, 0.5f, 0.1f, Light); // a seam down the front
                     break;
                 case Race.Dinosaur:
                     c.Ellipse(0.5f, 0.46f, 0.44f, 0.44f, Fill);
@@ -376,13 +382,25 @@ namespace Game.Cube
                     }
                     break;
                 case Race.Shape:
+                    // Every shape person stands on two rectangular legs; the kind shows in the pose and footwear.
                     switch (part.Shape)
                     {
-                        case PartShape.Triangle: c.Poly(Fill, 0.1f, 0.04f, 0.9f, 0.04f, 0.5f, 0.98f); break;
-                        case PartShape.Diamond: c.Poly(Fill, 0.5f, 0.02f, 0.94f, 0.5f, 0.5f, 0.98f, 0.06f, 0.5f); break;
-                        default:
-                            c.Ellipse(0.5f, 0.46f, 0.3f, 0.44f, Fill);
-                            c.Ellipse(0.5f, 0.46f, 0.1f, 0.14f, Shade); // wheel hub
+                        case PartShape.Triangle: // stable: a wide stance on broad flat feet
+                            c.Rect(0.16f, 0.2f, 0.36f, 0.98f, Fill);
+                            c.Rect(0.64f, 0.2f, 0.84f, 0.98f, Fill);
+                            c.Rect(0.04f, 0.02f, 0.4f, 0.22f, Shade);
+                            c.Rect(0.6f, 0.02f, 0.96f, 0.22f, Shade);
+                            break;
+                        case PartShape.Diamond: // glide: legs together on a little glide board
+                            c.Rect(0.24f, 0.3f, 0.44f, 0.98f, Fill);
+                            c.Rect(0.56f, 0.3f, 0.76f, 0.98f, Fill);
+                            c.Poly(Shade, 0.04f, 0.18f, 0.5f, 0.32f, 0.96f, 0.18f, 0.5f, 0.04f);
+                            break;
+                        default: // fast: legs on wheeled running shoes
+                            c.Rect(0.22f, 0.3f, 0.4f, 0.98f, Fill);
+                            c.Rect(0.6f, 0.3f, 0.78f, 0.98f, Fill);
+                            c.Ellipse(0.31f, 0.16f, 0.12f, 0.16f, Shade);
+                            c.Ellipse(0.69f, 0.16f, 0.12f, 0.16f, Shade);
                             break;
                     }
                     break;

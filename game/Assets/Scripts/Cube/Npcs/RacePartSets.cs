@@ -120,23 +120,23 @@ namespace Game.Cube
                 [Race.Shape] = new RacePartSet(Race.Shape,
                     new[]
                     {
-                        NpcPart.Head("shape-circle", "circle head", C(0.95f, 0.45f, 0.45f), PartShape.Circle, HintKind.ItemLocation),
-                        NpcPart.Head("shape-triangle", "triangle head", C(0.45f, 0.75f, 0.95f), PartShape.Triangle, HintKind.GateLocation),
-                        NpcPart.Head("shape-rhombus", "rhombus head", C(0.95f, 0.85f, 0.35f), PartShape.Diamond, HintKind.CoreEntrance),
-                        NpcPart.Head("shape-square", "square head", C(0.60f, 0.95f, 0.55f), PartShape.Square, HintKind.FaceTheme),
+                        NpcPart.Head("shape-circle", "round face, speed band", C(0.95f, 0.45f, 0.45f), PartShape.Circle, HintKind.ItemLocation),
+                        NpcPart.Head("shape-triangle", "round face, peaked hat", C(0.45f, 0.75f, 0.95f), PartShape.Triangle, HintKind.GateLocation),
+                        NpcPart.Head("shape-rhombus", "round face, glide goggles", C(0.95f, 0.85f, 0.35f), PartShape.Diamond, HintKind.CoreEntrance),
+                        NpcPart.Head("shape-square", "round face, square cap", C(0.60f, 0.95f, 0.55f), PartShape.Square, HintKind.FaceTheme),
                     },
                     new[]
                     {
-                        NpcPart.Torso("shape-hexagon", "hexagon body", C(0.85f, 0.60f, 0.95f), PartShape.Circle, NpcRole.Merchant),
-                        NpcPart.Torso("shape-trapezoid", "trapezoid body", C(0.55f, 0.65f, 0.90f), PartShape.Square, NpcRole.QuestGiver),
-                        NpcPart.Torso("shape-cube", "cube body", C(0.60f, 0.60f, 0.65f), PartShape.Square, NpcRole.Smith),
-                        NpcPart.Torso("shape-kite", "kite body", C(0.95f, 0.70f, 0.55f), PartShape.Diamond, NpcRole.Gossip),
+                        NpcPart.Torso("shape-hexagon", "triangle body, merchant bag", C(0.85f, 0.60f, 0.95f), PartShape.Circle, NpcRole.Merchant),
+                        NpcPart.Torso("shape-trapezoid", "triangle body, sash", C(0.55f, 0.65f, 0.90f), PartShape.Square, NpcRole.QuestGiver),
+                        NpcPart.Torso("shape-cube", "triangle body, apron", C(0.60f, 0.60f, 0.65f), PartShape.Square, NpcRole.Smith),
+                        NpcPart.Torso("shape-kite", "triangle body, frill", C(0.95f, 0.70f, 0.55f), PartShape.Diamond, NpcRole.Gossip),
                     },
                     new[]
                     {
-                        NpcPart.Legs("shape-triangle-base", "triangle base", C(0.45f, 0.75f, 0.95f), PartShape.Triangle, Movement.Stand),
-                        NpcPart.Legs("shape-rhombus-glide", "rhombus glider", C(0.95f, 0.85f, 0.35f), PartShape.Diamond, Movement.Wander),
-                        NpcPart.Legs("shape-circle-wheel", "circle wheel", C(0.95f, 0.45f, 0.45f), PartShape.Circle, Movement.Flee),
+                        NpcPart.Legs("shape-triangle-base", "sturdy flat feet", C(0.45f, 0.75f, 0.95f), PartShape.Triangle, Movement.Stand),
+                        NpcPart.Legs("shape-rhombus-glide", "glide board", C(0.95f, 0.85f, 0.35f), PartShape.Diamond, Movement.Wander),
+                        NpcPart.Legs("shape-circle-wheel", "wheeled running shoes", C(0.95f, 0.45f, 0.45f), PartShape.Circle, Movement.Flee),
                     }),
 
                 [Race.Dinosaur] = new RacePartSet(Race.Dinosaur,

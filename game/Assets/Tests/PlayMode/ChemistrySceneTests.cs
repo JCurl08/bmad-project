@@ -88,6 +88,7 @@ namespace Game.Cube.Tests
             chemistry.SpawnEnemies = enemies;
             world.GetComponent<BiologyFace>().SpawnEnemies = false;
             world.GetComponent<PhysicsFace>().SpawnEnemies = false;
+            world.GetComponent<MathFace>().SpawnEnemies = false;
             navigator.TeleportTo(new ScreenAddress(world.Model.FaceOf(Theme.Chemistry), 0, 0), Facing.East);
             Assert.IsTrue(world.ScienceRevealed, "Leaving Town reveals the science faces");
             Assert.IsNotNull(chemistry.Plan);

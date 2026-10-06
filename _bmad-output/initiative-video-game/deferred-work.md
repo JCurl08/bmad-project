@@ -8,3 +8,6 @@
   summary: Re-deferred from 1.12 to epic-stretch (CAP-19 kept gear): rewards behind the non-rolled beak's optional gates are only reachable once a player can carry the other beak between runs.
   evidence: Abilities reset each run and only the rolled beak is obtainable, so a reward behind an optional gate would be unreachable in the same run.
 - resolved: the Town-at-3×3 item above is done in epic-playable-cube entry 17 (Full cube at 3×3, 2026-10-06): ModuleLibraryBuilder now builds 9 distinct Town modules (the 4 shared designs plus 5 Town-only ones), and ModuleLibrary.TownModule indexes them per cell with no wrap at N=3 (wrap stays only as a fallback for a larger N).
+- source_plan: `_bmad-output/initiative-video-game/epic-playable-cube/story-math-face-plan.md`
+  summary: Boss skill-check win times still vary run to run for seeds 1234 and 7 (seed 7 up to ~114 s of the 120 s cap), even from the controlled entry state; likely state left by earlier CoreSceneTests. Investigate in the 1.23 refactor sweep (test isolation), without loosening the window.
+  evidence: Two full CoreSceneTests runs gave 1234: 91.0/72.3 s, 7: 114.1/107.8 s, 42: 94.2/94.2 s.

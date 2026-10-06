@@ -342,7 +342,8 @@ namespace Game.Cube
 
             /// <summary>
             /// Spots other faces' content uses on each screen (local): Biology buttons (required and optional),
-            /// flowers and trial pieces, Chemistry lead plates and trial pieces, and open pickups.
+            /// flowers and trial pieces, Chemistry lead plates and trial pieces, Math gap gates' fronts and bridge layouts
+            /// (MathPlan.ContentMarks), and open pickups.
             /// </summary>
             private static Dictionary<ScreenAddress, List<ScreenMark>> OtherFaceMarks(CubeModel model, ItemPlacement placement,
                 Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> kinds, IReadOnlyList<IsotopeStage> stoneKinds)
@@ -391,6 +392,12 @@ namespace Game.Cube
                         foreach (Vector2 p in ChemistryPlan.TrialSpots(model.Seed, module))
                             Add(chemistry.TrialScreen, "Chemistry trial piece", p, BiologyTrial.PieceBoundRadius);
                 }
+
+                // Math: every gap gate's front and every bridge layout (doors' and the trial's) on its screen.
+                MathPlan math = MathPlan.Create(model, placement, moduleAt, kinds, stoneKinds);
+                if (math != null)
+                    foreach (KeyValuePair<ScreenAddress, List<ScreenMark>> e in math.ContentMarks())
+                        foreach (ScreenMark m in e.Value) Add(e.Key, m.What, m.Local, m.Radius);
 
                 foreach (PickupPlacement p in placement.Pickups)
                     if (!p.IsGuarded) Add(p.Screen, $"{p.Item} pickup", CubeWorld.OpenPickupOffset, ItemPickup.Radius);

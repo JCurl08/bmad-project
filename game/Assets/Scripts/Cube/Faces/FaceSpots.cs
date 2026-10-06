@@ -19,11 +19,14 @@ namespace Game.Cube
         private readonly SeededRng rng;
         private readonly Dictionary<ScreenAddress, List<Vector2>> candidates = new Dictionary<ScreenAddress, List<Vector2>>();
         private readonly Dictionary<ScreenAddress, List<Vector2>> taken = new Dictionary<ScreenAddress, List<Vector2>>();
+        private readonly System.Func<ScreenAddress, Vector2, bool> allow;
 
-        public FaceSpots(CubeWorld world, SeededRng rng)
+        /// <summary>Spots on world's screens drawn from rng; allow (optional) filters candidate spots before any draw.</summary>
+        public FaceSpots(CubeWorld world, SeededRng rng, System.Func<ScreenAddress, Vector2, bool> allow = null)
         {
             this.world = world;
             this.rng = rng;
+            this.allow = allow;
         }
 
         /// <summary>Picks a free spot (feet, local to the screen centre) on a screen. False when none is left.</summary>
@@ -32,6 +35,7 @@ namespace Game.Cube
             if (!candidates.TryGetValue(screen, out List<Vector2> list))
             {
                 list = TownPlan.Candidates(TownPlan.BlockedRects(world.ModuleAt(screen)));
+                if (allow != null) list.RemoveAll(c => !allow(screen, c));
                 candidates[screen] = list;
                 taken[screen] = new List<Vector2>();
             }

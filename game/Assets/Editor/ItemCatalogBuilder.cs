@@ -6,7 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// Cube > Build Item Catalog: creates a placeholder ItemDefinition for each built science theme
-/// (Biology, Chemistry, Physics) and the ItemCatalog asset that lists them. Existing catalog entries
+/// (Biology, Chemistry, Physics, Math) and the ItemCatalog asset that lists them. Existing catalog entries
 /// are kept and only themes the catalog has no item for are filled in, so a face story's real item
 /// (wherever its asset lives) is never replaced.
 /// It also adds the Biology beak variants (Thin Beak, Thick Beak; BiologyBeaks.VariantOrder) to the catalog's
@@ -16,7 +16,8 @@ using UnityEngine;
 /// Chemistry base entry keeps its asset and its id ("chemistry-item"); a 1.4 placeholder or 1.9 "Isotope" name is
 /// renamed in place to ChemistryIsotope.Name.
 /// The Physics item is Einstein's Mass Mitt (MassMittItem), renamed in place the same way (id "physics-item"), also
-/// one item with no variants.
+/// one item with no variants. The Math item is the gap-crosser* (GapCrosserItem, id "math-item"), one item with no
+/// variants; a "Math Item" placeholder is renamed to it in place.
 /// Also works from the command line via -executeMethod ItemCatalogBuilder.Build.
 /// </summary>
 public static class ItemCatalogBuilder
@@ -36,7 +37,11 @@ public static class ItemCatalogBuilder
         new Placeholder { Theme = Theme.Biology, Id = "biology-item", Name = "Biology Item", Color = new Color(0.45f, 1f, 0.45f) },
         new Placeholder { Theme = Theme.Chemistry, Id = ChemistryIsotope.Id, Name = ChemistryIsotope.Name, Color = ChemistryIsotope.ItemColor },
         new Placeholder { Theme = Theme.Physics, Id = MassMittItem.Id, Name = MassMittItem.Name, Color = MassMittItem.ItemColor },
+        new Placeholder { Theme = Theme.Math, Id = GapCrosserItem.Id, Name = GapCrosserItem.Name, Color = GapCrosserItem.ItemColor },
     };
+
+    /// <summary>The placeholder name of the Math item, renamed to the gap-crosser* on the next build.</summary>
+    private const string PlaceholderMathName = "Math Item";
 
     /// <summary>Earlier names of the Chemistry base item (the 1.4 placeholder, the 1.9 isotope), renamed on the next build.</summary>
     private static readonly string[] OldChemistryNames = { "Chemistry Item", "Isotope" };
@@ -91,6 +96,14 @@ public static class ItemCatalogBuilder
         {
             physics.Set(physics.Id, MassMittItem.Name, Theme.Physics, MassMittItem.ItemColor);
             EditorUtility.SetDirty(physics);
+        }
+
+        // The Math item is the gap-crosser*, renamed in place the same way (same asset, id "math-item").
+        ItemDefinition math = catalog.ForTheme(Theme.Math);
+        if (math != null && math.Id == GapCrosserItem.Id && math.DisplayName == PlaceholderMathName)
+        {
+            math.Set(math.Id, GapCrosserItem.Name, Theme.Math, GapCrosserItem.ItemColor);
+            EditorUtility.SetDirty(math);
         }
 
         // Theme variants: keep what is there, add the beaks if missing (in roll order).

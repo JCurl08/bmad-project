@@ -66,6 +66,9 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.GateLeadDoor, Town, 125, "heavy steel door: opened by weighing its plate down with the Leadstone*"),
         new Pick(ArtKey.GateTimedDoor, Town, 89, "wooden door in a pale stone frame: swings open, then shut again"),
         new Pick(ArtKey.VineBridge, Town, 2, "flowery grass: the grown vine bridge"),
+        new Pick(ArtKey.PlankBridge, Dungeon, 80, "planks on rails: a bridge between islands, and the crossing the gap-crosser* lays"),
+        new Pick(ArtKey.GateGap, Dungeon, 12, "floor crumbled into pits: a gap nobody can step over"),
+        new Pick(ArtKey.GateBridgeDoor, Town, 85, "plank door in a timber frame: opened by walking its bridges"),
 
         new Pick(ArtKey.ItemGeneric, Town, 107, "sack: an item with no art of its own"),
         new Pick(ArtKey.ItemThinBeak, Dungeon, 131, "long spear: the thin beak's long reach"),
@@ -75,6 +78,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.Jumbles, Town, 93, "gold coin: hidden Jumbles"),
         new Pick(ArtKey.ItemWildstone, Dungeon, 115, "red potion: the Wildstone*"),
         new Pick(ArtKey.ItemLeadstone, Dungeon, 113, "grey flask: the Leadstone*"),
+        new Pick(ArtKey.ItemGapCrosser, Dungeon, 68, "short ladder: the gap-crosser* lays it over a gap"),
 
         new Pick(ArtKey.EnemyGeneric, Dungeon, 109, "cyclops"),
         new Pick(ArtKey.EnemySeedWeevil, Dungeon, 122, "spider: a crawling seed weevil"),
@@ -83,6 +87,8 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.EnemyRustMite, Dungeon, 110, "crab: a crusty rust mite"),
         new Pick(ArtKey.EnemyQuantumFlea, Dungeon, 120, "bat: a twitchy flea"),
         new Pick(ArtKey.EnemyStaticCling, Dungeon, 124, "grey rat: a clingy ball of static"),
+        new Pick(ArtKey.EnemyDeadEnd, Dungeon, 111, "hooded figure with red eyes: a stubborn dead end"),
+        new Pick(ArtKey.EnemyLooseEnd, Town, 105, "bomb with a fizzing fuse: a loose end"),
 
         new Pick(ArtKey.Boulder, Dungeon, 56, "round rock"),
         new Pick(ArtKey.BeakButton, Town, 95, "target: peck it from afar"),
@@ -90,6 +96,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.LeadPlate, Dungeon, 31, "pressure plate: the Leadstone* weighs it down"),
         new Pick(ArtKey.Flower, Town, 17, "sprout, tinted as a bud then a bloom"),
         new Pick(ArtKey.TrialLamp, Dungeon, 29, "flame banner: a lamp to light"),
+        new Pick(ArtKey.Island, Dungeon, 66, "rounded sandy pad: an island in a bridge layout"),
         new Pick(ArtKey.GoalPad, Dungeon, 60, "corner brackets: a target zone for boulders"),
 
         new Pick(ArtKey.Portal, Town, 104, "blue well in an arch: the way into the core"),

@@ -68,7 +68,7 @@ namespace Game.Cube.Tests
                         if (adjacent)
                         {
                             Assert.AreEqual(hint.Face, CubeModel.NeighborFace(CubeModel.StartFace, edge), context);
-                            StringAssert.Contains(HintGenerator.EdgeName(edge) + " edge", text, context);
+                            StringAssert.Contains(HintGenerator.EdgeName(edge) + " side", text, context);
                         }
                         else StringAssert.Contains("far side", text, context);
                     }

@@ -37,6 +37,9 @@ namespace Game.Cube
         GateLeadDoor = 37,
         GateTimedDoor = 38,
         VineBridge = 39,
+        PlankBridge = 40,
+        GateGap = 41,
+        GateBridgeDoor = 42,
 
         ItemGeneric = 50,
         ItemThinBeak = 51,
@@ -46,6 +49,7 @@ namespace Game.Cube
         Jumbles = 55,
         ItemWildstone = 56,
         ItemLeadstone = 57,
+        ItemGapCrosser = 58,
 
         EnemyGeneric = 60,
         EnemySeedWeevil = 61,
@@ -54,6 +58,8 @@ namespace Game.Cube
         EnemyRustMite = 64,
         EnemyQuantumFlea = 65,
         EnemyStaticCling = 66,
+        EnemyDeadEnd = 67,
+        EnemyLooseEnd = 68,
 
         Boulder = 70,
         BeakButton = 71,
@@ -61,6 +67,7 @@ namespace Game.Cube
         LeadPlate = 73,
         Flower = 74,
         TrialLamp = 76,
+        Island = 75,
         GoalPad = 77,
 
         Portal = 80,
@@ -112,7 +119,8 @@ namespace Game.Cube
                 case ArtKey.LeadPlate:
                 case ArtKey.GoalPad: return ArtCategory.Switch;
                 case ArtKey.Flower: return ArtCategory.Plant;
-                case ArtKey.TrialLamp: return ArtCategory.Prop;
+                case ArtKey.TrialLamp:
+                case ArtKey.Island: return ArtCategory.Prop;
                 case ArtKey.Portal: return ArtCategory.Portal;
                 case ArtKey.Demon: return ArtCategory.Demon;
                 case ArtKey.Particle: return ArtCategory.Particle;
@@ -159,7 +167,7 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>The art of an item, by its stable id (the beaks, the three Chemistry stones, the Mass Mitt; anything else is generic).</summary>
+        /// <summary>The art of an item, by its stable id (the beaks, the three Chemistry stones, the Mass Mitt, the gap-crosser*; anything else is generic).</summary>
         public static ArtKey Item(ItemDefinition item)
         {
             if (item == null) return ArtKey.ItemGeneric;
@@ -171,6 +179,7 @@ namespace Game.Cube
                 case ChemistryIsotope.UnstableId: return ArtKey.ItemWildstone;
                 case ChemistryIsotope.LeadId: return ArtKey.ItemLeadstone;
                 case MassMittItem.Id: return ArtKey.ItemMassMitt;
+                case GapCrosserItem.Id: return ArtKey.ItemGapCrosser;
                 default: return ArtKey.ItemGeneric;
             }
         }
@@ -183,6 +192,9 @@ namespace Game.Cube
 
         public static ArtKey Enemy(PhysicsEnemyKind kind) =>
             kind == PhysicsEnemyKind.QuantumFlea ? ArtKey.EnemyQuantumFlea : ArtKey.EnemyStaticCling;
+
+        public static ArtKey Enemy(MathEnemyKind kind) =>
+            kind == MathEnemyKind.DeadEnd ? ArtKey.EnemyDeadEnd : ArtKey.EnemyLooseEnd;
 
         /// <summary>The floor tint of a theme: the green and the town floors keep their own colours, the rest take a soft theme tint.</summary>
         public static UnityEngine.Color FloorTint(Theme theme) =>

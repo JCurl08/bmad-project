@@ -68,9 +68,10 @@ namespace Game.Cube
             throw new ArgumentOutOfRangeException(nameof(theme));
         }
 
-        /// <summary>Themes built this epic. Math and Earth and Atmosphere are sealed.</summary>
+        /// <summary>Themes built this epic. Only Earth and Atmosphere is sealed.</summary>
         public static bool IsBuilt(Theme theme) =>
-            theme == Theme.Town || theme == Theme.Biology || theme == Theme.Chemistry || theme == Theme.Physics;
+            theme == Theme.Town || theme == Theme.Biology || theme == Theme.Chemistry || theme == Theme.Physics ||
+            theme == Theme.Math;
 
         public bool IsSealed(FaceId face) => !IsBuilt(ThemeOf(face));
 

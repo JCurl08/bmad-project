@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
 /// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
 /// for Curie's (the player carries the Isotope that shows the held stone), and PhysicsFace for Einstein's (the player
-/// carries the MassMitt it sets up for each run).
+/// carries the MassMitt it sets up for each run), and MathFace for the Bridgekeeper*'s (bridge doors and gap gates).
 /// The run's outcome lives in a RunState (one per scene, reset on every rebuild). The CoreArena (Maxwell's Demon) puts a
 /// portal on each built face's active core-entrance slot on every reveal and raises RunState's run-end event on victory or
 /// defeat; a CoreHud shows its Order ↔ Entropy meter and the outcome.
@@ -95,6 +95,8 @@ public static class CubeSceneBuilder
         worldObject.AddComponent<ChemistryFace>().Player = player.transform;
         // Einstein's face (timed doors, boulders, trial, aliens, Newton and enemies) plugs in the same way.
         worldObject.AddComponent<PhysicsFace>().Player = player.transform;
+        // The Bridgekeeper*'s face (bridge doors, gap gates, trial, shape people and enemies) plugs in the same way.
+        worldObject.AddComponent<MathFace>().Player = player.transform;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -218,6 +220,31 @@ public static class CubeSceneBuilder
                   $"({HiddenCurrencyPlacement.MinCount}-{HiddenCurrencyPlacement.MaxCount} per run, {HiddenCurrencyPlacement.Amount} each).\n";
         report += $"Timed doors: {doors} ({offHome} off-home), needing 1/2/3 boulders: {required[1]}/{required[2]}/{required[3]}; " +
                   $"{boulders} gate boulders; the Physics trial fits on {trials} seeds.\n";
+        int bridgeDoors = 0, gapGates = 0, offHomeGaps = 0, mathTrials = 0;
+        var bridgeCounts = new SortedDictionary<int, int>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Placement == null) continue;
+            var model = new CubeModel(r.Seed);
+            CubeLayout layout = CubeLayout.Generate(model, library);
+            MathPlan plan = MathPlan.Create(model, r.Placement, SeedSweep.ModuleLookup(layout, library), kinds, stoneKinds);
+            if (plan == null) continue;
+            foreach (MathGateSpec s in plan.Gates)
+            {
+                if (s.Kind == MathGateKind.Gap)
+                {
+                    gapGates++;
+                    if (!s.OnHome) offHomeGaps++;
+                    continue;
+                }
+                bridgeDoors++;
+                bridgeCounts.TryGetValue(s.Bridges, out int c);
+                bridgeCounts[s.Bridges] = c + 1;
+            }
+            if (plan.TrialLayout != null) mathTrials++;
+        }
+        report += $"Math: {bridgeDoors} bridge doors (bridges: {string.Join(", ", bridgeCounts.Select(e => $"{e.Key}x{e.Value}"))}), " +
+                  $"{gapGates} gap gates ({offHomeGaps} off-home); the Math trial fits on {mathTrials} seeds.\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

@@ -21,7 +21,10 @@ namespace Game.Cube
     /// fits; the optional-gate rule above covers the other stones' gates too). With a Physics item, the Physics plan is checked too (PhysicsPlan.FindProblems: the
     /// Mass Mitt opens a timed door on another face, and, with the module library, every timed door's switch timing,
     /// its own boulders on its screen with enough of them reachable, no boulder starting in a time field or on
-    /// another face's interactable, and the Physics trial fitting). When the catalog knows hidden-item slots
+    /// another face's interactable, and the Physics trial fitting). With a Math item, the Math plan is checked too
+    /// (MathPlan.FindProblems: every bridge layout, doors' and the trial's, solvable from its flag and fitting its screen, the
+    /// trial bigger than any door, the gap-crosser* opening a gap gate on another face, and nothing required behind a door
+    /// that never opens before the gap-crosser* is reachable). When the catalog knows hidden-item slots
     /// (IHiddenSlotCatalog), the hidden meta-currency placement is checked too (HiddenCurrencyPlacement.FindProblems:
     /// 4-6 items in distinct hidden-item slots on built faces, each reachable from Town, outside every gated alcove
     /// and off the exit lanes).
@@ -312,6 +315,8 @@ namespace Game.Cube
                         foreach (string problem in PhysicsPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds,
                             PhysicsPlan.DefaultMaxRequired, chemistryVariantKinds))
                             result.ItemProblems.Add("physics: " + problem);
+                        foreach (string problem in MathPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds, chemistryVariantKinds))
+                            result.ItemProblems.Add("math: " + problem);
                     }
                     if (catalog is IHiddenSlotCatalog hiddenCatalog)
                     {
@@ -365,7 +370,9 @@ namespace Game.Cube
             if (itemsChecked)
                 what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
                         "the rolled stone opening a gate on another face, the Chemistry trial fitting, " +
-                        "every timed door with enough reachable boulders on its screen, the Physics trial fitting";
+                        "every timed door with enough reachable boulders on its screen, the Physics trial fitting, " +
+                        "every bridge layout solvable from its flag, the gap-crosser* opening a gate on another face, " +
+                        "the Math trial fitting";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";

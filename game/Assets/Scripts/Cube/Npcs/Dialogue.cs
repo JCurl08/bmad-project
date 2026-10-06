@@ -122,7 +122,7 @@ namespace Game.Cube
                 {
                     "the triangles are unstable. Emotionally. Structurally they're fine.",
                     "the sphere keeps insisting it belongs. 'I have *infinite* faces!' Sure, buddy.",
-                    "Mister Euler counts the bridges in his sleep. He gets the same number every time.",
+                    "the Bridgekeeper* counts the planks in her sleep. She gets the same number every time.",
                 },
                 Greetings = new[]
                 {
@@ -256,6 +256,30 @@ namespace Game.Cube
             "Herr Einstein says the apple isn't falling, the space is curving. My forehead disagrees.",
         };
 
+        /// <summary>
+        /// Lines the shape people of the Math face say about their patron, the Bridgekeeper* (one per shape person, picked
+        /// by salt). Subtle science: no real names and no science words, only planks, islands and walking.
+        /// </summary>
+        public static readonly string[] BridgekeeperLines =
+        {
+            "The Bridgekeeper* says every plank deserves exactly one visit. Two is clingy. Zero is rude.",
+            "I tried to cross the same plank twice once. The planks noticed. They always notice.",
+            "The Bridgekeeper* walks every plank on the face each morning, once each, and is home in time for tea.",
+            "Start at the flag, finish wherever the planks run out. That's the Bridgekeeper*'s whole rule. It's a good rule.",
+            "Round head, pointy body, sturdy legs! The Bridgekeeper* says we're built for walking planks.",
+        };
+
+        /// <summary>How the bridge doors work, as the shape people tell it (true for every run: the mechanics).</summary>
+        public const string BridgeLine =
+            "See the islands and planks by the locked doors? Start on the flag and cross every plank exactly once. " +
+            "Cross one twice and they all reset!";
+
+        /// <summary>How the gap-crosser* works, as the shape people tell it (true for every run: the mechanics).</summary>
+        public const string GapCrosserLine =
+            "A gap in front of a door? Swing the Gap-Crosser* at it and it lays a crossing right over. One gap at a time, mind.";
+
+        public static string BridgekeeperLine(uint salt) => BridgekeeperLines[(int)(salt / 3u % (uint)BridgekeeperLines.Length)];
+
         public static string EinsteinLine(uint salt) => EinsteinLines[(int)(salt / 3u % (uint)EinsteinLines.Length)];
 
         public static string CurieLine(uint salt) => CurieLines[(int)(salt / 3u % (uint)CurieLines.Length)];
@@ -330,6 +354,9 @@ namespace Game.Cube
             foreach (string line in EinsteinLines) yield return line;
             yield return MassMittLine;
             foreach (string line in NewtonLines) yield return line;
+            foreach (string line in BridgekeeperLines) yield return line;
+            yield return BridgeLine;
+            yield return GapCrosserLine;
         }
     }
 }

@@ -82,7 +82,7 @@ namespace Game.Cube.Tests
         private static readonly ArtKey[] GateKeys =
         {
             ArtKey.GateGeneric, ArtKey.GateRock, ArtKey.GatePot, ArtKey.GateButtonDoor, ArtKey.GateVine, ArtKey.GateDarkRoom,
-            ArtKey.GateCrackedWall, ArtKey.GateLeadDoor, ArtKey.GateTimedDoor,
+            ArtKey.GateCrackedWall, ArtKey.GateLeadDoor, ArtKey.GateTimedDoor, ArtKey.GateGap, ArtKey.GateBridgeDoor,
         };
 
         [Test]
@@ -94,7 +94,7 @@ namespace Game.Cube.Tests
             for (int t = 57; t <= 59; t++) ruinFamilies.Add($"Tiny Dungeon/tile_{t:0000}");
             Dictionary<ArtKey, string> tiles = Catalog().Entries.ToDictionary(e => e.Key, e => e.Tile);
             foreach (ArtKey ruin in new[] { ArtKey.RuinArch, ArtKey.RuinPillar }) ruinFamilies.Add(tiles[ruin]);
-            foreach (ArtKey gate in GateKeys.Concat(new[] { ArtKey.VineBridge }))
+            foreach (ArtKey gate in GateKeys.Concat(new[] { ArtKey.VineBridge, ArtKey.PlankBridge }))
                 Assert.IsFalse(ruinFamilies.Contains(tiles[gate]), $"{gate} uses a ruin tile ({tiles[gate]})");
         }
 
