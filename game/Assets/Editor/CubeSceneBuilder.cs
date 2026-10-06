@@ -22,6 +22,8 @@ using UnityEngine.SceneManagement;
 /// The run loop: a RunWallet collects the run's meta currency (trials, the Demon, hidden items), and the RunLoop banks it
 /// on every run end (death anywhere or the boss outcome), saves the MetaSave, opens the BetweenRunsScreen (earnings and
 /// upgrade shop) and starts the next run on Continue.
+/// Everything is drawn from the ArtCatalog (built first if missing): the player is the hero tile, and the player carries a
+/// PickupFeedback for item and Jumble popups.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -39,11 +41,13 @@ public static class CubeSceneBuilder
     {
         if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
+        // The art catalog first: the player, walls, floors and the rest are drawn from it.
+        ArtCatalog.Use(ArtCatalogBuilder.LoadOrBuild());
+
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         Vector2 screen = ScreenMath.DefaultScreenSize;
         Sprite squareSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-        Sprite roundSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
         Material material = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
 
         // World: generates the faces at runtime from the seed.
@@ -59,14 +63,9 @@ public static class CubeSceneBuilder
         var visual = new GameObject("Visual");
         visual.transform.SetParent(player.transform, false);
         var renderer = visual.AddComponent<SpriteRenderer>();
-        if (roundSprite != null)
-        {
-            renderer.sprite = roundSprite;
-            Vector2 spriteSize = roundSprite.bounds.size;
-            visual.transform.localScale = new Vector3(0.8f / spriteSize.x, 0.8f / spriteSize.y, 1f);
-        }
+        ArtCatalog.Apply(renderer, ArtKey.Player, Vector2.one); // one tile: the hero
         if (material != null) renderer.sharedMaterial = material;
-        renderer.color = new Color(1f, 0.85f, 0.3f);
+        renderer.color = Color.white;
         renderer.sortingOrder = 10;
         player.AddComponent<CircleCollider2D>().radius = 0.4f;
         var body = player.AddComponent<Rigidbody2D>();
@@ -76,6 +75,8 @@ public static class CubeSceneBuilder
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         player.AddComponent<PlayerMover>();
         player.AddComponent<Inventory>();
+        // Pickup feedback: "+Thin Beak" and "+5 Jumbles" popups over the player.
+        var feedback = player.AddComponent<PickupFeedback>();
         // Combat: stats (with the Health they feed), the equipped item, the melee attack and the HUD.
         var health = player.AddComponent<Health>();
         player.AddComponent<PlayerStats>();
@@ -141,6 +142,7 @@ public static class CubeSceneBuilder
         // The roguelite loop: this run's earnings, the meta save and upgrades, and the between-runs screen.
         var wallet = new GameObject("Run Wallet").AddComponent<RunWallet>();
         wallet.Configure(world, arena, runState);
+        feedback.Wallet = wallet;
         var loop = new GameObject("Run Loop").AddComponent<RunLoop>();
         loop.Configure(world, runState, arena, wallet, player.GetComponent<PlayerStats>());
         new GameObject("Between Runs Screen").AddComponent<BetweenRunsScreen>().Loop = loop;

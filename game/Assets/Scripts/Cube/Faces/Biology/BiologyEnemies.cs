@@ -46,15 +46,15 @@ namespace Game.Cube
             brain.SightRadius = SightRadius;
             if (kind == BiologyEnemyKind.PollenPuff) brain.ChaseSpeed = EnemyBrain.DefaultChaseSpeed * 0.7f;
 
-            // Body colour says what it is; a small mark in the weakness item's colour says what beats it.
+            // The art says what it is (tinted by its kind's colour); a small mark in the weakness item's colour says what beats it.
             SpriteRenderer body = enemy.GetComponentInChildren<SpriteRenderer>();
             if (body != null)
             {
-                body.sprite = NpcFactory.ShapeSprite(kind == BiologyEnemyKind.SeedWeevil ? PartShape.Diamond : PartShape.Circle);
-                body.color = kind == BiologyEnemyKind.SeedWeevil ? WeevilColor : PuffColor;
+                ArtCatalog.Apply(body, ArtKeys.Enemy(kind), new Vector2(Enemy.VisualSize, Enemy.VisualSize));
+                body.color = Enemy.ArtTint(kind == BiologyEnemyKind.SeedWeevil ? WeevilColor : PuffColor);
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
-            BeakGate.AddSprite(enemy.transform, "Weakness Mark", PartShape.Triangle, new Vector2(0f, 0.05f),
+            ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Triangle, Enemy.MarkOffset,
                 new Vector2(0.3f, 0.3f), mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<BiologyEnemy>().Kind = kind;
             return enemy;

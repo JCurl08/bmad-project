@@ -63,6 +63,7 @@ namespace Game.Cube
             Color mark = item != null ? item.PlaceholderColor : Color.white;
             AddSprite(block.transform, "Beak Mark", PartShape.Circle, Vector2.zero, new Vector2(0.3f, 0.3f), mark, -3, material);
             gate.Link(BeakButton.Create(buttonParent, buttonWorld, item, material));
+            ArtCatalog.DressGate(gate, ArtKey.GateButtonDoor);
             return gate;
         }
     }

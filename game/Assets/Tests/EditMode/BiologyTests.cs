@@ -364,10 +364,15 @@ namespace Game.Cube.Tests
                 foreach (BeakKind beak in new[] { BeakKind.Thin, BeakKind.Thick })
                 {
                     List<string> lines = BiologyPopulation.LinesFor(spec, facts, HintDensity.Sparse, beak, i == 0);
-                    CollectionAssert.Contains(Dialogue.DarwinLines, lines[1]);
-                    CollectionAssert.Contains(Dialogue.Flavours[Race.Finch].Greetings, lines[0]);
-                    if (i == 0) Assert.AreEqual(Dialogue.BeakLine(beak == BeakKind.Thin), lines[lines.Count - 1]);
-                    else CollectionAssert.DoesNotContain(lines, Dialogue.BeakLines[0]);
+                    Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                    if (i == 0) Assert.AreEqual(Dialogue.BeakLine(beak == BeakKind.Thin), lines[0], "Finch 0's flavour is the beak line");
+                    else
+                    {
+                        CollectionAssert.Contains(Dialogue.DarwinLines, lines[0]);
+                        CollectionAssert.DoesNotContain(lines, Dialogue.BeakLines[0]);
+                    }
+                    Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                    Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                     foreach (string line in lines)
                         StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
                 }

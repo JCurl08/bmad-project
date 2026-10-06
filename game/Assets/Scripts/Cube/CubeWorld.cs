@@ -40,7 +40,6 @@ namespace Game.Cube
         private readonly List<Gate> optionalGates = new List<Gate>();
         private readonly List<ItemPickup> pickups = new List<ItemPickup>();
         private readonly List<HiddenCurrencyPickup> hiddenCurrency = new List<HiddenCurrencyPickup>();
-        private static Sprite fallbackSprite;
 
         public CubeModel Model { get; private set; }
         public int Seed => Model != null ? Model.Seed : seed;
@@ -177,7 +176,8 @@ namespace Game.Cube
                 Destroy(floorRoots[f].gameObject);
                 floorRoots[f] = NewChild("Floor", parent);
                 parent.name = $"Face {face} ({Model.ThemeOf(face)})";
-                BuildFloor(face, floorRoots[f], ThemeColor(Model.ThemeOf(face)), true);
+                Theme revealed = Model.ThemeOf(face);
+                BuildFloor(face, floorRoots[f], ArtKeys.Floor(revealed), ArtKeys.FloorTint(revealed), true);
                 BuildScienceModules(face);
             }
             PlaceItems();
@@ -238,25 +238,26 @@ namespace Game.Cube
 
             if (sealedFace)
             {
-                BuildFloor(face, floorRoots[f], Color.Lerp(ThemeColor(theme), Color.black, 0.8f), true);
+                BuildFloor(face, floorRoots[f], ArtKey.FloorDark, Color.Lerp(ThemeColor(theme), Color.black, 0.45f), true);
                 return;
             }
 
             if (town)
             {
-                BuildFloor(face, floorRoots[f], ThemeColor(theme), true);
+                BuildFloor(face, floorRoots[f], ArtKeys.Floor(theme), ArtKeys.FloorTint(theme), true);
                 BuildTownModules();
             }
             else
             {
                 // Unrevealed science face: dark and unpatterned until the player first leaves town.
-                BuildFloor(face, floorRoots[f], new Color(0.08f, 0.08f, 0.09f), false);
+                BuildFloor(face, floorRoots[f], ArtKey.FloorDark, new Color(0.3f, 0.3f, 0.33f), false);
             }
 
             BuildSealedWalls(face, root);
         }
 
-        private void BuildFloor(FaceId face, Transform parent, Color baseColor, bool checkered)
+        /// <summary>A face's floor: its theme's floor art (tinted) over every screen, checkered so neighbouring screens differ.</summary>
+        private void BuildFloor(FaceId face, Transform parent, ArtKey art, Color baseColor, bool checkered)
         {
             for (int y = 0; y < FaceSize; y++)
             {
@@ -265,7 +266,7 @@ namespace Game.Cube
                     var address = new ScreenAddress(face, x, y);
                     // Checkerboard shading so neighbouring screens are distinguishable.
                     Color color = !checkered || ((x + y) & 1) == 0 ? baseColor : Color.Lerp(baseColor, Color.black, 0.15f);
-                    CreateBlock($"Screen {x},{y}", parent, ScreenCenter(address), ScreenSize * 0.98f, color, -10, false);
+                    CreateBlock($"Screen {x},{y}", parent, ScreenCenter(address), ScreenSize * 0.98f, color, -10, false, art);
                 }
             }
         }
@@ -338,7 +339,9 @@ namespace Game.Cube
                 Vector2 at = placement.IsGuarded
                     ? module.Gates[placement.GuardSlot].PocketCentre
                     : ScreenCenter(placement.Screen) + OpenPickupOffset;
-                pickups.Add(BuildPickup(placement, module.transform, at, item, contents));
+                ItemPickup built = BuildPickup(placement, module.transform, at, item, contents);
+                if (placement.IsGuarded && built != null) TuckIntoPocket(built.transform, module.Gates[placement.GuardSlot]);
+                pickups.Add(built);
             }
 
             foreach (IFaceContent content in contents) content.EndReveal(this);
@@ -359,11 +362,10 @@ namespace Game.Cube
                     Debug.LogError($"CubeWorld: cannot place {spot}");
                     continue;
                 }
-                const float size = 0.45f;
+                const float size = 0.7f;
                 Transform slot = slots[spot.Slot].transform;
                 GameObject go = CreateBlock($"Hidden Jumble {i}", slot, slot.position, new Vector2(size, size),
-                    HiddenCurrencyPickup.PlaceholderColor, 4, false);
-                go.transform.GetChild(0).localRotation = Quaternion.Euler(0f, 0f, 45f);
+                    Color.white, 4, false, ArtKey.Jumbles);
                 var trigger = go.AddComponent<CircleCollider2D>();
                 trigger.isTrigger = true;
                 trigger.radius = HiddenCurrencyPickup.Radius;
@@ -407,6 +409,24 @@ namespace Game.Cube
             return CreatePickup(parent, at, item);
         }
 
+        /// <summary>How far a guarded pickup's visuals sit behind the pocket centre, clear of the gate art in front of it.</summary>
+        public const float GuardedVisualDepth = 0.4f;
+
+        /// <summary>World size of a plain pickup's item art.</summary>
+        public const float PickupSize = 0.85f;
+
+        /// <summary>
+        /// Moves a guarded pickup's visuals (its sprite children; the trigger stays at the pocket centre) to the back of the
+        /// pocket, so they never overlap the closed gate's art (which reaches ArtCatalog.GateArtReach into the pocket).
+        /// </summary>
+        public static void TuckIntoPocket(Transform pickup, GateSlot slot)
+        {
+            if (pickup == null || slot == null || slot.PocketOffset.sqrMagnitude < 1e-6f) return;
+            Vector3 shift = slot.PocketOffset.normalized * GuardedVisualDepth;
+            foreach (Transform child in pickup)
+                if (child.GetComponent<SpriteRenderer>() != null) child.localPosition += shift;
+        }
+
         /// <summary>The size of a gate in a slot: GateWidth across the alcove opening, GateThickness deep.</summary>
         public static Vector2 GateSize(GateSlot slot)
         {
@@ -427,15 +447,15 @@ namespace Game.Cube
             var gate = go.AddComponent<Gate>();
             gate.Visual = go.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
+            ArtCatalog.DressGate(gate, ArtKey.GateGeneric);
             return gate;
         }
 
         private ItemPickup CreatePickup(Transform parent, Vector2 position, ItemDefinition item)
         {
-            const float size = 0.6f;
+            const float size = PickupSize;
             GameObject go = CreateBlock($"Pickup ({item})", parent, position, new Vector2(size, size),
-                item.PlaceholderColor, 5, false);
-            go.transform.GetChild(0).localRotation = Quaternion.Euler(0f, 0f, 45f); // a diamond
+                Color.white, 5, false, ArtKeys.Item(item));
             var trigger = go.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
             trigger.radius = ItemPickup.Radius;
@@ -461,7 +481,7 @@ namespace Game.Cube
             // Edges into a sealed face are walls (inside the face region, so the player never leaves it).
             Vector2 origin = FaceOrigin(face);
             Vector2 extent = FaceExtent;
-            var wallColor = new Color(0.12f, 0.12f, 0.14f);
+            var wallColor = new Color(0.55f, 0.55f, 0.6f);
             for (int e = 0; e < 4; e++)
             {
                 var edge = (Facing)e;
@@ -487,7 +507,7 @@ namespace Game.Cube
                         size = new Vector2(WallThickness, extent.y);
                         break;
                 }
-                CreateBlock($"Sealed Wall {edge}", root, centre, size, wallColor, 0, true);
+                CreateBlock($"Sealed Wall {edge}", root, centre, size, wallColor, 0, true, ArtKey.WallSealed);
             }
         }
 
@@ -499,11 +519,12 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// A placeholder block: a GameObject at centre with a scaled "Visual" child sprite of the given size and
-        /// colour, and (optionally) a solid BoxCollider2D of that size on the root. Face content uses it too.
+        /// A block: a GameObject at centre with a "Visual" child sprite of the given size and colour, and (optionally) a
+        /// solid BoxCollider2D of that size on the root. With an art key the visual is that key's art from the ArtCatalog
+        /// (tiled for walls, floors and gates); without one it is the plain placeholder square. Face content uses it too.
         /// </summary>
         public GameObject CreateBlock(string name, Transform parent, Vector2 centre, Vector2 size, Color color,
-            int sortingOrder, bool collider)
+            int sortingOrder, bool collider, ArtKey art = ArtKey.None)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -517,6 +538,7 @@ namespace Game.Cube
             visual.transform.localScale = new Vector3(size.x / spriteSize.x, size.y / spriteSize.y, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
             renderer.sprite = s;
+            if (art != ArtKey.None) ArtCatalog.Apply(renderer, art, size);
             if (material != null) renderer.sharedMaterial = material;
             renderer.color = color;
             renderer.sortingOrder = sortingOrder;
@@ -525,16 +547,7 @@ namespace Game.Cube
             return go;
         }
 
-        private static Sprite GetFallbackSprite()
-        {
-            if (fallbackSprite != null) return fallbackSprite;
-            var texture = new Texture2D(4, 4, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-            var pixels = new Color32[16];
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color32(255, 255, 255, 255);
-            texture.SetPixels32(pixels);
-            texture.Apply();
-            fallbackSprite = Sprite.Create(texture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 4f);
-            return fallbackSprite;
-        }
+        /// <summary>The plain placeholder square (the ArtCatalog's generated square).</summary>
+        private static Sprite GetFallbackSprite() => ArtCatalog.Shape(PartShape.Square);
     }
 }

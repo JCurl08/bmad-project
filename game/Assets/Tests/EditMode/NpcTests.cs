@@ -169,7 +169,8 @@ namespace Game.Cube.Tests
                                 AssertTrue(hint, facts, $"seed {seed} {race} {head} {density}");
                             }
                             List<string> lines = Dialogue.For(swapped, facts, density);
-                            CollectionAssert.IsSubsetOf(hints.Select(h => h.Text), lines, "Hints are part of the conversation");
+                            Assert.LessOrEqual(lines.Count, Dialogue.MaxLines, "At most a flavour line and the hint");
+                            Assert.AreEqual(hints[0].Text, lines[lines.Count - 1], "The first (true) hint ends the conversation");
                             texts.Add(string.Join("|", hints.Select(h => h.Text)));
                         }
                         Assert.AreEqual(texts.Count, texts.Distinct().Count(), $"seed {seed} {race}: two heads gave the same hint");
@@ -239,7 +240,7 @@ namespace Game.Cube.Tests
                         NpcSpec swapped = spec.With(torso);
                         List<string> lines = Dialogue.For(swapped, facts, HintDensity.Full);
                         string roleLine = Dialogue.RoleLine(swapped);
-                        Assert.AreEqual(roleLine, lines[1], "The second line is the role line");
+                        Assert.AreEqual(roleLine, lines[0], "The flavour line is the role line");
                         Assert.IsFalse(roleLine.Contains("{"), $"Unfilled token: {roleLine}");
                         roleLines.Add(roleLine);
                     }

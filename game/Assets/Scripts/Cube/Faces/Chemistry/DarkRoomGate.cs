@@ -26,7 +26,11 @@ namespace Game.Cube
             return Matches(Isotope.On(attacker)) && OpenNow();
         }
 
-        public static DarkRoomGate Build(GameObject block, ItemDefinition item, Material material) =>
-            Setup<DarkRoomGate>(block, $"Dark Room Gate ({item})", item, PartShape.Circle, material);
+        public static DarkRoomGate Build(GameObject block, ItemDefinition item, Material material)
+        {
+            DarkRoomGate gate = Setup<DarkRoomGate>(block, $"Dark Room Gate ({item})", item, PartShape.Circle, material);
+            ArtCatalog.DressGate(gate, ArtKey.GateDarkRoom);
+            return gate;
+        }
     }
 }

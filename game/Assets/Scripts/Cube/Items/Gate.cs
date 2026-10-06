@@ -6,7 +6,7 @@ namespace Game.Cube
     /// <summary>
     /// A gate bound to the item that opens it (gates are data: the required ItemDefinition is all a gate
     /// knows). Solid until something whose Inventory holds that item touches it; then it opens for good:
-    /// the collider is switched off and the visual fades. Face gates (the Biology beak gates, the Chemistry
+    /// the collider is switched off, a short GateOpenEffect plays and the visual fades. Face gates (the Biology beak gates, the Chemistry
     /// isotope gates) derive from it: they turn OpensOnTouch off and open through their own mechanic (OpenNow),
     /// or keep it on with their own touch condition (CanOpenFor), keeping the same IsOpen/Opened contract.
     /// </summary>
@@ -41,6 +41,12 @@ namespace Game.Cube
         }
 
         public bool IsOpen { get; private set; }
+
+        /// <summary>
+        /// True once ArtCatalog.DressGate has given the visual its kind's art: the closed colour is then only a soft tint
+        /// over the art (VisualColor), so the art reads first.
+        /// </summary>
+        public bool ArtDressed { get; set; }
 
         /// <summary>The blocking collider (disabled once open).</summary>
         public BoxCollider2D Solid => solid != null ? solid : solid = GetComponent<BoxCollider2D>();
@@ -89,12 +95,20 @@ namespace Game.Cube
 
         private void Open()
         {
+            bool effect = PlaysOpenEffect; // read before OnOpened changes the gate's own state
             IsOpen = true;
             Solid.enabled = false;
             ApplyVisual();
             OnOpened();
             Opened?.Invoke(this);
+            if (effect) GateOpenEffect.Play(this);
         }
+
+        /// <summary>
+        /// Whether opening for good plays the GateOpenEffect: true unless this opening sequence already played it (a timed
+        /// door that swung ajar plays it then, not again when it latches).
+        /// </summary>
+        protected virtual bool PlaysOpenEffect => true;
 
         /// <summary>Hook for subclasses, called once when the gate opens (before Opened is raised).</summary>
         protected virtual void OnOpened() { }
@@ -105,9 +119,21 @@ namespace Game.Cube
         protected void ApplyVisual()
         {
             if (visual == null) return;
-            Color color = ClosedColor;
+            Color color = VisualColor(ClosedColor);
             if (IsOpen) color.a = OpenAlpha;
             visual.color = color;
         }
+
+        /// <summary>The colour the visual shows for a gate colour: the colour itself on a placeholder, a soft tint over art.</summary>
+        protected Color VisualColor(Color color)
+        {
+            if (!ArtDressed) return color;
+            Color tint = Color.Lerp(Color.white, color, 0.35f);
+            tint.a = color.a;
+            return tint;
+        }
+
+        /// <summary>Re-applies the visual's colour (after the art dressing changed how it is tinted).</summary>
+        public void RefreshVisual() => ApplyVisual();
     }
 }

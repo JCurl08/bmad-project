@@ -350,23 +350,21 @@ namespace Game.Cube.Tests
                 Assert.IsTrue(local.x > 0f && local.y > 0f && local.x < world.FaceExtent.x && local.y < world.FaceExtent.y,
                     "Finches live on the Biology face");
                 IReadOnlyList<string> lines = finch.Lines;
-                CollectionAssert.Contains(Dialogue.Flavours[Race.Finch].Greetings, lines[0], "A finch greeting");
-                CollectionAssert.Contains(Dialogue.DarwinLines, lines[1], "A Darwin line");
+                Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                if (i > 0) CollectionAssert.Contains(Dialogue.DarwinLines, lines[0], "A Darwin line");
 
-                // The hint lines (after greeting, Darwin line and role line; before finch 0's beak line) must be
-                // sparse and true for what the world actually built: its pickups, gates, core entrances and faces.
-                int beakLines = i == 0 ? 1 : 0;
-                List<string> hintLines = lines.Skip(3).Take(lines.Count - 3 - beakLines).ToList();
+                // The hint line (after the flavour line) must be sparse and true for what the world actually built:
+                // its pickups, gates, core entrances and faces.
                 List<Hint> hints = HintGenerator.Generate(facts, finch.Spec.HintKind, finch.Spec.Salt, HintGenerator.FirstRunDensity);
-                Assert.AreEqual(HintGenerator.SparseCount, hintLines.Count, "First-run hints are sparse");
-                CollectionAssert.AreEqual(hints.Select(h => h.Text), hintLines, $"finch {i}: its hint lines");
+                Assert.AreEqual(HintGenerator.SparseCount, hints.Count, "First-run hints are sparse");
+                Assert.AreEqual(hints[0].Text, lines[1], $"finch {i}: its hint line");
                 foreach (Hint hint in hints) AssertHintTrueInWorld(hint, $"finch {i}");
 
                 if (i == 0)
                 {
                     BeakKind? actual = BiologyBeaks.KindOf(world.ItemFor(Theme.Biology));
                     Assert.IsTrue(actual.HasValue);
-                    Assert.AreEqual(Dialogue.BeakLine(actual.Value == BeakKind.Thin), lines[lines.Count - 1],
+                    Assert.AreEqual(Dialogue.BeakLine(actual.Value == BeakKind.Thin), lines[0],
                         "The beak line names the beak the world actually placed");
                 }
             }

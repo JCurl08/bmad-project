@@ -33,8 +33,9 @@ namespace Game.Cube
             if (crack != null) crack.gameObject.SetActive(false);
             Color scorch = ChemistryIsotope.UnstableColor;
             scorch.a = 0.35f;
-            Scorch = BeakGate.AddSprite(transform, "Blast Scorch", PartShape.Diamond, Vector2.zero, Solid.size * 0.9f, scorch, -3,
-                blastMaterial);
+            Vector2 at = Visual != null ? (Vector2)Visual.transform.localPosition : Vector2.zero;
+            int order = ArtDressed ? ArtCatalog.GateArtOrder + 1 : -3;
+            Scorch = BeakGate.AddSprite(transform, "Blast Scorch", PartShape.Diamond, at, Solid.size * 0.9f, scorch, order, blastMaterial);
         }
 
         public static CrackedWallGate Build(GameObject block, ItemDefinition item, Material material)
@@ -44,6 +45,7 @@ namespace Game.Cube
             Vector2 size = gate.Solid.size;
             Vector2 crack = size.x >= size.y ? new Vector2(size.x * 0.8f, 0.08f) : new Vector2(0.08f, size.y * 0.8f);
             BeakGate.AddSprite(block.transform, "Crack", PartShape.Square, Vector2.zero, crack, CrackColor, -3, material);
+            ArtCatalog.DressGate(gate, ArtKey.GateCrackedWall);
             return gate;
         }
     }

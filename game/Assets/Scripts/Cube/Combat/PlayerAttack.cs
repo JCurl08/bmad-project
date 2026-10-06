@@ -184,9 +184,9 @@ namespace Game.Cube
                 var go = new GameObject("Swing");
                 go.transform.SetParent(transform, false);
                 swing = go.AddComponent<SpriteRenderer>();
-                swing.sprite = NpcFactory.ShapeSprite(PartShape.Diamond);
+                swing.sprite = ArtCatalog.Shape(PartShape.Diamond);
                 swing.sortingOrder = 11;
-                if (visual != null) swing.sharedMaterial = visual.sharedMaterial;
+                if (visual != null) swing.sharedMaterial = HitFlash.NormalMaterial(visual);
             }
             ItemDefinition item = EquippedItem;
             Color colour = item != null ? item.PlaceholderColor : Color.white;

@@ -358,15 +358,13 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(Race.Alien, alien.Race);
                 Assert.IsTrue(OnFace(alien.transform.position, face, null), "Aliens live on the Physics face");
                 IReadOnlyList<string> lines = alien.Lines;
-                CollectionAssert.Contains(Dialogue.Flavours[Race.Alien].Greetings, lines[0], "An alien greeting");
-                CollectionAssert.Contains(Dialogue.EinsteinLines, lines[1], "An Einstein line");
-                int mittLines = i == 0 ? 1 : 0;
-                List<string> hintLines = lines.Skip(3).Take(lines.Count - 3 - mittLines).ToList();
+                Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                if (i == 0) Assert.AreEqual(Dialogue.MassMittLine, lines[0]);
+                else CollectionAssert.Contains(Dialogue.EinsteinLines, lines[0], "An Einstein line");
                 List<Hint> hints = HintGenerator.Generate(facts, alien.Spec.HintKind, alien.Spec.Salt, HintGenerator.FirstRunDensity);
-                Assert.AreEqual(HintGenerator.SparseCount, hintLines.Count, "First-run hints are sparse");
-                CollectionAssert.AreEqual(hints.Select(h => h.Text), hintLines, $"alien {i}: its hint lines");
+                Assert.AreEqual(HintGenerator.SparseCount, hints.Count, "First-run hints are sparse");
+                Assert.AreEqual(hints[0].Text, lines[1], $"alien {i}: its hint line");
                 foreach (Hint hint in hints) AssertHintTrueInWorld(hint, $"alien {i}");
-                if (i == 0) Assert.AreEqual(Dialogue.MassMittLine, lines[lines.Count - 1]);
             }
 
             NpcTalker talker = physics.Aliens[0];
@@ -381,7 +379,9 @@ namespace Game.Cube.Tests
 
             Assert.IsNotNull(physics.Newton, "Sir Isaac Newton visits");
             Assert.IsTrue(OnFace(physics.Newton.transform.position, face, null));
-            CollectionAssert.IsSubsetOf(Dialogue.NewtonLines, physics.Newton.Lines.ToList());
+            Assert.AreEqual(Dialogue.MaxLines, physics.Newton.Lines.Count, "An apple complaint, then the mitt line");
+            CollectionAssert.Contains(Dialogue.NewtonLines, physics.Newton.Lines[0]);
+            Assert.AreEqual(Dialogue.MassMittLine, physics.Newton.Lines[1]);
             var bonk = physics.Newton.GetComponent<AppleBonk>();
             Assert.IsNotNull(bonk);
             yield return new WaitForSeconds(AppleBonk.FallSeconds + 0.1f);

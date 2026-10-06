@@ -21,8 +21,9 @@ namespace Game.Cube
         /// <summary>Gap kept between a moving boulder and what it bumps into.</summary>
         private const float Skin = 0.02f;
 
-        public static readonly Color StoneColor = new Color(0.55f, 0.52f, 0.5f);
-        public static readonly Color GrabbedColor = new Color(0.75f, 0.7f, 0.95f);
+        /// <summary>The boulder art's tint, at rest and while the Mass Mitt holds it.</summary>
+        public static readonly Color StoneColor = new Color(0.92f, 0.9f, 0.88f);
+        public static readonly Color GrabbedColor = new Color(0.75f, 0.7f, 1f);
 
         private static readonly List<Boulder> active = new List<Boulder>();
 
@@ -212,10 +213,8 @@ namespace Game.Cube
             var boulder = go.AddComponent<Boulder>();
             boulder.mass = Mathf.Max(0f, boulderMass);
             boulder.Bounds = bounds;
-            boulder.body = BeakGate.AddSprite(go.transform, "Stone", PartShape.Circle, Vector2.zero,
-                new Vector2(Radius * 2.1f, Radius * 2.1f), StoneColor, 3, material);
-            BeakGate.AddSprite(go.transform, "Crag", PartShape.Triangle, new Vector2(-0.1f, 0.08f),
-                new Vector2(0.28f, 0.22f), Color.Lerp(StoneColor, Color.black, 0.35f), 4, material);
+            boulder.body = ArtCatalog.AddSprite(go.transform, "Stone", ArtKey.Boulder, Vector2.zero,
+                new Vector2(Radius * 2.4f, Radius * 2.4f), StoneColor, 3, material);
             return boulder;
         }
 

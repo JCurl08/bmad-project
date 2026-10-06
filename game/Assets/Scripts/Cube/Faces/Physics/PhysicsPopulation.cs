@@ -4,10 +4,10 @@ namespace Game.Cube
 {
     /// <summary>
     /// The alien people of the Physics face, built with the 1.5 NpcFactory after the reveal. Their parts come from
-    /// the run seed (NpcFactory.ChooseParts with IndexBase + i), and each talks with an alien greeting, an Einstein
-    /// line, a role line and sparse first-run hints that are true for the run (RunFacts). The first alien also
-    /// explains the timed doors and the Mass Mitt (true for every run: the mechanics). Sir Isaac Newton visits as a
-    /// cameo, forever being bonked by apples.
+    /// the run seed (NpcFactory.ChooseParts with IndexBase + i), and each talks with an Einstein line, then its first
+    /// hint, true for the run (RunFacts): two lines. The first alien explains the timed doors and the Mass Mitt (true
+    /// for every run: the mechanics) in place of the Einstein line. Sir Isaac Newton visits as a cameo, forever being
+    /// bonked by apples.
     /// </summary>
     public static class PhysicsPopulation
     {
@@ -25,20 +25,14 @@ namespace Game.Cube
 
         public static NpcSpec NewtonSpec(int seed) => NpcFactory.ChooseParts(seed, Race.Townsfolk, NewtonIndex);
 
-        /// <summary>The lines a Physics alien says: greeting, Einstein line, role line, hints (and the mitt line for alien 0).</summary>
+        /// <summary>The lines a Physics alien says: the Einstein line (the mitt line for alien 0), then its first hint.</summary>
         public static List<string> LinesFor(NpcSpec spec, RunFacts facts, HintDensity density, bool sayMitt)
         {
-            List<string> lines = Dialogue.For(spec, facts, density);
-            lines.Insert(1, Dialogue.EinsteinLine(spec.Salt));
-            if (sayMitt) lines.Add(Dialogue.MassMittLine);
-            return lines;
+            string flavour = sayMitt ? Dialogue.MassMittLine : Dialogue.EinsteinLine(spec.Salt);
+            return Dialogue.Conversation(flavour, HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density));
         }
 
-        /// <summary>Newton's lines: every apple complaint, then the mitt line (true: the mechanics).</summary>
-        public static List<string> NewtonLines()
-        {
-            var lines = new List<string>(Dialogue.NewtonLines) { Dialogue.MassMittLine };
-            return lines;
-        }
+        /// <summary>Newton's lines: an apple complaint, then the mitt line (true: the mechanics).</summary>
+        public static List<string> NewtonLines() => new List<string> { Dialogue.NewtonLines[0], Dialogue.MassMittLine };
     }
 }

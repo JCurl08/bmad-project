@@ -3,14 +3,14 @@ title: 'Readability pass'
 type: 'feature'
 ticket: '15'
 created: '2026-10-06'
-status: 'draft'
-baseline_revision: ''
+status: 'built'
+baseline_revision: 'bbf43ad236a9b19f6f2446e1b418703b84c57951'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/initiative-video-game/spec-entropy-cube/lore-and-tone.md'
@@ -91,19 +91,38 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `Editor/ArtImportSettings.cs` (AssetPostprocessor for `Assets/Art/Kenney/**`): point filter, 16 PPU, no compression, no mipmaps. Reimport.
-- [ ] `Scripts/Cube/Art/ArtCatalog.cs` plus an `ArtKey` enum or struct: a ScriptableObject built by `Editor/ArtCatalogBuilder.cs`, mapping each key to a chosen Kenney tile. `ArtCatalog.Get(key)` falls back to the generated shape. Document the mapping in `Assets/Art/ART-MAP.md` (key → tile file and why).
-- [ ] Route all sprite creation through the catalog: player, walls and floors per theme, doors and every gate kind, items and pickups (beaks, isotope, Mass Mitt, hidden Jumbles), enemies (each type), boulders, switches, plates, flowers, portals, particles and the Demon, trial pieces.
-- [ ] NPC parts: redraw `ShapeSprite` parts as outlined, race-specific silhouettes (generated in code, or composed from small pixel masks). Keep the slots and seeded mixing.
-- [ ] Feedback: `HitFlash` (on Health damage), `GateOpenEffect` (on Gate.Opened), `PickupPopup` (on Inventory.ItemAdded and wallet earnings), and an isotope stage label.
-- [ ] Dialogue: two-line conversations (flavour, then hint) for Town, faces and debug spawns, and Escape skips.
-- [ ] Death text: "You were defeated" (HUD and between-runs screen).
-- [ ] Regenerate the module library and the Cube scene in batch mode if the builders changed.
-- [ ] Tests: EditMode tests for catalog completeness (every key used maps or falls back, no cross-category duplicates), the two-line dialogue shape with true hints, the death text, and determinism unchanged. PlayMode tests for the hit flash, gate effect, pickup popup, isotope label and Escape skip. Update the existing dialogue-structure tests.
+- [x] `Editor/ArtImportSettings.cs` (AssetPostprocessor for `Assets/Art/Kenney/**`): point filter, 16 PPU, no compression, no mipmaps. Reimport.
+- [x] `Scripts/Cube/Art/ArtCatalog.cs` plus an `ArtKey` enum or struct: a ScriptableObject built by `Editor/ArtCatalogBuilder.cs`, mapping each key to a chosen Kenney tile. `ArtCatalog.Get(key)` falls back to the generated shape. Document the mapping in `Assets/Art/ART-MAP.md` (key → tile file and why).
+- [x] Route all sprite creation through the catalog: player, walls and floors per theme, doors and every gate kind, items and pickups (beaks, isotope, Mass Mitt, hidden Jumbles), enemies (each type), boulders, switches, plates, flowers, portals, particles and the Demon, trial pieces.
+- [x] NPC parts: redraw `ShapeSprite` parts as outlined, race-specific silhouettes (generated in code, or composed from small pixel masks). Keep the slots and seeded mixing.
+- [x] Feedback: `HitFlash` (on Health damage), `GateOpenEffect` (on Gate.Opened), `PickupPopup` (on Inventory.ItemAdded and wallet earnings), and an isotope stage label.
+- [x] Dialogue: two-line conversations (flavour, then hint) for Town, faces and debug spawns, and Escape skips.
+- [x] Death text: "You were defeated" (HUD and between-runs screen).
+- [x] Regenerate the module library and the Cube scene in batch mode if the builders changed.
+- [x] Tests: EditMode tests for catalog completeness (every key used maps or falls back, no cross-category duplicates), the two-line dialogue shape with true hints, the death text, and determinism unchanged. PlayMode tests for the hit flash, gate effect, pickup popup, isotope label and Escape skip. Update the existing dialogue-structure tests.
 
 **Acceptance Criteria:**
 - Given the EditMode and PlayMode suites and the seed sweep in batch mode, when run, then all pass, and the determinism signatures are unchanged.
 - Given the Cube scene, when the user plays (HITL), then they can tell things apart at a glance, see feedback for hits, gates and pickups, and get through conversations in one or two presses.
+
+## Implementation Notes
+
+- Checkpoint 1 approved by the user (2026-10-06, "let's continue").
+- Verified in batch mode after the review patches: EditMode 197/197, PlayMode 119/119, seed sweep 50/50, determinism signatures unchanged. HITL readability check by the user PENDING.
+
+## Review Triage Log
+
+Pass 1 (quick lens): high 0, medium 3, low 5, false 0, maybe-false 0. The reviewer confirmed no collider, layout or randomness change (colliders checked against HEAD; determinism fixture unchanged).
+
+| Verdict | Route | Finding | Evidence / action |
+|---|---|---|---|
+| medium | patch | Gate art overlaps the guarded pickup, which draws in front of the closed door | Art spans −0.1 to 0.9 and the pickup spans 0.55 to 1.4. They are now separated, with a geometry test. |
+| medium | patch | Lazily created swing and halo renderers can copy the flash material and stay white | They copied sharedMaterial mid-flash. They now use the original material, with a test. |
+| medium | patch | Cracked-wall gate tile is an arch piece, nearly the same as RuinArch, so a solid gate reads as walkable | The tiles were re-picked, with a distinctness check. |
+| low | patch | Timed door drawn as a window tile; dark-room gate tiles a partial arch | The tiles were re-picked. |
+| low | patch | Timed door plays the open effect twice | Now plays once per opening. |
+| low | patch | Ruin art exceeds its placement box beyond the 0.15 gap | Art now fits its RuinSize box. |
+| low | patch | Dead "Isotope Label" exclusion | Removed. |
 
 ## Design Notes
 

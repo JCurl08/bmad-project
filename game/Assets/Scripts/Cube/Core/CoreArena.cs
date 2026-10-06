@@ -276,7 +276,7 @@ namespace Game.Cube
             RestorePartition();
             fightIndex++;
             int seed = world != null ? world.Seed : 0;
-            Sprite disc = NpcFactory.ShapeSprite(PartShape.Circle);
+            Sprite disc = ArtCatalog.Get(ArtKey.Particle);
             Material material = world != null ? world.Material : null;
             for (int i = 0; i < particlesPerSide * 2; i++)
             {
@@ -522,16 +522,20 @@ namespace Game.Cube
             Vector2 screen = ScreenMath.DefaultScreenSize;
             // The ordered halves: warm on the left, cool on the right, edge to edge of the screen.
             Block("Warm Half", c - new Vector2(screen.x / 4f, 0f), new Vector2(screen.x / 2f, screen.y),
-                new Color(0.32f, 0.14f, 0.1f), -10, false, material);
+                new Color(1f, 0.6f, 0.5f), -10, false, material, ArtKey.ArenaFloor);
             Block("Cool Half", c + new Vector2(screen.x / 4f, 0f), new Vector2(screen.x / 2f, screen.y),
-                new Color(0.1f, 0.16f, 0.32f), -10, false, material);
+                new Color(0.5f, 0.65f, 1f), -10, false, material, ArtKey.ArenaFloor);
 
-            var wallColor = new Color(0.16f, 0.14f, 0.2f);
+            var wallColor = new Color(0.7f, 0.65f, 0.8f);
             float w = WallThickness;
-            Block("Wall North", c + new Vector2(0f, InnerHalf.y + w / 2f), new Vector2(screen.x, w), wallColor, 0, true, material);
-            Block("Wall South", c - new Vector2(0f, InnerHalf.y + w / 2f), new Vector2(screen.x, w), wallColor, 0, true, material);
-            Block("Wall East", c + new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true, material);
-            Block("Wall West", c - new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true, material);
+            Block("Wall North", c + new Vector2(0f, InnerHalf.y + w / 2f), new Vector2(screen.x, w), wallColor, 0, true, material,
+                ArtKey.ArenaWall);
+            Block("Wall South", c - new Vector2(0f, InnerHalf.y + w / 2f), new Vector2(screen.x, w), wallColor, 0, true, material,
+                ArtKey.ArenaWall);
+            Block("Wall East", c + new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true, material,
+                ArtKey.ArenaWall);
+            Block("Wall West", c - new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true, material,
+                ArtKey.ArenaWall);
 
             // The membrane: a segment above and below the door, leaving a gap at each end.
             float span = MembraneHalfSpan - DoorHalfHeight;
@@ -557,17 +561,16 @@ namespace Game.Cube
             hit.radius = MaxwellDemon.HitRadius;
             var demonVisual = new GameObject("Visual");
             demonVisual.transform.SetParent(demonObject.transform, false);
-            demonVisual.transform.localScale = new Vector3(1f, 1f, 1f);
             var demonRenderer = demonVisual.AddComponent<SpriteRenderer>();
-            demonRenderer.sprite = NpcFactory.ShapeSprite(PartShape.Triangle);
+            ArtCatalog.Apply(demonRenderer, ArtKey.Demon, new Vector2(1.3f, 1.3f));
             if (material != null) demonRenderer.sharedMaterial = material;
-            demonRenderer.color = new Color(0.45f, 0.1f, 0.6f);
+            demonRenderer.color = new Color(0.85f, 0.55f, 1f);
             demonRenderer.sortingOrder = 8;
 
             var line = new GameObject("Telegraph");
             line.transform.SetParent(root, false);
             var lineRenderer = line.AddComponent<SpriteRenderer>();
-            lineRenderer.sprite = NpcFactory.ShapeSprite(PartShape.Square);
+            lineRenderer.sprite = ArtCatalog.Shape(PartShape.Square);
             if (material != null) lineRenderer.sharedMaterial = material;
             lineRenderer.color = new Color(0.85f, 0.9f, 1f, 0.45f);
             lineRenderer.sortingOrder = 11;
@@ -578,7 +581,9 @@ namespace Game.Cube
                 lineRenderer);
         }
 
-        private GameObject Block(string name, Vector2 centre, Vector2 size, Color color, int order, bool solid, Material material)
+        /// <summary>A block of the arena: art (tiled) when given a key, else a plain square (the membrane and the Demon's door).</summary>
+        private GameObject Block(string name, Vector2 centre, Vector2 size, Color color, int order, bool solid, Material material,
+            ArtKey art = ArtKey.None)
         {
             var go = new GameObject(name);
             go.transform.SetParent(root, false);
@@ -587,7 +592,8 @@ namespace Game.Cube
             visual.transform.SetParent(go.transform, false);
             visual.transform.localScale = new Vector3(size.x, size.y, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = NpcFactory.ShapeSprite(PartShape.Square);
+            renderer.sprite = ArtCatalog.Shape(PartShape.Square);
+            if (art != ArtKey.None) ArtCatalog.Apply(renderer, art, size);
             if (material != null) renderer.sharedMaterial = material;
             renderer.color = color;
             renderer.sortingOrder = order;

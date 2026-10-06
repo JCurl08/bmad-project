@@ -49,11 +49,11 @@ namespace Game.Cube
             SpriteRenderer body = enemy.GetComponentInChildren<SpriteRenderer>();
             if (body != null)
             {
-                body.sprite = NpcFactory.ShapeSprite(kind == PhysicsEnemyKind.QuantumFlea ? PartShape.Diamond : PartShape.Circle);
-                body.color = kind == PhysicsEnemyKind.QuantumFlea ? FleaColor : ClingColor;
+                ArtCatalog.Apply(body, ArtKeys.Enemy(kind), new Vector2(Enemy.VisualSize, Enemy.VisualSize));
+                body.color = Enemy.ArtTint(kind == PhysicsEnemyKind.QuantumFlea ? FleaColor : ClingColor);
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
-            BeakGate.AddSprite(enemy.transform, "Weakness Mark", PartShape.Square, new Vector2(0f, 0.05f),
+            ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Square, Enemy.MarkOffset,
                 new Vector2(0.24f, 0.24f), mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<PhysicsEnemy>().Kind = kind;
             return enemy;

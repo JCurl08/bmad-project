@@ -50,6 +50,7 @@ namespace Game.Cube
         {
             LeadPlateGate gate = Setup<LeadPlateGate>(block, $"Lead Plate Door ({item})", item, PartShape.Square, material);
             gate.Link(LeadPlate.Create(plateParent, plateWorld, item, material));
+            ArtCatalog.DressGate(gate, ArtKey.GateLeadDoor);
             return gate;
         }
     }

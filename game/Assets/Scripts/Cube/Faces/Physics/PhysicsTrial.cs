@@ -99,8 +99,8 @@ namespace Game.Cube
             Wall(root, "Side Wall R", new Vector2(f.xMax - wall / 2f, f.center.y), new Vector2(wall, f.height), centre, material);
             float backY = side > 0f ? f.yMax - wall / 2f : f.yMin + wall / 2f;
             Wall(root, "Back Wall", new Vector2(f.center.x, backY), new Vector2(f.width - 2f * wall, wall), centre, material);
-            pads.Add(BeakGate.AddSprite(root, "Goal Pad", PartShape.Diamond, Vector2.zero + new Vector2(0f, side * 0.05f),
-                new Vector2(0.5f, 0.5f), PadColor, -6, material));
+            pads.Add(ArtCatalog.AddSprite(root, "Goal Pad", ArtKey.GoalPad, Vector2.zero + new Vector2(0f, side * 0.05f),
+                new Vector2(0.7f, 0.7f), PadColor, -6, material));
 
             var block = new GameObject("Booth Door");
             block.transform.SetParent(root, false);
@@ -109,7 +109,7 @@ namespace Game.Cube
             visual.transform.SetParent(block.transform, false);
             visual.transform.localScale = new Vector3(d.Width, d.Thickness, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = NpcFactory.ShapeSprite(PartShape.Square);
+            renderer.sprite = ArtCatalog.Shape(PartShape.Square); // TimedDoorGate.Build dresses it as a timed door
             if (material != null) renderer.sharedMaterial = material;
             renderer.sortingOrder = -4;
             block.AddComponent<BoxCollider2D>().size = new Vector2(d.Width, d.Thickness);
@@ -125,7 +125,8 @@ namespace Game.Cube
             go.transform.SetParent(parent, false);
             go.transform.position = centre + local;
             go.AddComponent<BoxCollider2D>().size = size;
-            BeakGate.AddSprite(go.transform, "Visual", PartShape.Square, Vector2.zero, size, WallColor, -5, material);
+            ArtCatalog.AddSprite(go.transform, "Visual", ArtKey.Wall, Vector2.zero, size, Color.Lerp(Color.white, WallColor, 0.4f), -5,
+                material);
         }
     }
 }

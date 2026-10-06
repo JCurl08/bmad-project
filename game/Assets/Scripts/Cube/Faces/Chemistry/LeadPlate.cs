@@ -23,8 +23,9 @@ namespace Game.Cube
     {
         public const float Radius = 0.4f;
 
-        public static readonly Color PlateColor = new Color(0.62f, 0.6f, 0.52f);
-        public static readonly Color PressedColor = new Color(0.4f, 0.4f, 0.36f);
+        /// <summary>The plate art's tint while it waits for lead, and once lead holds it down.</summary>
+        public static readonly Color PlateColor = new Color(0.95f, 0.95f, 0.9f);
+        public static readonly Color PressedColor = new Color(0.55f, 0.56f, 0.6f);
 
         [SerializeField] private ItemDefinition item;
         [SerializeField] private SpriteRenderer top;
@@ -96,7 +97,7 @@ namespace Game.Cube
             var plate = go.AddComponent<LeadPlate>();
             plate.item = item;
             plate.material = material;
-            plate.top = BeakGate.AddSprite(go.transform, "Top", PartShape.Square, Vector2.zero, new Vector2(Radius * 1.7f, Radius * 1.7f),
+            plate.top = ArtCatalog.AddSprite(go.transform, "Top", ArtKey.LeadPlate, Vector2.zero, new Vector2(Radius * 2.1f, Radius * 2.1f),
                 PlateColor, -2, material);
             return plate;
         }

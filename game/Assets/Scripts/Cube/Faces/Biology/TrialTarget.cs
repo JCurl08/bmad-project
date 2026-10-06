@@ -72,7 +72,10 @@ namespace Game.Cube
             target.solid = go.GetComponent<Collider2D>();
             target.baseColor = color;
             float size = kind == TrialTargetKind.Rock ? RockSize : TriggerRadius * 2f;
-            target.body = BeakGate.AddSprite(go.transform, "Body", shape, Vector2.zero, new Vector2(size, size), color, -2, material);
+            // Same art as what each target imitates: a rock gate's rock, a beak button, a pollination flower.
+            ArtKey art = kind == TrialTargetKind.Rock ? ArtKey.GateRock : kind == TrialTargetKind.Button ? ArtKey.BeakButton : ArtKey.Flower;
+            target.body = ArtCatalog.AddSprite(go.transform, "Body", art, Vector2.zero, new Vector2(size, size), color, -2, material,
+                tiled: false, fallback: shape);
             // Pips show the order (rocks and buttons): one per number.
             if (kind != TrialTargetKind.Flower)
                 for (int p = 0; p <= index; p++)

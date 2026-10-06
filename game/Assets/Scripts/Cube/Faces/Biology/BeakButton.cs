@@ -29,7 +29,7 @@ namespace Game.Cube
         {
             if (cap == null) return;
             cap.color = DownColor;
-            cap.transform.localScale = new Vector3(Radius * 2f, Radius * 1.2f, 1f);
+            cap.transform.localScale = new Vector3(Radius * 1.2f, Radius * 0.7f, 1f);
         }
 
         public static BeakButton Create(Transform parent, Vector2 world, ItemDefinition item, Material material)
@@ -40,11 +40,12 @@ namespace Game.Cube
             var trigger = go.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
             trigger.radius = Radius;
-            Color ring = item != null ? item.PlaceholderColor : Color.white;
-            BeakGate.AddSprite(go.transform, "Post", PartShape.Square, Vector2.zero, new Vector2(Radius * 2.6f, Radius * 2.6f), ring, -3, material);
+            Color ring = item != null ? Color.Lerp(Color.white, item.PlaceholderColor, 0.35f) : Color.white;
+            ArtCatalog.AddSprite(go.transform, "Post", ArtKey.BeakButton, Vector2.zero, new Vector2(Radius * 2.6f, Radius * 2.6f), ring, -3,
+                material);
             var button = go.AddComponent<BeakButton>();
             button.cap = BeakGate.AddSprite(go.transform, "Cap", PartShape.Circle, Vector2.zero,
-                new Vector2(Radius * 2f, Radius * 2f), UpColor, -2, material);
+                new Vector2(Radius * 1.1f, Radius * 1.1f), UpColor, -2, material);
             return button;
         }
     }

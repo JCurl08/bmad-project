@@ -45,6 +45,7 @@ namespace Game.Cube
             gate.RequiredItem = item;
             Color mark = item != null ? item.PlaceholderColor : Color.white;
             AddSprite(block.transform, "Beak Mark", PartShape.Triangle, Vector2.zero, new Vector2(0.35f, 0.35f), mark, -3, material);
+            ArtCatalog.DressGate(gate, look == BreakableLook.Pot ? ArtKey.GatePot : ArtKey.GateRock);
             return gate;
         }
     }

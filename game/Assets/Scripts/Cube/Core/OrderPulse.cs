@@ -70,7 +70,7 @@ namespace Game.Cube
             visual.transform.SetParent(go.transform, false);
             visual.transform.localScale = new Vector3(Radius * 2f, Radius * 2f, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = NpcFactory.ShapeSprite(PartShape.Square);
+            renderer.sprite = ArtCatalog.Shape(PartShape.Square);
             if (material != null) renderer.sharedMaterial = material;
             renderer.color = new Color(0.85f, 0.9f, 1f);
             renderer.sortingOrder = 12;

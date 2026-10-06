@@ -89,7 +89,10 @@ namespace Game.Cube
             piece.kind = kind;
             piece.solid = go.GetComponent<Collider2D>();
             piece.baseColor = color;
-            piece.body = BeakGate.AddSprite(go.transform, "Body", shape, Vector2.zero, new Vector2(size, size), color, -2, material);
+            // Same art as what each piece imitates: a lamp for the dark, the cracked wall of an unstable gate.
+            ArtKey art = kind == ChemistryTrialPieceKind.Lamp ? ArtKey.TrialLamp : ArtKey.GateCrackedWall;
+            piece.body = ArtCatalog.AddSprite(go.transform, "Body", art, Vector2.zero, new Vector2(size, size), color, -2, material,
+                tiled: false, fallback: shape);
             // A mark in the colour of the stage the piece wants.
             IsotopeStage wants = kind == ChemistryTrialPieceKind.Lamp ? IsotopeStage.Glow : IsotopeStage.Unstable;
             BeakGate.AddSprite(go.transform, "Stage Mark", PartShape.Triangle, new Vector2(0f, size / 2f + 0.15f),

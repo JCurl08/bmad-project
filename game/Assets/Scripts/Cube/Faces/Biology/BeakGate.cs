@@ -54,20 +54,9 @@ namespace Game.Cube
             if (mark != null) mark.gameObject.SetActive(false);
         }
 
-        /// <summary>A placeholder child sprite (shape, size and colour) on a parent, for the face's dressing.</summary>
+        /// <summary>A generated-shape child sprite (marks, pips, effects) on a parent: ArtCatalog.AddShape.</summary>
         public static SpriteRenderer AddSprite(Transform parent, string name, PartShape shape, Vector2 localPosition,
-            Vector2 size, Color color, int sortingOrder, Material material)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPosition;
-            go.transform.localScale = new Vector3(size.x, size.y, 1f);
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = NpcFactory.ShapeSprite(shape);
-            if (material != null) renderer.sharedMaterial = material;
-            renderer.color = color;
-            renderer.sortingOrder = sortingOrder;
-            return renderer;
-        }
+            Vector2 size, Color color, int sortingOrder, Material material) =>
+            ArtCatalog.AddShape(parent, name, shape, localPosition, size, color, sortingOrder, material);
     }
 }

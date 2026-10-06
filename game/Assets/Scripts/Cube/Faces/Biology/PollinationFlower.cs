@@ -29,9 +29,12 @@ namespace Game.Cube
         public void ShowBloom()
         {
             if (petals == null) return;
-            petals.color = BloomColor;
+            petals.color = Tint(BloomColor);
             petals.transform.localScale = new Vector3(Radius * 2.6f, Radius * 2.6f, 1f);
         }
+
+        /// <summary>A flower colour as a tint over the flower art.</summary>
+        private static Color Tint(Color color) => Color.Lerp(Color.white, color, 0.5f);
 
         public static PollinationFlower Create(Transform parent, Vector2 world, ItemDefinition item, Material material)
         {
@@ -41,13 +44,12 @@ namespace Game.Cube
             var trigger = go.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
             trigger.radius = Radius;
-            BeakGate.AddSprite(go.transform, "Stem", PartShape.Square, new Vector2(0f, -0.35f), new Vector2(0.12f, 0.5f),
-                FlowerVineGate.VineColor, -3, material);
             var flower = go.AddComponent<PollinationFlower>();
-            flower.petals = BeakGate.AddSprite(go.transform, "Petals", PartShape.Diamond, Vector2.zero,
-                new Vector2(Radius * 2f, Radius * 2f), BudColor, -2, material);
+            flower.petals = ArtCatalog.AddSprite(go.transform, "Petals", ArtKey.Flower, Vector2.zero,
+                new Vector2(Radius * 2f, Radius * 2f), Tint(BudColor), -2, material);
             Color centre = item != null ? item.PlaceholderColor : Color.white;
-            BeakGate.AddSprite(go.transform, "Centre", PartShape.Circle, Vector2.zero, new Vector2(0.25f, 0.25f), centre, -1, material);
+            BeakGate.AddSprite(go.transform, "Centre", PartShape.Circle, new Vector2(0f, 0.12f), new Vector2(0.22f, 0.22f), centre, -1,
+                material);
             return flower;
         }
     }

@@ -157,11 +157,12 @@ namespace Game.Cube.Tests
             foreach (string line in TownSign.WelcomeLines)
                 Assert.IsFalse(line.ToLowerInvariant().Contains(Dialogue.ForbiddenWord), line);
 
-            var lines = new List<string> { "hello", "role", "hint" };
-            List<string> greeter = TownSign.GreeterLines(lines);
-            Assert.AreEqual("hello", greeter[0]);
-            CollectionAssert.AreEqual(TownSign.WelcomeLines, greeter.Skip(1).Take(TownSign.WelcomeLines.Count));
-            CollectionAssert.AreEqual(new[] { "role", "hint" }, greeter.Skip(1 + TownSign.WelcomeLines.Count));
+            // The greeter's two lines: the welcome in place of the flavour line, then the hint.
+            List<string> greeter = TownSign.GreeterLines(new List<string> { "role", "hint" });
+            CollectionAssert.AreEqual(new[] { TownSign.WelcomeLines[0], "hint" }, greeter);
+            StringAssert.Contains("Partition", greeter[0]);
+            StringAssert.Contains(TownSign.LastMixedPlace, greeter[0]);
+            CollectionAssert.AreEqual(new[] { TownSign.WelcomeLines[0] }, TownSign.GreeterLines(new List<string> { "role" }));
         }
 
         [Test]

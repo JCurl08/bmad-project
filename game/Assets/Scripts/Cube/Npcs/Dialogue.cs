@@ -3,14 +3,19 @@ using System.Collections.Generic;
 namespace Game.Cube
 {
     /// <summary>
-    /// Campy NPC lines (lore-and-tone.md: silly, never explicit, never the s-word). A conversation is a race
-    /// greeting, a role line flavoured by the race's nouns, then the head's hints. Tables are small (3 to 4
-    /// lines each); the NPC's salt picks the variant, so the same NPC always says the same thing.
+    /// Campy NPC lines (lore-and-tone.md: silly, never explicit, never the s-word). A conversation is at most two lines
+    /// (MaxLines): one flavour line, then the head's first hint (true for the run). For a generic NPC the flavour is its
+    /// role line, flavoured by the race's nouns; the face populations use their scientist's line (or a mechanic line)
+    /// instead. Tables are small (3 to 4 lines each); the NPC's salt picks the variant, so the same NPC always says the
+    /// same thing. Greetings stay in the tables for the tone checks and later use.
     /// </summary>
     public static class Dialogue
     {
         /// <summary>The word the game never says (lore-and-tone.md). Tests check every line against it.</summary>
         public const string ForbiddenWord = "sort";
+
+        /// <summary>The most lines a conversation has: one flavour line, then the hint.</summary>
+        public const int MaxLines = 2;
 
         /// <summary>Race nouns the role lines are filled with.</summary>
         public sealed class RaceFlavour
@@ -239,15 +244,18 @@ namespace Game.Cube
 
         public static string BeakLine(bool thin) => BeakLines[thin ? 0 : 1];
 
-        /// <summary>The whole conversation for an NPC in a run: greeting, role line, then hints.</summary>
+        /// <summary>The whole conversation for an NPC in a run: its role line, then its first hint.</summary>
         public static List<string> For(NpcSpec spec, RunFacts facts, HintDensity density) =>
             Lines(spec, HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density));
 
-        public static List<string> Lines(NpcSpec spec, IReadOnlyList<Hint> hints)
+        /// <summary>The conversation from given hints: the role line, then the first hint.</summary>
+        public static List<string> Lines(NpcSpec spec, IReadOnlyList<Hint> hints) => Conversation(RoleLine(spec), hints);
+
+        /// <summary>A conversation: the flavour line, then the first hint (if any). Never more than MaxLines.</summary>
+        public static List<string> Conversation(string flavour, IReadOnlyList<Hint> hints)
         {
-            var lines = new List<string> { Greeting(spec), RoleLine(spec) };
-            if (hints != null)
-                foreach (Hint hint in hints) lines.Add(hint.Text);
+            var lines = new List<string>(MaxLines) { flavour };
+            if (hints != null && hints.Count > 0) lines.Add(hints[0].Text);
             return lines;
         }
 

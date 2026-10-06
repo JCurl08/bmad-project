@@ -7,13 +7,17 @@ namespace Game.Cube
 {
     /// <summary>
     /// A simple on-screen dialogue box. Open shows the first line; the project-wide Player/Interact action
-    /// advances, and it closes after the last line. A press in the frame the box opened does not advance,
+    /// advances, and it closes after the last line. The skip key (Escape) closes it at once (Skip). A press in the
+    /// frame the box opened does not advance,
     /// and talkers ignore the press that closed it, so one press never both opens and skips.
     /// One shared box per scene (Shared creates it on demand).
     /// </summary>
     public class DialogueBox : MonoBehaviour
     {
         [SerializeField] private string interactActionPath = "Player/Interact";
+
+        /// <summary>The key that closes a conversation at once.</summary>
+        public const Key SkipKey = Key.Escape;
 
         private readonly List<string> lines = new List<string>();
         private InputAction interact;
@@ -67,9 +71,19 @@ namespace Game.Cube
 
         private void Update()
         {
-            if (!IsOpen || interact == null || Time.frameCount == OpenedFrame) return;
+            if (!IsOpen) return;
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && keyboard[SkipKey].wasPressedThisFrame)
+            {
+                Skip();
+                return;
+            }
+            if (interact == null || Time.frameCount == OpenedFrame) return;
             if (interact.WasPressedThisFrame()) Advance();
         }
+
+        /// <summary>Closes the conversation at once (the skip key). Does nothing when closed.</summary>
+        public void Skip() => Close();
 
         /// <summary>Opens the box with the given lines (replacing any open conversation). Returns false if there are none.</summary>
         public bool Open(string speaker, IReadOnlyList<string> newLines, object owner = null)
@@ -120,8 +134,8 @@ namespace Game.Cube
             GUI.color = Color.white;
             GUI.Label(new Rect(rect.x + 14, rect.y + 8, rect.width - 28, 24), Speaker, nameStyle);
             GUI.Label(new Rect(rect.x + 14, rect.y + 34, rect.width - 28, rect.height - 60), CurrentLine, textStyle);
-            string more = Index < lines.Count - 1 ? "[Interact] next" : "[Interact] close";
-            GUI.Label(new Rect(rect.xMax - 170, rect.yMax - 26, 160, 22), more, nameStyle);
+            string more = Index < lines.Count - 1 ? "[Interact] next   [Esc] skip" : "[Interact] close";
+            GUI.Label(new Rect(rect.xMax - 250, rect.yMax - 26, 240, 22), more, nameStyle);
         }
     }
 

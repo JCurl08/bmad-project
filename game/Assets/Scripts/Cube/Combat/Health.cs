@@ -8,6 +8,7 @@ namespace Game.Cube
     /// enabled IDamageModifier on the object (defence, weakness), subtracts it and starts a short
     /// invulnerability window during which further damage is ignored. At 0 it raises Died exactly once;
     /// after that all damage is ignored. A disabled Health (a peaceful NPC) takes no damage.
+    /// In play mode it brings a HitFlash, so whatever it belongs to flashes white when hit.
     /// </summary>
     public class Health : MonoBehaviour
     {
@@ -48,6 +49,12 @@ namespace Game.Cube
         private float Now => Clock != null ? Clock() : Time.time;
 
         public bool IsInvulnerable => Now < invulnerableUntil;
+
+        // Every damageable thing flashes white when hit (HitFlash listens to Damaged).
+        private void Awake()
+        {
+            if (Application.isPlaying) HitFlash.For(gameObject);
+        }
 
         /// <summary>Sets the maximum. Raising it adds the difference to current health; lowering it caps current.</summary>
         public void SetMax(float value)

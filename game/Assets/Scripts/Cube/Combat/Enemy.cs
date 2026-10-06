@@ -19,6 +19,15 @@ namespace Game.Cube
         public const float BodyMass = 5f;
         public const int SortingOrder = 7;
 
+        /// <summary>World size of an enemy's body art (a little larger than its collider).</summary>
+        public const float VisualSize = 0.95f;
+
+        /// <summary>Where a face enemy's weakness mark sits: just above its body art.</summary>
+        public static readonly Vector2 MarkOffset = new Vector2(0f, 0.6f);
+
+        /// <summary>A body colour as a soft tint over the enemy art (the art reads first; the tint tells variants apart).</summary>
+        public static Color ArtTint(Color color) => Color.Lerp(Color.white, color, 0.4f);
+
         [SerializeField] private ItemDefinition weakness;
         [SerializeField, Min(CombatMath.MinWeaknessMultiplier)] private float weaknessMultiplier = CombatMath.DefaultWeaknessMultiplier;
         [SerializeField, Min(0f)] private float contactDamage = DefaultContactDamage;
@@ -26,10 +35,6 @@ namespace Game.Cube
         [SerializeField, Min(0f)] private float flashSeconds = 0.1f;
 
         private Health health;
-        private SpriteRenderer[] flashRenderers = Array.Empty<SpriteRenderer>();
-        private Color[] flashBase = Array.Empty<Color>();
-        private bool flashing;
-        private float flashUntil;
 
         /// <summary>Raised once when this enemy dies (before it is removed).</summary>
         public event Action<Enemy> Died;
@@ -63,12 +68,12 @@ namespace Game.Cube
 
         public Health Health => health != null ? health : health = GetComponent<Health>();
 
-        /// <summary>Renderers flashed white on a hit (placeholder feedback; empty for none).</summary>
+        /// <summary>Renderers flashed white on a hit (the HitFlash on this object; null for all of its sprites).</summary>
         public void SetFlashRenderers(SpriteRenderer[] renderers)
         {
-            EndFlash();
-            flashRenderers = renderers ?? Array.Empty<SpriteRenderer>();
-            flashBase = new Color[flashRenderers.Length];
+            HitFlash flash = HitFlash.For(gameObject);
+            flash.SetRenderers(renderers);
+            flash.Seconds = flashSeconds;
         }
 
         public float ModifyIncoming(float amount, ItemDefinition sourceItem) =>
@@ -78,43 +83,12 @@ namespace Game.Cube
         {
             if (!Active.Contains(this)) Active.Add(this);
             Health.Died += OnDied;
-            Health.Damaged += OnDamaged;
         }
 
         private void OnDisable()
         {
             Active.Remove(this);
-            if (health != null)
-            {
-                health.Died -= OnDied;
-                health.Damaged -= OnDamaged;
-            }
-            EndFlash();
-        }
-
-        private void Update()
-        {
-            if (flashing && Time.time >= flashUntil) EndFlash();
-        }
-
-        private void OnDamaged(Health _, float amount, ItemDefinition item)
-        {
-            if (flashSeconds <= 0f || flashRenderers.Length == 0) return;
-            if (!flashing)
-                for (int i = 0; i < flashRenderers.Length; i++)
-                    if (flashRenderers[i] != null) flashBase[i] = flashRenderers[i].color;
-            foreach (SpriteRenderer r in flashRenderers)
-                if (r != null) r.color = Color.white;
-            flashing = true;
-            flashUntil = Time.time + flashSeconds;
-        }
-
-        private void EndFlash()
-        {
-            if (!flashing) return;
-            for (int i = 0; i < flashRenderers.Length; i++)
-                if (flashRenderers[i] != null) flashRenderers[i].color = flashBase[i];
-            flashing = false;
+            if (health != null) health.Died -= OnDied;
         }
 
         private void OnDied(Health _)
@@ -126,7 +100,7 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// Builds a placeholder enemy: a diamond tinted by its weakness item's colour on a dynamic,
+        /// Builds a generic enemy: its art (ArtKey.EnemyGeneric) tinted by its weakness item's colour on a dynamic,
         /// velocity-driven body (like NPCs, so walls and closed gates stop it), with Health, Enemy and an
         /// EnemyBrain that chases the player (or the scene's player when null) inside bounds.
         /// </summary>
@@ -148,12 +122,11 @@ namespace Game.Cube
 
             var visual = new GameObject("Visual");
             visual.transform.SetParent(go.transform, false);
-            visual.transform.localScale = new Vector3(BodyRadius * 2.2f, BodyRadius * 2.2f, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = NpcFactory.ShapeSprite(PartShape.Diamond);
+            ArtCatalog.Apply(renderer, ArtKey.EnemyGeneric, new Vector2(VisualSize, VisualSize));
             if (material != null) renderer.sharedMaterial = material;
             Color colour = weakness != null ? weakness.PlaceholderColor : new Color(0.8f, 0.8f, 0.8f);
-            renderer.color = Color.Lerp(colour, new Color(0.6f, 0f, 0.1f), 0.45f);
+            renderer.color = ArtTint(Color.Lerp(colour, new Color(0.6f, 0f, 0.1f), 0.45f));
             renderer.sortingOrder = SortingOrder;
 
             var health = go.AddComponent<Health>();
@@ -162,7 +135,7 @@ namespace Game.Cube
 
             var enemy = go.AddComponent<Enemy>();
             enemy.Weakness = weakness;
-            enemy.SetFlashRenderers(new[] { renderer });
+            enemy.SetFlashRenderers(null); // the body and every mark added later
 
             var brain = go.AddComponent<EnemyBrain>();
             brain.Configure(bounds, player);

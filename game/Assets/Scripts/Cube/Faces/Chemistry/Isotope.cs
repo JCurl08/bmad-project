@@ -110,8 +110,8 @@ namespace Game.Cube
     /// (a dispenser hands one out) it starts fresh at the glow stage and decays on its half-life timer while
     /// held: glow, then unstable, then lead, which stays until a plate takes it (ConsumeLead removes it from the
     /// inventory, so a dispenser can hand out another). The stage is what the equipped isotope does to the
-    /// Chemistry gates. A placeholder halo around the player shows the stage, and a HUD line names it with a
-    /// coloured pip.
+    /// Chemistry gates. A halo around the player shows the stage, a label in the stage's colour names it just
+    /// above the player (StageLabel), and a HUD line names it with a coloured pip.
     /// </summary>
     [RequireComponent(typeof(Inventory))]
     public class Isotope : MonoBehaviour
@@ -130,6 +130,7 @@ namespace Game.Cube
         private IsotopeStage shown = IsotopeStage.None;
         private SpriteRenderer halo;
         private GUIStyle hudStyle;
+        private GUIStyle labelStyle;
 
         /// <summary>The isotope item this tracks (the run's Chemistry item).</summary>
         public ItemDefinition Item
@@ -220,6 +221,19 @@ namespace Game.Cube
             set => showHud = value;
         }
 
+        /// <summary>The stage label shown just above the player ("GLOWING", "UNSTABLE", "LEAD"), or null when none is held.</summary>
+        public string StageLabel
+        {
+            get
+            {
+                IsotopeStage stage = Stage;
+                return stage == IsotopeStage.None ? null : ChemistryIsotope.StageName(stage).ToUpperInvariant();
+            }
+        }
+
+        /// <summary>The stage label's colour (the stage's colour).</summary>
+        public Color StageLabelColor => ChemistryIsotope.StageColor(Stage);
+
         private void OnEnable()
         {
             Inventory.ItemAdded += OnItemAdded;
@@ -303,9 +317,9 @@ namespace Game.Cube
                 var go = new GameObject("Isotope Halo");
                 go.transform.SetParent(transform, false);
                 halo = go.AddComponent<SpriteRenderer>();
-                halo.sprite = NpcFactory.ShapeSprite(PartShape.Circle);
+                halo.sprite = ArtCatalog.Shape(PartShape.Circle);
                 halo.sortingOrder = 9;
-                if (visual != null) halo.sharedMaterial = visual.sharedMaterial;
+                if (visual != null) halo.sharedMaterial = HitFlash.NormalMaterial(visual);
             }
             halo.enabled = stage != IsotopeStage.None;
             Color color = ChemistryIsotope.StageColor(stage);
@@ -318,6 +332,7 @@ namespace Game.Cube
         private void OnGUI()
         {
             if (!showHud) return;
+            DrawStageLabel();
             string text = HudText;
             if (text == null) return;
             if (hudStyle == null)
@@ -335,6 +350,24 @@ namespace Game.Cube
             GUI.DrawTexture(new Rect(x + 8f, y + 6f, pip, pip), Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(x + 8f + pip + 8f, y + 2f, 400f, 26f), text, hudStyle);
+        }
+
+        /// <summary>The stage, in its colour, on a dark tag just above the player's head.</summary>
+        private void DrawStageLabel()
+        {
+            string label = StageLabel;
+            Camera cam = Camera.main;
+            if (label == null || cam == null) return;
+            if (labelStyle == null)
+                labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * 0.75f);
+            if (screen.z < 0f) return;
+            var rect = new Rect(screen.x - 46f, Screen.height - screen.y - 22f, 92f, 20f);
+            GUI.color = new Color(0f, 0f, 0f, 0.7f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = StageLabelColor;
+            GUI.Label(rect, label, labelStyle);
+            GUI.color = Color.white;
         }
     }
 }

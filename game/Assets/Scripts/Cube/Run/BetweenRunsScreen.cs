@@ -14,7 +14,7 @@ namespace Game.Cube
     {
         public const string CurrencyName = "Jumbles";
         public const string VictoryTitle = "VICTORY! The Demon's tidy little cube is now a glorious mess.";
-        public const string DefeatTitle = "You fell apart. Relax: falling apart is kind of your whole thing.";
+        public const string DefeatTitle = "You were defeated";
         public const string ContinueLabel = "Back to Town (new seed)  [Enter]";
 
         [SerializeField] private RunLoop loop;

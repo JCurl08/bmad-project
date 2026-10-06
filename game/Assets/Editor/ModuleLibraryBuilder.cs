@@ -17,6 +17,8 @@ using UnityEngine;
 /// face (pillar, arch, round stone, diamond tile or broken column, a mismatched shape per module) in that
 /// face's colour. Ruin pieces have no colliders and are placed where KeepsExitsOpen holds, clear of walls,
 /// alcoves and the hidden-item slot.
+/// Walls (pillars, bars and alcove walls) are the ArtCatalog's stone-wall tile, repeated over their size and softly tinted
+/// with the face's colour; each ruin piece is its shape's ruin art (see Assets/Art/ART-MAP.md).
 /// Also works from the command line via -executeMethod ModuleLibraryBuilder.Build.
 /// </summary>
 public static class ModuleLibraryBuilder
@@ -111,6 +113,7 @@ public static class ModuleLibraryBuilder
     [MenuItem("Cube/Build Module Library")]
     public static void Build()
     {
+        ArtCatalog.Use(ArtCatalogBuilder.LoadOrBuild()); // walls and ruins come from the art catalog
         Sprite sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
         Sprite round = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
         Material material = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
@@ -177,7 +180,8 @@ public static class ModuleLibraryBuilder
         {
             root.AddComponent<ScreenModule>().Theme = theme;
             Color themeColor = CubeWorld.ThemeColor(theme);
-            Color obstacleColor = Color.Lerp(themeColor, Color.black, 0.55f);
+            // Walls are the stone-wall art with a soft tint of the face's colour.
+            Color obstacleColor = Color.Lerp(Color.white, themeColor, 0.3f);
 
             Transform obstacles = Child("Obstacles", root.transform, Vector2.zero);
             var obstacleRects = new List<Rect>();
@@ -193,9 +197,9 @@ public static class ModuleLibraryBuilder
                 obstacle.gameObject.AddComponent<BoxCollider2D>().size = block.Size;
                 // Town pillars are ruins of every face: each one in a different science face's colour.
                 Color color = town
-                    ? Color.Lerp(CubeWorld.ThemeColor(ScienceThemes[(i + townIndex) % ScienceThemes.Length]), Color.black, 0.45f)
+                    ? Color.Lerp(Color.white, CubeWorld.ThemeColor(ScienceThemes[(i + townIndex) % ScienceThemes.Length]), 0.45f)
                     : obstacleColor;
-                AddVisual(obstacle, block.Size, color, -5, sprite, material);
+                AddVisual(obstacle, block.Size, color, -5, sprite, material, ArtKey.Wall);
             }
 
             // Alcoves: three walls around each gate slot, open toward the screen centre.
@@ -219,7 +223,7 @@ public static class ModuleLibraryBuilder
                         throw new InvalidOperationException($"{name}: alcove {i} wall {w} blocks an exit lane or edge");
                     Transform piece = Child($"Wall {w}", alcove, wall.center);
                     piece.gameObject.AddComponent<BoxCollider2D>().size = wall.size;
-                    AddVisual(piece, wall.size, obstacleColor, -5, sprite, material);
+                    AddVisual(piece, wall.size, obstacleColor, -5, sprite, material, ArtKey.Wall);
                 }
             }
 
@@ -314,7 +318,7 @@ public static class ModuleLibraryBuilder
             }
             if (scale <= 0f) throw new InvalidOperationException($"{module}: no room for the {theme} ruin ({shape})");
             placed.Add(new Rect(at - size / 2f, size));
-            Color color = Color.Lerp(CubeWorld.ThemeColor(theme), new Color(0.8f, 0.78f, 0.72f), 0.25f);
+            Color color = Color.Lerp(Color.white, CubeWorld.ThemeColor(theme), 0.55f);
             Transform piece = Child($"Ruin {theme} {shape}", ruins, at);
             piece.localScale = new Vector3(scale, scale, 1f);
             BuildRuinPiece(piece, shape, color, square, round != null ? round : square, material);
@@ -352,7 +356,44 @@ public static class ModuleLibraryBuilder
         return false;
     }
 
+    /// <summary>The art of each ruin shape (see Assets/Art/ART-MAP.md).</summary>
+    private static ArtKey RuinArt(RuinShape shape)
+    {
+        switch (shape)
+        {
+            case RuinShape.Pillar: return ArtKey.RuinPillar;
+            case RuinShape.Arch: return ArtKey.RuinArch;
+            case RuinShape.Stone: return ArtKey.RuinStone;
+            case RuinShape.Tile: return ArtKey.RuinTile;
+            default: return ArtKey.RuinBroken;
+        }
+    }
+
+    /// <summary>
+    /// One ruin piece: its shape's art in the face's colour, the largest square that fits inside the shape's bounding box
+    /// (RuinSize, which the placement keeps clear), so the pixel art is never stretched. Without art, the old multi-part placeholder.
+    /// </summary>
     private static void BuildRuinPiece(Transform piece, RuinShape shape, Color color, Sprite square, Sprite round,
+        Material material)
+    {
+        const int order = -7; // above the floor (-10), below walls (-5) and NPCs
+        ArtKey art = RuinArt(shape);
+        if (ArtCatalog.TryGet(art, out _))
+        {
+            Vector2 bounds = RuinSize(shape);
+            float side = Mathf.Min(bounds.x, bounds.y);
+            Transform visual = Child("Art", piece, Vector2.zero);
+            var renderer = visual.gameObject.AddComponent<SpriteRenderer>();
+            ArtCatalog.Apply(renderer, art, new Vector2(side, side));
+            if (material != null) renderer.sharedMaterial = material;
+            renderer.color = color;
+            renderer.sortingOrder = order;
+            return;
+        }
+        BuildPlaceholderRuin(piece, shape, color, square, round, material);
+    }
+
+    private static void BuildPlaceholderRuin(Transform piece, RuinShape shape, Color color, Sprite square, Sprite round,
         Material material)
     {
         const int order = -7; // above the floor (-10), below walls (-5) and NPCs
@@ -451,13 +492,16 @@ public static class ModuleLibraryBuilder
         return go.transform;
     }
 
+    /// <summary>A "Visual" child: the art of a key from the ArtCatalog (walls tile it), else the placeholder sprite scaled to size.</summary>
     private static void AddVisual(Transform parent, Vector2 size, Color color, int sortingOrder, Sprite sprite,
-        Material material)
+        Material material, ArtKey art = ArtKey.None)
     {
         var visual = new GameObject("Visual");
         visual.transform.SetParent(parent, false);
         var renderer = visual.AddComponent<SpriteRenderer>();
-        if (sprite != null)
+        if (art != ArtKey.None && ArtCatalog.TryGet(art, out _))
+            ArtCatalog.Apply(renderer, art, size);
+        else if (sprite != null)
         {
             renderer.sprite = sprite;
             Vector2 spriteSize = sprite.bounds.size;

@@ -41,7 +41,15 @@ namespace Game.Cube
             base.OnOpened();
             Vector2 size = Solid.size;
             Vector2 bridgeSize = size.x >= size.y ? new Vector2(size.x, 0.6f) : new Vector2(0.6f, size.y);
-            Bridge = AddSprite(transform, "Vine Bridge", PartShape.Square, Vector2.zero, bridgeSize, VineColor, -3, bridgeMaterial);
+            if (ArtDressed && TryGetBridgeArt())
+            {
+                // The leafy bridge art lies where the bramble art was, one tile deep.
+                Vector2 tile = size.x >= size.y ? new Vector2(size.x, 1f) : new Vector2(1f, size.y);
+                Vector2 at = Visual != null ? (Vector2)Visual.transform.localPosition : Vector2.zero;
+                Bridge = ArtCatalog.AddSprite(transform, "Vine Bridge", ArtKey.VineBridge, at, tile, Color.white,
+                    ArtCatalog.GateArtOrder + 1, bridgeMaterial);
+            }
+            else Bridge = AddSprite(transform, "Vine Bridge", PartShape.Square, Vector2.zero, bridgeSize, VineColor, -3, bridgeMaterial);
             if (flower != null) flower.ShowBloom();
         }
 
@@ -58,7 +66,10 @@ namespace Game.Cube
             Color mark = item != null ? item.PlaceholderColor : Color.white;
             AddSprite(block.transform, "Beak Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.35f, 0.35f), mark, -3, material);
             gate.Link(PollinationFlower.Create(flowerParent, flowerWorld, item, material));
+            ArtCatalog.DressGate(gate, ArtKey.GateVine);
             return gate;
         }
+
+        private static bool TryGetBridgeArt() => ArtCatalog.TryGet(ArtKey.VineBridge, out _);
     }
 }

@@ -1,0 +1,169 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9b186f2c514246418ca013d106cfd57, type: 3}
+  m_Name: ArtCatalog
+  m_EditorClassIdentifier: Game.Cube::Game.Cube.ArtCatalog
+  entries:
+  - Key: 1
+    Sprite: {fileID: 21300000, guid: 8371f59fd66266845967cf89d79f250a, type: 3}
+    Tile: Tiny Dungeon/tile_0112
+  - Key: 10
+    Sprite: {fileID: 21300000, guid: 1d9947c77494def48acfe4a234dfb391, type: 3}
+    Tile: Tiny Dungeon/tile_0040
+  - Key: 11
+    Sprite: {fileID: 21300000, guid: 4036fb676195b954baf899f600c37b28, type: 3}
+    Tile: Tiny Dungeon/tile_0014
+  - Key: 12
+    Sprite: {fileID: 21300000, guid: 8720c67bbf48e2846bf4847dac391bf8, type: 3}
+    Tile: Tiny Town/tile_0126
+  - Key: 20
+    Sprite: {fileID: 21300000, guid: 02ba5ca26b99d9a469e0dc6e059d3b45, type: 3}
+    Tile: Tiny Town/tile_0043
+  - Key: 21
+    Sprite: {fileID: 21300000, guid: b3ef9502923495145becf3673aab5fcb, type: 3}
+    Tile: Tiny Town/tile_0001
+  - Key: 22
+    Sprite: {fileID: 21300000, guid: 6c613917293ec7a48afe57eaa2c2b90a, type: 3}
+    Tile: Tiny Dungeon/tile_0037
+  - Key: 23
+    Sprite: {fileID: 21300000, guid: 42671bb072f4ae04faf2ee8834a14fce, type: 3}
+    Tile: Tiny Town/tile_0109
+  - Key: 24
+    Sprite: {fileID: 21300000, guid: 7a49e2eb0fab09d41902de4d6af9cd28, type: 3}
+    Tile: Tiny Dungeon/tile_0048
+  - Key: 25
+    Sprite: {fileID: 21300000, guid: 833ebc56d0a682c4ca433ba4cbc54934, type: 3}
+    Tile: Tiny Dungeon/tile_0049
+  - Key: 26
+    Sprite: {fileID: 21300000, guid: eda688825472f3a4cbfec8cd51d9407f, type: 3}
+    Tile: Tiny Dungeon/tile_0000
+  - Key: 27
+    Sprite: {fileID: 21300000, guid: 9e7bc13381f912e478d66f60e3698a33, type: 3}
+    Tile: Tiny Dungeon/tile_0042
+  - Key: 30
+    Sprite: {fileID: 21300000, guid: fd4699baba5410f49938bcfe81c7d76f, type: 3}
+    Tile: Tiny Dungeon/tile_0077
+  - Key: 31
+    Sprite: {fileID: 21300000, guid: f33beea655ac46b409e371bc97552885, type: 3}
+    Tile: Tiny Dungeon/tile_0024
+  - Key: 32
+    Sprite: {fileID: 21300000, guid: a2b23e8e0f7b0104f80685f305c9dd3c, type: 3}
+    Tile: Tiny Dungeon/tile_0082
+  - Key: 33
+    Sprite: {fileID: 21300000, guid: 1048f431d569da4448719aaf47bf3911, type: 3}
+    Tile: Tiny Dungeon/tile_0046
+  - Key: 34
+    Sprite: {fileID: 21300000, guid: 6282c6e5842606e4a8a34dd8bfe984fe, type: 3}
+    Tile: Tiny Town/tile_0005
+  - Key: 35
+    Sprite: {fileID: 21300000, guid: 04f5fdb6ea5bfd545b25a1102f765800, type: 3}
+    Tile: Tiny Dungeon/tile_0010
+  - Key: 36
+    Sprite: {fileID: 21300000, guid: 82f2a09c062311345ae7da704cfb6de6, type: 3}
+    Tile: Tiny Dungeon/tile_0028
+  - Key: 37
+    Sprite: {fileID: 21300000, guid: c51560174d858604ab6b0c0f29c85cdd, type: 3}
+    Tile: Tiny Town/tile_0125
+  - Key: 38
+    Sprite: {fileID: 21300000, guid: 9d19e153ba516fb4b9ee3aa96a712573, type: 3}
+    Tile: Tiny Town/tile_0089
+  - Key: 39
+    Sprite: {fileID: 21300000, guid: a8cd0a7224604a748ae180ff99365d24, type: 3}
+    Tile: Tiny Town/tile_0002
+  - Key: 50
+    Sprite: {fileID: 21300000, guid: c91765e412fdad647b573b0b7f59cd95, type: 3}
+    Tile: Tiny Town/tile_0107
+  - Key: 51
+    Sprite: {fileID: 21300000, guid: 9bb2409771a4b824183d9453ae638571, type: 3}
+    Tile: Tiny Dungeon/tile_0131
+  - Key: 52
+    Sprite: {fileID: 21300000, guid: 7622341a6d989c94bb830e08872370d4, type: 3}
+    Tile: Tiny Dungeon/tile_0117
+  - Key: 53
+    Sprite: {fileID: 21300000, guid: b3ca83c5b440c9f4ea08b9b238ed4d61, type: 3}
+    Tile: Tiny Dungeon/tile_0114
+  - Key: 54
+    Sprite: {fileID: 21300000, guid: b75eb098e34883e4e8b85456ba23e85f, type: 3}
+    Tile: Tiny Dungeon/tile_0074
+  - Key: 55
+    Sprite: {fileID: 21300000, guid: a3c981ade87a9cc42a63d8bcc8a30cc1, type: 3}
+    Tile: Tiny Town/tile_0093
+  - Key: 60
+    Sprite: {fileID: 21300000, guid: fdfb5a68405c2b541bbb9cb4c29efb75, type: 3}
+    Tile: Tiny Dungeon/tile_0109
+  - Key: 61
+    Sprite: {fileID: 21300000, guid: 1d65e3ca814972b4aa7051e29fe64e3f, type: 3}
+    Tile: Tiny Dungeon/tile_0122
+  - Key: 62
+    Sprite: {fileID: 21300000, guid: ef8e7c3d44e811742931c0491be8f84a, type: 3}
+    Tile: Tiny Dungeon/tile_0121
+  - Key: 63
+    Sprite: {fileID: 21300000, guid: f342623085ac0b949a0073404f3f24ba, type: 3}
+    Tile: Tiny Dungeon/tile_0108
+  - Key: 64
+    Sprite: {fileID: 21300000, guid: a23b236759d66b242958de547af37bc2, type: 3}
+    Tile: Tiny Dungeon/tile_0110
+  - Key: 65
+    Sprite: {fileID: 21300000, guid: dd8b9d0875fbf2b48aba5f7b5655d801, type: 3}
+    Tile: Tiny Dungeon/tile_0120
+  - Key: 66
+    Sprite: {fileID: 21300000, guid: 91cc7529d9d8e164bae493e1036ea225, type: 3}
+    Tile: Tiny Dungeon/tile_0124
+  - Key: 70
+    Sprite: {fileID: 21300000, guid: 64b5076796df94a4183ea1eba41cd671, type: 3}
+    Tile: Tiny Dungeon/tile_0056
+  - Key: 71
+    Sprite: {fileID: 21300000, guid: 735303543ed3b634cbe76a83fbf2d663, type: 3}
+    Tile: Tiny Town/tile_0095
+  - Key: 72
+    Sprite: {fileID: 21300000, guid: bb75c83587e82f44ab2d6c5c8245818b, type: 3}
+    Tile: Tiny Dungeon/tile_0032
+  - Key: 73
+    Sprite: {fileID: 21300000, guid: 818c64100115a97468c53755c0f1bc5f, type: 3}
+    Tile: Tiny Dungeon/tile_0031
+  - Key: 74
+    Sprite: {fileID: 21300000, guid: 697b8fba9a4e38543bee0233a26471d4, type: 3}
+    Tile: Tiny Town/tile_0017
+  - Key: 75
+    Sprite: {fileID: 21300000, guid: 1ff885d69aaa54641870b0325d9ce04b, type: 3}
+    Tile: Tiny Dungeon/tile_0055
+  - Key: 76
+    Sprite: {fileID: 21300000, guid: fb5174d789eced64ead3c9d9c8a2aa43, type: 3}
+    Tile: Tiny Dungeon/tile_0029
+  - Key: 77
+    Sprite: {fileID: 21300000, guid: 26e1ca28c70672244ba2b55da6fcd5cc, type: 3}
+    Tile: Tiny Dungeon/tile_0060
+  - Key: 80
+    Sprite: {fileID: 21300000, guid: 83070cefe3646274a9032815310538ca, type: 3}
+    Tile: Tiny Town/tile_0104
+  - Key: 81
+    Sprite: {fileID: 21300000, guid: e1fedc2c371cc5649bbdaefac38e73e7, type: 3}
+    Tile: Tiny Dungeon/tile_0019
+  - Key: 82
+    Sprite: {fileID: 21300000, guid: 2c36620be0afad8469f2283f138e8f63, type: 3}
+    Tile: Tiny Dungeon/tile_0102
+  - Key: 90
+    Sprite: {fileID: 21300000, guid: 36ed10da5b308f44c80d7f0af8b6806d, type: 3}
+    Tile: Tiny Dungeon/tile_0058
+  - Key: 91
+    Sprite: {fileID: 21300000, guid: df331bd366cd7684fae2cb0ad769223e, type: 3}
+    Tile: Tiny Town/tile_0114
+  - Key: 92
+    Sprite: {fileID: 21300000, guid: da0716db0b3ba1941864fed4c5065367, type: 3}
+    Tile: Tiny Dungeon/tile_0065
+  - Key: 93
+    Sprite: {fileID: 21300000, guid: f797f2b316dba9142976bee6ef664af0, type: 3}
+    Tile: Tiny Dungeon/tile_0061
+  - Key: 94
+    Sprite: {fileID: 21300000, guid: 9d1a32ea1914431438673723ecd30e79, type: 3}
+    Tile: Tiny Dungeon/tile_0064
+  flashMaterial: {fileID: 2100000, guid: 69cec63cc554807408bcf16f61c14aab, type: 2}

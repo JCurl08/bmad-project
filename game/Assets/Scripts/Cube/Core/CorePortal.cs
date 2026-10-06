@@ -58,20 +58,19 @@ namespace Game.Cube
 
             var ring = new GameObject("Ring");
             ring.transform.SetParent(go.transform, false);
-            ring.transform.localScale = new Vector3(Radius * 2.6f, Radius * 2.6f, 1f);
             var ringRenderer = ring.AddComponent<SpriteRenderer>();
-            ringRenderer.sprite = NpcFactory.ShapeSprite(PartShape.Circle);
+            ArtCatalog.Apply(ringRenderer, ArtKey.Portal, new Vector2(Radius * 2.6f, Radius * 2.6f));
             if (material != null) ringRenderer.sharedMaterial = material;
-            ringRenderer.color = new Color(1f, 0.25f, 0.6f, 0.85f);
+            ringRenderer.color = new Color(1f, 0.75f, 0.95f);
             ringRenderer.sortingOrder = 3;
 
             var swirl = new GameObject("Swirl");
             swirl.transform.SetParent(go.transform, false);
-            swirl.transform.localScale = new Vector3(Radius * 1.6f, Radius * 1.6f, 1f);
+            swirl.transform.localScale = new Vector3(Radius * 0.9f, Radius * 0.9f, 1f);
             var swirlRenderer = swirl.AddComponent<SpriteRenderer>();
-            swirlRenderer.sprite = NpcFactory.ShapeSprite(PartShape.Diamond);
+            swirlRenderer.sprite = ArtCatalog.Shape(PartShape.Diamond);
             if (material != null) swirlRenderer.sharedMaterial = material;
-            swirlRenderer.color = new Color(0.25f, 0.05f, 0.3f);
+            swirlRenderer.color = new Color(1f, 0.3f, 0.75f, 0.45f);
             swirlRenderer.sortingOrder = 4;
 
             var portal = go.AddComponent<CorePortal>();

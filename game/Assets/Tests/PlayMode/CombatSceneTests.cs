@@ -87,7 +87,7 @@ namespace Game.Cube.Tests
             Assert.AreSame(player.GetComponent<Equipment>(), hud.Equipment);
             Assert.IsNull(hud.MessageText);
             player.GetComponent<Health>().TakeDamage(100f, null);
-            StringAssert.Contains("entropy wins", hud.MessageText);
+            Assert.AreEqual("You were defeated", hud.MessageText);
             Assert.IsFalse(player.GetComponent<PlayerMover>().enabled);
         }
 

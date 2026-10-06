@@ -96,6 +96,9 @@ namespace Game.Cube
 
         protected override Color ClosedColor => DoorColor;
 
+        /// <summary>Swinging ajar already played the open effect; latching open from ajar does not play it again.</summary>
+        protected override bool PlaysOpenEffect => !ajar;
+
         /// <summary>
         /// The switch was stepped on by a player moving at playerSpeed: open (or keep open) and restart the clock. The
         /// door's times are tuned at the base speed; a faster player (speed points) gets the open time scaled by
@@ -164,9 +167,10 @@ namespace Game.Cube
         private void ShowAjar()
         {
             if (Visual == null) return;
-            Color c = DoorColor;
+            Color c = VisualColor(DoorColor);
             c.a = 0.35f;
             Visual.color = c;
+            GateOpenEffect.Play(this);
         }
 
         protected override void OnOpened()
@@ -236,13 +240,14 @@ namespace Game.Cube
             barGo.transform.localPosition = opening * (thickness / 2f + 0.12f);
             if (!across) barGo.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
             gate.timerBar = barGo.AddComponent<SpriteRenderer>();
-            gate.timerBar.sprite = NpcFactory.ShapeSprite(PartShape.Square);
+            gate.timerBar.sprite = ArtCatalog.Shape(PartShape.Square);
             if (material != null) gate.timerBar.sharedMaterial = material;
             gate.timerBar.color = PipOn;
             gate.timerBar.sortingOrder = -2;
             gate.timerBar.enabled = false;
 
             gate.doorSwitch = DoorSwitch.Create(switchParent != null ? switchParent : block.transform, switchWorld, gate, material);
+            ArtCatalog.DressGate(gate, ArtKey.GateTimedDoor, -opening); // the pocket lies behind the door, away from the player
             gate.ApplyVisual();
             return gate;
         }

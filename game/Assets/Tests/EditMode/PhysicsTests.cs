@@ -438,10 +438,15 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(Race.Alien, spec.Race);
                 Assert.AreEqual(spec.Signature(), PhysicsPopulation.AlienSpec(3, i).Signature());
                 List<string> lines = PhysicsPopulation.LinesFor(spec, facts, HintDensity.Sparse, i == 0);
-                CollectionAssert.Contains(Dialogue.Flavours[Race.Alien].Greetings, lines[0]);
-                CollectionAssert.Contains(Dialogue.EinsteinLines, lines[1]);
-                if (i == 0) Assert.AreEqual(Dialogue.MassMittLine, lines[lines.Count - 1]);
-                else CollectionAssert.DoesNotContain(lines, Dialogue.MassMittLine);
+                Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                if (i == 0) Assert.AreEqual(Dialogue.MassMittLine, lines[0], "Alien 0's flavour is the mitt line");
+                else
+                {
+                    CollectionAssert.Contains(Dialogue.EinsteinLines, lines[0]);
+                    CollectionAssert.DoesNotContain(lines, Dialogue.MassMittLine);
+                }
+                Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                 foreach (string line in lines)
                     StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
             }

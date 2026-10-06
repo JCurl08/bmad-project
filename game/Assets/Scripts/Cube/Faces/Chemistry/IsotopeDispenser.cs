@@ -58,15 +58,14 @@ namespace Game.Cube
             var trigger = go.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
             trigger.radius = Radius;
-            BeakGate.AddSprite(go.transform, "Pedestal", PartShape.Square, Vector2.zero, new Vector2(PedestalSize, PedestalSize),
-                PedestalColor, 4, material);
+            ArtCatalog.AddSprite(go.transform, "Pedestal", ArtKey.Dispenser, Vector2.zero, new Vector2(PedestalSize, PedestalSize),
+                Color.white, 4, material);
             BeakGate.AddSprite(go.transform, "Glow", PartShape.Circle, Vector2.zero, new Vector2(0.65f, 0.65f),
                 new Color(ChemistryIsotope.GlowColor.r, ChemistryIsotope.GlowColor.g, ChemistryIsotope.GlowColor.b, 0.35f), 5, material);
             var dispenser = go.AddComponent<IsotopeDispenser>();
             dispenser.Item = item;
-            Color color = item != null ? item.PlaceholderColor : ChemistryIsotope.ItemColor;
-            dispenser.isotopeSprite = BeakGate.AddSprite(go.transform, "Isotope", PartShape.Diamond, Vector2.zero,
-                new Vector2(IsotopeSize, IsotopeSize), color, 6, material);
+            dispenser.isotopeSprite = ArtCatalog.AddSprite(go.transform, "Isotope", ArtKeys.Item(item), Vector2.zero,
+                new Vector2(IsotopeSize, IsotopeSize), Color.white, 6, material);
             return dispenser;
         }
     }

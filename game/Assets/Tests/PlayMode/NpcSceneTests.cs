@@ -56,7 +56,7 @@ namespace Game.Cube.Tests
             {
                 List<string> expected = Dialogue.For(npc.Spec, beforeReveal, debug.HintDensity);
                 CollectionAssert.AreEqual(expected, npc.Lines, npc.Spec.ToString());
-                Assert.GreaterOrEqual(npc.Lines.Count, 3, "Greeting, role line and at least one hint");
+                Assert.AreEqual(Dialogue.MaxLines, npc.Lines.Count, "A role line, then the hint");
                 Assert.AreEqual(NpcFactory.ChooseParts(world.Seed, npc.Race, 0).Signature(), npc.Spec.Signature());
             }
 

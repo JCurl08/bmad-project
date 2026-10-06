@@ -4,12 +4,12 @@ namespace Game.Cube
 {
     /// <summary>
     /// The player's combat HUD (OnGUI placeholder): a row of hearts at the bottom left (one per health point, partly filled for
-    /// a fraction, e.g. quarter hearts after defence) with the exact health as a number, the equipped item's name, and a campy
+    /// a fraction, e.g. quarter hearts after defence) with the exact health as a number, the equipped item's name, and a plain
     /// message once the player has died.
     /// </summary>
     public class CombatHud : MonoBehaviour
     {
-        public const string DeathMessage = "You fell apart (entropy wins… this time)";
+        public const string DeathMessage = "You were defeated";
         public const string BareHandsLabel = "Bare hands (a very sincere bonk)";
 
         [SerializeField] private Health health;

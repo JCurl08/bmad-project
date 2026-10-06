@@ -332,16 +332,14 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(Race.Mushroom, mushroom.Race);
                 Assert.IsTrue(OnFace(mushroom.transform.position, face, null), "Mushrooms live on the Chemistry face");
                 IReadOnlyList<string> lines = mushroom.Lines;
-                CollectionAssert.Contains(Dialogue.Flavours[Race.Mushroom].Greetings, lines[0], "A mushroom greeting");
-                CollectionAssert.Contains(Dialogue.CurieLines, lines[1], "A Curie line");
+                Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                if (i == 0) Assert.AreEqual(Dialogue.IsotopeStageLine, lines[0]);
+                else CollectionAssert.Contains(Dialogue.CurieLines, lines[0], "A Curie line");
 
-                int stageLines = i == 0 ? 1 : 0;
-                List<string> hintLines = lines.Skip(3).Take(lines.Count - 3 - stageLines).ToList();
                 List<Hint> hints = HintGenerator.Generate(facts, mushroom.Spec.HintKind, mushroom.Spec.Salt, HintGenerator.FirstRunDensity);
-                Assert.AreEqual(HintGenerator.SparseCount, hintLines.Count, "First-run hints are sparse");
-                CollectionAssert.AreEqual(hints.Select(h => h.Text), hintLines, $"mushroom {i}: its hint lines");
+                Assert.AreEqual(HintGenerator.SparseCount, hints.Count, "First-run hints are sparse");
+                Assert.AreEqual(hints[0].Text, lines[1], $"mushroom {i}: its hint line");
                 foreach (Hint hint in hints) AssertHintTrueInWorld(hint, $"mushroom {i}");
-                if (i == 0) Assert.AreEqual(Dialogue.IsotopeStageLine, lines[lines.Count - 1]);
             }
 
             NpcTalker talker = chemistry.Mushrooms[0];

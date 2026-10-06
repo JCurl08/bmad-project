@@ -371,10 +371,15 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(Race.Mushroom, spec.Race);
                 Assert.AreEqual(spec.Signature(), ChemistryPopulation.MushroomSpec(3, i).Signature());
                 List<string> lines = ChemistryPopulation.LinesFor(spec, facts, HintDensity.Sparse, i == 0);
-                CollectionAssert.Contains(Dialogue.Flavours[Race.Mushroom].Greetings, lines[0]);
-                CollectionAssert.Contains(Dialogue.CurieLines, lines[1]);
-                if (i == 0) Assert.AreEqual(Dialogue.IsotopeStageLine, lines[lines.Count - 1]);
-                else CollectionAssert.DoesNotContain(lines, Dialogue.IsotopeStageLine);
+                Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
+                if (i == 0) Assert.AreEqual(Dialogue.IsotopeStageLine, lines[0], "Mushroom 0's flavour is the stage line");
+                else
+                {
+                    CollectionAssert.Contains(Dialogue.CurieLines, lines[0]);
+                    CollectionAssert.DoesNotContain(lines, Dialogue.IsotopeStageLine);
+                }
+                Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                 foreach (string line in lines)
                     StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
             }

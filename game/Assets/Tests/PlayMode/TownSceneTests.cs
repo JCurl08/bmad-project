@@ -129,9 +129,9 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(i == 0, greeter, "The greeter is the first Town NPC");
                 if (greeter) expected = TownSign.GreeterLines(expected);
                 CollectionAssert.AreEqual(expected, target.Lines, target.Spec.ToString());
-                Assert.AreEqual(Dialogue.Greeting(target.Spec), target.Lines[0]);
-                Assert.AreEqual(Dialogue.RoleLine(target.Spec), target.Lines[greeter ? 1 + TownSign.WelcomeLines.Count : 1],
-                    "Race- and role-flavoured line");
+                Assert.AreEqual(Dialogue.MaxLines, target.Lines.Count, "A flavour line, then the hint");
+                Assert.AreEqual(greeter ? TownSign.WelcomeLines[0] : Dialogue.RoleLine(target.Spec), target.Lines[0],
+                    "The greeter welcomes; everyone else says their race- and role-flavoured line");
                 List<Hint> hints = HintGenerator.Generate(facts, target.Spec.HintKind, target.Spec.Salt, HintDensity.Sparse);
                 Assert.AreEqual(HintGenerator.SparseCount, hints.Count);
                 Assert.IsTrue(hints.All(h => !h.Precise), "First-run hints are sparse");

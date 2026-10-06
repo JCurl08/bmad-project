@@ -69,7 +69,7 @@ namespace Game.Cube
     /// <summary>
     /// Builds NPCs. Part choice is pure: (seed, race, index) seeds its own PCG32 stream, so the same seed
     /// always gives the same NPCs and choosing one never disturbs another. Spawn builds the runtime object:
-    /// three stacked placeholder sprites (legs, torso, head), a collider, an NpcTalker, an NpcMover and the
+    /// three stacked outlined part sprites (legs, torso, head; drawn per race by NpcPartArt), a collider, an NpcTalker, an NpcMover and the
     /// dormant enemy parts (HostileNpc) that wake while its race is hostile.
     /// Placing NPCs in the world is up to the town and face code (and the F3 debug spawn).
     /// </summary>
@@ -97,8 +97,6 @@ namespace Game.Cube
                 if (hit != null && hit.enabled && !hit.isTrigger) return false;
             return true;
         }
-
-        private static readonly Dictionary<PartShape, Sprite> Sprites = new Dictionary<PartShape, Sprite>();
 
         /// <summary>The seed of an NPC's own random stream: seed, race and index packed so none collide.</summary>
         public static ulong NpcSeed(int seed, Race race, int index) =>
@@ -143,9 +141,12 @@ namespace Game.Cube
                 var visual = new GameObject(part.Slot.ToString());
                 visual.transform.SetParent(go.transform, false);
                 visual.transform.localPosition = new Vector3(0f, y + part.Size.y / 2f, 0f);
-                visual.transform.localScale = new Vector3(part.Size.x, part.Size.y, 1f);
+                // The race's outlined part (ArtCatalog.NpcPart), scaled to exactly the part's size.
+                Sprite sprite = ArtCatalog.NpcPart(spec.Race, part);
+                Vector2 spriteSize = sprite.bounds.size;
+                visual.transform.localScale = new Vector3(part.Size.x / spriteSize.x, part.Size.y / spriteSize.y, 1f);
                 var renderer = visual.AddComponent<SpriteRenderer>();
-                renderer.sprite = ShapeSprite(part.Shape);
+                renderer.sprite = sprite;
                 if (material != null) renderer.sharedMaterial = material;
                 renderer.color = part.Color;
                 renderer.sortingOrder = SortingOrder + (int)part.Slot;
@@ -168,40 +169,7 @@ namespace Game.Cube
             return talker;
         }
 
-        /// <summary>A white placeholder sprite of the given shape, one world unit across, made in code once.</summary>
-        public static Sprite ShapeSprite(PartShape shape)
-        {
-            if (Sprites.TryGetValue(shape, out Sprite cached) && cached != null) return cached;
-            const int size = 32;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-            };
-            var pixels = new Color32[size * size];
-            for (int py = 0; py < size; py++)
-            {
-                for (int px = 0; px < size; px++)
-                {
-                    float u = (px + 0.5f) / size * 2f - 1f; // -1..1
-                    float v = (py + 0.5f) / size * 2f - 1f;
-                    bool inside;
-                    switch (shape)
-                    {
-                        case PartShape.Circle: inside = u * u + v * v <= 1f; break;
-                        case PartShape.Triangle: inside = Mathf.Abs(u) <= (1f - v) / 2f; break; // apex up
-                        case PartShape.Diamond: inside = Mathf.Abs(u) + Mathf.Abs(v) <= 1f; break;
-                        default: inside = true; break;
-                    }
-                    pixels[py * size + px] = inside ? new Color32(255, 255, 255, 255) : new Color32(255, 255, 255, 0);
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply();
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
-            sprite.name = $"NPC {shape}";
-            Sprites[shape] = sprite;
-            return sprite;
-        }
+        /// <summary>A white generated shape, one world unit across (made once by the ArtCatalog).</summary>
+        public static Sprite ShapeSprite(PartShape shape) => ArtCatalog.Shape(shape);
     }
 }

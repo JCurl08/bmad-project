@@ -10,8 +10,9 @@ namespace Game.Cube
     /// </summary>
     public class DoorSwitch : MonoBehaviour
     {
-        public static readonly Color PadColor = new Color(0.3f, 0.45f, 0.7f);
-        public static readonly Color PressedColor = new Color(0.65f, 0.85f, 1f);
+        /// <summary>The switch art's tint, waiting and while stepped on.</summary>
+        public static readonly Color PadColor = new Color(0.85f, 0.92f, 1f);
+        public static readonly Color PressedColor = new Color(1f, 0.95f, 0.5f);
 
         [SerializeField] private TimedDoorGate door;
         [SerializeField] private SpriteRenderer top;
@@ -78,8 +79,8 @@ namespace Game.Cube
                 new Vector2(TimeField.SwitchRadius * 2.3f, TimeField.SwitchRadius * 2.3f), new Color(0.15f, 0.18f, 0.25f), -3, material);
             var sw = go.AddComponent<DoorSwitch>();
             sw.door = door;
-            sw.top = BeakGate.AddSprite(go.transform, "Top", PartShape.Circle, Vector2.zero,
-                new Vector2(TimeField.SwitchRadius * 1.7f, TimeField.SwitchRadius * 1.7f), PadColor, -2, material);
+            sw.top = ArtCatalog.AddSprite(go.transform, "Top", ArtKey.DoorSwitch, Vector2.zero,
+                new Vector2(TimeField.SwitchRadius * 2.2f, TimeField.SwitchRadius * 2.2f), PadColor, -2, material);
             // A clock hand: this switch starts a door's clock.
             BeakGate.AddSprite(go.transform, "Hand", PartShape.Square, new Vector2(0f, 0.09f), new Vector2(0.05f, 0.2f),
                 new Color(0.1f, 0.1f, 0.15f), -1, material);
