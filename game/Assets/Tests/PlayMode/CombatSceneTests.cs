@@ -101,7 +101,7 @@ namespace Game.Cube.Tests
         public IEnumerator F7Enemy_FallsToAFewWeaknessHits_ButTakesManyBareOnes()
         {
             yield return Load();
-            ItemDefinition biology = world.ItemCatalog.ForTheme(Theme.Biology);
+            ItemDefinition biology = world.ItemFor(Theme.Biology); // the run's beak
             Assert.IsNotNull(biology);
 
             Enemy bareTarget = null;

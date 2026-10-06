@@ -39,7 +39,8 @@ namespace Game.Cube
             ItemPlacement placement = world.ItemPlacement;
             if (layout == null && world.Library != null) layout = CubeLayout.Generate(world.Model, world.Library);
             if (placement == null && layout != null && world.Library != null && world.ItemCatalog != null)
-                placement = ItemPlacement.ForRun(world.Model, layout, world.Library, world.ItemCatalog.Themes());
+                placement = ItemPlacement.ForRun(world.Model, layout, world.Library, world.ItemCatalog.Themes(),
+                    world.ItemCatalog.VariantCounts());
             return new RunFacts(world.Model, layout, placement);
         }
     }

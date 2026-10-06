@@ -14,7 +14,10 @@ namespace Game.Cube
     /// CubeLayout and instantiates their modules. Sealed faces are drawn dark and never laid out.
     /// The reveal also places the items (ItemPlacement, resolved through the ItemCatalog): a gate in each
     /// chosen module gate slot and one pickup per item on its home face. Unused gate slots get no gate,
-    /// so their alcove stays open.
+    /// so their alcove stays open. A theme with item variants uses the run's rolled variant (ItemCatalog.ItemFor),
+    /// and the other variants' optional gates go into leftover home slots. Face content (IFaceContent
+    /// components on this object, e.g. BiologyFace) builds its theme's gates and adds its trial and population
+    /// on the reveal, and is cleared on every rebuild.
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -31,6 +34,7 @@ namespace Game.Cube
         private readonly Transform[] moduleRoots = new Transform[CubeSettings.FaceCount];
         private readonly Dictionary<ScreenAddress, ScreenModule> modules = new Dictionary<ScreenAddress, ScreenModule>();
         private readonly List<Gate> gates = new List<Gate>();
+        private readonly List<Gate> optionalGates = new List<Gate>();
         private readonly List<ItemPickup> pickups = new List<ItemPickup>();
         private static Sprite fallbackSprite;
 
@@ -51,6 +55,15 @@ namespace Game.Cube
 
         /// <summary>Every gate instantiated by the reveal (open or not).</summary>
         public IReadOnlyList<Gate> Gates => gates;
+
+        /// <summary>Every optional gate (a non-rolled item variant's) instantiated by the reveal.</summary>
+        public IReadOnlyList<Gate> OptionalGates => optionalGates;
+
+        /// <summary>The face content hooks on this object (IFaceContent), e.g. BiologyFace.</summary>
+        public IFaceContent[] FaceContents => GetComponents<IFaceContent>();
+
+        /// <summary>The item this run uses for a theme (the rolled variant when it has variants); null without a catalog.</summary>
+        public ItemDefinition ItemFor(Theme theme) => itemCatalog != null ? itemCatalog.ItemFor(theme, Seed) : null;
 
         /// <summary>Every pickup instantiated by the reveal; collected ones become null (destroyed).</summary>
         public IReadOnlyList<ItemPickup> Pickups => pickups;
@@ -109,7 +122,9 @@ namespace Game.Cube
             Relations.Reset();
             modules.Clear();
             gates.Clear();
+            optionalGates.Clear();
             pickups.Clear();
+            foreach (IFaceContent content in FaceContents) content.Clear();
 
             if (generated != null) Destroy(generated.gameObject);
             generated = NewChild("Generated Faces", transform);
@@ -271,23 +286,27 @@ namespace Game.Cube
                 return;
             }
 
-            ItemPlacement = ItemPlacement.ForRun(Model, Layout, library, itemCatalog.Themes());
+            ItemPlacement = ItemPlacement.ForRun(Model, Layout, library, itemCatalog.Themes(), itemCatalog.VariantCounts());
+            IFaceContent[] contents = FaceContents;
+            foreach (IFaceContent content in contents) content.BeginReveal(this);
+
             foreach (GatePlacement placement in ItemPlacement.Gates)
             {
-                ScreenModule module = ModuleAt(placement.Screen);
-                GateSlot[] slots = module != null ? module.Gates : Array.Empty<GateSlot>();
-                ItemDefinition item = itemCatalog.ForTheme(placement.Item);
-                if (placement.Slot >= slots.Length || item == null)
-                {
-                    Debug.LogError($"CubeWorld: cannot place {placement}");
-                    continue;
-                }
-                gates.Add(CreateGate(slots[placement.Slot], item));
+                Gate gate = BuildGate(new FaceGateRequest(placement.Screen, placement.Slot, placement.Item, false),
+                    itemCatalog.ItemFor(placement.Item, Seed), contents);
+                if (gate != null) gates.Add(gate);
+            }
+            foreach (OptionalGatePlacement placement in ItemPlacement.OptionalGates)
+            {
+                List<ItemDefinition> variants = itemCatalog.VariantsOf(placement.Item);
+                ItemDefinition item = placement.Variant >= 0 && placement.Variant < variants.Count ? variants[placement.Variant] : null;
+                Gate gate = BuildGate(new FaceGateRequest(placement.Screen, placement.Slot, placement.Item, true), item, contents);
+                if (gate != null) optionalGates.Add(gate);
             }
             foreach (PickupPlacement placement in ItemPlacement.Pickups)
             {
                 ScreenModule module = ModuleAt(placement.Screen);
-                ItemDefinition item = itemCatalog.ForTheme(placement.Item);
+                ItemDefinition item = itemCatalog.ItemFor(placement.Item, Seed);
                 if (module == null || item == null || (placement.IsGuarded && placement.GuardSlot >= module.Gates.Length))
                 {
                     Debug.LogError($"CubeWorld: cannot place {placement}");
@@ -298,6 +317,37 @@ namespace Game.Cube
                     : ScreenCenter(placement.Screen) + OpenPickupOffset;
                 pickups.Add(CreatePickup(module.transform, at, item));
             }
+
+            foreach (IFaceContent content in contents) content.EndReveal(this);
+        }
+
+        /// <summary>Builds one gate: through the face content of its item's theme when there is one, else a plain Gate.</summary>
+        private Gate BuildGate(FaceGateRequest request, ItemDefinition item, IFaceContent[] contents)
+        {
+            ScreenModule module = ModuleAt(request.Screen);
+            GateSlot[] slots = module != null ? module.Gates : Array.Empty<GateSlot>();
+            if (request.Slot >= slots.Length || item == null)
+            {
+                Debug.LogError($"CubeWorld: cannot place {request}");
+                return null;
+            }
+            GateSlot slot = slots[request.Slot];
+            foreach (IFaceContent content in contents)
+            {
+                if (content.Theme != request.Item) continue;
+                Gate built = content.CreateGate(this, request, slot, item);
+                if (built != null) return built;
+            }
+            return CreateGate(slot, item);
+        }
+
+        /// <summary>The size of a gate in a slot: GateWidth across the alcove opening, GateThickness deep.</summary>
+        public static Vector2 GateSize(GateSlot slot)
+        {
+            bool across = slot.Opening == Facing.North || slot.Opening == Facing.South;
+            return across
+                ? new Vector2(GateSlot.GateWidth, GateSlot.GateThickness)
+                : new Vector2(GateSlot.GateThickness, GateSlot.GateWidth);
         }
 
         private Gate CreateGate(GateSlot slot, ItemDefinition item)
@@ -382,7 +432,11 @@ namespace Game.Cube
             return child;
         }
 
-        private GameObject CreateBlock(string name, Transform parent, Vector2 centre, Vector2 size, Color color,
+        /// <summary>
+        /// A placeholder block: a GameObject at centre with a scaled "Visual" child sprite of the given size and
+        /// colour, and (optionally) a solid BoxCollider2D of that size on the root. Face content uses it too.
+        /// </summary>
+        public GameObject CreateBlock(string name, Transform parent, Vector2 centre, Vector2 size, Color color,
             int sortingOrder, bool collider)
         {
             var go = new GameObject(name);

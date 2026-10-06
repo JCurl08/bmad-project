@@ -32,7 +32,8 @@ namespace Game.Cube.Tests
             keyboard = InputSystem.AddDevice<Keyboard>();
         }
 
-        private IEnumerator LoadAndReveal()
+        /// <summary>Loads the scene, optionally starts a run on another seed, then reveals the science faces.</summary>
+        private IEnumerator LoadAndReveal(Func<CubeWorld, int> chooseSeed = null)
         {
             yield return SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Single);
             yield return null;
@@ -41,6 +42,11 @@ namespace Game.Cube.Tests
             navigator = UnityEngine.Object.FindAnyObjectByType<CubeNavigator>();
             Assert.IsNotNull(world);
             Assert.IsNotNull(navigator);
+            if (chooseSeed != null)
+            {
+                world.Rebuild(chooseSeed(world));
+                yield return null;
+            }
             inventory = navigator.GetComponent<Inventory>();
             body = navigator.GetComponent<Rigidbody2D>();
             Assert.IsNotNull(inventory, "The player has no Inventory");
@@ -80,10 +86,11 @@ namespace Game.Cube.Tests
         public IEnumerator Reveal_InstantiatesTheSeedsGatesAndPickups_UnusedSlotsStayOpen()
         {
             yield return LoadAndReveal();
-            ItemPlacement expected = ItemPlacement.Generate(new CubeModel(world.Seed), CubeLayout.Generate(new CubeModel(world.Seed), world.Library),
-                world.Library, world.ItemCatalog.Themes());
+            ItemPlacement expected = ItemPlacement.ForRun(new CubeModel(world.Seed), CubeLayout.Generate(new CubeModel(world.Seed), world.Library),
+                world.Library, world.ItemCatalog.Themes(), world.ItemCatalog.VariantCounts());
             Assert.AreEqual(expected.Signature(), world.ItemPlacement.Signature(), "Placement differs from the seed's");
             Assert.AreEqual(world.ItemPlacement.Gates.Count, world.Gates.Count);
+            Assert.AreEqual(world.ItemPlacement.OptionalGates.Count, world.OptionalGates.Count);
             Assert.AreEqual(3, world.Pickups.Count);
 
             foreach (ScreenModule module in world.AllModules.Where(m => m.Theme != Theme.Town))
@@ -94,9 +101,16 @@ namespace Game.Cube.Tests
                 {
                     Gate gate = slots[i].GetComponentInChildren<Gate>(true);
                     bool placed = world.ItemPlacement.TryGetGate(screen, i, out GatePlacement g);
-                    Assert.AreEqual(placed, gate != null, $"{module.name} slot {i}: a gate exists exactly where placed");
+                    bool optional = world.ItemPlacement.TryGetOptionalGate(screen, i, out OptionalGatePlacement o);
+                    Assert.AreEqual(placed || optional, gate != null, $"{module.name} slot {i}: a gate exists exactly where placed");
+                    if (optional)
+                    {
+                        Assert.AreSame(world.ItemCatalog.VariantsOf(o.Item)[o.Variant], gate.RequiredItem);
+                        Assert.IsFalse(gate.IsOpen);
+                        continue;
+                    }
                     if (!placed) continue;
-                    Assert.AreEqual(world.ItemCatalog.ForTheme(g.Item), gate.RequiredItem);
+                    Assert.AreEqual(world.ItemCatalog.ItemFor(g.Item, world.Seed), gate.RequiredItem);
                     Assert.IsFalse(gate.IsOpen);
                 }
             }
@@ -114,13 +128,34 @@ namespace Game.Cube.Tests
             }
         }
 
+        /// <summary>
+        /// The first seed whose run has a plain (touch-opened, no variants) item with an open pickup and a gate on
+        /// another face. Themes with variants (the Biology beaks) open by their own mechanics (BiologySceneTests).
+        /// </summary>
+        private static int SeedWithOpenPlainItem(CubeWorld w)
+        {
+            for (int seed = 1; seed < 500; seed++)
+            {
+                var model = new CubeModel(seed);
+                ItemPlacement p = ItemPlacement.ForRun(model, CubeLayout.Generate(model, w.Library), w.Library,
+                    w.ItemCatalog.Themes(), w.ItemCatalog.VariantCounts());
+                if (p.Pickups.Any(k => IsOpenPlain(w, p, model, k))) return seed;
+            }
+            Assert.Fail("No seed has an open plain-item pickup with an off-home gate");
+            return 0;
+        }
+
+        private static bool IsOpenPlain(CubeWorld w, ItemPlacement p, CubeModel model, PickupPlacement k) =>
+            !k.IsGuarded && w.ItemCatalog.VariantsOf(k.Item).Count == 0 &&
+            p.Gates.Any(g => g.Item == k.Item && g.Screen.Face != model.FaceOf(k.Item));
+
         [UnityTest]
         public IEnumerator PickUpItem_ThenWalkToItsGateOnAnotherFace_GateOpens()
         {
-            yield return LoadAndReveal();
+            yield return LoadAndReveal(SeedWithOpenPlainItem);
             ItemPlacement placement = world.ItemPlacement;
-            PickupPlacement open = placement.Pickups.First(p => !p.IsGuarded);
-            ItemDefinition item = world.ItemCatalog.ForTheme(open.Item);
+            PickupPlacement open = placement.Pickups.First(p => IsOpenPlain(world, placement, world.Model, p));
+            ItemDefinition item = world.ItemCatalog.ItemFor(open.Item, world.Seed);
             GatePlacement offHome = placement.Gates.First(g => g.Item == open.Item && g.Screen.Face != world.Model.FaceOf(open.Item));
             Gate gate = GateAt(offHome);
             Assert.IsNotNull(gate, $"No gate object for {offHome}");

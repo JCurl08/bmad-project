@@ -11,7 +11,11 @@ namespace Game.Cube
     /// slot, on a reachable screen. When the catalog also knows gate slots (IGateSlotCatalog) it places
     /// the items (ItemPlacement) and simulates collecting them: starting with nothing, repeatedly collect
     /// every reachable pickup whose guarding gate (if any) is opened by an item already held; any item
-    /// left uncollected is a softlock. Shared by the tests and the editor menu.
+    /// left uncollected is a softlock. Optional gates (non-rolled item variants, e.g. the other beak) must
+    /// guard nothing required: no pickup may sit behind one, and none may share a slot with a required gate.
+    /// With Biology beak variants, the Biology plan is checked too (BiologyPlan.FindProblems: the rolled beak
+    /// has an off-home gate, a thin-beak run has its flower-vine bridge, the trial is on Biology).
+    /// Shared by the tests and the editor menu.
     /// </summary>
     public static class SeedSweep
     {
@@ -139,6 +143,7 @@ namespace Game.Cube
                 if (!usedSlots.Add((gate.Screen, gate.Slot)))
                     problems.Add($"{gate} shares its slot with another gate");
             }
+            problems.AddRange(FindOptionalGateProblems(model, placement, usedSlots, builtFaces));
 
             foreach (Theme item in itemList)
             {
@@ -201,6 +206,41 @@ namespace Game.Cube
         }
 
         /// <summary>
+        /// Problems with optional gates: each sits on its item's home face (a built face), in a slot no other
+        /// gate uses, is never the run's rolled variant, and guards nothing required (no pickup behind it).
+        /// </summary>
+        public static List<string> FindOptionalGateProblems(CubeModel model, ItemPlacement placement)
+        {
+            var usedSlots = new HashSet<(ScreenAddress, int)>();
+            foreach (GatePlacement gate in placement.Gates) usedSlots.Add((gate.Screen, gate.Slot));
+            var builtFaces = new HashSet<FaceId>();
+            for (int f = 0; f < CubeSettings.FaceCount; f++)
+                if (CubeLayout.IsLaidOut(model, (FaceId)f)) builtFaces.Add((FaceId)f);
+            return FindOptionalGateProblems(model, placement, usedSlots, builtFaces);
+        }
+
+        private static List<string> FindOptionalGateProblems(CubeModel model, ItemPlacement placement,
+            HashSet<(ScreenAddress, int)> usedSlots, HashSet<FaceId> builtFaces)
+        {
+            var problems = new List<string>();
+            foreach (OptionalGatePlacement gate in placement.OptionalGates)
+            {
+                if (!builtFaces.Contains(gate.Screen.Face))
+                    problems.Add($"{gate} is not on a built science face");
+                else if (gate.Screen.Face != model.FaceOf(gate.Item))
+                    problems.Add($"{gate} is not on its item's home face");
+                if (!usedSlots.Add((gate.Screen, gate.Slot)))
+                    problems.Add($"{gate} shares its slot with another gate");
+                if (gate.Variant == placement.RolledVariant(gate.Item))
+                    problems.Add($"{gate} uses the run's rolled variant");
+                foreach (PickupPlacement p in placement.Pickups)
+                    if (p.IsGuarded && p.Screen == gate.Screen && p.GuardSlot == gate.Slot)
+                        problems.Add($"{gate} guards required content: the {p.Item} pickup");
+            }
+            return problems;
+        }
+
+        /// <summary>
         /// Why a stuck item's guard gate never opens: it is the item's own gate, the guard chain leads
         /// back to the item (a genuine cycle), or the guard item is itself stuck for another reason.
         /// </summary>
@@ -222,12 +262,14 @@ namespace Game.Cube
         /// <summary>
         /// Checks seeds firstSeed .. firstSeed + count - 1. With a catalog, also checks the core
         /// entrances of each seed's science layout, and (if it knows gate slots) the item placement the
-        /// game would make: pass the item catalog's themes (ItemCatalog.Themes()) as itemThemes so the
-        /// swept placement is the played one (ItemPlacement.ForRun); null means every laid-out theme.
+        /// game would make: pass the item catalog's themes (ItemCatalog.Themes()) as itemThemes and its
+        /// variant counts (ItemCatalog.VariantCounts()) so the swept placement is the played one
+        /// (ItemPlacement.ForRun); null themes means every laid-out theme, null variants means none.
         /// </summary>
         public static List<SeedResult> Run(int firstSeed = DefaultFirstSeed, int count = DefaultSeedCount,
             int faceSize = CubeSettings.DefaultFaceSize, IModuleCatalog catalog = null,
-            IEnumerable<Theme> itemThemes = null)
+            IEnumerable<Theme> itemThemes = null, IReadOnlyDictionary<Theme, int> variantCounts = null,
+            IReadOnlyList<BeakKind> biologyVariantKinds = null)
         {
             var results = new List<SeedResult>(count);
             for (int s = firstSeed; s < firstSeed + count; s++)
@@ -241,9 +283,11 @@ namespace Game.Cube
                     if (catalog is IGateSlotCatalog gateCatalog)
                     {
                         List<Theme> items = ItemPlacement.RunItems(layout, itemThemes);
-                        ItemPlacement placement = ItemPlacement.ForRun(model, layout, gateCatalog, itemThemes);
+                        ItemPlacement placement = ItemPlacement.ForRun(model, layout, gateCatalog, itemThemes, variantCounts);
                         result.Placement = placement;
                         result.ItemProblems = FindItemProblems(model, placement, items);
+                        foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
+                            result.ItemProblems.Add("biology: " + problem);
                     }
                 }
                 results.Add(result);
@@ -277,7 +321,7 @@ namespace Game.Cube
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
                 : "fully reachable";
-            if (itemsChecked) what += ", every item collectable with no softlocks";
+            if (itemsChecked) what += ", every item collectable with no softlocks, optional gates guarding nothing required";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

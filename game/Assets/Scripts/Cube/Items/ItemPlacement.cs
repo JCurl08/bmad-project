@@ -36,6 +36,37 @@ namespace Game.Cube
     }
 
     /// <summary>
+    /// An optional gate: a gate of a theme's item variant that the run did NOT roll (Biology: the other beak),
+    /// in a home-face gate slot left over after the required gates. It never guards a pickup or anything
+    /// else required, so a run never needs it (SeedSweep enforces this).
+    /// </summary>
+    public readonly struct OptionalGatePlacement : IEquatable<OptionalGatePlacement>
+    {
+        public readonly ScreenAddress Screen;
+        public readonly int Slot;
+
+        /// <summary>The theme whose item variant opens it.</summary>
+        public readonly Theme Item;
+
+        /// <summary>The variant index (into the catalog's variants of Item) that opens it; never the rolled one.</summary>
+        public readonly int Variant;
+
+        public OptionalGatePlacement(ScreenAddress screen, int slot, Theme item, int variant)
+        {
+            Screen = screen;
+            Slot = slot;
+            Item = item;
+            Variant = variant;
+        }
+
+        public bool Equals(OptionalGatePlacement other) =>
+            Screen == other.Screen && Slot == other.Slot && Item == other.Item && Variant == other.Variant;
+        public override bool Equals(object obj) => obj is OptionalGatePlacement other && Equals(other);
+        public override int GetHashCode() => ((Screen.GetHashCode() * 31 + Slot) * 31 + (int)Item) * 31 + Variant;
+        public override string ToString() => $"optional {Item} variant {Variant} gate at {Screen} #{Slot}";
+    }
+
+    /// <summary>
     /// An item's pickup: on a screen of its home face, either in the open or inside the alcove behind the
     /// gate in gate slot GuardSlot of that screen's module.
     /// </summary>
@@ -86,20 +117,39 @@ namespace Game.Cube
         /// <summary>Gates per item on another built face.</summary>
         public const int OffHomeGatesPerItem = 1;
 
+        /// <summary>Optional gates per non-rolled variant, placed only in home-face slots left free.</summary>
+        public const int OptionalGatesPerVariant = 2;
+
         private readonly List<GatePlacement> gates;
         private readonly List<PickupPlacement> pickups;
+        private readonly List<OptionalGatePlacement> optionalGates;
+        private readonly Dictionary<Theme, int> rolledVariants;
 
         public int Seed { get; }
         public IReadOnlyList<GatePlacement> Gates => gates;
         public IReadOnlyList<PickupPlacement> Pickups => pickups;
 
+        /// <summary>Gates of non-rolled item variants: optional extras that guard nothing required.</summary>
+        public IReadOnlyList<OptionalGatePlacement> OptionalGates => optionalGates;
+
+        /// <summary>The rolled variant index per theme that has variants (ItemVariants.Roll).</summary>
+        public IReadOnlyDictionary<Theme, int> RolledVariants => rolledVariants;
+
         /// <summary>A placement from explicit data (hand-made placements in tests and tools).</summary>
-        public ItemPlacement(int seed, IEnumerable<GatePlacement> gates, IEnumerable<PickupPlacement> pickups)
+        public ItemPlacement(int seed, IEnumerable<GatePlacement> gates, IEnumerable<PickupPlacement> pickups,
+            IEnumerable<OptionalGatePlacement> optionalGates = null, IDictionary<Theme, int> rolledVariants = null)
         {
             Seed = seed;
             this.gates = new List<GatePlacement>(gates ?? Array.Empty<GatePlacement>());
             this.pickups = new List<PickupPlacement>(pickups ?? Array.Empty<PickupPlacement>());
+            this.optionalGates = new List<OptionalGatePlacement>(optionalGates ?? Array.Empty<OptionalGatePlacement>());
+            this.rolledVariants = rolledVariants != null
+                ? new Dictionary<Theme, int>(rolledVariants)
+                : new Dictionary<Theme, int>();
         }
+
+        /// <summary>The rolled variant of a theme in this run, or -1 when it has no variants.</summary>
+        public int RolledVariant(Theme theme) => rolledVariants.TryGetValue(theme, out int v) ? v : -1;
 
         /// <summary>The items of a run: one per built science theme that is laid out, in theme order.</summary>
         public static List<Theme> DefaultItems(CubeLayout layout)
@@ -132,17 +182,25 @@ namespace Game.Cube
             return items;
         }
 
-        /// <summary>The placement of a run: Generate over RunItems. Used by CubeWorld and SeedSweep.</summary>
+        /// <summary>
+        /// The placement of a run: Generate over RunItems, with the catalog's variant counts
+        /// (ItemCatalog.VariantCounts) so non-rolled variants get their optional gates. Used by CubeWorld,
+        /// RunFacts and SeedSweep, so the swept placement is the played one.
+        /// </summary>
         public static ItemPlacement ForRun(CubeModel model, CubeLayout layout, IGateSlotCatalog catalog,
-            IEnumerable<Theme> catalogThemes) =>
-            Generate(model, layout, catalog, RunItems(layout, catalogThemes));
+            IEnumerable<Theme> catalogThemes, IReadOnlyDictionary<Theme, int> variantCounts = null) =>
+            Generate(model, layout, catalog, RunItems(layout, catalogThemes), variantCounts);
 
         /// <summary>
         /// Places gates and pickups for the given items (home themes; default: every laid-out science
-        /// theme). Items whose home face is not laid out are ignored.
+        /// theme). Items whose home face is not laid out are ignored. For an item with variants
+        /// (variantCounts), the run's variant is rolled (ItemVariants.Roll) and every other variant gets up to
+        /// OptionalGatesPerVariant optional gates in home-face slots still free after the required gates and
+        /// pickups, so they can never guard a pickup. The optional step runs last on the stream, so it does not
+        /// change any earlier draw.
         /// </summary>
         public static ItemPlacement Generate(CubeModel model, CubeLayout layout, IGateSlotCatalog catalog,
-            IEnumerable<Theme> items = null)
+            IEnumerable<Theme> items = null, IReadOnlyDictionary<Theme, int> variantCounts = null)
         {
             if (model == null) throw new ArgumentNullException(nameof(model));
             if (layout == null) throw new ArgumentNullException(nameof(layout));
@@ -259,7 +317,32 @@ namespace Game.Cube
             // Report pickups in theme order.
             pickups.Sort((a, b) => a.Item.CompareTo(b.Item));
 
-            return new ItemPlacement(model.Seed, gates, pickups);
+            // 4. Variants: roll each item's variant; the others get optional gates in leftover home slots.
+            var rolled = new Dictionary<Theme, int>();
+            var optional = new List<OptionalGatePlacement>();
+            if (variantCounts != null)
+            {
+                foreach (Theme item in itemList)
+                {
+                    if (!variantCounts.TryGetValue(item, out int count) || count <= 0) continue;
+                    int roll = ItemVariants.Roll(model.Seed, item, count);
+                    rolled[item] = roll;
+                    List<(ScreenAddress screen, int slot)> free = freeSlots[homeFace[item]];
+                    for (int v = 0; v < count; v++)
+                    {
+                        if (v == roll) continue;
+                        for (int k = 0; k < OptionalGatesPerVariant && free.Count > 0; k++)
+                        {
+                            int pick = rng.NextInt(free.Count);
+                            (ScreenAddress screen, int slot) = free[pick];
+                            free.RemoveAt(pick);
+                            optional.Add(new OptionalGatePlacement(screen, slot, item, v));
+                        }
+                    }
+                }
+            }
+
+            return new ItemPlacement(model.Seed, gates, pickups, optional, rolled);
         }
 
         /// <summary>True if 'from' (transitively) needs 'target' to be collected first.</summary>
@@ -278,6 +361,21 @@ namespace Game.Cube
         public bool TryGetGate(ScreenAddress screen, int slot, out GatePlacement gate)
         {
             foreach (GatePlacement g in gates)
+            {
+                if (g.Screen == screen && g.Slot == slot)
+                {
+                    gate = g;
+                    return true;
+                }
+            }
+            gate = default;
+            return false;
+        }
+
+        /// <summary>The optional gate in a module gate slot, if one was placed there.</summary>
+        public bool TryGetOptionalGate(ScreenAddress screen, int slot, out OptionalGatePlacement gate)
+        {
+            foreach (OptionalGatePlacement g in optionalGates)
             {
                 if (g.Screen == screen && g.Slot == slot)
                 {
@@ -314,6 +412,11 @@ namespace Game.Cube
             foreach (PickupPlacement p in pickups)
                 sb.Append("P:").Append(p.Item).Append('@').Append(p.Screen.Face).Append(p.Screen.Cell.x)
                     .Append(p.Screen.Cell.y).Append('#').Append(p.GuardSlot).Append(' ');
+            foreach (OptionalGatePlacement g in optionalGates)
+                sb.Append("O:").Append(g.Item).Append('/').Append(g.Variant).Append('@').Append(g.Screen.Face)
+                    .Append(g.Screen.Cell.x).Append(g.Screen.Cell.y).Append('#').Append(g.Slot).Append(' ');
+            foreach (Theme theme in CubeModel.ScienceThemes)
+                if (rolledVariants.TryGetValue(theme, out int v)) sb.Append("V:").Append(theme).Append('=').Append(v).Append(' ');
             return sb.ToString();
         }
     }

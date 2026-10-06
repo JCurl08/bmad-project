@@ -6,7 +6,9 @@ namespace Game.Cube
     /// <summary>
     /// A gate bound to the item that opens it (gates are data: the required ItemDefinition is all a gate
     /// knows). Solid until something whose Inventory holds that item touches it; then it opens for good:
-    /// the collider is switched off and the visual fades.
+    /// the collider is switched off and the visual fades. Face gates (the Biology beak gates) derive from it:
+    /// they turn OpensOnTouch off and open through their own mechanic (OpenNow), keeping the same
+    /// IsOpen/Opened contract.
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
     public class Gate : MonoBehaviour
@@ -46,7 +48,10 @@ namespace Game.Cube
         /// <summary>Raised once, when the gate opens.</summary>
         public event Action<Gate> Opened;
 
-        private void Awake()
+        /// <summary>True for plain gates: touching with the item opens them. Face gates open by their own mechanic.</summary>
+        protected virtual bool OpensOnTouch => true;
+
+        protected virtual void Awake()
         {
             solid = GetComponent<BoxCollider2D>();
             ApplyVisual();
@@ -60,8 +65,17 @@ namespace Game.Cube
         public bool TryOpen(Collider2D toucher)
         {
             if (IsOpen) return true;
+            if (!OpensOnTouch) return false;
             Inventory inventory = ItemPickup.FindInventory(toucher);
             if (inventory == null || requiredItem == null || !inventory.Has(requiredItem)) return false;
+            Open();
+            return true;
+        }
+
+        /// <summary>Opens the gate for good (for face gates' own mechanics). Returns false if it was already open.</summary>
+        protected bool OpenNow()
+        {
+            if (IsOpen) return false;
             Open();
             return true;
         }
@@ -71,13 +85,20 @@ namespace Game.Cube
             IsOpen = true;
             Solid.enabled = false;
             ApplyVisual();
+            OnOpened();
             Opened?.Invoke(this);
         }
 
-        private void ApplyVisual()
+        /// <summary>Hook for subclasses, called once when the gate opens (before Opened is raised).</summary>
+        protected virtual void OnOpened() { }
+
+        /// <summary>The visual's colour while closed (the item's placeholder colour by default).</summary>
+        protected virtual Color ClosedColor => requiredItem != null ? requiredItem.PlaceholderColor : Color.grey;
+
+        protected void ApplyVisual()
         {
             if (visual == null) return;
-            Color color = requiredItem != null ? requiredItem.PlaceholderColor : Color.grey;
+            Color color = ClosedColor;
             if (IsOpen) color.a = OpenAlpha;
             visual.color = color;
         }

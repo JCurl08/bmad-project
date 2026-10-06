@@ -160,7 +160,9 @@ namespace Game.Cube.Tests
         [Test]
         public void SeedSweep_WithLibrary_50SeedsNoSoftlocks([ValueSource(nameof(FaceSizes))] int n)
         {
-            List<SeedSweep.SeedResult> results = SeedSweep.Run(1, 50, n, LoadLibrary(), LoadItemCatalog().Themes());
+            ItemCatalog catalog = LoadItemCatalog();
+            List<SeedSweep.SeedResult> results = SeedSweep.Run(1, 50, n, LoadLibrary(), catalog.Themes(),
+                catalog.VariantCounts(), BiologyBeaks.VariantKinds(catalog));
             string report = SeedSweep.Describe(results);
             Assert.AreEqual(50, results.Count);
             Assert.IsTrue(results.All(r => r.ItemsChecked), "The library knows gate slots, so items must be checked");
@@ -172,23 +174,27 @@ namespace Game.Cube.Tests
         [Test]
         public void SweptPlacement_IsThePlayedPlacement()
         {
-            // CubeWorld places items with ItemPlacement.ForRun over the catalog's themes; the sweep must check exactly that.
+            // CubeWorld places items with ItemPlacement.ForRun over the catalog's themes and variant counts; the
+            // sweep must check exactly that.
             ModuleLibrary library = LoadLibrary();
-            List<Theme> catalogThemes = LoadItemCatalog().Themes();
-            List<SeedSweep.SeedResult> results = SeedSweep.Run(1, 5, CubeSettings.DefaultFaceSize, library, catalogThemes);
+            ItemCatalog catalog = LoadItemCatalog();
+            List<Theme> catalogThemes = catalog.Themes();
+            Dictionary<Theme, int> counts = catalog.VariantCounts();
+            Assert.IsNotEmpty(counts, "The catalog has the Biology beak variants");
+            List<SeedSweep.SeedResult> results = SeedSweep.Run(1, 5, CubeSettings.DefaultFaceSize, library, catalogThemes, counts);
             foreach (SeedSweep.SeedResult r in results)
             {
                 var model = new CubeModel(r.Seed);
-                string played = ItemPlacement.ForRun(model, CubeLayout.Generate(model, library), library, catalogThemes).Signature();
+                string played = ItemPlacement.ForRun(model, CubeLayout.Generate(model, library), library, catalogThemes, counts).Signature();
                 Assert.IsNotNull(r.Placement, $"seed {r.Seed}");
                 Assert.AreEqual(played, r.Placement.Signature(), $"seed {r.Seed}");
             }
 
             // A catalog that lacks an item changes the item list, and both sides follow it.
             var partial = new[] { Theme.Biology, Theme.Physics };
-            SeedSweep.SeedResult one = SeedSweep.Run(7, 1, CubeSettings.DefaultFaceSize, library, partial)[0];
+            SeedSweep.SeedResult one = SeedSweep.Run(7, 1, CubeSettings.DefaultFaceSize, library, partial, counts)[0];
             var m7 = new CubeModel(7);
-            Assert.AreEqual(ItemPlacement.ForRun(m7, CubeLayout.Generate(m7, library), library, partial).Signature(),
+            Assert.AreEqual(ItemPlacement.ForRun(m7, CubeLayout.Generate(m7, library), library, partial, counts).Signature(),
                 one.Placement.Signature());
             Assert.IsFalse(one.Placement.Gates.Any(g => g.Item == Theme.Chemistry));
         }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Game.Cube;
 using UnityEditor;
 using UnityEngine;
@@ -8,6 +9,8 @@ using UnityEngine;
 /// (Biology, Chemistry, Physics) and the ItemCatalog asset that lists them. Existing catalog entries
 /// are kept and only themes the catalog has no item for are filled in, so a face story's real item
 /// (wherever its asset lives) is never replaced.
+/// It also adds the Biology beak variants (Thin Beak, Thick Beak; BiologyBeaks.VariantOrder) to the catalog's
+/// variant list when they are missing, keeping every existing variant; each run uses the rolled one.
 /// Also works from the command line via -executeMethod ItemCatalogBuilder.Build.
 /// </summary>
 public static class ItemCatalogBuilder
@@ -60,9 +63,40 @@ public static class ItemCatalogBuilder
         }
 
         catalog.Set(items);
+
+        // Theme variants: keep what is there, add the beaks if missing (in roll order).
+        var variants = new List<ItemDefinition>();
+        foreach (ItemDefinition existing in catalog.Variants)
+            if (existing != null) variants.Add(existing);
+        foreach (BeakKind beak in BiologyBeaks.VariantOrder)
+        {
+            string id = beak == BeakKind.Thin ? BiologyBeaks.ThinId : BiologyBeaks.ThickId;
+            if (variants.Exists(v => v.Id == id)) continue;
+            string path = $"{Root}/{BiologyBeaks.Name(beak)}.asset";
+            var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
+            if (item == null)
+            {
+                ItemDefinition template = BiologyBeaks.CreateItem(beak);
+                item = ScriptableObject.CreateInstance<ItemDefinition>();
+                item.Set(template.Id, template.DisplayName, template.HomeTheme, template.PlaceholderColor);
+                item.AttackReach = template.AttackReach;
+                Object.DestroyImmediate(template);
+                AssetDatabase.CreateAsset(item, path);
+            }
+            variants.Add(item);
+        }
+        // Canonical order: the beaks in BiologyBeaks.VariantOrder first (consumers read the beak from the item id
+        // anyway), every other variant after them in its existing order.
+        List<ItemDefinition> ordered = variants
+            .Select((item, index) => (item, index))
+            .OrderBy(e => BiologyBeaks.KindOf(e.item) is BeakKind k ? System.Array.IndexOf(BiologyBeaks.VariantOrder, k) : BiologyBeaks.VariantCount + e.index)
+            .Select(e => e.item)
+            .ToList();
+        variants = ordered;
+        catalog.SetVariants(variants);
         EditorUtility.SetDirty(catalog);
         AssetDatabase.SaveAssets();
-        Debug.Log($"Cube: built item catalog at {CatalogPath} ({items.Count} items).");
+        Debug.Log($"Cube: built item catalog at {CatalogPath} ({items.Count} items, {variants.Count} variants).");
     }
 
     /// <summary>Loads the catalog asset, building it first if it does not exist.</summary>

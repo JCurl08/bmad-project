@@ -176,6 +176,27 @@ namespace Game.Cube
             },
         };
 
+        /// <summary>Darwin-flavoured lines the finches of the Biology face say (one per finch, picked by salt).</summary>
+        public static readonly string[] DarwinLines =
+        {
+            "Adapt or get out of the niche! Professor Darwin says that every morning. Mostly to me.",
+            "Professor Darwin measured my beak again. It grew a whole hair! He wrote three pages about it.",
+            "Survival of the fittest! I'm not the fittest. I'm the chattiest. That counts, right?",
+            "Different beaks for different seeds! Some of us crack, some of us sip. All of us gossip.",
+            "Darwin says every finch has its niche. Mine is this exact spot. Please don't stand in it.",
+        };
+
+        /// <summary>The season's beak, as finches tell it: [0] thin, [1] thick. True for the run that says it.</summary>
+        public static readonly string[] BeakLines =
+        {
+            "This season it's all thin beaks! Long and delicate: peck far-off buttons, tickle flowers till the vines grow.",
+            "This season it's all thick beaks! Big and blunt: rocks, pots, crack 'em like seeds.",
+        };
+
+        public static string DarwinLine(uint salt) => DarwinLines[(int)(salt / 3u % (uint)DarwinLines.Length)];
+
+        public static string BeakLine(bool thin) => BeakLines[thin ? 0 : 1];
+
         /// <summary>The whole conversation for an NPC in a run: greeting, role line, then hints.</summary>
         public static List<string> For(NpcSpec spec, RunFacts facts, HintDensity density) =>
             Lines(spec, HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density));
@@ -231,6 +252,8 @@ namespace Game.Cube
             }
             foreach (string[] table in DinoGreetings.Values)
                 foreach (string line in table) yield return line;
+            foreach (string line in DarwinLines) yield return line;
+            foreach (string line in BeakLines) yield return line;
         }
     }
 }

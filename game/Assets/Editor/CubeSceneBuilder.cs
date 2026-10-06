@@ -13,6 +13,7 @@ using UnityEngine.SceneManagement;
 /// The CubeWorld is wired to the module library and the item catalog (each built first if missing);
 /// the player carries an Inventory and the combat parts (Health, PlayerStats, Equipment, PlayerAttack), and a
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
+/// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
 /// Both also work from the command line via -executeMethod.
 /// </summary>
@@ -75,6 +76,9 @@ public static class CubeSceneBuilder
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
 
+        // Face content: Darwin's face (beak gates, trial, finches and enemies) plugs in on the reveal.
+        worldObject.AddComponent<BiologyFace>().Player = player.transform;
+
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
         letterbox.orthographic = true;
@@ -128,10 +132,14 @@ public static class CubeSceneBuilder
     [MenuItem("Cube/Seed Sweep")]
     public static void RunSeedSweep()
     {
+        ItemCatalog items = ItemCatalogBuilder.LoadOrBuild();
         List<SeedSweep.SeedResult> results =
-            SeedSweep.Run(catalog: ModuleLibraryBuilder.LoadOrBuild(),
-                itemThemes: ItemCatalogBuilder.LoadOrBuild().Themes());
+            SeedSweep.Run(catalog: ModuleLibraryBuilder.LoadOrBuild(), itemThemes: items.Themes(),
+                variantCounts: items.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(items));
         string report = SeedSweep.Describe(results);
+        int thin = results.Count(r => r.Placement != null && r.Placement.RolledVariant(Theme.Biology) == (int)BeakKind.Thin);
+        int withOptional = results.Count(r => r.Placement != null && r.Placement.OptionalGates.Count > 0);
+        report += $"Beaks: {thin} thin, {results.Count - thin} thick; {withOptional} seeds with optional beak gates.\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

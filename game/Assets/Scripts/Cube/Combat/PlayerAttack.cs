@@ -10,7 +10,9 @@ namespace Game.Cube
     /// The player's melee swing on Player/Attack: a short box in front of the last move direction that hits
     /// each Health in it once, for base damage × the power multiplier, carrying the equipped item (so an
     /// enemy weak to it takes far more). With nothing equipped it is a bare hit at base damage. Has a
-    /// cooldown, and shows a brief placeholder swing.
+    /// cooldown, and shows a brief placeholder swing. An equipped item with a longer AttackReach (the thin
+    /// beak) stretches the hitbox from the player out to that reach. Every IAttackReceiver in the hitbox
+    /// (rocks, buttons, flowers, trial targets) is told about the swing once.
     /// </summary>
     public class PlayerAttack : MonoBehaviour
     {
@@ -33,6 +35,9 @@ namespace Game.Cube
         /// <summary>Raised after every swing, with the item carried (null = bare) and the number of targets that took damage.</summary>
         public event Action<ItemDefinition, int> Swung;
 
+        /// <summary>Number of attack receivers that reacted to the last swing.</summary>
+        public int LastReceiversHit { get; private set; }
+
         public float BaseDamage
         {
             get => baseDamage;
@@ -45,8 +50,38 @@ namespace Game.Cube
             set => cooldown = Mathf.Max(0f, value);
         }
 
+        /// <summary>The default reach (hitbox centre distance) with no long-reach item equipped.</summary>
         public float Reach => reach;
         public Vector2 HitboxSize => hitboxSize;
+
+        /// <summary>The reach of the next swing: the equipped item's AttackReach when longer than the default.</summary>
+        public float EffectiveReach
+        {
+            get
+            {
+                ItemDefinition item = EquippedItem;
+                return item != null && item.AttackReach > reach ? item.AttackReach : reach;
+            }
+        }
+
+        /// <summary>
+        /// The swing's hitbox (centre distance along the facing, and size along/across it). Default reach: the
+        /// HitboxSize box at Reach. Long reach: one box from the player out to EffectiveReach plus half the
+        /// hitbox, so nearby targets are still hit.
+        /// </summary>
+        public void Hitbox(out float centreDistance, out Vector2 size)
+        {
+            float effective = EffectiveReach;
+            if (effective <= reach)
+            {
+                centreDistance = reach;
+                size = hitboxSize;
+                return;
+            }
+            float length = effective + hitboxSize.x / 2f;
+            centreDistance = length / 2f;
+            size = new Vector2(length, hitboxSize.y);
+        }
 
         /// <summary>Damage a swing deals before the target's modifiers (weakness, defence).</summary>
         public float Damage => CombatMath.Outgoing(baseDamage, Stats != null ? Stats.Power : 1);
@@ -101,18 +136,23 @@ namespace Game.Cube
             readyAt = Time.time + cooldown;
 
             Vector2 facing = Facing;
-            Vector2 centre = (Vector2)transform.position + facing * reach;
+            Hitbox(out float distance, out Vector2 size);
+            Vector2 centre = (Vector2)transform.position + facing * distance;
             float angle = Mathf.Atan2(facing.y, facing.x) * Mathf.Rad2Deg;
-            ShowSwing(centre, angle);
+            ShowSwing(centre, angle, size);
 
             ItemDefinition item = EquippedItem;
             float damage = Damage;
             var hit = new HashSet<Health>();
+            var received = new HashSet<IAttackReceiver>();
             int damaged = 0;
+            int reacted = 0;
             Physics2D.SyncTransforms();
-            foreach (Collider2D collider in Physics2D.OverlapBoxAll(centre, hitboxSize, angle))
+            foreach (Collider2D collider in Physics2D.OverlapBoxAll(centre, size, angle))
             {
                 if (collider == null) continue;
+                IAttackReceiver receiver = collider.GetComponentInParent<IAttackReceiver>();
+                if (receiver != null && received.Add(receiver) && receiver.ReceiveAttack(item, gameObject)) reacted++;
                 Health target = collider.attachedRigidbody != null
                     ? collider.attachedRigidbody.GetComponent<Health>()
                     : collider.GetComponentInParent<Health>();
@@ -120,6 +160,7 @@ namespace Game.Cube
                 // Each target is tried once per swing; only those that actually took damage count.
                 if (target.TakeDamage(damage, item) > 0f) damaged++;
             }
+            LastReceiversHit = reacted;
             Swung?.Invoke(item, damaged);
             return damaged;
         }
@@ -130,7 +171,7 @@ namespace Game.Cube
             return box != null && box.IsOpen;
         }
 
-        private void ShowSwing(Vector2 centre, float angle)
+        private void ShowSwing(Vector2 centre, float angle, Vector2 size)
         {
             if (swingVisibleSeconds <= 0f) return;
             if (swing == null)
@@ -149,7 +190,7 @@ namespace Game.Cube
             swing.color = colour;
             swing.transform.position = new Vector3(centre.x, centre.y, transform.position.z);
             swing.transform.rotation = Quaternion.Euler(0f, 0f, angle);
-            swing.transform.localScale = new Vector3(hitboxSize.x, hitboxSize.y * 0.6f, 1f);
+            swing.transform.localScale = new Vector3(size.x, size.y * 0.6f, 1f);
             swing.enabled = true;
             swingHideAt = Time.time + swingVisibleSeconds;
         }

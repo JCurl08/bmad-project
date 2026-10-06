@@ -208,7 +208,7 @@ namespace Game.Cube
 
         /// <summary>
         /// Spawns a placeholder enemy near the player, inside the player's screen, weak to a random owned item
-        /// (picked from the run seed and the spawn count) or, with nothing owned, the catalog's Biology item.
+        /// (picked from the run seed and the spawn count) or, with nothing owned, the run's Biology item (its rolled beak).
         /// </summary>
         public Enemy SpawnEnemy()
         {
@@ -232,7 +232,7 @@ namespace Game.Cube
             }
             else if (world.ItemCatalog != null)
             {
-                weakness = world.ItemCatalog.ForTheme(Theme.Biology);
+                weakness = world.ItemFor(Theme.Biology);
             }
 
             // First clear spot on a ring around the player (an enemy is smaller than an NPC, so IsClear is safe).

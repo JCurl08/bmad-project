@@ -15,6 +15,9 @@ namespace Game.Cube
         [SerializeField] private Theme homeTheme;
         [SerializeField] private Color placeholderColor = Color.white;
 
+        [Tooltip("Swing reach (world units) while this item is equipped; 0 keeps the player's default reach.")]
+        [SerializeField, Min(0f)] private float attackReach;
+
         /// <summary>Stable identifier (e.g. "biology-item").</summary>
         public string Id => id;
 
@@ -25,6 +28,16 @@ namespace Game.Cube
 
         /// <summary>Colour used for the placeholder pickup and its gates until real art exists.</summary>
         public Color PlaceholderColor => placeholderColor;
+
+        /// <summary>
+        /// Reach of the player's swing while this item is equipped (0 = the default reach). The thin beak uses
+        /// it to press distant buttons and pollinate flowers.
+        /// </summary>
+        public float AttackReach
+        {
+            get => attackReach;
+            set => attackReach = Mathf.Max(0f, value);
+        }
 
         public void Set(string itemId, string name, Theme home, Color color)
         {
