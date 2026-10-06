@@ -7,3 +7,4 @@
 - source_plan: `_bmad-output/initiative-video-game/epic-playable-cube/story-run-loop-meta-currency-and-upgrades-plan.md`
   summary: Re-deferred from 1.12 to epic-stretch (CAP-19 kept gear): rewards behind the non-rolled beak's optional gates are only reachable once a player can carry the other beak between runs.
   evidence: Abilities reset each run and only the rolled beak is obtainable, so a reward behind an optional gate would be unreachable in the same run.
+- resolved: the Town-at-3×3 item above is taken on by epic-playable-cube entry 17 (Full cube at 3×3), per change-playtest-feedback-full-cube (2026-10-06).

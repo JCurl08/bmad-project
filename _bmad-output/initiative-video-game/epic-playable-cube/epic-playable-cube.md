@@ -2,7 +2,7 @@
 type: epic
 title: "One complete run, town to boss"
 parent: initiative-video-game
-covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-9, CAP-10, CAP-11, CAP-12, CAP-13, CAP-25]
+covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8, CAP-9, CAP-10, CAP-11, CAP-12, CAP-13, CAP-25, CAP-26, CAP-27]
 after: []
 assignee: ""
 risk: high
@@ -24,7 +24,7 @@ The spec is the requirement source: CAP-1 to CAP-6, CAP-9 to CAP-13 and CAP-25 i
 
 ## Done when
 
-1. A WebGL build on itch.io plays a full seeded run: town, shuffled cube, the Biology, Chemistry and Physics faces (puzzle, item, gates, trial), core boss, run end, persisted stat upgrades, next run.
+1. A WebGL build on itch.io plays a full seeded run: town, a shuffled 3×3 cube with all 5 science faces (puzzle, item, gates, trial), a cube-net map, the core boss (or walking out of its arena), run end, persisted stat upgrades, next run.
 2. The seed sweep finds no softlock across 3+ seeds, and the same seed reproduces the same cube.
 3. NPC parts vary by seed (CAP-9), and every enemy type has an item that makes it markedly easier (CAP-10).
 4. Upgrades and meta currency survive closing and reopening the browser tab.
@@ -64,3 +64,4 @@ Not the Math or Earth & Atmosphere faces, which belong to epic-varied-runs.
 - Decision: town has every race, including the sealed faces' shape people and dinosaurs, with placeholder art (user approved, 2026-10-05).
 - Decision: 14 entries, above the typical 8–12, is accepted as one lane with one owner, so no split (user approved, 2026-10-05).
 - Decision: added entry 15 'Readability pass' before the release after the user's first playtest found the placeholder visuals and long dialogue confusing; world art from Kenney (CC0), NPCs keep stacked Lego parts redrawn clearly; 'fell apart' death text replaced (user, 2026-10-06).
+- Decision: entries 16–22 added after the first playtest (dev keys, full 3×3 cube, isotope stage item, Math face, Earth & Atmosphere face, cube-net map, look and tone pass), all before the release (14). See change-playtest-feedback-full-cube (user approved, 2026-10-06).

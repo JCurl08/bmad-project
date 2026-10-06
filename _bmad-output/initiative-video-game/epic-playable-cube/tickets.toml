@@ -156,12 +156,94 @@ risk = "medium"
 notes = ["User: 'I would like everything to have more clear models. It is far too confusing currently.'", "User: 'The dialogue is a bit too long currently. Makes testing a little inefficient'", "User chose: Kenney asset pack for the world; keep the stacked Lego parts for NPCs (option 2)."]
 
 [[entry]]
+id = 16
+type = "story"
+title = "Dev keys"
+description = "Adds editor debug keys toward CAP-11 testing: F8 leaves the core arena for the Town start screen, F9 restores full health, F10 starts a fresh run; the overlay lists them."
+verify = "The DevKeys PlayMode test passes: F8 returns the player to Town and abandons the fight, F9 restores full health while alive, F10 starts a new seed in Town unrevealed."
+covers = ["CAP-11"]
+after = [15]
+hitl = false
+risk = "low"
+notes = ["User: 'I got locked in the final boss room. Could you create a dev key shortcut that lets me exit this room or just rest whenever I need to'"]
+
+[[entry]]
+id = 17
+type = "story"
+title = "Full cube at 3x3"
+description = "Sets the face size to 3 (54 screens), adds 9 Town modules, and makes every existing face plan, trial fit, boulder reach, hidden-currency placement and sweep rule hold at 3x3; Math and Earth stay sealed until entries 19 and 20; determinism signatures re-recorded."
+verify = "With face size 3, the full suites pass and the seed sweep reports 50/50 with every rule, and a run walks Town plus the Biology, Chemistry and Physics faces at 3x3."
+covers = ["CAP-1", "CAP-2", "CAP-3"]
+after = [16]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Isotope as a stage item"
+description = "Reworks CAP-5: each run rolls one isotope stage item (Glowing, Unstable or Lead) kept for the run and used by attacking (glowing lights dark rooms, unstable breaks cracked walls, lead weighs down plates); removes the timer and dispenser; other stages' gates become optional; the Chemistry trial uses the rolled stage; one in-world lore line that the stages transform into one another."
+verify = "Across seeds each stage is rolled; the rolled stage opens its gates by attacking and finishes the trial; other stages' gates guard nothing required (sweep); no timer or dispenser exists."
+covers = ["CAP-5"]
+after = [17]
+hitl = false
+risk = "medium"
+notes = ["User: 'I would like it to be an actual item, not a pickup. Maybe the item could be a specific stage but the lore explains that they all transform into each other.'"]
+
+[[entry]]
+id = 19
+type = "story"
+title = "Math face"
+description = "Builds the Math face at 3x3 through IFaceContent: cross-every-bridge-once puzzles with a solvability validator and a difficulty parameter, its item and gates (including off-face gates), a harder trial, enemies, and shape-people NPCs with human-like parts (round face, triangular body, rectangular legs)."
+verify = "The validator rejects unsolvable layouts across the seed sweep, doors open only after an exactly-once crossing, the Math trial pays out, enemies are markedly easier with their weakness item, and the shape people read as little humans."
+covers = ["CAP-7", "CAP-25", "CAP-3", "CAP-10"]
+after = [17]
+hitl = false
+risk = "medium"
+notes = ["User: 'The geometric characters could be a bit more human like, round faces, rectangular legs, and triangular bodies.'"]
+
+[[entry]]
+id = 20
+type = "story"
+title = "Earth and Atmosphere face"
+description = "Builds the Earth & Atmosphere face at 3x3 through IFaceContent: weather hazards (wind push, snow slide, freezing-rain slow), quake crevices, a calm centre screen, the weather wand rolling one phenomenon per run with its gates (including off-face gates), a harder trial, enemies, and terrestrial and avian dinosaur NPCs."
+verify = "Each hazard changes movement as specified, the rolled phenomenon opens its gates and the trial, other phenomena's gates are optional, enemies are markedly easier with their weakness item, and the sweep passes 50/50."
+covers = ["CAP-8", "CAP-25", "CAP-3", "CAP-10"]
+after = [17]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 21
+type = "story"
+title = "Cube-net map"
+description = "Adds CAP-26: a pause key (M or Tab) opens an unfolded cube net of 3x3 faces showing visited screens in region colours, the player, Town, discovered gates, items and trials, and core portals, matching the shuffled layout."
+verify = "For several seeds the map's visited screens, player marker and discovered markers match the world, and it updates after the town-exit shuffle and after a new run."
+covers = ["CAP-26"]
+after = [19, 20]
+hitl = false
+risk = "medium"
+notes = ["User chose the cube-net pause map."]
+
+[[entry]]
+id = 22
+type = "story"
+title = "Look and tone pass"
+description = "Applies Rubik's region colours (Town white, Biology green, Chemistry red, Physics blue, Math yellow, Earth orange) and a more colourful palette, redraws the finches, rewrites all in-world text to the subtle-science rule with '*' placeholder names (including the boss and patron figures), and adds CAP-27: a core-arena exit the player can walk out of while the fight is not won."
+verify = "A text scan finds no scientist names or banned science words in in-game strings and every placeholder name carries '*'; each face shows its Rubik's colour; walking out of the arena returns the player to their entry face and resets the fight."
+covers = ["CAP-9", "CAP-11", "CAP-27"]
+after = [18, 19, 20]
+hitl = true
+risk = "medium"
+notes = ["User: 'I like how colourful it is but I think it could still be more colourful... biology green, chemistry is red, physics is blue.'", "User: 'The finches are a little ugly, maybe fix them up a bit if possible.'", "User: 'I want the science analogy to be subtle, characters shouldn't be aware that they are an analogy for a science theme.'", "User: renaming is for a later brainstorm; mark placeholder names with '*'."]
+
+[[entry]]
 id = 14
 type = "story"
 title = "First itch.io release and full-run check"
 description = "Runs the seed sweep and full playtests against the epic's Done when and republishes the WebGL build to the itch.io page from entry 1."
 verify = "Three or more seeds play from town to boss with no softlock, and on the itch.io page in a fresh browser a full run ends, upgrades are bought, and they still apply in the next run after a tab reload."
 covers = ["CAP-12"]
-after = [13, 15]
+after = [22]
 hitl = true
 risk = "medium"

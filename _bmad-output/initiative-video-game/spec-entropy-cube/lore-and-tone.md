@@ -9,9 +9,12 @@
 ## Voice rules
 - Campy and lighthearted, pitched at *Ocarina of Time*'s audience (pre-teens to adults). Silly, never explicit.
 - Never say "sort" in-game. Show the demon's order through abstract imagery: a solved cube, aligned colours, stillness, separation.
-- Comedy comes from mismatched NPC parts, grudges, puns (skeleton-key fingers) and earnest scientist-deities.
+- Comedy comes from mismatched NPC parts, grudges, puns (skeleton-key fingers) and each race's earnest devotion to its patron figure.
+- **Subtle science:** characters never know they stand for a science. In-world text never names a real scientist and never uses explicit science vocabulary for a face's theme (e.g. isotope, radioactive, relativity, evolution, niche, element). The analogy lives in mechanics and visuals only.
+- Each race's patron figure (inspired by Darwin, Curie, Einstein, Euler and Anning/Richter) appears only under an in-world placeholder name marked `*`, e.g. "the Old Fledgling*".
+- **Placeholder names:** any proper name in in-game text that hasn't been chosen in the naming brainstorm carries a trailing `*`.
 - The more chaotic a seed, the more chaotic NPC dialogue gets. Hints stay present, but become cryptic.
 
 ## Cameos and gags (optional)
-- Newton appears as an NPC who keeps getting bonked by apples.
+- An apple-bonked sage* (Newton-inspired, never named) keeps getting hit by apples.
 - A sphere among the shape people insists it belongs ("I have *infinite* faces!").

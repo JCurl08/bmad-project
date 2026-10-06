@@ -22,7 +22,7 @@ Players on itch.io can play a full seeded run in the browser, and the developer 
 
 1. A WebGL build is live on itch.io and someone other than the developer can play it start to finish.
 2. Three or more seeds play from town to the core boss with no softlock, confirmed by a seed sweep.
-3. Every Must capability (CAP-1 to CAP-6, CAP-9 to CAP-13, CAP-25) is in the shipped build. Each Should capability (CAP-7, CAP-8, 3×3 faces, CAP-14 to CAP-17) is either present or cut following `scope-tiers.md`.
+3. Every Must capability (CAP-1 to CAP-13, CAP-25 to CAP-27) is in the shipped build: a 3×3 cube with all 6 faces, a map and an arena exit. Each Should capability (CAP-14 to CAP-17) is either present or cut following `scope-tiers.md`.
 4. Two different seeds route the player through the faces in visibly different orders.
 
 ## Boundaries
@@ -51,3 +51,4 @@ One Unity project in one repo, with one owner. Not in scope: the spec's non-goal
 - Decision: Epic 1 ships Biology, Chemistry and Physics at 2×2, with the other faces sealed. Math, Earth & Atmosphere and 3×3 faces move to epic-varied-runs (user, 2026-10-05).
 - Decision: the Unity project lives in `game/` (Universal 2D/URP), and stories are built interactively with bmad-build (user, 2026-10-05).
 - Decision: the "commitment closes doors" mechanic and the save format are owned by epic-playable-cube. The save format is versioned and extensible, because epic-varied-runs and epic-stretch extend it (2026-10-05).
+- Decision: after the first playtest, the full 3×3 cube with all 6 faces, the isotope stage item, a cube-net map, an arena exit, Rubik's region colours and a subtle-science text rule move into epic-playable-cube. epic-varied-runs keeps CAP-14 to CAP-17. See change-playtest-feedback-full-cube (user approved, 2026-10-06).

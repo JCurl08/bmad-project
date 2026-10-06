@@ -23,8 +23,7 @@ A vision to realize, plus a learning goal. The developer wants a campy, lighthea
 
 Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.md`.
 
-- **CAP-1** [Must]
-  - **intent:** Each run builds a seeded cube world of 6 faces × N×N screens (2×2 at Must tier, 3×3 at Should tier). The Town face is always the start. The built science faces and their screens are rearranged when the player leaves town, and faces not built yet are sealed.
+Each run builds a seeded cube world of 6 faces × 3×3 screens. The Town face is always the start. The science faces and their screens are rearranged when the player leaves town.
   - **success:** The same seed reproduces an identical layout. Two different seeds produce different face and screen arrangements. The run always starts on the Town face.
 - **CAP-2** [Must]
   - **intent:** The player explores screen to screen, as in classic Zelda, crossing cube edges onto adjacent faces. The core is reachable from every face.
@@ -35,16 +34,15 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 - **CAP-4** [Must]
   - **intent:** On the Biology face (Darwin), the player gains a beak adaptation that is random per run. A thin beak presses distant buttons and pollinates flowers, which grow bridges or vines. A thick beak breaks pots and rocks.
   - **success:** In a playtest, each beak type opens its gate types, and a pollinated flower creates a crossing on an adjacent screen.
-- **CAP-5** [Must]
-  - **intent:** On the Chemistry face (Curie), the player uses a re-obtainable item that decays through timed stages. The glowing stage lights dark rooms, the unstable stage blasts walls, and the lead stage holds switches.
-  - **success:** Each stage solves its puzzle type. The item advances on its half-life timer and can be re-obtained after it fully decays.
+On the Chemistry face, each run rolls one stage item (Glowing, Unstable or Lead) that the player keeps for the run and uses by attacking: glowing lights dark rooms, unstable breaks cracked walls, lead weighs down plates. In-world lore says the stages transform into one another between runs.
+  - **success:** Each stage opens its gate type. Gates for the other stages are optional and guard nothing required. There is no timer and no dispenser.
 - **CAP-6** [Must]
   - **intent:** On the Physics face (Einstein), boulders moved near a timed door slow time, so the door stays open longer. More mass slows time further.
   - **success:** A door that can't be passed with no boulders becomes passable with the required number of boulders next to it.
-- **CAP-7** [Should]
+- **CAP-7** [Must]
   - **intent:** The Math face (Euler) has cross-every-bridge-exactly-once puzzles.
   - **success:** Every generated bridge layout is checked as solvable, and the door opens only after an exactly-once crossing.
-- **CAP-8** [Should]
+- **CAP-8** [Must]
   - **intent:** The Earth & Atmosphere face has weather hazards, quake crevices to cross, and a calm hurricane-eye centre screen. Its item is a weather wand that controls one phenomenon at first and gains more with upgrades.
   - **success:** Each hazard measurably changes movement (wind pushes, snow causes sliding, freezing rain slows), and the wand's phenomenon solves at least one gate on the face.
 - **CAP-9** [Must]
@@ -65,6 +63,12 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 - **CAP-25** [Must]
   - **intent:** Each science face ends in a harder trial puzzle that combines its mechanic, and solving it pays meta currency. This replaces minibosses; the core final boss stays a boss.
   - **success:** Each built face's trial can be solved with that face's item and pays meta currency that is still there after the run ends.
+- **CAP-26** [Must]
+  - **intent:** A pause map shows the cube as an unfolded net of 3×3 faces, with visited screens in their region colour, the player, Town, discovered gates, items and trials, and the core portals.
+  - **success:** For any seed, the map matches the run's real layout on every visited screen and updates after the shuffle.
+- **CAP-27** [Must]
+  - **intent:** The player can leave the core arena on foot while the fight is not won.
+  - **success:** Walking out of the arena exit returns the player to the face they entered from, and the fight resets.
 - **CAP-14** [Should]
   - **intent:** Talk order in town drafts the run. The first race the player talks to becomes an ally, and the last race and any skipped races become hostile for the run.
   - **success:** Ally bonuses apply (item upgrade or extra ability, better hints, unlocked areas, healing items), and every member of a hostile race attacks on sight.
@@ -104,7 +108,10 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 - One developer, 14 days at most. The target is to finish all Must scope by the end of the week of 2026-10-05 (about 2026-10-11), working longer days. Should work follows, and the last day is reserved for polish and playtests.
 - 2D in Unity, built with Unity's built-in 2D tools. The developer is learning Unity, so simple implementations win.
 - Release target is **WebGL on itch.io**, with a Windows desktop build as the fallback. Saves must work in browser storage, audio may only start after the player's first input, and the build should stay small.
-- The Must tier ships 3 science faces (Biology, Chemistry, Physics) at 2×2 screens. Math, Earth & Atmosphere and 3×3 faces come next, in the Should tier.
+- The Must tier ships all 6 faces at 3×3 screens (54 screens), with all 5 science faces built.
+- In-world text never names a real scientist or uses explicit science vocabulary for the face themes. The analogy lives in mechanics and visuals only.
+- Placeholder proper names in in-game text carry a trailing `*` until a naming brainstorm replaces them.
+- Region colours follow a Rubik's cube: Town white, Biology green, Chemistry red, Physics blue, Math yellow, Earth & Atmosphere orange.
 - Audience is pre-teens to adults, like *Ocarina of Time*. Camp humour only, no explicit innuendo (`lore-and-tone.md`).
 - The game never says "sort". The demon's order is shown through abstract imagery and named "the Partition".
 - The order the player talks to races in town is the only player influence on the shuffle.
@@ -120,7 +127,7 @@ Tier tags follow `scope-tiers.md`. Face and race detail is in `faces-and-races.m
 
 ## Success signal
 
-- A new player can start a fresh seed in town, explore every science face in the build (at least 3), solve each face's signature puzzle and trial, and beat the core boss. Three or more seeds play start to finish with no softlocks, and two different seeds visibly route the player through the faces in different orders.
+- A new player can start a fresh seed in town, explore all 5 science faces of a 3×3 cube with the help of the map, solve each face's signature puzzle and trial, and beat the core boss or walk out of the arena. Three or more seeds play start to finish with no softlocks, and two different seeds visibly route the player through the faces in different orders.
 
 ## Assumptions
 

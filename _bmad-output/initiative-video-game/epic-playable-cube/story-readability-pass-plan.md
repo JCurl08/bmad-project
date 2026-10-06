@@ -108,7 +108,7 @@ context:
 ## Implementation Notes
 
 - Checkpoint 1 approved by the user (2026-10-06, "let's continue").
-- Verified in batch mode after the review patches: EditMode 197/197, PlayMode 119/119, seed sweep 50/50, determinism signatures unchanged. HITL readability check by the user PENDING.
+- Verified in batch mode after the review patches: EditMode 197/197, PlayMode 119/119, seed sweep 50/50, determinism signatures unchanged. HITL readability check PASSED by the user (2026-10-06: "I think it is good"; everything on the checklist works). Follow-up requests are going to bmad-correct-course: isotope usability, human-like shape people, nicer finches, more Rubik's-cube colour per region.
 
 ## Review Triage Log
 
