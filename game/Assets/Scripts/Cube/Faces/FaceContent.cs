@@ -85,6 +85,50 @@ namespace Game.Cube
             return false;
         }
 
+        /// <summary>
+        /// Spawns a face's population (the five faces share this loop): NPC i (specOf) stands on a spot picked from
+        /// screens[i] onward (TryPickAnywhere; skipped with a warning from owner where none is clear), wanders its screen
+        /// quadrant and says linesOf(spec, i); it is named "label i DisplayName" and added to into.
+        /// </summary>
+        public static void SpawnPopulation(CubeWorld world, FaceSpots spots, List<ScreenAddress> screens, int count,
+            System.Func<int, NpcSpec> specOf, System.Func<NpcSpec, int, List<string>> linesOf, string owner, string label,
+            Transform target, Transform root, List<NpcTalker> into)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                NpcSpec spec = specOf(i);
+                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
+                {
+                    Debug.LogWarning($"{owner}: no clear spot for {spec} (seed {world.Seed}).");
+                    continue;
+                }
+                Vector2 centre = world.ScreenCenter(screen);
+                Rect bounds = WanderBounds(centre, feet);
+                List<string> lines = linesOf(spec, i);
+                NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
+                npc.name = $"{label} {i} {spec.DisplayName}";
+                into.Add(npc);
+            }
+        }
+
+        /// <summary>
+        /// Spawns a face's enemies (the five faces share this loop): firstCount of the first kind, then secondCount of the
+        /// second; enemy i on a spot picked from screens[i] onward (TryPickAnywhere; skipped where none is clear), built by
+        /// spawn at its body centre (EnemyPosition) with its screen-quadrant wander bounds and added to into.
+        /// </summary>
+        public static void SpawnEnemies<TKind>(CubeWorld world, FaceSpots spots, List<ScreenAddress> screens, TKind first,
+            int firstCount, TKind second, int secondCount, System.Func<TKind, Vector2, Rect, Enemy> spawn, List<Enemy> into)
+        {
+            for (int i = 0; i < firstCount + secondCount; i++)
+            {
+                TKind kind = i < firstCount ? first : second;
+                if (!TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
+                Vector2 centre = world.ScreenCenter(screen);
+                Rect bounds = WanderBounds(centre, feet);
+                into.Add(spawn(kind, EnemyPosition(centre, feet), bounds));
+            }
+        }
+
         /// <summary>World wander bounds for something standing at feet (local to a screen centre): its screen quadrant.</summary>
         public static Rect WanderBounds(Vector2 centre, Vector2 feet)
         {

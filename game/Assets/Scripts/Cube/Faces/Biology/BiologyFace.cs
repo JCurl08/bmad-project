@@ -82,16 +82,9 @@ namespace Game.Cube
         {
             // The beak kinds come from the rolled items themselves (by id), never from the catalog's order.
             BeakItem = world.ItemFor(Theme.Biology);
-            List<BeakKind> kinds = BiologyBeaks.VariantKinds(world.ItemCatalog);
-            BeakKind? rolled = BiologyBeaks.KindOf(BeakItem);
-            if (kinds == null || rolled == null || world.ItemPlacement == null || world.ItemPlacement.RolledVariant(Theme.Biology) < 0)
-            {
-                Plan = null;
-                if (world.ItemPlacement != null && world.ItemPlacement.RolledVariant(Theme.Biology) >= 0)
-                    Debug.LogWarning($"BiologyFace: the catalog's Biology variants are not beaks ({BeakItem}); no beak gates.");
-                return;
-            }
-            Plan = BiologyPlan.Create(world.Model, world.ItemPlacement, rolled.Value, kinds);
+            Plan = BiologyPlan.ForRun(world.Model, world.ItemPlacement, BeakItem, BiologyBeaks.VariantKinds(world.ItemCatalog));
+            if (Plan == null && world.ItemPlacement != null && world.ItemPlacement.RolledVariant(Theme.Biology) >= 0)
+                Debug.LogWarning($"BiologyFace: the catalog's Biology variants are not beaks ({BeakItem}); no beak gates.");
         }
 
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
@@ -180,38 +173,17 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < BiologyPopulation.FinchCount(Plan.FaceSize); i++)
-            {
-                NpcSpec spec = BiologyPopulation.FinchSpec(world.Seed, i);
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
-                {
-                    Debug.LogWarning($"BiologyFace: no clear spot for {spec} (seed {world.Seed}).");
-                    continue;
-                }
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                List<string> lines = BiologyPopulation.LinesFor(spec, facts, hintDensity, Plan.Beak, i == 0);
-                NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
-                npc.name = $"Biology Finch {i} {spec.DisplayName}";
-                finches.Add(npc);
-            }
+            FaceContent.SpawnPopulation(world, spots, screens, BiologyPopulation.FinchCount(Plan.FaceSize), i => BiologyPopulation.FinchSpec(world.Seed, i),
+                (spec, i) => BiologyPopulation.LinesFor(spec, facts, hintDensity, Plan.Beak, i == 0), "BiologyFace", "Biology Finch", target, root, finches);
         }
 
         private void SpawnBiologyEnemies(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            int weevils = WeevilCount(Plan.FaceSize);
-            for (int i = 0; i < weevils + PuffCount(Plan.FaceSize); i++)
-            {
-                BiologyEnemyKind kind = i < weevils ? BiologyEnemyKind.SeedWeevil : BiologyEnemyKind.PollenPuff;
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                Vector2 at = FaceContent.EnemyPosition(centre, feet);
-                enemies.Add(BiologyEnemies.Spawn(kind, BiologyEnemies.WeaknessFor(kind, world), at, bounds, target, root,
-                    world.Material));
-            }
+            FaceContent.SpawnEnemies(world, spots, screens, BiologyEnemyKind.SeedWeevil, WeevilCount(Plan.FaceSize), BiologyEnemyKind.PollenPuff, PuffCount(Plan.FaceSize),
+                (kind, at, bounds) => BiologyEnemies.Spawn(kind, BiologyEnemies.WeaknessFor(kind, world), at, bounds, target, root, world.Material),
+                enemies);
         }
 
         private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);

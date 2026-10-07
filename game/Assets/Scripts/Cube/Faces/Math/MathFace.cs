@@ -84,10 +84,8 @@ namespace Game.Cube
         public void BeginReveal(CubeWorld world)
         {
             GapCrosser = world.ItemFor(Theme.Math);
-            Plan = GapCrosser != null
-                ? MathPlan.Create(world.Model, world.ItemPlacement, world.ModuleAt, BiologyBeaks.VariantKinds(world.ItemCatalog),
-                    ChemistryIsotope.VariantKinds(world.ItemCatalog))
-                : null;
+            Plan = MathPlan.ForRun(world.Model, world.ItemPlacement, GapCrosser, world.ModuleAt, BiologyBeaks.VariantKinds(world.ItemCatalog),
+                ChemistryIsotope.VariantKinds(world.ItemCatalog));
         }
 
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
@@ -101,7 +99,7 @@ namespace Game.Cube
                 gaps.Add(gap);
                 return gap;
             }
-            if (spec.Layout == null)
+            if (!MathPlan.Builds(spec))
             {
                 Debug.LogWarning($"MathFace: no layout for {spec} (seed {world.Seed}); a plain gate instead.");
                 return null;
@@ -186,37 +184,17 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < MathPopulation.ShapeCount(Plan.FaceSize); i++)
-            {
-                NpcSpec spec = MathPopulation.ShapeSpec(world.Seed, i);
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
-                {
-                    Debug.LogWarning($"MathFace: no clear spot for {spec} (seed {world.Seed}).");
-                    continue;
-                }
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                NpcTalker npc = NpcFactory.Spawn(spec, MathPopulation.LinesFor(spec, facts, hintDensity, i), centre + feet, bounds,
-                    world.Relations, target, root, world.Material);
-                npc.name = $"Math Shape {i} {spec.DisplayName}";
-                shapes.Add(npc);
-            }
+            FaceContent.SpawnPopulation(world, spots, screens, MathPopulation.ShapeCount(Plan.FaceSize), i => MathPopulation.ShapeSpec(world.Seed, i),
+                (spec, i) => MathPopulation.LinesFor(spec, facts, hintDensity, i), "MathFace", "Math Shape", target, root, shapes);
         }
 
         private void SpawnMathEnemies(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            int deadEnds = DeadEndCount(Plan.FaceSize);
-            for (int i = 0; i < deadEnds + LooseEndCount(Plan.FaceSize); i++)
-            {
-                MathEnemyKind kind = i < deadEnds ? MathEnemyKind.DeadEnd : MathEnemyKind.LooseEnd;
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                enemies.Add(MathEnemies.Spawn(kind, MathEnemies.WeaknessFor(kind, world), FaceContent.EnemyPosition(centre, feet),
-                    bounds, target, root, world.Material));
-            }
+            FaceContent.SpawnEnemies(world, spots, screens, MathEnemyKind.DeadEnd, DeadEndCount(Plan.FaceSize), MathEnemyKind.LooseEnd, LooseEndCount(Plan.FaceSize),
+                (kind, at, bounds) => MathEnemies.Spawn(kind, MathEnemies.WeaknessFor(kind, world), at, bounds, target, root, world.Material),
+                enemies);
         }
 
         private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);

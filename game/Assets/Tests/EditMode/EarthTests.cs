@@ -485,10 +485,7 @@ namespace Game.Cube.Tests
 
         private static List<string> EarthStrings()
         {
-            Dialogue.RaceFlavour dino = Dialogue.Flavours[Race.Dinosaur];
-            var strings = new List<string> { dino.Wares, dino.Metal, dino.Errand };
-            strings.AddRange(dino.Rumours);
-            strings.AddRange(dino.Greetings);
+            var strings = new List<string>(FaceText.Flavour(Race.Dinosaur));
             foreach (string[] table in Dialogue.DinoGreetings.Values) strings.AddRange(table);
             strings.AddRange(Dialogue.OldDiggerLines);
             strings.AddRange(Dialogue.SkyWatcherLines);
@@ -511,9 +508,7 @@ namespace Game.Cube.Tests
         {
             yield return EarthEnemies.Name(EarthEnemyKind.Squall);
             yield return EarthEnemies.Name(EarthEnemyKind.Rumbler);
-            RacePartSet set = RacePartSets.For(Race.Dinosaur);
-            foreach (PartSlot slot in new[] { PartSlot.Head, PartSlot.Torso, PartSlot.Legs })
-                foreach (NpcPart p in set.Slot(slot)) yield return p.Name;
+            foreach (string name in FaceText.PartNames(Race.Dinosaur)) yield return name;
         }
 
         [Test]

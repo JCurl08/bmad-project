@@ -17,5 +17,26 @@ namespace Game.Cube
             var rng = new SeededRng(((ulong)(uint)seed << 32) | (uint)theme, RngStream);
             return rng.NextInt(count);
         }
+
+        /// <summary>
+        /// The kind of each variant of a theme's item in a catalog, in variant-index order, read from the items themselves
+        /// (kindOf, by id, so the catalog's order never matters). Null without a catalog, without variants of the theme,
+        /// or when one variant is not of the kind (kindOf gives null).
+        /// </summary>
+        public static System.Collections.Generic.List<TKind> KindsOf<TKind>(ItemCatalog catalog, Theme theme,
+            System.Func<ItemDefinition, TKind?> kindOf) where TKind : struct
+        {
+            if (catalog == null) return null;
+            System.Collections.Generic.List<ItemDefinition> variants = catalog.VariantsOf(theme);
+            if (variants.Count == 0) return null;
+            var kinds = new System.Collections.Generic.List<TKind>(variants.Count);
+            foreach (ItemDefinition item in variants)
+            {
+                TKind? kind = kindOf(item);
+                if (kind == null) return null;
+                kinds.Add(kind.Value);
+            }
+            return kinds;
+        }
     }
 }

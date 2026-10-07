@@ -86,20 +86,7 @@ namespace Game.Cube
         /// The phenomenon of each Earth variant in a catalog, in variant-index order, read from the items' ids (so the
         /// catalog's order never matters). Null when the catalog has no Earth variants or one is not a wand.
         /// </summary>
-        public static List<Phenomenon> VariantKinds(ItemCatalog catalog)
-        {
-            if (catalog == null) return null;
-            List<ItemDefinition> variants = catalog.VariantsOf(Theme.EarthAtmosphere);
-            if (variants.Count == 0) return null;
-            var kinds = new List<Phenomenon>(variants.Count);
-            foreach (ItemDefinition item in variants)
-            {
-                Phenomenon? kind = KindOf(item);
-                if (kind == null) return null;
-                kinds.Add(kind.Value);
-            }
-            return kinds;
-        }
+        public static List<Phenomenon> VariantKinds(ItemCatalog catalog) => ItemVariants.KindsOf<Phenomenon>(catalog, Theme.EarthAtmosphere, KindOf);
 
         public static Color ColorOf(Phenomenon kind)
         {

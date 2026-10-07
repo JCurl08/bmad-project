@@ -492,12 +492,7 @@ namespace Game.Cube.Tests
             strings.AddRange(Dialogue.CurieLines);
             strings.Add(Dialogue.StoneLoreLine);
             strings.AddRange(Dialogue.StoneLines);
-            Dialogue.RaceFlavour mushroom = Dialogue.Flavours[Race.Mushroom];
-            strings.Add(mushroom.Wares);
-            strings.Add(mushroom.Metal);
-            strings.Add(mushroom.Errand);
-            strings.AddRange(mushroom.Rumours);
-            strings.AddRange(mushroom.Greetings);
+            strings.AddRange(FaceText.Flavour(Race.Mushroom));
             strings.AddRange(ChemistryIsotope.AllText());
             strings.Add(HintGenerator.ItemNickname(Theme.Chemistry));
             ItemCatalog catalog = Catalog();

@@ -228,6 +228,33 @@ namespace Game.Cube
             return false;
         }
 
+        /// <summary>
+        /// The run's beak plan as BiologyFace makes it at the reveal: only when the catalog's Biology variants are beaks,
+        /// the rolled item is one and the placement rolled a variant; otherwise null (every Biology gate is a plain gate).
+        /// </summary>
+        public static BiologyPlan ForRun(CubeModel model, ItemPlacement placement, ItemDefinition beakItem,
+            IReadOnlyList<BeakKind> variantKinds)
+        {
+            BeakKind? rolled = BiologyBeaks.KindOf(beakItem);
+            if (variantKinds == null || rolled == null || placement == null || placement.RolledVariant(Theme.Biology) < 0) return null;
+            return Create(model, placement, rolled.Value, variantKinds);
+        }
+
+        /// <summary>The look (GateLooks) of the gate BiologyFace builds at a slot, or null where it builds none (a plain gate).</summary>
+        public string GateLook(ScreenAddress screen, int slot, bool optional) =>
+            TryGetGate(screen, slot, optional, out BeakGateSpec spec) ? LookOf(spec) : null;
+
+        /// <summary>The look of a beak gate: the gate component BiologyFace.CreateGate builds for its kind.</summary>
+        public static string LookOf(BeakGateSpec spec)
+        {
+            switch (spec.Kind)
+            {
+                case BeakGateKind.Breakable: return spec.Look == BreakableLook.Pot ? GateLooks.Pot : GateLooks.Rock;
+                case BeakGateKind.FlowerVine: return GateLooks.Bramble;
+                default: return GateLooks.ButtonDoor;
+            }
+        }
+
         /// <summary>Number of beak gates on a face (the difficulty of each gate there).</summary>
         public int DifficultyOn(FaceId face)
         {

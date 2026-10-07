@@ -337,5 +337,56 @@ namespace Game.Cube.Tests
             Release(keyboard.f1Key, queueEventOnly: true);
             Assert.AreNotEqual(overlay, debug.OverlayVisible, "F1 did not toggle the overlay");
         }
+
+        /// <summary>The look a hint should name for a gate the reveal built, read from its component alone.</summary>
+        private static string BuiltLook(Gate gate)
+        {
+            switch (gate)
+            {
+                case BreakableGate b: return b.Look == BreakableLook.Pot ? GateLooks.Pot : GateLooks.Rock;
+                case FlowerVineGate _: return GateLooks.Bramble;
+                case ButtonGate _: return GateLooks.ButtonDoor;
+                case DarkRoomGate _: return GateLooks.DarkDoorway;
+                case CrackedWallGate _: return GateLooks.CrackedWall;
+                case LeadPlateGate _: return GateLooks.PlatedDoor;
+                case TimedDoorGate _: return GateLooks.SwingingDoor;
+                case GapGate _: return GateLooks.Gap;
+                case BridgeDoorGate _: return GateLooks.PlankDoor;
+                case PhenomenonGate p: return GateLooks.Of(p.Kind);
+                default: return gate.GetType() == typeof(Gate) ? GateLooks.Plain : $"(unknown gate {gate.GetType().Name})";
+            }
+        }
+
+        /// <summary>
+        /// One source of truth for gate looks: on seeds 1-50, every required gate's hint look (from the face plans, as
+        /// RunFacts gives it to the hints) is the look of the gate the reveal actually built in that slot.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator GateLooks_HintsNameTheGateTheRevealBuilt_OnSeeds1To50()
+        {
+            yield return LoadCubeScene();
+            var looks = new HashSet<string>();
+            int count = 0;
+            for (int seed = 1; seed <= 50; seed++)
+            {
+                world.Rebuild(seed);
+                Assert.IsTrue(world.RevealScience(), $"seed {seed}: the reveal");
+                RunFacts facts = RunFacts.Of(world);
+                foreach (GatePlacement g in world.ItemPlacement.Gates)
+                {
+                    ScreenModule module = world.ModuleAt(g.Screen);
+                    Assert.IsNotNull(module, $"seed {seed}: {g}");
+                    Gate[] built = module.Gates[g.Slot].GetComponentsInChildren<Gate>(true);
+                    Assert.AreEqual(1, built.Length, $"seed {seed}: one gate in {g}");
+                    string look = BuiltLook(built[0]);
+                    Assert.AreEqual(look, HintGenerator.LookOf(facts, g), $"seed {seed}: the hint look of {g}");
+                    looks.Add(look);
+                    count++;
+                }
+                yield return null; // let the last run's objects go
+            }
+            Assert.Greater(count, 250, "Every required gate of 50 runs");
+            Assert.GreaterOrEqual(looks.Count, 8, $"Gates of every face's kinds: {string.Join(", ", looks)}");
+        }
     }
 }

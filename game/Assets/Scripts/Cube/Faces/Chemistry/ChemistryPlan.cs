@@ -173,6 +173,25 @@ namespace Game.Cube
         }
 
         /// <summary>
+        /// The run's stage plan as ChemistryFace makes it at the reveal: only when the catalog's Chemistry variants are
+        /// stones, the rolled item is one and the placement rolled a variant; otherwise null (plain gates).
+        /// </summary>
+        public static ChemistryPlan ForRun(CubeModel model, ItemPlacement placement, ItemDefinition stoneItem,
+            IReadOnlyList<IsotopeStage> variantKinds)
+        {
+            IsotopeStage? rolled = ChemistryIsotope.KindOf(stoneItem);
+            if (variantKinds == null || rolled == null || placement == null || placement.RolledVariant(Theme.Chemistry) < 0) return null;
+            return Create(model, placement, rolled.Value, variantKinds);
+        }
+
+        /// <summary>Whether ChemistryFace builds a planned stage gate for an item: only the stone of that stage opens it.</summary>
+        public static bool Builds(IsotopeGateSpec spec, ItemDefinition item) => ChemistryIsotope.KindOf(item) == spec.Stage;
+
+        /// <summary>The look (GateLooks) of the gate ChemistryFace builds at a slot for an item, or null where it builds none.</summary>
+        public string GateLook(ScreenAddress screen, int slot, bool optional, ItemDefinition item) =>
+            TryGetGate(screen, slot, optional, out IsotopeGateSpec spec) && Builds(spec, item) ? GateLooks.Of(spec.Stage) : null;
+
+        /// <summary>
         /// The trial's piece spots on its module (local to the screen centre): the first draws of the population
         /// stream, as ChemistryFace.EndReveal takes them. Fewer than ChemistryTrial.PieceCount when they do not fit.
         /// </summary>

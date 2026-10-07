@@ -254,6 +254,22 @@ namespace Game.Cube
             return false;
         }
 
+        /// <summary>The run's Earth plan as EarthFace makes it at the reveal: only with a rolled Earth item and a placement, else null.</summary>
+        public static EarthPlan ForRun(CubeModel model, ItemPlacement placement, ItemDefinition wand,
+            Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<Phenomenon> earthVariantKinds,
+            IReadOnlyList<BeakKind> biologyVariantKinds, IReadOnlyList<IsotopeStage> chemistryVariantKinds) =>
+            wand != null && placement != null
+                ? Create(model, placement, moduleAt, earthVariantKinds, biologyVariantKinds, chemistryVariantKinds)
+                : null;
+
+        /// <summary>Whether EarthFace builds a planned gate for an item: a phenomenon gate that only that Stormcaller* opens.</summary>
+        public static bool Builds(EarthGateSpec spec, ItemDefinition item) =>
+            spec.Kind != Phenomenon.None && StormcallerItem.KindOf(item) == spec.Kind;
+
+        /// <summary>The look (GateLooks) of the gate EarthFace builds at a slot for an item, or null where it builds none.</summary>
+        public string GateLook(ScreenAddress screen, int slot, bool optional, ItemDefinition item) =>
+            TryGetGate(screen, slot, optional, out EarthGateSpec spec) && Builds(spec, item) ? GateLooks.Of(spec.Kind) : null;
+
         /// <summary>The hazard on a screen, or null (calm, or not on the Earth face).</summary>
         public HazardSpec HazardOn(ScreenAddress screen)
         {

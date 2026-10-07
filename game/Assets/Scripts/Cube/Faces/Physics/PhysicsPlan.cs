@@ -150,6 +150,31 @@ namespace Game.Cube
 
         // ------------------------------------------------------------------ Create
 
+        /// <summary>The run's door plan as PhysicsFace makes it at the reveal: only with a rolled Physics item, else null.</summary>
+        public static PhysicsPlan ForRun(CubeModel model, ItemPlacement placement, ItemDefinition mittItem,
+            Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> biologyVariantKinds, int maxRequired,
+            IReadOnlyList<IsotopeStage> chemistryVariantKinds) =>
+            mittItem != null ? Create(model, placement, moduleAt, biologyVariantKinds, maxRequired, chemistryVariantKinds) : null;
+
+        /// <summary>The index in Doors of the timed door planned for a required gate's slot (the last match), or -1.</summary>
+        public int DoorIndex(ScreenAddress screen, int slot)
+        {
+            int index = -1;
+            for (int i = 0; i < doors.Count; i++)
+                if (doors[i].Screen == screen && doors[i].Slot == slot) index = i;
+            return index;
+        }
+
+        /// <summary>Whether PhysicsFace builds a planned door: only with a layout that has its switch.</summary>
+        public static bool Builds(TimedDoorSpec spec) => spec.Layout != null && spec.Layout.HasSwitch;
+
+        /// <summary>The look (GateLooks) of the gate PhysicsFace builds at a slot, or null where it builds none (optional gates never).</summary>
+        public string GateLook(ScreenAddress screen, int slot, bool optional)
+        {
+            int index = optional ? -1 : DoorIndex(screen, slot);
+            return index >= 0 && Builds(doors[index]) ? GateLooks.SwingingDoor : null;
+        }
+
         /// <summary>
         /// The plan of a run; null when Physics is not an item of the placement (no Physics pickup). With moduleAt
         /// (the module of a screen: prefabs in the sweep, instances at runtime) every position is laid out; pass the

@@ -417,49 +417,30 @@ namespace Game.Cube
             List<IsotopeStage> stageKinds = ChemistryIsotope.VariantKinds(catalog);
             List<Phenomenon> wandKinds = StormcallerItem.VariantKinds(catalog);
 
-            BeakKind? beak = BiologyBeaks.KindOf(catalog.ItemFor(Theme.Biology, seed));
-            BiologyPlan biology = beakKinds != null && beak != null && placement.RolledVariant(Theme.Biology) >= 0
-                ? BiologyPlan.Create(model, placement, beak.Value, beakKinds) : null;
-            IsotopeStage? stage = ChemistryIsotope.KindOf(catalog.ItemFor(Theme.Chemistry, seed));
-            ChemistryPlan chemistry = stageKinds != null && stage != null && placement.RolledVariant(Theme.Chemistry) >= 0
-                ? ChemistryPlan.Create(model, placement, stage.Value, stageKinds) : null;
-            PhysicsPlan physics = catalog.ItemFor(Theme.Physics, seed) != null
-                ? PhysicsPlan.Create(model, placement, moduleAt, beakKinds, physicsMaxRequired, stageKinds) : null;
-            MathPlan math = catalog.ItemFor(Theme.Math, seed) != null
-                ? MathPlan.Create(model, placement, moduleAt, beakKinds, stageKinds) : null;
-            ItemDefinition wand = catalog.ItemFor(Theme.EarthAtmosphere, seed);
-            EarthPlan earth = wand != null ? EarthPlan.Create(model, placement, moduleAt, wandKinds, beakKinds, stageKinds) : null;
+            // The plans exactly as the faces make them at the reveal, and each gate's look as the face builds it (the plans
+            // own both the build conditions and the look, so the hints cannot drift from the built gates).
+            BiologyPlan biology = BiologyPlan.ForRun(model, placement, catalog.ItemFor(Theme.Biology, seed), beakKinds);
+            ChemistryPlan chemistry = ChemistryPlan.ForRun(model, placement, catalog.ItemFor(Theme.Chemistry, seed), stageKinds);
+            PhysicsPlan physics = PhysicsPlan.ForRun(model, placement, catalog.ItemFor(Theme.Physics, seed), moduleAt, beakKinds,
+                physicsMaxRequired, stageKinds);
+            MathPlan math = MathPlan.ForRun(model, placement, catalog.ItemFor(Theme.Math, seed), moduleAt, beakKinds, stageKinds);
+            EarthPlan earth = EarthPlan.ForRun(model, placement, catalog.ItemFor(Theme.EarthAtmosphere, seed), moduleAt, wandKinds,
+                beakKinds, stageKinds);
 
             foreach (GatePlacement g in placement.Gates)
             {
-                string look = Plain;
+                // The item CubeWorld builds the gate for (its theme's rolled item).
+                ItemDefinition item = catalog.ItemFor(g.Item, seed);
+                string look = null;
                 switch (g.Item)
                 {
-                    case Theme.Biology:
-                        if (biology != null && biology.TryGetGate(g.Screen, g.Slot, false, out BeakGateSpec b))
-                            look = b.Kind == BeakGateKind.Breakable ? (b.Look == BreakableLook.Pot ? Pot : Rock)
-                                : b.Kind == BeakGateKind.FlowerVine ? Bramble : ButtonDoor;
-                        break;
-                    case Theme.Chemistry:
-                        if (chemistry != null && chemistry.TryGetGate(g.Screen, g.Slot, false, out IsotopeGateSpec c) && c.Stage == stage)
-                            look = Of(c.Stage);
-                        break;
-                    case Theme.Physics:
-                        if (physics != null)
-                            foreach (TimedDoorSpec d in physics.Doors)
-                                if (d.Screen == g.Screen && d.Slot == g.Slot && d.Layout != null && d.Layout.HasSwitch) look = SwingingDoor;
-                        break;
-                    case Theme.Math:
-                        if (math != null && math.TryGetGate(g.Screen, g.Slot, out MathGateSpec m))
-                            look = m.Kind == MathGateKind.Gap ? Gap : m.Layout != null ? PlankDoor : Plain;
-                        break;
-                    case Theme.EarthAtmosphere:
-                        if (earth != null && earth.TryGetGate(g.Screen, g.Slot, false, out EarthGateSpec e) && e.Kind != Phenomenon.None &&
-                            StormcallerItem.KindOf(wand) == e.Kind)
-                            look = Of(e.Kind);
-                        break;
+                    case Theme.Biology: look = biology?.GateLook(g.Screen, g.Slot, false); break;
+                    case Theme.Chemistry: look = chemistry?.GateLook(g.Screen, g.Slot, false, item); break;
+                    case Theme.Physics: look = physics?.GateLook(g.Screen, g.Slot, false); break;
+                    case Theme.Math: look = math?.GateLook(g.Screen, g.Slot, false); break;
+                    case Theme.EarthAtmosphere: look = earth?.GateLook(g.Screen, g.Slot, false, item); break;
                 }
-                looks[(g.Screen, g.Slot)] = look;
+                looks[(g.Screen, g.Slot)] = look ?? Plain;
             }
             return looks;
         }

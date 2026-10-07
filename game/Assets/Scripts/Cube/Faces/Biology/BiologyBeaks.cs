@@ -53,20 +53,7 @@ namespace Game.Cube
         /// The beak of each Biology variant in a catalog, in variant-index order, read from the items' ids (so
         /// the catalog's order never matters). Null when the catalog has no Biology variants or one is not a beak.
         /// </summary>
-        public static List<BeakKind> VariantKinds(ItemCatalog catalog)
-        {
-            if (catalog == null) return null;
-            List<ItemDefinition> variants = catalog.VariantsOf(Theme.Biology);
-            if (variants.Count == 0) return null;
-            var kinds = new List<BeakKind>(variants.Count);
-            foreach (ItemDefinition item in variants)
-            {
-                BeakKind? kind = KindOf(item);
-                if (kind == null) return null;
-                kinds.Add(kind.Value);
-            }
-            return kinds;
-        }
+        public static List<BeakKind> VariantKinds(ItemCatalog catalog) => ItemVariants.KindsOf<BeakKind>(catalog, Theme.Biology, KindOf);
 
         public static string Name(BeakKind beak) => beak == BeakKind.Thin ? ThinName : ThickName;
 

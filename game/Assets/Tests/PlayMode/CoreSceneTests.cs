@@ -30,6 +30,20 @@ namespace Game.Cube.Tests
         private const float SkillMinSeconds = 60f;
         private const float SkillMaxSeconds = 120f;
 
+        /// <summary>
+        /// Skill-check fights start on a multiple of this game time: the next multiple at least one spacing past the
+        /// current fixed time. Game code times short windows against Time.time (a knocked particle's, the player's
+        /// invulnerability), and whether a window's last physics step still counts depends on float rounding at the
+        /// absolute time, so the same fight started at another game time can play out differently. Aligning the start
+        /// takes out the jitter of the tests before it (their frame-paced waits shift the game time by a few seconds).
+        /// Per-seed win times reproduce only for the same test history (the same fixtures before this one, in the same
+        /// order, and the same seed order); another history can land on another multiple and give other times.
+        /// </summary>
+        private const float SkillStartSpacing = 400f;
+
+        /// <summary>The aligned start for a skill-check fight: the next multiple of SkillStartSpacing at least one spacing ahead.</summary>
+        private static float NextSkillStart(float now) => (Mathf.Floor(now / SkillStartSpacing) + 2f) * SkillStartSpacing;
+
         private Keyboard keyboard;
         private Vector2Int held;
 
@@ -120,18 +134,37 @@ namespace Game.Cube.Tests
         /// </summary>
         private IEnumerator EnterFightFromTown(int seed)
         {
+            yield return StartFightFromTown(seed);
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.IsTrue(arena.FightActive, "Still fighting a step later");
+        }
+
+        /// <summary>
+        /// As EnterFightFromTown, but returns in the physics phase right after the controlled entry, before the fight's
+        /// first step runs, so a caller that then waits only on physics steps (the skill-check bot) sees every fight step
+        /// and no rendered frame in between. With alignStart, the fight starts exactly at the next aligned game time
+        /// (NextSkillStart, fixed-step time): the wait runs fast-forward in physics steps, then Town's NPCs are placed
+        /// afresh in that same step, so the physics world at the first fight step does not depend on frame timing.
+        /// </summary>
+        private IEnumerator StartFightFromTown(int seed, bool alignStart = false)
+        {
             world.Rebuild(seed);
-            // Let the rebuild's long frame (laying out Town, working out the run's hints) settle first: the physics steps it
-            // queues run before the fight, not inside its first frames, so the fight's timing does not depend on how much
-            // work a run start does.
-            for (int i = 0; i < 3; i++) yield return null;
+            yield return null;
             NoFaceEnemies();
             arena.UseFallbackBoss = false;
             Assert.IsFalse(world.ScienceRevealed, "No face content in the physics world");
             yield return new WaitForFixedUpdate();
+            if (alignStart)
+            {
+                float startAt = NextSkillStart(Time.fixedTime);
+                Time.timeScale = 100f;
+                while (Time.fixedTime < startAt - Time.fixedDeltaTime / 2f) yield return new WaitForFixedUpdate();
+                Time.timeScale = 1f;
+                // The NPCs have wandered since the rebuild for however many steps frames gave them: place them again now.
+                UnityEngine.Object.FindAnyObjectByType<TownPopulation>().Populate();
+            }
             Assert.IsTrue(arena.Enter(navigator));
-            yield return new WaitForFixedUpdate();
-            yield return null;
             Assert.IsTrue(arena.FightActive, "Entering starts the fight");
             Assert.IsTrue(arena.PlayerInArena);
         }
@@ -171,12 +204,20 @@ namespace Game.Cube.Tests
         /// Holds the WASD keys for an 8-way direction (each axis -1, 0 or 1); zero releases them. The keyboard's whole state
         /// changes in one event, so a diagonal is pressed and released cleanly (no one-key frame in between).
         /// </summary>
-        private void Hold(Vector2Int dir)
+        private void Hold(Vector2Int dir) => Hold(dir, false);
+
+        /// <summary>
+        /// As Hold(dir); with now, the input system processes the change at once (not at the next rendered frame), so a
+        /// caller in the physics phase has the keys read by the very next physics step (PlayerMover reads them in
+        /// FixedUpdate). The skill-check bot uses this to act once per physics step, independent of frame timing.
+        /// </summary>
+        private void Hold(Vector2Int dir, bool now)
         {
             dir = new Vector2Int(Math.Sign(dir.x), Math.Sign(dir.y));
             if (dir == held) return;
             SetKeys(keyboard, WasdKeys(dir));
             held = dir;
+            if (now) InputSystem.Update();
         }
 
         private static Vector2 Unit(Vector2Int dir) => ((Vector2)dir).normalized;
@@ -813,10 +854,16 @@ namespace Game.Cube.Tests
             };
 
             private readonly CoreSceneTests t;
-            private readonly Dictionary<Particle, float> skip = new Dictionary<Particle, float>();
+            private readonly Dictionary<Particle, int> skip = new Dictionary<Particle, int>();
             private Particle target;
             private Vector2Int dir;
-            private float targetSince;
+            private int targetSince;
+
+            /// <summary>Physics steps decided so far: the bot's clock (its timers count steps, not Time.time, so they never
+            /// depend on where game time stood when the fight began).</summary>
+            private int step;
+
+            private static int Steps(float seconds) => Mathf.RoundToInt(seconds / Time.fixedDeltaTime);
 
             public int Swings;
             public int Dodges;
@@ -826,9 +873,10 @@ namespace Game.Cube.Tests
             private CoreArena Arena => t.arena;
             private Vector2 Pos => t.body.position;
 
-            /// <summary>The keys to hold this frame, and whether to swing now.</summary>
+            /// <summary>The keys to hold for the next physics step, and whether to swing now.</summary>
             public Vector2Int Decide(out bool swing)
             {
+                step++;
                 swing = false;
                 if (Dodge(out Vector2Int away))
                 {
@@ -837,10 +885,10 @@ namespace Game.Cube.Tests
                 }
 
                 ArenaSide side = Arena.SideOf(Pos);
-                bool stale = Time.time - targetSince > 4f;
+                bool stale = step - targetSince > Steps(4f);
                 if (target == null || !target.IsHome || target.Side != side || target.Knocked || stale)
                 {
-                    if (target != null && stale) skip[target] = Time.time + 4f;
+                    if (target != null && stale) skip[target] = step + Steps(4f);
                     Choose(side);
                 }
                 if (target == null) return CrossOver(side);
@@ -858,7 +906,7 @@ namespace Game.Cube.Tests
                     // Swing on the move, still holding the keys, as a keyboard player does.
                     swing = true;
                     Swings++;
-                    skip[target] = Time.time + 1f;
+                    skip[target] = step + Steps(1f);
                     target = null;
                     return dir;
                 }
@@ -902,12 +950,12 @@ namespace Game.Cube.Tests
             private void Choose(ArenaSide side)
             {
                 target = null;
-                targetSince = Time.time;
+                targetSince = step;
                 float best = float.MaxValue;
                 foreach (Particle p in Arena.Particles)
                 {
                     if (p == null || !p.IsHome || p.Side != side || p.Knocked || p.Nudged) continue;
-                    if (skip.TryGetValue(p, out float until) && Time.time < until) continue;
+                    if (skip.TryGetValue(p, out int until) && step < until) continue;
                     foreach (Vector2Int k in Dirs)
                     {
                         Vector2 d = Unit(k);
@@ -1012,11 +1060,15 @@ namespace Game.Cube.Tests
             }
         }
 
-        [UnityTest]
+        // Runs first in the fixture: the physics engine keeps internal state across scene loads (which of its proxy ids
+        // are free, so the order it builds and solves contacts in), and the tests before it would leave that state
+        // depending on their frame timing. First, each seed's fight sees the same engine history every run, as long as
+        // the test history is the same (the fixtures sorted before this one in the batch, and the seed order).
+        [UnityTest, Order(0)]
         public IEnumerator SkillCheck_AKeyboardPlayerWithTheStartingKit_WinsIn60To120Seconds([Values(1234, 7, 42)] int seed)
         {
             yield return Load();
-            yield return EnterFightFromTown(seed);
+            yield return StartFightFromTown(seed, alignStart: true);
             Assert.AreEqual(PlayerStats.DefaultMaxHealth, stats.MaxHealth, "Base stats");
             Assert.AreEqual(1, stats.Power);
             Assert.AreEqual(1, stats.Speed);
@@ -1027,22 +1079,33 @@ namespace Game.Cube.Tests
             Assert.IsTrue(arena.Demon.Firing, "Order pulses on");
             Assert.IsTrue(arena.Demon.Restoring);
 
+            // The bot acts once per physics step, in the physics phase (its keys applied at once, read by the next step),
+            // never per rendered frame: the fight's steps and the bot's inputs pair up the same way however frames fall,
+            // so a seed's win time is the same every run. Time is counted in fight steps.
             var bot = new Bot(this);
-            float start = Time.time;
+            int steps = 0;
             float peak = 0f;
+            int maxSteps = Mathf.CeilToInt((SkillMaxSeconds + 30f) / Time.fixedDeltaTime);
             Time.timeScale = TimeScale;
-            while (arena.FightActive && Time.time - start < SkillMaxSeconds + 30f)
+            while (arena.FightActive && steps < maxSteps)
             {
+                // The Demon follows and aims at the player's Transform, which interpolation (a visual setting; batch runs
+                // draw nothing) moves between physics steps by however far the last rendered frame got. Off, the Transform
+                // is the body's pose at every step, so the Demon sees the same player every run. (Entering the arena
+                // turns interpolation back on two steps in, hence every step.) A known gap: in real play the Demon aims at
+                // the interpolated Transform, so this check does not cover that frame-dependent lag.
+                if (body.interpolation != RigidbodyInterpolation2D.None) body.interpolation = RigidbodyInterpolation2D.None;
                 Vector2Int keys = bot.Decide(out bool swing);
-                Hold(keys);
+                Hold(keys, now: true);
                 if (swing) attack.TryAttack();
+                yield return new WaitForFixedUpdate();
+                steps++;
                 peak = Mathf.Max(peak, arena.Meter);
-                yield return null;
             }
-            Hold(Vector2Int.zero);
+            Hold(Vector2Int.zero, now: true);
             Time.timeScale = 1f;
-            float took = Time.time - start;
-            Debug.Log($"Skill check (seed {seed}): outcome {arena.Outcome} after {took:0.0} s, {bot.Swings} swings, {bot.Dodges} dodge frames, " +
+            float took = steps * Time.fixedDeltaTime;
+            Debug.Log($"Skill check (seed {seed}): outcome {arena.Outcome} after {took:0.0} s, {bot.Swings} swings, {bot.Dodges} dodge steps, " +
                       $"peak meter {peak:0.00}, Demon restored {arena.Demon.Restored} and fired {arena.Demon.PulsesFired}, health {health.Current}/{health.Max}");
             Assert.AreEqual(0, arena.Exits, "The bot never walks out through the exit door");
             Assert.IsTrue(arena.ExitDoor != null, "The door was there all along");

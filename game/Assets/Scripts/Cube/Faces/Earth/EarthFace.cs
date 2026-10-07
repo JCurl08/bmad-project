@@ -89,14 +89,8 @@ namespace Game.Cube
         {
             // The phenomenon comes from the rolled item itself (by id), never from the catalog's order.
             Wand = world.ItemFor(Theme.EarthAtmosphere);
-            List<Phenomenon> kinds = StormcallerItem.VariantKinds(world.ItemCatalog);
-            if (Wand == null || world.ItemPlacement == null)
-            {
-                Plan = null;
-                return;
-            }
-            Plan = EarthPlan.Create(world.Model, world.ItemPlacement, world.ModuleAt, kinds, BiologyBeaks.VariantKinds(world.ItemCatalog),
-                ChemistryIsotope.VariantKinds(world.ItemCatalog));
+            Plan = EarthPlan.ForRun(world.Model, world.ItemPlacement, Wand, world.ModuleAt, StormcallerItem.VariantKinds(world.ItemCatalog),
+                BiologyBeaks.VariantKinds(world.ItemCatalog), ChemistryIsotope.VariantKinds(world.ItemCatalog));
             if (Plan != null && Plan.Rolled == Phenomenon.None)
                 Debug.LogWarning($"EarthFace: the catalog's Earth variants are not Stormcallers* ({Wand}); plain gates instead.");
         }
@@ -104,7 +98,7 @@ namespace Game.Cube
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
         {
             if (Plan == null || !Plan.TryGetGate(request.Screen, request.Slot, request.Optional, out EarthGateSpec spec)) return null;
-            if (spec.Kind == Phenomenon.None || StormcallerItem.KindOf(item) != spec.Kind)
+            if (!EarthPlan.Builds(spec, item))
             {
                 Debug.LogWarning($"EarthFace: {item} does not open a {spec.Kind} gate ({spec}); a plain gate instead.");
                 return null;
@@ -226,37 +220,17 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < EarthPopulation.DinoCount(Plan.FaceSize); i++)
-            {
-                NpcSpec spec = EarthPopulation.DinoSpec(world.Seed, i);
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
-                {
-                    Debug.LogWarning($"EarthFace: no clear spot for {spec} (seed {world.Seed}).");
-                    continue;
-                }
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                List<string> lines = EarthPopulation.LinesFor(spec, facts, hintDensity, Plan.Rolled, i);
-                NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
-                npc.name = $"Earth Dinosaur {i} {spec.DisplayName}";
-                dinosaurs.Add(npc);
-            }
+            FaceContent.SpawnPopulation(world, spots, screens, EarthPopulation.DinoCount(Plan.FaceSize), i => EarthPopulation.DinoSpec(world.Seed, i),
+                (spec, i) => EarthPopulation.LinesFor(spec, facts, hintDensity, Plan.Rolled, i), "EarthFace", "Earth Dinosaur", target, root, dinosaurs);
         }
 
         private void SpawnEarthEnemies(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            int squalls = SquallCount(Plan.FaceSize);
-            for (int i = 0; i < squalls + RumblerCount(Plan.FaceSize); i++)
-            {
-                EarthEnemyKind kind = i < squalls ? EarthEnemyKind.Squall : EarthEnemyKind.Rumbler;
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                enemies.Add(EarthEnemies.Spawn(kind, EarthEnemies.WeaknessFor(kind, world), FaceContent.EnemyPosition(centre, feet),
-                    bounds, target, root, world.Material));
-            }
+            FaceContent.SpawnEnemies(world, spots, screens, EarthEnemyKind.Squall, SquallCount(Plan.FaceSize), EarthEnemyKind.Rumbler, RumblerCount(Plan.FaceSize),
+                (kind, at, bounds) => EarthEnemies.Spawn(kind, EarthEnemies.WeaknessFor(kind, world), at, bounds, target, root, world.Material),
+                enemies);
         }
 
         private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);

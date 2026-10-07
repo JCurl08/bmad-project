@@ -184,6 +184,21 @@ namespace Game.Cube
             return false;
         }
 
+        /// <summary>The run's bridge plan as MathFace makes it at the reveal: only with a rolled Math item, else null.</summary>
+        public static MathPlan ForRun(CubeModel model, ItemPlacement placement, ItemDefinition gapCrosser,
+            Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> biologyVariantKinds,
+            IReadOnlyList<IsotopeStage> chemistryVariantKinds) =>
+            gapCrosser != null ? Create(model, placement, moduleAt, biologyVariantKinds, chemistryVariantKinds) : null;
+
+        /// <summary>Whether MathFace builds a planned gate: a gap always, a bridge door only with its layout.</summary>
+        public static bool Builds(MathGateSpec spec) => spec.Kind == MathGateKind.Gap || spec.Layout != null;
+
+        /// <summary>The look (GateLooks) of the gate MathFace builds at a slot, or null where it builds none (optional gates never).</summary>
+        public string GateLook(ScreenAddress screen, int slot, bool optional) =>
+            !optional && TryGetGate(screen, slot, out MathGateSpec spec) && Builds(spec)
+                ? spec.Kind == MathGateKind.Gap ? GateLooks.Gap : GateLooks.PlankDoor
+                : null;
+
         /// <summary>Every placed layout on a screen (bridge doors' and the trial's).</summary>
         public List<BridgeLayout> LayoutsOn(ScreenAddress screen)
         {

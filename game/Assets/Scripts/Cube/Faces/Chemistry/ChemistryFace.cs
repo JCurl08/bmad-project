@@ -85,23 +85,16 @@ namespace Game.Cube
         {
             // The stone's stage comes from the rolled item itself (by id), never from the catalog's order.
             IsotopeItem = world.ItemFor(Theme.Chemistry);
-            List<IsotopeStage> kinds = ChemistryIsotope.VariantKinds(world.ItemCatalog);
-            IsotopeStage? rolled = ChemistryIsotope.KindOf(IsotopeItem);
-            if (kinds == null || rolled == null || world.ItemPlacement == null || world.ItemPlacement.RolledVariant(Theme.Chemistry) < 0)
-            {
-                Plan = null;
-                if (world.ItemPlacement != null && world.ItemPlacement.RolledVariant(Theme.Chemistry) >= 0)
-                    Debug.LogWarning($"ChemistryFace: the catalog's Chemistry variants are not stones ({IsotopeItem}); no stage gates.");
-                return;
-            }
-            Plan = ChemistryPlan.Create(world.Model, world.ItemPlacement, rolled.Value, kinds);
+            Plan = ChemistryPlan.ForRun(world.Model, world.ItemPlacement, IsotopeItem, ChemistryIsotope.VariantKinds(world.ItemCatalog));
+            if (Plan == null && world.ItemPlacement != null && world.ItemPlacement.RolledVariant(Theme.Chemistry) >= 0)
+                Debug.LogWarning($"ChemistryFace: the catalog's Chemistry variants are not stones ({IsotopeItem}); no stage gates.");
         }
 
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
         {
             if (Plan == null || !Plan.TryGetGate(request.Screen, request.Slot, request.Optional, out IsotopeGateSpec spec))
                 return null;
-            if (ChemistryIsotope.KindOf(item) != spec.Stage)
+            if (!ChemistryPlan.Builds(spec, item))
             {
                 Debug.LogWarning($"ChemistryFace: {item} does not open a {spec.Stage} gate ({spec}); a plain gate instead.");
                 return null;
@@ -186,38 +179,17 @@ namespace Game.Cube
             List<ScreenAddress> screens = ShuffledScreens(rng);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
-            for (int i = 0; i < ChemistryPopulation.MushroomCount(Plan.FaceSize); i++)
-            {
-                NpcSpec spec = ChemistryPopulation.MushroomSpec(world.Seed, i);
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
-                {
-                    Debug.LogWarning($"ChemistryFace: no clear spot for {spec} (seed {world.Seed}).");
-                    continue;
-                }
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                List<string> lines = ChemistryPopulation.LinesFor(spec, facts, hintDensity, Plan.Stage, i);
-                NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
-                npc.name = $"Chemistry Mushroom {i} {spec.DisplayName}";
-                mushrooms.Add(npc);
-            }
+            FaceContent.SpawnPopulation(world, spots, screens, ChemistryPopulation.MushroomCount(Plan.FaceSize), i => ChemistryPopulation.MushroomSpec(world.Seed, i),
+                (spec, i) => ChemistryPopulation.LinesFor(spec, facts, hintDensity, Plan.Stage, i), "ChemistryFace", "Chemistry Mushroom", target, root, mushrooms);
         }
 
         private void SpawnChemistryEnemies(CubeWorld world, FaceSpots spots, SeededRng rng)
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            int radicals = RadicalCount(Plan.FaceSize);
-            for (int i = 0; i < radicals + MiteCount(Plan.FaceSize); i++)
-            {
-                ChemistryEnemyKind kind = i < radicals ? ChemistryEnemyKind.FreeRadical : ChemistryEnemyKind.RustMite;
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                Vector2 at = FaceContent.EnemyPosition(centre, feet);
-                enemies.Add(ChemistryEnemies.Spawn(kind, ChemistryEnemies.WeaknessFor(kind, world), at, bounds, target, root,
-                    world.Material));
-            }
+            FaceContent.SpawnEnemies(world, spots, screens, ChemistryEnemyKind.FreeRadical, RadicalCount(Plan.FaceSize), ChemistryEnemyKind.RustMite, MiteCount(Plan.FaceSize),
+                (kind, at, bounds) => ChemistryEnemies.Spawn(kind, ChemistryEnemies.WeaknessFor(kind, world), at, bounds, target, root, world.Material),
+                enemies);
         }
 
         private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);

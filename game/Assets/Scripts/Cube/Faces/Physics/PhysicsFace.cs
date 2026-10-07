@@ -117,10 +117,8 @@ namespace Game.Cube
         public void BeginReveal(CubeWorld world)
         {
             MittItem = world.ItemFor(Theme.Physics);
-            Plan = MittItem != null
-                ? PhysicsPlan.Create(world.Model, world.ItemPlacement, world.ModuleAt, BiologyBeaks.VariantKinds(world.ItemCatalog), maxRequired,
-                    ChemistryIsotope.VariantKinds(world.ItemCatalog))
-                : null;
+            Plan = PhysicsPlan.ForRun(world.Model, world.ItemPlacement, MittItem, world.ModuleAt, BiologyBeaks.VariantKinds(world.ItemCatalog),
+                maxRequired, ChemistryIsotope.VariantKinds(world.ItemCatalog));
             if (Plan != null)
                 for (int i = 0; i < Plan.Doors.Count; i++) doors.Add(null);
             MassMitt mitt = PlayerMitt();
@@ -130,13 +128,11 @@ namespace Game.Cube
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
         {
             if (Plan == null || request.Optional) return null;
-            int index = -1;
-            for (int i = 0; i < Plan.Doors.Count; i++)
-                if (Plan.Doors[i].Screen == request.Screen && Plan.Doors[i].Slot == request.Slot) index = i;
+            int index = Plan.DoorIndex(request.Screen, request.Slot);
             if (index < 0) return null;
             TimedDoorSpec spec = Plan.Doors[index];
             DoorLayout layout = spec.Layout;
-            if (layout == null || !layout.HasSwitch)
+            if (!PhysicsPlan.Builds(spec))
             {
                 Debug.LogWarning($"PhysicsFace: no layout for {spec} (seed {world.Seed}); a plain gate instead.");
                 return null;
@@ -226,18 +222,8 @@ namespace Game.Cube
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
             int alienCount = PhysicsPopulation.AlienCount(Plan.FaceSize);
-            for (int i = 0; i < alienCount; i++)
-            {
-                NpcSpec spec = PhysicsPopulation.AlienSpec(world.Seed, i);
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet))
-                {
-                    Debug.LogWarning($"PhysicsFace: no clear spot for {spec} (seed {world.Seed}).");
-                    continue;
-                }
-                NpcTalker npc = SpawnNpc(world, spec, PhysicsPopulation.LinesFor(spec, facts, hintDensity, i == 0), screen, feet, target);
-                npc.name = $"Physics Alien {i} {spec.DisplayName}";
-                aliens.Add(npc);
-            }
+            FaceContent.SpawnPopulation(world, spots, screens, alienCount, i => PhysicsPopulation.AlienSpec(world.Seed, i),
+                (spec, i) => PhysicsPopulation.LinesFor(spec, facts, hintDensity, i == 0), "PhysicsFace", "Physics Alien", target, root, aliens);
 
             NpcSpec newton = PhysicsPopulation.NewtonSpec(world.Seed);
             if (FaceContent.TryPickAnywhere(spots, screens, alienCount, out ScreenAddress at, out Vector2 newtonFeet))
@@ -259,17 +245,9 @@ namespace Game.Cube
         {
             List<ScreenAddress> screens = ShuffledScreens(rng);
             Transform target = ResolvePlayer();
-            int fleas = FleaCount(Plan.FaceSize);
-            for (int i = 0; i < fleas + ClingCount(Plan.FaceSize); i++)
-            {
-                PhysicsEnemyKind kind = i < fleas ? PhysicsEnemyKind.QuantumFlea : PhysicsEnemyKind.StaticCling;
-                if (!FaceContent.TryPickAnywhere(spots, screens, i, out ScreenAddress screen, out Vector2 feet)) continue;
-                Vector2 centre = world.ScreenCenter(screen);
-                Rect bounds = FaceContent.WanderBounds(centre, feet);
-                Vector2 position = FaceContent.EnemyPosition(centre, feet);
-                enemies.Add(PhysicsEnemies.Spawn(kind, PhysicsEnemies.WeaknessFor(kind, world), position, bounds, target, root,
-                    world.Material));
-            }
+            FaceContent.SpawnEnemies(world, spots, screens, PhysicsEnemyKind.QuantumFlea, FleaCount(Plan.FaceSize), PhysicsEnemyKind.StaticCling, ClingCount(Plan.FaceSize),
+                (kind, at, bounds) => PhysicsEnemies.Spawn(kind, PhysicsEnemies.WeaknessFor(kind, world), at, bounds, target, root, world.Material),
+                enemies);
         }
 
         private Transform ResolvePlayer() => FaceContent.ResolvePlayer(ref player);

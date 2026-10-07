@@ -576,10 +576,7 @@ namespace Game.Cube.Tests
 
         private static List<string> MathStrings()
         {
-            Dialogue.RaceFlavour shape = Dialogue.Flavours[Race.Shape];
-            var strings = new List<string> { shape.Wares, shape.Metal, shape.Errand };
-            strings.AddRange(shape.Rumours);
-            strings.AddRange(shape.Greetings);
+            var strings = new List<string>(FaceText.Flavour(Race.Shape));
             strings.AddRange(Dialogue.BridgekeeperLines);
             strings.Add(Dialogue.BridgeLine);
             strings.Add(Dialogue.GapCrosserLine);
@@ -598,9 +595,7 @@ namespace Game.Cube.Tests
         {
             yield return MathEnemies.Name(MathEnemyKind.DeadEnd);
             yield return MathEnemies.Name(MathEnemyKind.LooseEnd);
-            RacePartSet set = RacePartSets.For(Race.Shape);
-            foreach (PartSlot slot in new[] { PartSlot.Head, PartSlot.Torso, PartSlot.Legs })
-                foreach (NpcPart p in set.Slot(slot)) yield return p.Name;
+            foreach (string name in FaceText.PartNames(Race.Shape)) yield return name;
         }
 
         [Test]

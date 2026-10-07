@@ -85,20 +85,7 @@ namespace Game.Cube
         /// The stage of each Chemistry variant in a catalog, in variant-index order, read from the items' ids (so the
         /// catalog's order never matters). Null when the catalog has no Chemistry variants or one is not a stone.
         /// </summary>
-        public static List<IsotopeStage> VariantKinds(ItemCatalog catalog)
-        {
-            if (catalog == null) return null;
-            List<ItemDefinition> variants = catalog.VariantsOf(Theme.Chemistry);
-            if (variants.Count == 0) return null;
-            var kinds = new List<IsotopeStage>(variants.Count);
-            foreach (ItemDefinition item in variants)
-            {
-                IsotopeStage? kind = KindOf(item);
-                if (kind == null) return null;
-                kinds.Add(kind.Value);
-            }
-            return kinds;
-        }
+        public static List<IsotopeStage> VariantKinds(ItemCatalog catalog) => ItemVariants.KindsOf<IsotopeStage>(catalog, Theme.Chemistry, KindOf);
 
         public static Color StageColor(IsotopeStage stage)
         {
