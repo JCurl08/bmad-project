@@ -10,12 +10,12 @@ using Object = UnityEngine.Object;
 namespace Game.Cube.Tests
 {
     /// <summary>
-    /// The Math mechanics on objects built in the test (far from anything a scene may hold), one test per I/O row: a
-    /// bridge door opens (with the gate-open effect) when its layout is walked crossing every bridge exactly once, and not
-    /// before; crossing a bridge twice resets every bridge with visible feedback (a red flash and a popup); the layout
-    /// follows the real player by itself; a gap gate opens when the gap-crosser* is swung at it (a crossing is laid), and
-    /// other items, bare swings and touches do nothing; the trial fires once; Math enemies take markedly more damage from
-    /// their weakness.
+    /// The Math mechanics on objects built in the test (far from anything a scene may hold), one test per I/O row: an
+    /// island screen's water is solid, its islands and planks carry the player, and a broken span stops it until the
+    /// gap-crosser* is swung at the gap (other items and bare swings do nothing), after which it walks over; a gap gate
+    /// opens when the gap-crosser* is swung at it (a crossing is laid), and other items, bare swings and touches do
+    /// nothing; stepping onto the trial island fires the trial once; Math enemies take markedly more damage from their
+    /// weakness.
     /// </summary>
     public class MathComponentTests : InputTestFixture
     {
@@ -45,10 +45,6 @@ namespace Game.Cube.Tests
             created.Add(o);
             return o;
         }
-
-        private static BridgeLayout Layout(ulong seed, int bridges = 6) =>
-            BridgeLayout.Generate(MathPlan.DoorCols, MathPlan.DoorRows, bridges, new SeededRng(seed, MathPlan.RngStream))
-                .Translated(new Vector2(0f, 3f));
 
         private GameObject Player(Vector2 position)
         {
@@ -88,113 +84,83 @@ namespace Game.Cube.Tests
             return attack.LastReceiversHit;
         }
 
-        /// <summary>Points a player passes walking from island a to island b along their bridge (island, plank, island).</summary>
-        public static IEnumerable<Vector2> Steps(BridgeLayout layout, int a, int b)
+        private static readonly Vector2Int N = IslandLayout.DoorSpot(Facing.North), E = IslandLayout.DoorSpot(Facing.East),
+            S = IslandLayout.DoorSpot(Facing.South), W = IslandLayout.DoorSpot(Facing.West), C = new Vector2Int(2, 1),
+            EastOfC = new Vector2Int(3, 1), WestOfC = new Vector2Int(1, 1);
+
+        /// <summary>N, C and S joined; E reaches C over a broken span (via the island east of C); W alone; maybe a trial west of C.</summary>
+        private static IslandLayout Layout(bool trial)
         {
-            Vector2 from = layout.Islands[a], to = layout.Islands[b];
-            for (int k = 0; k <= 10; k++) yield return Vector2.Lerp(from, to, k / 10f);
+            var spots = new List<Vector2Int> { N, E, S, W, C, EastOfC };
+            var links = new List<(int, int, bool)> { (0, 4, false), (4, 2, false), (1, 5, false), (5, 4, true) };
+            if (trial)
+            {
+                spots.Add(WestOfC);
+                links.Add((4, 6, true));
+            }
+            return new IslandLayout(spots, links, new[] { 0, 1, 2, 3 }, trial ? 6 : -1);
         }
 
-        private BridgePuzzle Puzzle(BridgeLayout layout, Transform player = null)
+        /// <summary>Drives the player's body one way for a while (the mover is off, so nothing else steers it), then stops it.</summary>
+        private static IEnumerator Push(Rigidbody2D body, Vector2 direction, float seconds)
         {
-            BridgePuzzle puzzle = BridgePuzzle.Create("Test Bridges", null, layout, Origin, player, Color.red, null);
-            Track(puzzle.gameObject);
-            return puzzle;
-        }
-
-        /// <summary>Walks a layout along islands (world positions fed straight to the puzzle). Returns every result.</summary>
-        private static List<BridgeWalk.Result> Walk(BridgePuzzle puzzle, IList<int> islands)
-        {
-            var results = new List<BridgeWalk.Result> { puzzle.ObserveWorld(puzzle.IslandWorld(islands[0])) };
-            for (int k = 0; k + 1 < islands.Count; k++)
-                foreach (Vector2 p in Steps(puzzle.Layout, islands[k], islands[k + 1]))
-                    results.Add(puzzle.ObserveWorld(puzzle.Centre + p));
-            return results;
-        }
-
-        [UnityTest]
-        public IEnumerator BridgeDoor_OpensWhenEveryBridgeIsCrossedExactlyOnce_WithTheOpenEffect_AndNotBefore()
-        {
-            GameObject player = Player(Origin + new Vector2(0f, -3f));
-            BridgeLayout layout = Layout(5);
-            BridgePuzzle puzzle = Puzzle(layout);
-            BridgeDoorGate door = BridgeDoorGate.Build(Block(Origin + new Vector2(4f, -1.4f)), crosser, puzzle, 5, null);
-            int opened = 0;
-            door.Opened += _ => opened++;
-            yield return null;
-
-            player.GetComponent<Inventory>().Add(crosser);
-            Assert.IsFalse(door.TryOpen(player.GetComponent<Collider2D>()), "Touching it, even with the gap-crosser*, does nothing");
-            Assert.IsNotNull(door.transform.Find("Bridge Mark"), "The door's flag mark");
-
-            List<int> path = layout.Solve();
-            // All but the last bridge: still shut.
-            Walk(puzzle, path.Take(path.Count - 1).ToList());
-            Assert.IsFalse(door.IsOpen);
-            Assert.AreEqual(layout.BridgeCount - 1, puzzle.Walk.CrossedCount);
-            Assert.AreEqual(BridgePuzzle.CrossedColor, puzzle.BridgeRenderers.Where((r, i) => puzzle.Walk.Crossed(i)).First().color,
-                "Walked bridges change colour");
-
-            int effects = GateOpenEffect.Played;
-            foreach (Vector2 p in Steps(layout, path[path.Count - 2], path[path.Count - 1]))
-                puzzle.ObserveWorld(Origin + p);
-            Assert.IsTrue(puzzle.IsSolved);
-            Assert.IsTrue(door.IsOpen, "Every bridge exactly once opens the door");
-            Assert.IsFalse(door.Solid.enabled);
-            Assert.AreEqual(1, opened);
-            Assert.AreEqual(effects + 1, GateOpenEffect.Played, "The gate-open effect plays");
-            Assert.IsTrue(PickupPopup.Active.Any(x => x != null && x.Text == BridgePuzzle.SolvedText));
+            float end = Time.time + seconds;
+            while (Time.time < end)
+            {
+                body.linearVelocity = direction * 6f;
+                yield return new WaitForFixedUpdate();
+            }
+            body.linearVelocity = Vector2.zero;
+            yield return new WaitForFixedUpdate();
         }
 
         [UnityTest]
-        public IEnumerator BridgeDoor_CrossingABridgeTwice_ResetsEveryBridge_WithAFlashAndAPopup()
+        public IEnumerator IslandScreen_WaterIsSolid_PlanksCarryThePlayer_AndABrokenSpanBlocksUntilTheGapCrosserMendsIt()
         {
-            BridgeLayout layout = Layout(9);
-            BridgePuzzle puzzle = Puzzle(layout);
-            BridgeDoorGate door = BridgeDoorGate.Build(Block(Origin + new Vector2(4f, -1.4f)), crosser, puzzle, 5, null);
-            var reasons = new List<BridgeWalk.Result>();
-            puzzle.ResetPuzzle += (_, r) => reasons.Add(r);
-            yield return null;
+            IslandLayout layout = Layout(false);
+            Assert.IsEmpty(layout.Problems("test", _ => true));
+            IslandScreen screen = Track(IslandScreen.Create("Test Islands", null, layout, Origin, null).gameObject).GetComponent<IslandScreen>();
+            Assert.AreEqual(1, screen.Gaps.Count);
+            Assert.IsTrue(screen.Water.All(w => !w.isTrigger && w.enabled), "The water is solid");
+            GameObject player = Player(Origin + IslandLayout.Arrival(Facing.South));
+            player.GetComponent<Game.Tracer.PlayerMover>().enabled = false;
+            var body = player.GetComponent<Rigidbody2D>();
+            yield return new WaitForFixedUpdate();
 
-            List<int> path = layout.Solve();
-            Walk(puzzle, new[] { path[0], path[1], path[2] });
-            Assert.AreEqual(2, puzzle.Walk.CrossedCount);
-            // Back over the bridge just crossed.
-            foreach (Vector2 p in Steps(layout, path[2], path[1])) puzzle.ObserveWorld(Origin + p);
-            CollectionAssert.AreEqual(new[] { BridgeWalk.Result.CrossedTwice }, reasons);
-            Assert.AreEqual(1, puzzle.Resets);
-            Assert.AreEqual(0, puzzle.Walk.CrossedCount, "Every bridge is reset");
-            Assert.IsFalse(door.IsOpen);
-            Assert.IsTrue(puzzle.BridgeRenderers.All(r => r.color == BridgePuzzle.ResetColor), "The bridges flash red");
-            Assert.IsTrue(PickupPopup.Active.Any(x => x != null && x.Text == BridgePuzzle.CrossedTwiceText), "A popup says why");
+            // South doorway's island, up the planks to the north doorway's island.
+            yield return Push(body, Vector2.up, 1.1f);
+            Assert.AreEqual(0, layout.IslandAt(body.position - Origin), $"Walked the planks up to the north island (at {body.position - Origin})");
 
-            yield return new WaitForSeconds(BridgePuzzle.ResetFlashSeconds + 0.1f);
-            Assert.IsTrue(puzzle.BridgeRenderers.All(r => r.color == BridgePuzzle.PlankColor), "The flash ends");
+            // Back to the middle island, then west into the water: the shore stops it.
+            yield return Push(body, Vector2.down, 0.45f);
+            Assert.AreEqual(4, layout.IslandAt(body.position - Origin), $"On the middle island (at {body.position - Origin})");
+            Vector2 middle = body.position;
+            yield return Push(body, Vector2.left, 1f);
+            Assert.Greater(body.position.x - Origin.x, layout.Islands[4].xMin - 0.05f, "The water stops the player at the shore");
+            yield return Push(body, Vector2.right, (middle.x - body.position.x) / 6f);
 
-            // Starting again from the flag still works.
-            Walk(puzzle, path);
-            Assert.IsTrue(door.IsOpen);
-        }
+            // East over the broken span: the gap stops it.
+            yield return Push(body, Vector2.right, 1f);
+            BrokenSpan gap = screen.Gaps[0];
+            Assert.Less(body.position.x, gap.transform.position.x - layout.Bridges[gap.Bridge].Gap.width / 2f + 0.01f, "The gap stops the player");
+            Assert.IsFalse(gap.IsMended);
 
-        [UnityTest]
-        public IEnumerator Puzzle_FollowsTheRealPlayer_FrameByFrame()
-        {
-            GameObject player = Player(Origin + new Vector2(0f, -3f));
-            player.GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
-            BridgeLayout layout = Layout(21);
-            BridgePuzzle puzzle = Puzzle(layout, player.transform);
-            yield return null;
-            List<int> path = layout.Solve();
-            player.transform.position = puzzle.IslandWorld(path[0]);
-            yield return null;
-            Assert.IsTrue(puzzle.Walk.IsActive, "Stepping on the flag starts the walk");
-            for (int k = 0; k + 1 < path.Count; k++)
-                foreach (Vector2 p in Steps(layout, path[k], path[k + 1]))
-                {
-                    player.transform.position = Origin + p;
-                    yield return null;
-                }
-            Assert.IsTrue(puzzle.IsSolved);
+            // Swings: bare and another item do nothing; the gap-crosser* lays the plank.
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.right);
+            Assert.AreEqual(0, Swing(player, null), "A bare swing");
+            Assert.AreEqual(0, Swing(player, other), "Another item");
+            Assert.IsFalse(gap.IsMended);
+            int mended = 0;
+            screen.Mended += (_, __) => mended++;
+            Assert.AreEqual(1, Swing(player, crosser), "The gap-crosser* reaches the gap");
+            Assert.IsTrue(gap.IsMended);
+            Assert.IsFalse(gap.Solid.enabled, "The gap stops blocking");
+            Assert.AreEqual(1, mended);
+            Assert.AreEqual(0, Swing(player, crosser), "Mended: nothing more");
+
+            // Now it walks over to the east doorway's island.
+            yield return Push(body, Vector2.right, 0.92f);
+            Assert.AreEqual(1, layout.IslandAt(body.position - Origin), $"Over the mended span to the east island (at {body.position - Origin})");
         }
 
         [UnityTest]
@@ -226,25 +192,35 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator Trial_SolvingTheBiggerLayout_FiresOnce_AndRepeatsDoNot()
+        public IEnumerator Trial_SteppingOntoTheTrialIsland_FiresOnce_AndRepeatsDoNot()
         {
-            BridgeLayout layout = BridgeLayout.Generate(MathPlan.TrialCols, MathPlan.TrialRows, MathPlan.TrialBridges,
-                new SeededRng(4UL, MathPlan.RngStream)).Translated(new Vector2(0f, 3f));
-            var go = Track(new GameObject("Math Trial"));
+            IslandLayout layout = Layout(true);
+            Assert.IsEmpty(layout.Problems("test", _ => true));
+            IslandScreen screen = Track(IslandScreen.Create("Test Islands", null, layout, Origin, null).gameObject).GetComponent<IslandScreen>();
+            var go = new GameObject("Math Trial");
+            go.transform.SetParent(screen.transform, false);
             var trial = go.AddComponent<MathTrial>();
-            trial.Configure(layout, Origin, null, MathPlan.TrialCurrency, null);
+            trial.Configure(screen, layout.TrialIsland, MathPlan.TrialCurrency, null);
             var paid = new List<int>();
             trial.Completed += c => paid.Add(c);
-            yield return null;
+            GameObject player = Player(Origin + layout.Islands[4].center);
+            player.GetComponent<Game.Tracer.PlayerMover>().enabled = false;
+            var body = player.GetComponent<Rigidbody2D>();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            Assert.IsFalse(trial.IsComplete, "Not yet on the trial island");
 
-            List<int> path = layout.Solve();
-            Walk(trial.Puzzle, path.Take(path.Count - 1).ToList());
-            Assert.IsFalse(trial.IsComplete);
-            Walk(trial.Puzzle, path.Skip(path.Count - 2).ToList());
+            // Over the mended span onto the trial island: it pays once.
+            BrokenSpan gap = screen.Gaps.First(g => layout.Bridges[g.Bridge].Joins(layout.TrialIsland));
+            Assert.IsTrue(screen.Mend(gap.Bridge));
+            yield return Push(body, Vector2.left, 0.8f);
+            Assert.AreEqual(layout.TrialIsland, layout.IslandAt(body.position - Origin), $"On the trial island (at {body.position - Origin})");
             Assert.IsTrue(trial.IsComplete);
             CollectionAssert.AreEqual(new[] { MathPlan.TrialCurrency }, paid);
 
-            Walk(trial.Puzzle, path);
+            // Off and on again: nothing more.
+            yield return Push(body, Vector2.right, 0.6f);
+            yield return Push(body, Vector2.left, 0.6f);
             Assert.IsFalse(trial.Complete(), "Completing again does nothing");
             Assert.AreEqual(1, paid.Count, "Fires once");
         }

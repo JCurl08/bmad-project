@@ -116,7 +116,7 @@ namespace Game.Cube
         public static readonly IReadOnlyList<string> BannedNames = new[]
         {
             "darwin", "curie", "einstein", "euler", "newton", "anning", "richter", "maxwell", "isaac", "galileo", "mendel",
-            "lavoisier", "pythagoras", "bohr", "marie",
+            "lavoisier", "pythagoras", "bohr", "marie", "königsberg", "konigsberg", "koenigsberg",
         };
 
         /// <summary>
@@ -137,8 +137,9 @@ namespace Game.Cube
             // Physics.
             "relativ", "gravit", "quantum", @"mass\b", "mc squared", "space-time", "spacetime", "photon", "lensing", "velocity",
             "momentum", "thermodynamic", "particle", "diffus", // ("entropy" is allowed since 1.24: the user's call)
-            // Math.
+            // Math (and since 1.25 the old bridge puzzle's wording: the island screens never echo it).
             "graph", "vertex", "vertices", @"edge", "theorem", "geometr", "polygon", "algebra", "calculus", "equation",
+            "exactly once", "seven bridges",
             // Earth and atmosphere.
             "weather", "seismic", "tectonic", "climate", "paleontolog", "palaeontolog",
         };

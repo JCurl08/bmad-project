@@ -82,7 +82,7 @@ namespace Game.Cube.Tests
         private static readonly ArtKey[] GateKeys =
         {
             ArtKey.GateGeneric, ArtKey.GateRock, ArtKey.GatePot, ArtKey.GateButtonDoor, ArtKey.GateVine, ArtKey.GateDarkRoom,
-            ArtKey.GateCrackedWall, ArtKey.GateLeadDoor, ArtKey.GateTimedDoor, ArtKey.GateGap, ArtKey.GateBridgeDoor,
+            ArtKey.GateCrackedWall, ArtKey.GateLeadDoor, ArtKey.GateTimedDoor, ArtKey.GateGap,
             ArtKey.GateRockPillars, ArtKey.GateFireWall, ArtKey.GateWater, ArtKey.GateDebris,
         };
 

@@ -129,15 +129,9 @@ namespace Game.Cube.Tests
             AssertLaidOut(model);
         }
 
-        /// <summary>
-        /// Two-way connections (1.24): from every edge screen of every face, walking off the edge with a key and then
-        /// straight back with the reverse key returns to the screen, face and edge the walk started on, rotated edges
-        /// included (the input frame keeps the keys' meaning across them).
-        /// </summary>
-        [UnityTest]
-        public IEnumerator EveryFaceEdge_CrossAndStraightBack_ReturnsToTheSameScreen()
+        /// <summary>Turns off every face's enemy spawns (before a reveal).</summary>
+        private void NoEnemies()
         {
-            yield return LoadCubeScene();
             foreach (IFaceContent content in world.FaceContents)
             {
                 if (content is BiologyFace b) b.SpawnEnemies = false;
@@ -146,9 +140,36 @@ namespace Game.Cube.Tests
                 if (content is EarthFace e) e.SpawnEnemies = false;
                 if (content is MathFace m) m.SpawnEnemies = false;
             }
+        }
+
+        /// <summary>Puts the player at a point (local to a screen's centre) on that screen, still, with nothing held.</summary>
+        private IEnumerator PlaceOn(ScreenAddress screen, Vector2 local, Facing facing)
+        {
+            var body = navigator.GetComponent<Rigidbody2D>();
+            navigator.TeleportTo(screen, facing);
+            Vector2 at = world.ScreenCenter(screen) + local;
+            body.position = at;
+            body.linearVelocity = Vector2.zero;
+            navigator.transform.position = new Vector3(at.x, at.y, navigator.transform.position.z);
+            yield return new WaitForFixedUpdate();
+            yield return null;
+        }
+
+        /// <summary>
+        /// Two-way connections through the face gates (1.25): from every edge screen of every face, walking off the edge
+        /// through its doorway with a key held crosses onto the next face and stops there, facing in, however long the key
+        /// stays held (no walking on, no bounce back over a turned edge). After letting go, a fresh press toward the doorway
+        /// behind (the reverse of the entry facing) walks back over the same edge to the screen the walk started on.
+        /// </summary>
+        [UnityTest, Timeout(600000)]
+        public IEnumerator EveryFaceEdge_CrossStopsTheWalk_AndAFreshPressBackReturnsToTheSameScreen()
+        {
+            yield return LoadCubeScene();
+            NoEnemies();
             world.RevealScience();
             navigator.GetComponent<PlayerStats>().MaxHealth = 999;
             var body = navigator.GetComponent<Rigidbody2D>();
+            var mover = navigator.GetComponent<PlayerMover>();
             CubeModel model = world.Model;
             int n = model.FaceSize;
             var failures = new List<string>();
@@ -165,27 +186,29 @@ namespace Game.Cube.Tests
                         var from = new ScreenAddress(face, cell);
                         if (!model.TryStep(from, direction, out ScreenAddress expected, out Facing entry)) continue;
 
-                        // Start on the screen's centre lane, a little inside the edge.
-                        navigator.TeleportTo(from, direction);
+                        // Start in the doorway's lane, a little inside the edge.
                         Vector2 half = CubeWorld.ScreenSize / 2f;
-                        Vector2 start = world.ScreenCenter(from) + Vector2.Scale(direction.ToVector(), half - Vector2.one * 1.2f);
-                        body.position = start;
-                        body.linearVelocity = Vector2.zero;
-                        navigator.transform.position = new Vector3(start.x, start.y, navigator.transform.position.z);
-                        yield return new WaitForFixedUpdate();
-                        yield return null;
+                        yield return PlaceOn(from, Vector2.Scale(direction.ToVector(), half - Vector2.one * 1.2f), direction);
 
                         int crossings = navigator.Crossings;
-                        // Walk off the edge and keep the key held a moment after the crossing: it walks on into the new
-                        // face, never back out over the same edge.
                         Press(KeyFor(keyboard, direction), queueEventOnly: true);
                         yield return WaitUntilOrTimeout(() => navigator.Crossings > crossings, 3f);
                         tried++;
                         ScreenAddress arrived = navigator.Current;
+                        Vector2 arrivedAt = body.position;
                         int afterCrossing = navigator.Crossings;
-                        float holdUntil = Time.realtimeSinceStartup + 0.25f;
-                        while (Time.realtimeSinceStartup < holdUntil) yield return null;
+                        // Keep the key held: the player stays where it arrived.
+                        float holdUntil = Time.realtimeSinceStartup + 0.3f;
+                        float drift = 0f;
+                        while (Time.realtimeSinceStartup < holdUntil)
+                        {
+                            yield return null;
+                            drift = Mathf.Max(drift, Vector2.Distance(body.position, arrivedAt));
+                        }
+                        bool waiting = mover.WaitingForFreshPress;
                         Release(KeyFor(keyboard, direction), queueEventOnly: true);
+                        yield return null;
+                        yield return new WaitForFixedUpdate();
                         yield return null;
                         if (afterCrossing == crossings)
                         {
@@ -193,16 +216,19 @@ namespace Game.Cube.Tests
                             continue;
                         }
                         if (arrived != expected) failures.Add($"{from} {direction}: arrived on {arrived}, model says {expected}");
+                        if (navigator.Facing != entry) failures.Add($"{from} {direction}: arrived facing {navigator.Facing}, model says {entry}");
+                        if (mover.Facing != (Vector2)entry.ToVector()) failures.Add($"{from} {direction}: the player does not face into the new face");
                         if (navigator.Crossings != afterCrossing || navigator.Face != expected.Face)
                         {
                             failures.Add($"{from} {direction} -> {arrived}: holding the key crossed again (now {navigator.Current})");
                             continue;
                         }
+                        if (drift > 0.05f || !waiting)
+                            failures.Add($"{from} {direction} -> {arrived}: the held key moved the player {drift:0.00} (waiting {waiting})");
 
-                        // Straight back: the reverse of the key that crossed (on a rotated edge the input frame turns it
-                        // so it walks back over the same edge).
+                        // A fresh press toward the doorway behind walks back over the same edge.
                         crossings = navigator.Crossings;
-                        Facing back = direction.Opposite();
+                        Facing back = entry.Opposite();
                         yield return this.HoldUntil(KeyFor(keyboard, back), () => navigator.Crossings > crossings, 3f);
                         yield return null;
                         if (navigator.Crossings == crossings)
@@ -211,14 +237,65 @@ namespace Game.Cube.Tests
                             failures.Add($"{from} {direction} -> {arrived}, back {back} -> {navigator.Current}");
                         else if (navigator.Facing != direction.Opposite())
                             failures.Add($"{from} {direction} -> {arrived}, back: facing {navigator.Facing}, expected {direction.Opposite()}");
-                        else if (!navigator.InputFrame.IsNormal)
-                            failures.Add($"{from} {direction} -> {arrived} and back: the controls are still turned");
                     }
                 }
             }
             Assert.AreEqual(6 * 4 * n, tried, "Every edge screen of every face was tried");
             Assert.IsEmpty(failures, string.Join("; ", failures));
         }
+
+        /// <summary>
+        /// Doorway edges (1.25): walking into a screen's edge away from its doorway is blocked by the wall, on a face edge
+        /// and within a face; walking through the doorway leads on (smoothly within a face, no stop).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ScreenEdges_AreWallsExceptAtTheCentredDoorway()
+        {
+            yield return LoadCubeScene();
+            NoEnemies();
+            world.RevealScience();
+            var body = navigator.GetComponent<Rigidbody2D>();
+            var mover = navigator.GetComponent<PlayerMover>();
+            int n = world.Model.FaceSize;
+            Vector2 half = CubeWorld.ScreenSize / 2f;
+            // Inside the edge band (clear of every module obstacle), off the doorway, then in it.
+            float bandX = half.x - ScreenModule.EdgeClearance + 0.05f, bandY = half.y - ScreenModule.EdgeClearance + 0.05f;
+            var cases = new List<(ScreenAddress screen, Facing side)>
+            {
+                (new ScreenAddress(CubeModel.StartFace, 1, n - 1), Facing.North), // a face edge
+                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.North), // within the face
+                (new ScreenAddress(CubeModel.StartFace, n - 1, 1), Facing.East), // a face edge
+                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.West), // within the face
+            };
+            foreach (var (screen, side) in cases)
+            {
+                bool faceEdge = ScreenEdges.IsFaceEdge(n, screen.Cell, side);
+                Vector2 off = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, 2.6f) : new Vector2(4.5f, side.ToVector().y * bandY);
+                yield return PlaceOn(screen, off, side);
+                int crossings = navigator.Crossings;
+                yield return this.HoldUntil(KeyFor(keyboard, side), () => false, 0.8f);
+                yield return null;
+                Vector2 local = body.position - world.ScreenCenter(screen);
+                Assert.AreEqual(crossings, navigator.Crossings, $"{screen} {side}: crossed through the wall");
+                Assert.AreEqual(screen, navigator.Current, $"{screen} {side}: left the screen through the wall");
+                float reach = Vector2.Dot(local, side.ToVector());
+                float wallFace = (side.IsHorizontal() ? half.x : half.y) - ScreenEdges.EdgeWallThickness;
+                Assert.LessOrEqual(reach, wallFace - 0.35f, $"{screen} {side}: the player stands against the wall, not in it");
+                Assert.GreaterOrEqual(reach, wallFace - 0.45f, $"{screen} {side}: the player walked up to the wall");
+
+                // Through the doorway: it leads on.
+                Vector2 door = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, 0f) : new Vector2(0f, side.ToVector().y * bandY);
+                yield return PlaceOn(screen, door, side);
+                Model().TryStep(screen, side, out ScreenAddress next, out _);
+                yield return this.HoldUntil(KeyFor(keyboard, side), () => navigator.Current == next, 3f);
+                yield return null;
+                Assert.AreEqual(next, navigator.Current, $"{screen} {side}: the doorway did not lead on");
+                Assert.AreEqual(faceEdge ? crossings + 1 : crossings, navigator.Crossings);
+                Assert.AreEqual(faceEdge, mover.WaitingForFreshPress, $"{screen} {side}: only a face edge stops the walk");
+            }
+        }
+
+        private CubeModel Model() => world.Model;
 
         /// <summary>Every built science screen has a module of its theme; one active core entrance per face; sealed faces are empty.</summary>
         private void AssertLaidOut(CubeModel model)
@@ -442,7 +519,6 @@ namespace Game.Cube.Tests
                 case LeadPlateGate _: return GateLooks.PlatedDoor;
                 case TimedDoorGate _: return GateLooks.SwingingDoor;
                 case GapGate _: return GateLooks.Gap;
-                case BridgeDoorGate _: return GateLooks.PlankDoor;
                 case PhenomenonGate p: return GateLooks.Of(p.Kind);
                 default: return gate.GetType() == typeof(Gate) ? GateLooks.Plain : $"(unknown gate {gate.GetType().Name})";
             }

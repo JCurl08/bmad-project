@@ -188,7 +188,7 @@ namespace Game.Cube
         public static float GateArtReach(float thickness) => 1f - thickness / 2f;
 
         /// <summary>Child names of gate dressing that follow the gate's art when it is moved into the alcove.</summary>
-        private static readonly string[] GateMarks = { "Beak Mark", "Stage Mark", "Crack", "Mass Pip", "Gap Mark", "Bridge Mark", "Wand Mark" };
+        private static readonly string[] GateMarks = { "Beak Mark", "Stage Mark", "Crack", "Mass Pip", "Gap Mark", "Wand Mark" };
 
         /// <summary>
         /// Dresses a gate's visual with its kind's art: the tile repeated along the gate (one tile deep), set back into the

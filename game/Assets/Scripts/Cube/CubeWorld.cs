@@ -8,7 +8,9 @@ namespace Game.Cube
     /// <summary>
     /// Runtime cube world. Owns the CubeModel for the current seed and lays each face out as an
     /// N x N block of screens in its own world region (one empty screen column between faces). Edges
-    /// that lead into a sealed face get a wall.
+    /// that lead into a sealed face get a wall. Every screen's edges are walls with one centred doorway each
+    /// (ScreenEdges, 1.25): a gate arch where the doorway leads onto another face, a plain opening within a face. Town's
+    /// are built with the run, each science face's on its reveal.
     /// A run starts with only Town laid out (its fixed modules); the built science faces stay dark and
     /// unpatterned until RevealScience() (called on the first crossing off Town) lays them out from
     /// CubeLayout and instantiates their modules. Sealed faces are drawn dark and never laid out.
@@ -190,6 +192,7 @@ namespace Game.Cube
                 parent.name = $"Face {face} ({Model.ThemeOf(face)})";
                 Theme revealed = Model.ThemeOf(face);
                 BuildFloor(face, floorRoots[f], ArtKeys.Floor(revealed), ArtKeys.FloorTint(revealed), true, revealed);
+                BuildEdgeWalls(face, parent);
                 BuildScienceModules(face);
             }
             PlaceItems();
@@ -215,6 +218,24 @@ namespace Game.Cube
         public Vector2 ScreenCenter(ScreenAddress address)
         {
             return FaceOrigin(address.Face) + ScreenMath.ScreenCenter(address.Cell, ScreenSize);
+        }
+
+        /// <summary>
+        /// Where a teleport onto a screen puts the player (CubeNavigator.TeleportTo: a new run, the F6 jump, leaving the core):
+        /// the screen's centre, except on a Math island screen (1.25), whose centre may be water: there, the middle of the
+        /// island of the doorway behind the arrival facing (the side the player is taken to have come in by), else of the
+        /// south doorway's, else of any doorway's.
+        /// </summary>
+        public Vector2 LandingPoint(ScreenAddress address, Facing facing)
+        {
+            Vector2 centre = ScreenCenter(address);
+            MathFace math = GetComponent<MathFace>();
+            IslandLayout islands = math != null && math.Plan != null ? math.Plan.IslandAt(address) : null;
+            if (islands == null) return centre;
+            int island = islands.DoorIsland(facing.Opposite());
+            if (island < 0) island = islands.DoorIsland(Facing.South);
+            for (int f = 0; f < 4 && island < 0; f++) island = islands.DoorIsland((Facing)f);
+            return island >= 0 ? centre + islands.Islands[island].center : centre;
         }
 
         /// <summary>The cell of the face that contains (or is nearest to) a world position.</summary>
@@ -277,6 +298,7 @@ namespace Game.Cube
             if (town)
             {
                 BuildFloor(face, floorRoots[f], ArtKeys.Floor(theme), ArtKeys.FloorTint(theme), true, theme);
+                BuildEdgeWalls(face, root);
                 BuildTownModules();
             }
             else
@@ -526,6 +548,45 @@ namespace Game.Cube
             foreach (ExitSlot exit in module.Exits)
                 exit.gameObject.SetActive(Model.TryStep(address, exit.Facing, out _, out _));
             modules[address] = module;
+        }
+
+        /// <summary>
+        /// The walls round every screen of a face (ScreenEdges): each edge that leads somewhere is a wall either side of a
+        /// centred doorway, with a gate arch (solid posts, open middle) where it leads onto another face. Edges into a sealed
+        /// face are left to BuildSealedWalls (one whole wall).
+        /// </summary>
+        private void BuildEdgeWalls(FaceId face, Transform root)
+        {
+            Transform walls = NewChild("Edge Walls", root);
+            Color tint = ArtKeys.WallTint(Model.ThemeOf(face));
+            for (int y = 0; y < FaceSize; y++)
+            {
+                for (int x = 0; x < FaceSize; x++)
+                {
+                    var address = new ScreenAddress(face, x, y);
+                    Vector2 centre = ScreenCenter(address);
+                    for (int e = 0; e < 4; e++)
+                    {
+                        var side = (Facing)e;
+                        if (!Model.TryStep(address, side, out _, out _)) continue;
+                        Rect[] pieces = ScreenEdges.WallRects(side);
+                        for (int i = 0; i < pieces.Length; i++)
+                            CreateBlock($"Wall {x},{y} {side} {i}", walls, centre + pieces[i].center, pieces[i].size, tint, -5, true, ArtKey.Wall);
+                        if (!ScreenEdges.IsFaceEdge(FaceSize, address.Cell, side)) continue;
+                        BuildGateArch($"Gate Arch {x},{y} {side}", walls, centre, side);
+                    }
+                }
+            }
+        }
+
+        /// <summary>A face-edge doorway's gate arch: the arch art over the doorway, its lintel on the edge, inside the wall band.</summary>
+        private void BuildGateArch(string name, Transform parent, Vector2 screenCentre, Facing side)
+        {
+            Transform arch = NewChild(name, parent);
+            arch.position = screenCentre + ScreenEdges.ArchCentre(side);
+            SpriteRenderer art = ArtCatalog.AddSprite(arch, "Arch", ArtKey.DoorArch, Vector2.zero,
+                new Vector2(ScreenEdges.ArchWidth, ScreenEdges.ArchDepth), Color.white, -4, material, false);
+            art.transform.localRotation = Quaternion.Euler(0f, 0f, ScreenEdges.ArchAngle(side));
         }
 
         private void BuildSealedWalls(FaceId face, Transform root)

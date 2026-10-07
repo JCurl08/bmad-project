@@ -13,6 +13,12 @@ its generated placeholder shape, so nothing renders invisible.
   D 57-59), so a solid gate never reads as a walkable ruin (a test checks it).
 - **Decor never looks collectible (1.24):** decor (ruins, the fossil mound, floors, hazards) never uses a tile that reads
   as a pickup: keys, coins, bags, chests, potions, flasks, gems, wands, tools or weapons (a test checks it).
+- **Screen edges (1.25):** every screen's edges are walls (the `Wall` tile in the face's wall tint, one tile deep) with one
+  centred doorway on each side. A doorway onto another face is framed by a stone gate arch (`DoorArch`, stretched over the
+  doorway, one tile deep inside the wall band, with its lintel on the edge and its posts on the wall); a doorway within a face is a plain gap in the wall.
+- **Island screens (1.25):** Math's island screens are solid water (a generated flat blue) with `Island` pads stretched over
+  each island's land and `PlankBridge` planks between some of them; a broken span shows the `GateGap` pit with the
+  gap-crosser*'s diamond mark until it is mended.
 - **Hazards:** the Earth hazards (wind, snow, freezing rain, crevices) are their own category, tiled over their area like
   floors, drawn translucent over the floor so the ground still reads.
 - **Tints:** a tint separates variants (floor themes, enemy kinds, the arena halves, a gate's item colour), but every
@@ -28,7 +34,7 @@ its generated placeholder shape, so nothing renders invisible.
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches
   are drawn in full colour: a round fluffy body, a clear orange beak, big glinting eyes, blush and little orange feet), the water
-  under a bridge layout and its flag, and marks, pips, effects,
+  of an island screen and the Math trial's flag, and marks, pips, effects,
   the membrane and the Demon*'s door, the core arena's exit door, the wind arrows, rain drops and the calm eye's ring
   (`ArtCatalog.Shape`). The apple-bonked sage*'s apple has no tile and stays a red circle.
 
@@ -38,6 +44,7 @@ its generated placeholder shape, so nothing renders invisible.
 | Wall | D 40 | light stone bricks |
 | WallSealed | D 14 | dark stone bricks for the edges into sealed faces |
 | ArenaWall | T 126 | grey castle bricks around the core arena |
+| DoorArch | T 78 | stone archway with an open middle: the gate where a screen's doorway leads onto another face (1.25; stretched, not tiled) |
 | FloorTown | T 109 | plain pale stone: the white ruins town |
 | FloorBiology | T 1 | grass with tufts, a little greener: the green Greenwood* |
 | FloorChemistry | D 53 | plain sand, tinted deep red: the Ember Vale* |
@@ -56,9 +63,8 @@ its generated placeholder shape, so nothing renders invisible.
 | GateLeadDoor | T 125 | heavy steel door: opened by weighing its plate down with the Leadstone* |
 | GateTimedDoor | T 89 | wooden door in a pale stone frame (unlike the button door's dark frame): swings open, then shut again |
 | VineBridge | T 2 | flowery grass: the grown vine bridge |
-| PlankBridge | D 80 | planks on rails: a bridge between islands, and the crossing the gap-crosser* lays (stretched, not tiled) |
+| PlankBridge | D 80 | planks on rails: a plank between two islands of a Math island screen, and the crossing the gap-crosser* lays (stretched, not tiled) |
 | GateGap | D 12 | floor crumbled into pits: a gap nobody can step over (the gap-crosser* lays a crossing over it) |
-| GateBridgeDoor | T 85 | plank door in a timber frame: opened by walking its bridges (its flag mark matches its layout's flag) |
 | GateRockPillars | D 18 | a stone pillar standing in the way: the quake Stormcaller* knocks the pillars down (also the quake trial's pillars) |
 | GateFireWall | D 41 | iron fire grate, tinted flame orange: a wall of fire the rain Stormcaller* douses (also the rain trial's fires) |
 | GateWater | D 44 | a pool under a stone lip, tinted blue: water the snow Stormcaller* freezes into a crossing (also the snow trial's puddles) |
@@ -93,7 +99,7 @@ its generated placeholder shape, so nothing renders invisible.
 | LeadPlate | D 31 | pressure plate: the Leadstone* weighs it down (also the Leadstone* trial's plates) |
 | Flower | T 17 | sprout, tinted as a bud then a bloom (also the Biology trial's flowers) |
 | TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
-| Island | D 66 | rounded sandy pad: an island in a bridge layout (doors' and the Math trial's) |
+| Island | D 66 | rounded sandy pad: an island of a Math island screen, stretched over its land (1.25) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
 | Fossil | T 92 | a mound of dug-up earth where a quake crevice laid the ground bare (1.24: was the key tile, which read as a pickup) |
 | WindBand | D 62 | white diagonal streaks: a wind band (generated arrows show which way it blows) |

@@ -260,12 +260,23 @@ hitl = true
 risk = "medium"
 
 [[entry]]
+id = 25
+type = "story"
+title = "Doorway edges and island screens"
+description = "From the playtest of entry 24: every screen edge becomes a wall with one marked doorway in the middle; face-edge doorways are distinct gates; crossing to another face stops the player until a fresh press, replacing the turned-input frame. Math bridge doors become island screens: the whole screen is water with islands, doorways land on different islands, and bridges spread between them, some broken for the gap-crosser."
+verify = "Every edge is wall except a centred doorway; face crossings stop movement; island screens route correctly and the sweep proves reachability per doorway; all tests and the 50-seed sweep pass."
+covers = []
+after = [24]
+hitl = true
+risk = "high"
+
+[[entry]]
 id = 14
 type = "story"
 title = "First itch.io release and full-run check"
 description = "Runs the seed sweep and full playtests against the epic's Done when and republishes the WebGL build to the itch.io page from entry 1."
 verify = "Three or more seeds play from town to boss with no softlock, visiting all five science faces of the 3x3 cube, using the map, and leaving the arena on foot at least once; on the itch.io page in a fresh browser a full run ends, upgrades are bought, and they still apply in the next run after a tab reload."
 covers = ["CAP-12"]
-after = [24]
+after = [25]
 hitl = true
 risk = "medium"

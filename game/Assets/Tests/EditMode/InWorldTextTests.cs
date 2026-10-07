@@ -51,9 +51,7 @@ namespace Game.Cube.Tests
             yield return ("CoreHud", $"{CoreHud.MeterLabel}   ({new MixingPhase().Name})");
             yield return ("CoreHud", $"{CoreHud.MeterLabel}   ({new FallbackBoss().Name})");
             foreach (string line in CubeMap.AllTexts()) yield return ("CubeMap", line);
-            yield return ("BridgePuzzle", BridgePuzzle.CrossedTwiceText);
-            yield return ("BridgePuzzle", BridgePuzzle.OffTrailText);
-            yield return ("BridgePuzzle", BridgePuzzle.SolvedText);
+            yield return ("IslandScreen", IslandScreen.MendedText);
             foreach (string line in MassMitt.AllHudText) yield return ("MassMitt HUD", line);
             foreach (string line in ChemistryIsotope.AllText()) yield return ("ChemistryIsotope", line);
             foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)
@@ -414,7 +412,6 @@ namespace Game.Cube.Tests
                 ("plated door", Tinted(TileAverage(art, ArtKey.GateLeadDoor), GateTint(LeadPlateGate.DoorColor))),
                 ("timed door", Tinted(TileAverage(art, ArtKey.GateTimedDoor), GateTint(TimedDoorGate.DoorColor))),
                 ("gap", Tinted(TileAverage(art, ArtKey.GateGap), GateTint(GapGate.GapColor))),
-                ("plank door", Tinted(TileAverage(art, ArtKey.GateBridgeDoor), GateTint(Color.white))),
                 ("pillars", Tinted(TileAverage(art, ArtKey.GateRockPillars), GateTint(RockPillarGate.PillarColor))),
                 ("fire wall", Tinted(TileAverage(art, ArtKey.GateFireWall), GateTint(FireWallGate.FireColor))),
                 ("water", Tinted(TileAverage(art, ArtKey.GateWater), GateTint(FrozenWaterGate.WaterColor))),

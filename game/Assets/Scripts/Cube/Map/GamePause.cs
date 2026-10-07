@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace Game.Cube
@@ -15,15 +14,11 @@ namespace Game.Cube
 
         private static float savedTimeScale = 1f;
 
-        /// <summary>Raised when gameplay pauses (the map opens), e.g. so the player's turned controls return to normal.</summary>
-        public static event Action Paused;
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
             Active = false;
             savedTimeScale = 1f;
-            Paused = null;
         }
 
         /// <summary>Pauses: stops time (remembering the time scale) and sets Active. Does nothing when already paused.</summary>
@@ -33,7 +28,6 @@ namespace Game.Cube
             Active = true;
             savedTimeScale = Time.timeScale;
             Time.timeScale = 0f;
-            Paused?.Invoke();
         }
 
         /// <summary>Resumes: restores the time scale saved by Pause and clears Active. Does nothing when not paused.</summary>

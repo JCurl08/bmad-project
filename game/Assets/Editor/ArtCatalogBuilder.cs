@@ -46,6 +46,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.Wall, Dungeon, 40, "light stone bricks"),
         new Pick(ArtKey.WallSealed, Dungeon, 14, "dark stone bricks for the edges into sealed faces"),
         new Pick(ArtKey.ArenaWall, Town, 126, "grey castle bricks around the core arena"),
+        new Pick(ArtKey.DoorArch, Town, 78, "stone archway with an open middle: the gate where a screen's doorway leads onto another face (stretched over the doorway, not tiled)"),
 
         new Pick(ArtKey.FloorTown, Town, 109, "plain pale stone: the white ruins town"),
         new Pick(ArtKey.FloorBiology, Town, 1, "grass with tufts, a little greener: the green Greenwood*"),
@@ -66,9 +67,8 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.GateLeadDoor, Town, 125, "heavy steel door: opened by weighing its plate down with the Leadstone*"),
         new Pick(ArtKey.GateTimedDoor, Town, 89, "wooden door in a pale stone frame: swings open, then shut again"),
         new Pick(ArtKey.VineBridge, Town, 2, "flowery grass: the grown vine bridge"),
-        new Pick(ArtKey.PlankBridge, Dungeon, 80, "planks on rails: a bridge between islands, and the crossing the gap-crosser* lays"),
+        new Pick(ArtKey.PlankBridge, Dungeon, 80, "planks on rails: a plank between islands, and the crossing the gap-crosser* lays"),
         new Pick(ArtKey.GateGap, Dungeon, 12, "floor crumbled into pits: a gap nobody can step over"),
-        new Pick(ArtKey.GateBridgeDoor, Town, 85, "plank door in a timber frame: opened by walking its bridges"),
         new Pick(ArtKey.GateRockPillars, Dungeon, 18, "a stone pillar standing in the way: the quake Stormcaller* knocks the pillars down"),
         new Pick(ArtKey.GateFireWall, Dungeon, 41, "iron fire grate, tinted flame orange: a wall of fire the rain Stormcaller* douses"),
         new Pick(ArtKey.GateWater, Dungeon, 44, "a pool under a stone lip, tinted blue: water the snow Stormcaller* freezes into a crossing"),
@@ -106,7 +106,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.LeadPlate, Dungeon, 31, "pressure plate: the Leadstone* weighs it down"),
         new Pick(ArtKey.Flower, Town, 17, "sprout, tinted as a bud then a bloom"),
         new Pick(ArtKey.TrialLamp, Dungeon, 29, "flame banner: a lamp to light"),
-        new Pick(ArtKey.Island, Dungeon, 66, "rounded sandy pad: an island in a bridge layout"),
+        new Pick(ArtKey.Island, Dungeon, 66, "rounded sandy pad: an island of a Math island screen (stretched over its land)"),
         new Pick(ArtKey.GoalPad, Dungeon, 60, "corner brackets: a target zone for boulders"),
         new Pick(ArtKey.Fossil, Town, 92, "a mound of dug-up earth: where a quake crevice laid the ground bare (not the key tile, which read as a pickup)"),
 

@@ -178,7 +178,96 @@ namespace Game.Cube.Tests
         // ---------- Library invariants ----------
 
         private static IEnumerable<ScreenModule> AllLibraryModules(ModuleLibrary library) =>
-            library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules));
+            library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsIslandScreen);
+
+        private static float RectDistance(Rect r, Vector2 p)
+        {
+            float dx = Mathf.Max(r.xMin - p.x, 0f, p.x - r.xMax);
+            float dy = Mathf.Max(r.yMin - p.y, 0f, p.y - r.yMax);
+            return Mathf.Sqrt(dx * dx + dy * dy);
+        }
+
+        [Test]
+        public void GateArchesAndEdgeWalls_StayClearOfEveryModulesPortals_GateSlotsAlcovesAndHiddenItems()
+        {
+            // Any screen side can be a face edge (with its gate arch), so every module is checked against all four arches and
+            // every edge wall: a core portal's ring, a hidden Jumbles*, a gate slot and its alcove never meet them.
+            ModuleLibrary library = LoadLibrary();
+            float portal = CorePortal.Radius * 1.3f, hidden = 0.35f;
+            var solids = new List<(string What, Rect Rect)>();
+            foreach (Facing side in Enum.GetValues(typeof(Facing)))
+            {
+                solids.Add(($"{side} gate arch", ScreenEdges.ArchRect(side)));
+                foreach (Rect w in ScreenEdges.WallRects(side)) solids.Add(($"{side} wall", w));
+                Rect arch = ScreenEdges.ArchRect(side);
+                Assert.IsTrue(ScreenEdges.WallRects(side).Concat(new[] { ScreenEdges.DoorwayRect(side) })
+                    .Any(w => w.Contains(arch.center)), $"{side}: the arch stands on the wall band");
+            }
+            foreach (ScreenModule module in AllLibraryModules(library).Concat(new[] { library.Pool(Theme.Math).Last() }))
+            {
+                Vector2 origin = module.transform.position;
+                foreach ((string what, Rect rect) in solids)
+                {
+                    foreach (CoreEntranceSlot c in module.CoreEntrances)
+                        Assert.GreaterOrEqual(RectDistance(rect, (Vector2)c.transform.position - origin), portal,
+                            $"{module.name}: a core portal meets the {what}");
+                    foreach (HiddenItemSlot h in module.HiddenItems)
+                        Assert.GreaterOrEqual(RectDistance(rect, (Vector2)h.transform.position - origin), hidden,
+                            $"{module.name}: a hidden item meets the {what}");
+                    foreach (GateSlot g in module.Gates)
+                    {
+                        Vector2 slot = (Vector2)g.transform.position - origin;
+                        Assert.Greater(RectDistance(rect, slot), GateSlot.GateWidth / 2f, $"{module.name}: a gate slot meets the {what}");
+                        Assert.Greater(RectDistance(rect, slot + g.PocketOffset), 0.5f, $"{module.name}: a gate's pocket meets the {what}");
+                    }
+                    Transform alcoves = module.transform.Find("Alcoves");
+                    if (alcoves == null) continue;
+                    foreach (BoxCollider2D box in alcoves.GetComponentsInChildren<BoxCollider2D>(true))
+                    {
+                        var r = new Rect((Vector2)box.transform.position - origin + box.offset - box.size / 2f, box.size);
+                        Assert.IsFalse(r.Overlaps(rect), $"{module.name}: an alcove wall meets the {what}");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void Library_MathEndsWithItsIslandModule_OnlyExits_AndTheLayoutGivesItToTwoScreensApart_NeverTheCore()
+        {
+            ModuleLibrary library = LoadLibrary();
+            IReadOnlyList<ScreenModule> math = library.Pool(Theme.Math);
+            Assert.AreEqual(math.Count - 1, library.IslandModuleIndex(Theme.Math), "Math's island module ends its pool");
+            ScreenModule island = math[math.Count - 1];
+            Assert.IsTrue(island.IsIslandScreen);
+            Assert.AreEqual(4, island.Exits.Length);
+            Assert.IsEmpty(island.Gates);
+            Assert.IsEmpty(island.HiddenItems);
+            Assert.IsEmpty(island.CoreEntrances);
+            Assert.IsEmpty(island.GetComponentsInChildren<BoxCollider2D>(true), "No obstacles: MathFace fills it");
+            foreach (Theme theme in BuiltSciences.Where(t => t != Theme.Math))
+                Assert.AreEqual(-1, library.IslandModuleIndex(theme), $"{theme} has no island screens");
+            foreach (int n in FaceSizes)
+                for (int seed = 1; seed <= 50; seed++)
+                {
+                    var model = new CubeModel(seed, n);
+                    CubeLayout layout = CubeLayout.Generate(model, library);
+                    foreach (FaceLayout fl in layout.Faces.Values)
+                    {
+                        var cells = new List<Vector2Int>();
+                        for (int y = 0; y < n; y++)
+                            for (int x = 0; x < n; x++)
+                                if (fl.ModuleAt(new Vector2Int(x, y)) == library.IslandModuleIndex(fl.Theme)) cells.Add(new Vector2Int(x, y));
+                        CollectionAssert.AreEqual(fl.IslandCells, cells, $"seed {seed} {fl.Face}");
+                        Assert.AreEqual(fl.Theme == Theme.Math ? CubeLayout.IslandScreensPerFace(n) : 0, cells.Count, $"seed {seed} {fl.Face}");
+                        CollectionAssert.DoesNotContain(cells, fl.CoreCell);
+                        foreach (Vector2Int a in cells)
+                            foreach (Vector2Int b in cells)
+                                Assert.AreNotEqual(1, Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y), $"seed {seed}: island screens side by side");
+                    }
+                }
+            Assert.AreEqual(2, CubeLayout.IslandScreensPerFace(3));
+            Assert.AreEqual(1, CubeLayout.IslandScreensPerFace(2));
+        }
 
         [Test]
         public void Library_HasTownModulesForEveryCell_AndAPoolOfFourPerBuiltScience()

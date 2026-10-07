@@ -9,6 +9,22 @@
 - **Fake items:** no decor that looks collectible (e.g. the key in the Wildlands*).
 - **Math bridges:** bridges join real islands over water or crevices and are spaced apart. Some spans are broken by one square, which the Gap-Crosser* crosses.
 
+## Playtest of 1.24 (2026-10-07)
+
+- **Screens connecting both ways:**
+  - The turned-input fix was rejected.
+  - It is replaced by walls on every screen edge, with a centred doorway on each side.
+  - Face-edge doorways are distinct gate arches.
+  - Crossing a face edge stops movement until a fresh key press. This is story 1.25.
+- **Entropy, floors and fake items:** good or better.
+- **Math:**
+  - The rework was still not right.
+  - The design is now island screens: solid water, doorways on different islands, and spread-out bridges, so you plan how you get across the screen. This is story 1.25.
+- **Towns (for the course correction):**
+  - distinctive building designs, buildings you can enter, statues;
+  - more people than on other screens, and no enemies;
+  - one leader per town who gives a quest to help that region.
+
 ## Bigger changes for a course correction (discuss with the user)
 
 1. **Edges and wrapping.**

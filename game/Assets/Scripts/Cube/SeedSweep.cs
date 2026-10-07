@@ -22,9 +22,12 @@ namespace Game.Cube
     /// Mass Mitt opens a timed door on another face, and, with the module library, every timed door's switch timing,
     /// its own boulders on its screen with enough of them reachable, no boulder starting in a time field or on
     /// another face's interactable, and the Physics trial fitting). With a Math item, the Math plan is checked too
-    /// (MathPlan.FindProblems: every bridge layout, doors' and the trial's, solvable from its flag and fitting its screen, the
-    /// trial bigger than any door, the gap-crosser* opening a gap gate on another face, and nothing required behind a door
-    /// that never opens before the gap-crosser* is reachable). With an Earth item, the Earth plan is checked too
+    /// (MathPlan.FindProblems: the gap-crosser* opening a gap gate on another face, Math's island screens laid out with
+    /// every doorway on its own island and the islands deliberately not all joined, every ordinary screen reachable without
+    /// the gap-crosser* and every island with it, every join two-way so the player is never stranded, the trial island
+    /// reachable, and every item collected doorway by doorway). The item collection here walks doorway by doorway too
+    /// (DoorwayReach over Math's island screens): an open pickup on an island screen counts only where its island is
+    /// reachable. With an Earth item, the Earth plan is checked too
     /// (EarthPlan.FindProblems: required gates use the rolled Stormcaller* phenomenon and it opens a gate on another face,
     /// optional ones the other phenomena, on Earth; the calm eye at the centre and no hazard on it or on a timed door's
     /// screen; every hazard within PlayerMover's bounds, so it only slows or deflects; every crevice off the lanes, clear of
@@ -152,7 +155,8 @@ namespace Game.Cube
         /// inventory; every item left uncollected (behind its own gate, behind a cycle, or behind a gate
         /// whose item is itself stuck) is reported as a softlock naming the item. Empty when all is well.
         /// </summary>
-        public static List<string> FindItemProblems(CubeModel model, ItemPlacement placement, IEnumerable<Theme> items)
+        public static List<string> FindItemProblems(CubeModel model, ItemPlacement placement, IEnumerable<Theme> items,
+            Func<ScreenAddress, IslandLayout> islandAt = null)
         {
             var problems = new List<string>();
             var itemList = new List<Theme>(items);
@@ -195,9 +199,10 @@ namespace Game.Cube
                 if (count != 1) problems.Add($"{item} item has {count} pickups");
             }
 
-            // Collection simulation. Modules keep all four exits open and gates only close alcoves, so a
-            // pickup is reachable when its screen is reachable and its guarding gate (if any) is open.
-            HashSet<ScreenAddress> reachable = FindReachable(model);
+            // Collection simulation, doorway by doorway. Ordinary modules keep all four doorways joined and gates only close
+            // alcoves, so there a pickup is reachable when its screen is and its guarding gate (if any) is open; on an island
+            // screen (islandAt) only where its island is reachable, with or without the gap-crosser* (the Math item).
+            var reach = new DoorwayReach(model, islandAt);
             var held = new HashSet<Theme>();
             bool progress = true;
             while (progress)
@@ -205,7 +210,7 @@ namespace Game.Cube
                 progress = false;
                 foreach (PickupPlacement p in placement.Pickups)
                 {
-                    if (held.Contains(p.Item) || !reachable.Contains(p.Screen)) continue;
+                    if (held.Contains(p.Item) || !reach.CanReach(p.Screen, MathPlan.PickupLocal(p), held.Contains(Theme.Math))) continue;
                     if (p.IsGuarded)
                     {
                         if (!placement.TryGetGate(p.Screen, p.GuardSlot, out GatePlacement guard)) continue;
@@ -311,10 +316,11 @@ namespace Game.Cube
                         List<Theme> items = ItemPlacement.RunItems(layout, itemThemes);
                         ItemPlacement placement = ItemPlacement.ForRun(model, layout, gateCatalog, itemThemes, variantCounts);
                         result.Placement = placement;
-                        result.ItemProblems = FindItemProblems(model, placement, items);
+                        Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
+                        MathPlan islands = moduleAt != null ? MathPlan.Create(model, placement, moduleAt) : null;
+                        result.ItemProblems = FindItemProblems(model, placement, items, islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
-                        Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
                         foreach (string problem in ChemistryPlan.FindProblems(model, placement, chemistryVariantKinds, moduleAt))
                             result.ItemProblems.Add("chemistry: " + problem);
                         foreach (string problem in PhysicsPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds,
@@ -379,8 +385,8 @@ namespace Game.Cube
                 what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
                         "the rolled stone opening a gate on another face, the Chemistry trial fitting, " +
                         "every timed door with enough reachable boulders on its screen, the Physics trial fitting, " +
-                        "every bridge layout solvable from its flag, the gap-crosser* opening a gate on another face, " +
-                        "the Math trial fitting, the rolled Stormcaller* opening a gate on another face, hazards that never " +
+                        "the gap-crosser* opening a gate on another face, Math's island screens never fully joined yet never " +
+                        "stranding the player, every item collected doorway by doorway, the Math trial island reachable, the rolled Stormcaller* opening a gate on another face, hazards that never " +
                         "block a way or trap the player, the calm eye at the centre, the Earth trial fitting";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";

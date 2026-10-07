@@ -17,6 +17,7 @@ namespace Game.Cube
         Wall = 10,
         WallSealed = 11,
         ArenaWall = 12,
+        DoorArch = 13,
 
         FloorTown = 20,
         FloorBiology = 21,
@@ -39,7 +40,6 @@ namespace Game.Cube
         VineBridge = 39,
         PlankBridge = 40,
         GateGap = 41,
-        GateBridgeDoor = 42,
         GateRockPillars = 43,
         GateFireWall = 44,
         GateWater = 45,

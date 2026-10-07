@@ -33,10 +33,20 @@ namespace Game.Cube
 
         [SerializeField] private Theme theme;
 
+        [Tooltip("An island screen's module (1.25, Math): open floor with only its exits; MathFace fills it with water and islands.")]
+        [SerializeField] private bool islandScreen;
+
         public Theme Theme
         {
             get => theme;
             set => theme = value;
+        }
+
+        /// <summary>True for an island screen's module: no obstacles, gates, hidden items or core entrances, only its four exits.</summary>
+        public bool IsIslandScreen
+        {
+            get => islandScreen;
+            set => islandScreen = value;
         }
 
         public ExitSlot[] Exits => GetComponentsInChildren<ExitSlot>(true);

@@ -118,7 +118,7 @@ namespace Game.Cube
             {
                 Wares = "slightly used angles",
                 Metal = "right angles",
-                Errand = "cross every bridge exactly once and tell me how it felt",
+                Errand = "reach the island with the flag and wave at me from it",
                 Rumours = new[]
                 {
                     "the triangles are unstable. Emotionally. Structurally they're fine.",
@@ -259,25 +259,25 @@ namespace Game.Cube
 
         /// <summary>
         /// Lines the shape people of the Math face say about their patron, the Bridgekeeper* (one per shape person, picked
-        /// by salt). Subtle science: no real names and no science words, only planks, islands and walking.
+        /// by salt). Subtle science: no real names and no science words, only planks, islands, water and going round.
         /// </summary>
         public static readonly string[] BridgekeeperLines =
         {
-            "The " + InWorldText.Bridgekeeper + " says every plank deserves exactly one visit. Two is clingy. Zero is rude.",
-            "I tried to cross the same plank twice once. The planks noticed. They always notice.",
-            "The " + InWorldText.Bridgekeeper + " walks every plank on the face each morning, once each, and is home in time for tea.",
-            "Start at the flag, finish wherever the planks run out. That's the " + InWorldText.Bridgekeeper + "'s whole rule. It's a good rule.",
+            "The " + InWorldText.Bridgekeeper + " says an island nobody can walk to is just an island you haven't come at from the right side yet.",
+            "Some planks go somewhere. Some planks go nowhere. The " + InWorldText.Bridgekeeper + " is fond of both, for different reasons.",
+            "Can't get there from here? Then get there from somewhere else. That's the " + InWorldText.Bridgekeeper + "'s whole rule. It's a good rule.",
+            "I walked round three screens to reach an island I could see from the doorway. Worth it. Mostly.",
             "Round head, pointy body, sturdy legs! The " + InWorldText.Bridgekeeper + " says we're built for walking planks.",
         };
 
-        /// <summary>How the bridge doors work, as the shape people tell it (true for every run: the mechanics).</summary>
-        public const string BridgeLine =
-            "See the islands and planks by the locked doors? Start on the flag and cross every plank exactly once. " +
-            "Cross one twice and they all reset!";
+        /// <summary>How the island screens work, as the shape people tell it (true for every run: the mechanics).</summary>
+        public const string IslandLine =
+            "Out on the islands, a doorway only takes you to the islands its planks reach. Can't get across? " +
+            "Go round and come in by another doorway.";
 
         /// <summary>How the gap-crosser* works, as the shape people tell it (true for every run: the mechanics).</summary>
         public const string GapCrosserLine =
-            "A gap in front of a door, or in a broken plank? Swing the " + GapCrosserItem.Name + " at it and it lays a crossing right over. One gap at a time, mind.";
+            "A gap in front of a door, or a plank with a hole in it? Swing the " + GapCrosserItem.Name + " at it and it lays a crossing right over. One gap at a time, mind.";
 
         /// <summary>
         /// Lines the terrestrial dinosaurs of the Earth face say about their patron, the Old Digger* (one per dinosaur, picked
@@ -411,7 +411,7 @@ namespace Game.Cube
             yield return MassMittLine;
             foreach (string line in NewtonLines) yield return line;
             foreach (string line in BridgekeeperLines) yield return line;
-            yield return BridgeLine;
+            yield return IslandLine;
             yield return GapCrosserLine;
             foreach (string line in OldDiggerLines) yield return line;
             foreach (string line in SkyWatcherLines) yield return line;

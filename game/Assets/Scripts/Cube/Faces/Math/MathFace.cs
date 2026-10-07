@@ -5,13 +5,14 @@ namespace Game.Cube
 {
     /// <summary>
     /// The Bridgekeeper*'s face, plugged into CubeWorld through IFaceContent (it sits on the CubeWorld's GameObject), in the
-    /// same three parts as the other faces. On the reveal it builds the run's MathPlan (with the screens' modules, so every
-    /// layout is placed), and then:
-    /// gate behaviours: every gap gate (all off-home Math gates and some on Math) becomes a GapGate the gap-crosser*
-    /// opens, and every bridge door a BridgeDoorGate with its island-and-bridge layout (BridgePuzzle) on its screen;
-    /// the trial: a MathTrial (a bigger layout) on the plan's trial screen;
+    /// same three parts as the other faces. On the reveal it builds the run's MathPlan (with the screens' modules, so the
+    /// island screens are known), and then:
+    /// gate behaviours: every Math gate (on Math and off it) becomes a GapGate the gap-crosser* opens;
+    /// the island screens (1.25): each of the plan's island screens becomes an IslandScreen (solid water, islands, planks and
+    /// broken spans the gap-crosser* mends), and the trial a MathTrial on its screen's trial island;
     /// the population: shape people (MathPopulation) and Math enemies (Dead Ends, a Loose End) on seeded clear spots
-    /// (FaceSpots, stream PopulationRngStream), kept off the layouts, the fronts of Math's own gates, the core entrance and the other slots and interactables.
+    /// (FaceSpots, stream PopulationRngStream) off the island screens, kept off the fronts of Math's own gates, the core
+    /// entrance and the other slots and interactables.
     /// Everything is removed on a rebuild.
     /// </summary>
     public class MathFace : MonoBehaviour, IFaceContent, IHintDensityTarget
@@ -25,24 +26,14 @@ namespace Game.Cube
         public const int TunedLooseEndCount = 1;
         public static int LooseEndCount(int faceSize) => CubeSettings.PerScreen(TunedLooseEndCount, faceSize);
 
-        /// <summary>NPCs and enemies spawn at least this far from a layout (so they do not start on a bridge).</summary>
-        public const float LayoutKeepOut = 0.9f;
-
         /// <summary>NPCs and enemies spawn at least this far beyond a slot or interactable (a portal, a hidden item, a plate).</summary>
         public const float SlotKeepOut = 1.2f;
-
-        /// <summary>Flag colours of the bridge doors' layouts, in door order (a door and its layout share one).</summary>
-        public static readonly Color[] FlagColors =
-        {
-            new Color(0.95f, 0.3f, 0.3f), new Color(0.3f, 0.6f, 1f), new Color(0.4f, 0.9f, 0.4f),
-            new Color(0.95f, 0.5f, 0.95f), new Color(1f, 0.6f, 0.2f), new Color(0.3f, 0.9f, 0.9f),
-        };
 
         [SerializeField] private Transform player;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
         [SerializeField] private bool spawnEnemies = true;
 
-        private readonly List<BridgeDoorGate> doors = new List<BridgeDoorGate>();
+        private readonly List<IslandScreen> islandScreens = new List<IslandScreen>();
         private readonly List<GapGate> gaps = new List<GapGate>();
         private readonly List<NpcTalker> shapes = new List<NpcTalker>();
         private readonly List<Enemy> enemies = new List<Enemy>();
@@ -58,7 +49,9 @@ namespace Game.Cube
 
         public MathTrial Trial { get; private set; }
 
-        public IReadOnlyList<BridgeDoorGate> Doors => doors;
+        /// <summary>The island screens built on the reveal (row by row).</summary>
+        public IReadOnlyList<IslandScreen> IslandScreens => islandScreens;
+
         public IReadOnlyList<GapGate> Gaps => gaps;
         public IReadOnlyList<NpcTalker> Shapes => shapes;
         public IReadOnlyList<Enemy> Enemies => enemies;
@@ -90,30 +83,12 @@ namespace Game.Cube
 
         public Gate CreateGate(CubeWorld world, FaceGateRequest request, GateSlot slot, ItemDefinition item)
         {
-            if (Plan == null || request.Optional || !Plan.TryGetGate(request.Screen, request.Slot, out MathGateSpec spec)) return null;
-            if (spec.Kind == MathGateKind.Gap)
-            {
-                GameObject gapBlock = world.CreateBlock("Gap Gate", slot.transform, slot.transform.position, CubeWorld.GateSize(slot),
-                    Color.white, -4, true);
-                GapGate gap = GapGate.Build(gapBlock, item, world.Material);
-                gaps.Add(gap);
-                return gap;
-            }
-            if (!MathPlan.Builds(spec))
-            {
-                Debug.LogWarning($"MathFace: no layout for {spec} (seed {world.Seed}); a plain gate instead.");
-                return null;
-            }
-            ScreenModule module = world.ModuleAt(request.Screen);
-            Transform parent = module != null ? module.transform : slot.transform;
-            Color flag = FlagColors[doors.Count % FlagColors.Length];
-            BridgePuzzle puzzle = BridgePuzzle.Create($"Bridges ({spec.Screen} #{spec.Slot})", parent, spec.Layout,
-                world.ScreenCenter(request.Screen), ResolvePlayer(), flag, world.Material);
-            GameObject block = world.CreateBlock("Bridge Door", slot.transform, slot.transform.position, CubeWorld.GateSize(slot),
+            if (Plan == null || request.Optional || !Plan.TryGetGate(request.Screen, request.Slot, out _)) return null;
+            GameObject gapBlock = world.CreateBlock("Gap Gate", slot.transform, slot.transform.position, CubeWorld.GateSize(slot),
                 Color.white, -4, true);
-            BridgeDoorGate door = BridgeDoorGate.Build(block, item, puzzle, spec.Difficulty, world.Material);
-            doors.Add(door);
-            return door;
+            GapGate gap = GapGate.Build(gapBlock, item, world.Material);
+            gaps.Add(gap);
+            return gap;
         }
 
         public void EndReveal(CubeWorld world)
@@ -121,14 +96,14 @@ namespace Game.Cube
             if (Plan == null) return;
             if (root == null) root = new GameObject("Math Face Content").transform;
             var rng = new SeededRng(unchecked((ulong)(uint)world.Seed), PopulationRngStream);
-            BuildTrial(world);
+            BuildIslands(world);
             MathPlan plan = Plan;
             var marks = new Dictionary<ScreenAddress, IReadOnlyList<ScreenMark>>();
-            // Math's own content: the fronts of its gap gates and bridge doors (and its layouts, kept off above too).
+            // Math's own content: the fronts of its gap gates.
             Dictionary<ScreenAddress, List<ScreenMark>> own = plan.ContentMarks();
             bool Allowed(ScreenAddress screen, Vector2 feet)
             {
-                if (plan.NearLayout(screen, feet, LayoutKeepOut)) return false;
+                if (plan.IsIslandScreen(screen)) return false; // nobody stands in the water
                 if (!marks.TryGetValue(screen, out IReadOnlyList<ScreenMark> list))
                 {
                     var all = new List<ScreenMark>(plan.MarksOn(screen));
@@ -152,29 +127,35 @@ namespace Game.Cube
         {
             FaceContent.DestroyAll(shapes);
             FaceContent.DestroyAll(enemies);
-            // Doors, gaps, layouts and the trial live under their modules, which the rebuild destroys.
-            doors.Clear();
+            // Gaps, island screens and the trial live under their modules, which the rebuild destroys.
+            islandScreens.Clear();
             gaps.Clear();
             Trial = null;
             Plan = null;
             GapCrosser = null;
         }
 
-        private void BuildTrial(CubeWorld world)
+        /// <summary>Builds every island screen of the plan (water, islands, planks, broken spans) and the trial on its island.</summary>
+        private void BuildIslands(CubeWorld world)
         {
-            ScreenModule module = world.ModuleAt(Plan.TrialScreen);
-            if (module == null || Plan.TrialLayout == null)
+            foreach (IslandScreenSpec spec in Plan.IslandScreens)
             {
-                Debug.LogWarning($"MathFace: no room for the trial on {Plan.TrialScreen} (seed {world.Seed}).");
-                return;
+                ScreenModule module = world.ModuleAt(spec.Screen);
+                if (module == null || spec.Layout == null)
+                {
+                    Debug.LogWarning($"MathFace: no island layout for {spec} (seed {world.Seed}).");
+                    continue;
+                }
+                IslandScreen screen = IslandScreen.Create($"Islands ({spec.Screen})", module.transform, spec.Layout,
+                    world.ScreenCenter(spec.Screen), world.Material);
+                islandScreens.Add(screen);
+                if (!spec.HasTrial) continue;
+                var go = new GameObject("Math Trial");
+                go.transform.SetParent(screen.transform, false);
+                Trial = go.AddComponent<MathTrial>();
+                Trial.Configure(screen, spec.Layout.TrialIsland, MathPlan.TrialCurrency, world.Material);
+                Trial.Completed += currency => Debug.Log($"Math trial complete: +{currency} (seed {world.Seed}).");
             }
-            var go = new GameObject("Math Trial");
-            go.transform.SetParent(module.transform, false);
-            Vector2 centre = world.ScreenCenter(Plan.TrialScreen);
-            go.transform.position = centre;
-            Trial = go.AddComponent<MathTrial>();
-            Trial.Configure(Plan.TrialLayout, centre, ResolvePlayer(), MathPlan.TrialCurrency, world.Material);
-            Trial.Completed += currency => Debug.Log($"Math trial complete: +{currency} (seed {world.Seed}).");
         }
 
         private List<ScreenAddress> ShuffledScreens(SeededRng rng) => FaceContent.ShuffledScreens(Plan.Face, Plan.FaceSize, rng);

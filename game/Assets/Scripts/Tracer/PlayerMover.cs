@@ -46,14 +46,46 @@ namespace Game.Tracer
     }
 
     /// <summary>
-    /// Turns the raw move input into the direction the player walks in the world (the Cube's CubeNavigator: after a face
-    /// crossing whose edge is drawn rotated, the held input keeps its meaning until the player lets go or turns). A
-    /// component on the player that implements this is read by PlayerMover every physics step; without one the input is
-    /// used as is.
+    /// The stop on a face crossing (1.25): once held, the player stands still, whatever keys are down, until every
+    /// direction has been let go and a key is pressed again. Pure: PlayerMover feeds it the raw input every physics step.
     /// </summary>
-    public interface IMoveInputFrame
+    public sealed class FreshPressLatch
     {
-        Vector2 MapMoveInput(Vector2 raw);
+        /// <summary>An input shorter than this counts as every direction let go.</summary>
+        public const float ReleasedBelow = 0.1f;
+
+        private bool sawRelease;
+
+        /// <summary>True while the player waits for a fresh press (input is ignored).</summary>
+        public bool Waiting { get; private set; }
+
+        /// <summary>Stops the player until every direction is let go and a key is pressed again.</summary>
+        public void Hold()
+        {
+            Waiting = true;
+            sawRelease = false;
+        }
+
+        /// <summary>Back to normal movement (a teleport, a new run).</summary>
+        public void Clear()
+        {
+            Waiting = false;
+            sawRelease = false;
+        }
+
+        /// <summary>The input the player walks with this step: zero while waiting; the raw input once a fresh press ends the wait.</summary>
+        public Vector2 Filter(Vector2 raw)
+        {
+            if (!Waiting) return raw;
+            if (raw.magnitude < ReleasedBelow)
+            {
+                sawRelease = true;
+                return Vector2.zero;
+            }
+            if (!sawRelease) return Vector2.zero;
+            Clear();
+            return raw;
+        }
     }
 
     /// <summary>
@@ -83,6 +115,23 @@ namespace Game.Tracer
         private bool speedScaleResolved;
         private IMoveModifier modifier;
         private bool modifierResolved;
+        private readonly FreshPressLatch latch = new FreshPressLatch();
+
+        /// <summary>True while the player stands still after a face crossing, waiting for every key to be let go and a fresh press.</summary>
+        public bool WaitingForFreshPress => latch.Waiting;
+
+        /// <summary>
+        /// Stops the player at once and keeps it still (no walking, no push, no slide) until every direction is let go and
+        /// a key is pressed again (the Cube's face crossings).
+        /// </summary>
+        public void StopUntilFreshPress()
+        {
+            latch.Hold();
+            if (body != null) body.linearVelocity = Vector2.zero;
+        }
+
+        /// <summary>Ends a StopUntilFreshPress wait (a teleport or a new run).</summary>
+        public void ClearFreshPressWait() => latch.Clear();
 
         /// <summary>Base speed in units per second (before any IMoveSpeedScale on the player).</summary>
         public float Speed
@@ -196,10 +245,25 @@ namespace Game.Tracer
             if (body != null) body.linearVelocity = Vector2.zero;
         }
 
+        private void Update()
+        {
+            // Watch for the let-go every frame too, so a quick release between two physics steps still counts.
+            if (latch.Waiting && move != null && move.ReadValue<Vector2>().magnitude < FreshPressLatch.ReleasedBelow)
+                latch.Filter(Vector2.zero);
+        }
+
         private void FixedUpdate()
         {
             Vector2 input = move != null ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
-            if (TryGetComponent(out IMoveInputFrame frame)) input = frame.MapMoveInput(input);
+            if (latch.Waiting)
+            {
+                input = latch.Filter(input);
+                if (latch.Waiting)
+                {
+                    body.linearVelocity = Vector2.zero;
+                    return;
+                }
+            }
             if (input.sqrMagnitude > 1e-4f) Facing = input.normalized;
             MoveModifier m = Modifier;
             if (m.IsNone)

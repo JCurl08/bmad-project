@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
 /// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
 /// for Curie's (the player carries the Isotope that shows the held stone), and PhysicsFace for Einstein's (the player
-/// carries the MassMitt it sets up for each run), MathFace for the Bridgekeeper*'s (bridge doors and gap gates), and
+/// carries the MassMitt it sets up for each run), MathFace for the Bridgekeeper*'s (gap gates, island screens and the trial island), and
 /// EarthFace for the Wildlands* (Stormcaller* gates, hazards, trial and dinosaurs; the player carries the HazardReceiver
 /// that feeds the hazards to PlayerMover's modifier hook).
 /// The run's outcome lives in a RunState (one per scene, reset on every rebuild). The CoreArena (Maxwell's Demon) puts a
@@ -100,7 +100,7 @@ public static class CubeSceneBuilder
         worldObject.AddComponent<ChemistryFace>().Player = player.transform;
         // Einstein's face (timed doors, boulders, trial, aliens, Newton and enemies) plugs in the same way.
         worldObject.AddComponent<PhysicsFace>().Player = player.transform;
-        // The Bridgekeeper*'s face (bridge doors, gap gates, trial, shape people and enemies) plugs in the same way.
+        // The Bridgekeeper*'s face (gap gates, island screens, trial island, shape people and enemies) plugs in the same way.
         worldObject.AddComponent<MathFace>().Player = player.transform;
         // The Wildlands* (Stormcaller* gates, hazards, trial, dinosaurs and enemies) plugs in the same way.
         worldObject.AddComponent<EarthFace>().Player = player.transform;
@@ -238,8 +238,8 @@ public static class CubeSceneBuilder
                   $"({HiddenCurrencyPlacement.MinCount}-{HiddenCurrencyPlacement.MaxCount} per run, {HiddenCurrencyPlacement.Amount} each).\n";
         report += $"Timed doors: {doors} ({offHome} off-home), needing 1/2/3 boulders: {required[1]}/{required[2]}/{required[3]}; " +
                   $"{boulders} gate boulders; the Physics trial fits on {trials} seeds.\n";
-        int bridgeDoors = 0, gapGates = 0, offHomeGaps = 0, mathTrials = 0, brokenDoors = 0, brokenSeeds = 0;
-        var bridgeCounts = new SortedDictionary<int, int>();
+        int islandScreens = 0, islands = 0, planks = 0, brokenSpans = 0, lookouts = 0, gapGates = 0, offHomeGaps = 0, mathTrials = 0,
+            mathPickupsOnIslands = 0;
         foreach (SeedSweep.SeedResult r in results)
         {
             if (r.Placement == null) continue;
@@ -249,23 +249,31 @@ public static class CubeSceneBuilder
             if (plan == null) continue;
             foreach (MathGateSpec s in plan.Gates)
             {
-                if (s.Kind == MathGateKind.Gap)
-                {
-                    gapGates++;
-                    if (!s.OnHome) offHomeGaps++;
-                    continue;
-                }
-                bridgeDoors++;
-                if (s.Layout != null && s.Layout.HasBroken) brokenDoors++;
-                bridgeCounts.TryGetValue(s.Bridges, out int c);
-                bridgeCounts[s.Bridges] = c + 1;
+                gapGates++;
+                if (!s.OnHome) offHomeGaps++;
             }
-            if (plan.TrialLayout != null) mathTrials++;
-            if (plan.Gates.Any(g => g.Layout != null && g.Layout.HasBroken)) brokenSeeds++;
+            foreach (IslandScreenSpec s in plan.IslandScreens)
+            {
+                islandScreens++;
+                if (s.Layout == null) continue;
+                islands += s.Layout.Islands.Count;
+                planks += s.Layout.Bridges.Count;
+                brokenSpans += s.Layout.Bridges.Count(b => b.Broken);
+                int[] all = s.Layout.Components(true);
+                foreach (Facing side in new[] { Facing.North, Facing.East, Facing.South, Facing.West })
+                {
+                    int door = s.Layout.DoorIsland(side);
+                    if (door >= 0 && s.Layout.Bridges.Any(b => b.Joins(door)) &&
+                        s.Layout.DoorsReaching(door, true).Count == 1) lookouts++;
+                }
+            }
+            if (plan.HasTrial) mathTrials++;
+            if (r.Placement.TryGetPickup(Theme.Math, out PickupPlacement mathPickup) && plan.IsIslandScreen(mathPickup.Screen))
+                mathPickupsOnIslands++;
         }
-        report += $"Math: {bridgeDoors} bridge doors (bridges: {string.Join(", ", bridgeCounts.Select(e => $"{e.Key}x{e.Value}"))}; " +
-                  $"{brokenDoors} with a broken bridge, on {brokenSeeds} seeds), " +
-                  $"{gapGates} gap gates ({offHomeGaps} off-home); the Math trial fits on {mathTrials} seeds.\n";
+        report += $"Math: {islandScreens} island screens ({islands} islands, {planks} planks, {brokenSpans} broken spans, " +
+                  $"{lookouts} lone doorways with a lookout island); {gapGates} gap gates ({offHomeGaps} off-home); the Math trial " +
+                  $"island on {mathTrials} seeds; the gap-crosser* on an island on {mathPickupsOnIslands} seeds.\n";
         List<Phenomenon> wandKinds = StormcallerItem.VariantKinds(items);
         var rolledWands = new int[StormcallerItem.VariantCount];
         int earthGates = 0, offHomeEarth = 0, optionalEarth = 0, earthTrials = 0;

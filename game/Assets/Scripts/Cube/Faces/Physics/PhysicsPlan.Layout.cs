@@ -393,7 +393,7 @@ namespace Game.Cube
                             Add(chemistry.TrialScreen, "Chemistry trial piece", p, BiologyTrial.PieceBoundRadius);
                 }
 
-                // Math: every gap gate's front and every bridge layout (doors' and the trial's) on its screen.
+                // Math: every gap gate's front (island screens hold no Physics content: the island module has no slots).
                 MathPlan math = MathPlan.Create(model, placement, moduleAt, kinds, stoneKinds);
                 if (math != null)
                     foreach (KeyValuePair<ScreenAddress, List<ScreenMark>> e in math.ContentMarks())

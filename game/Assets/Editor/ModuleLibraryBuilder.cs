@@ -19,6 +19,8 @@ using UnityEngine;
 /// alcoves and the hidden-item slot.
 /// Walls (pillars, bars and alcove walls) are the ArtCatalog's stone-wall tile, repeated over their size and tinted
 /// with the face's Rubik's region colour (CubeWorld.ThemeColor), a coloured trim per region; each ruin piece is its shape's ruin art (see Assets/Art/ART-MAP.md).
+/// Math's pool also ends with its island module (1.25, "Math E Islands"): only its four exits, no obstacles, gates, hidden
+/// items or core entrances; CubeLayout gives it to Math's island screens and MathFace fills it with water and islands.
 /// Also works from the command line via -executeMethod ModuleLibraryBuilder.Build.
 /// </summary>
 public static class ModuleLibraryBuilder
@@ -74,7 +76,7 @@ public static class ModuleLibraryBuilder
             },
             Gates = new[] { new Vector2(4.9f, AlcoveOpeningY) },
             HiddenItem = new Vector2(6f, -3f),
-            CoreEntrances = new[] { new Vector2(-2.5f, -3.5f) },
+            CoreEntrances = new[] { new Vector2(-2.5f, -3.3f) }, // 1.25: was -3.5, whose portal ring met the edge wall and gate arch
         },
         new Design
         {
@@ -212,6 +214,7 @@ public static class ModuleLibraryBuilder
             for (int i = 0; i < Designs.Length; i++)
                 pool.Modules.Add(SaveModule(theme, $"{theme} {Designs[i].Name}", Designs[i], MirrorFor(theme, i), true,
                     sprite, material));
+            if (theme == Theme.Math) pool.Modules.Add(SaveIslandModule(theme));
             pools.Add(pool);
         }
 
@@ -339,6 +342,35 @@ public static class ModuleLibraryBuilder
 
             string folder = EnsureFolder(theme.ToString());
             string path = $"{folder}/{name}.prefab";
+            GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, path, out bool success);
+            if (!success || saved == null) throw new InvalidOperationException($"Failed to save {path}");
+            return saved.GetComponent<ScreenModule>();
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+
+    /// <summary>An island screen's module: only its four exits (the water, islands and planks come from MathFace at the reveal).</summary>
+    private static ScreenModule SaveIslandModule(Theme theme)
+    {
+        string name = $"{theme} E Islands";
+        var root = new GameObject(name);
+        try
+        {
+            ScreenModule module = root.AddComponent<ScreenModule>();
+            module.Theme = theme;
+            module.IsIslandScreen = true;
+            Transform slots = Child("Slots", root.transform, Vector2.zero);
+            Vector2 half = CubeWorld.ScreenSize / 2f;
+            foreach (Facing facing in new[] { Facing.North, Facing.East, Facing.South, Facing.West })
+            {
+                Vector2 dir = facing.ToVector();
+                Vector2 at = new Vector2(dir.x * (half.x - 0.5f), dir.y * (half.y - 0.5f));
+                Child($"Exit {facing}", slots, at).gameObject.AddComponent<ExitSlot>().Facing = facing;
+            }
+            string path = $"{EnsureFolder(theme.ToString())}/{name}.prefab";
             GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, path, out bool success);
             if (!success || saved == null) throw new InvalidOperationException($"Failed to save {path}");
             return saved.GetComponent<ScreenModule>();

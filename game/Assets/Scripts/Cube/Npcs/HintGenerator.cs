@@ -302,7 +302,7 @@ namespace Game.Cube
                         default: return "a heavy plated door";
                     }
                 case Theme.Physics: return "a swinging door";
-                case Theme.Math: return "a gap or a plank door";
+                case Theme.Math: return "a gap";
                 case Theme.EarthAtmosphere:
                     switch (StormcallerItem.VariantOrder[ItemVariants.Roll(seed, Theme.EarthAtmosphere, StormcallerItem.VariantCount)])
                     {
@@ -334,7 +334,7 @@ namespace Game.Cube
             yield return "a cracked wall";
             yield return "a heavy plated door";
             yield return "a swinging door";
-            yield return "a gap or a plank door";
+            yield return "a gap";
             yield return "a row of rock pillars";
             yield return "a wall of fire";
             yield return "a pool of water";
@@ -379,7 +379,6 @@ namespace Game.Cube
         public const string PlatedDoor = "a heavy plated door";
         public const string SwingingDoor = "a swinging door";
         public const string Gap = "a gap";
-        public const string PlankDoor = "a plank door";
         public const string Pillars = "a row of rock pillars";
         public const string FireWall = "a wall of fire";
         public const string Pool = "a pool of water";
@@ -387,7 +386,7 @@ namespace Game.Cube
 
         public static IEnumerable<string> All() => new[]
         {
-            Plain, Rock, Pot, ButtonDoor, Bramble, DarkDoorway, CrackedWall, PlatedDoor, SwingingDoor, Gap, PlankDoor, Pillars,
+            Plain, Rock, Pot, ButtonDoor, Bramble, DarkDoorway, CrackedWall, PlatedDoor, SwingingDoor, Gap, Pillars,
             FireWall, Pool, Debris,
         };
 

@@ -73,6 +73,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("mathPopulation", MathFace.PopulationRngStream),
             new KeyValuePair<string, ulong>("earthPlan", EarthPlan.RngStream),
             new KeyValuePair<string, ulong>("earthPopulation", EarthFace.PopulationRngStream),
+            new KeyValuePair<string, ulong>("islandScreens", CubeLayout.IslandRngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
