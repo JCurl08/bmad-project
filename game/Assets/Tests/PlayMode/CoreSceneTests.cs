@@ -301,7 +301,7 @@ namespace Game.Cube.Tests
                     Assert.IsTrue(Of(ArenaSide.Cool).All(p => p.Position.x > arena.MembraneX), "Cool on the other");
                     Assert.AreEqual(0f, arena.Meter, 1e-6f, "The meter starts at 0");
                     Assert.IsTrue(hud.MeterVisible);
-                    Assert.AreEqual("Order ↔ Mixing", CoreHud.MeterLabel);
+                    Assert.AreEqual("Order ↔ Entropy", CoreHud.MeterLabel);
                     Assert.IsInstanceOf<MixingPhase>(arena.CurrentPhase);
                     Assert.IsNull(hud.MessageText);
                 }
@@ -441,7 +441,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(runState.Victory);
             Assert.IsTrue(arena.Demon.Defeated, "The Demon is defeated");
             Assert.AreEqual(CoreHud.VictoryMessage, hud.MessageText);
-            StringAssert.Contains("The mix wins! The Partition cracks", hud.MessageText);
+            StringAssert.Contains("Entropy wins! The Partition cracks", hud.MessageText);
             Assert.AreEqual(1f, hud.MeterValue, 1e-6f);
             Assert.IsEmpty(arena.Pulses, "No pulses after the win");
             Assert.IsFalse(arena.ExitAvailable, "No exit once the fight is won (the run ends anyway)");

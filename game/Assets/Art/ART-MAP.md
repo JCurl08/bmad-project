@@ -11,6 +11,8 @@ its generated placeholder shape, so nothing renders invisible.
   it. A gate's art is one tile deep, set back into its alcove so its lane-side edge sits on the unchanged collider.
 - **Gates vs ruins:** no gate uses a tile of the ruin families (the Town arch pieces T 111-114, the Dungeon columns
   D 57-59), so a solid gate never reads as a walkable ruin (a test checks it).
+- **Decor never looks collectible (1.24):** decor (ruins, the fossil mound, floors, hazards) never uses a tile that reads
+  as a pickup: keys, coins, bags, chests, potions, flasks, gems, wands, tools or weapons (a test checks it).
 - **Hazards:** the Earth hazards (wind, snow, freezing rain, crevices) are their own category, tiled over their area like
   floors, drawn translucent over the floor so the ground still reads.
 - **Tints:** a tint separates variants (floor themes, enemy kinds, the arena halves, a gate's item colour), but every
@@ -20,6 +22,9 @@ its generated placeholder shape, so nothing renders invisible.
   (`ArtKeys.FloorTint`: tints only darken a tile, so the grey panels carry blue, the sand red, gold and
   orange, and Town's pale stone stays white; a test checks each floor against its walls, gates and items); walls and alcoves take a soft tint of it, Town's pillars and ruin pieces
   the colours of the other regions.
+- **Floor texture (1.24):** every region floor carries a light, fixed shading over its tiles (`FloorPattern`: soft
+  patches a few tiles across and the odd tile picked out, at most 10 % white or black, less on the Weightlands*), drawn
+  just above the floor. It is a hash of the theme, screen and tile, so it is the same every run and touches no RNG.
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches
   are drawn in full colour: a round fluffy body, a clear orange beak, big glinting eyes, blush and little orange feet), the water
@@ -36,7 +41,7 @@ its generated placeholder shape, so nothing renders invisible.
 | FloorTown | T 109 | plain pale stone: the white ruins town |
 | FloorBiology | T 1 | grass with tufts, a little greener: the green Greenwood* |
 | FloorChemistry | D 53 | plain sand, tinted deep red: the Ember Vale* |
-| FloorPhysics | T 76 | grey stone panels, tinted blue: the Weightlands* |
+| FloorPhysics | D 37 | fine metal deck plates, tinted blue: the Weightlands* (1.24: calmer than the stone panels T 76, whose dark notches and borders read as noise) |
 | FloorMath | D 48 | plain sand, tinted gold-yellow: Bridgelands* |
 | FloorEarth | D 49 | speckled sand, tinted orange: Wildlands* |
 | FloorDark | D 0 | dark dungeon floor for unrevealed and sealed faces |
@@ -90,7 +95,7 @@ its generated placeholder shape, so nothing renders invisible.
 | TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
 | Island | D 66 | rounded sandy pad: an island in a bridge layout (doors' and the Math trial's) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
-| Fossil | T 117 | a bone: the fossil a quake crevice lays bare |
+| Fossil | T 92 | a mound of dug-up earth where a quake crevice laid the ground bare (1.24: was the key tile, which read as a pickup) |
 | WindBand | D 62 | white diagonal streaks: a wind band (generated arrows show which way it blows) |
 | SnowPatch | T 121 | pale speckled ground, tinted white: a snow patch you slide on |
 | FreezingRain | T 77 | grey-blue slush, tinted icy blue: freezing rain that slows you (generated drops fall over it) |
@@ -101,7 +106,7 @@ its generated placeholder shape, so nothing renders invisible.
 | RuinPillar | D 58 | stone column |
 | RuinArch | T 114 | broken arch |
 | RuinStone | D 65 | standing stone |
-| RuinTile | D 61 | inlaid tile |
-| RuinBroken | D 64 | broken column |
+| RuinTile | T 122 | speckled flagstone slab (1.24: was a framed crate) |
+| RuinBroken | D 59 | broken column stub (1.24: was a mallet-shaped post) |
 
 Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per row in `Tilemap/tilemap_packed.png`).

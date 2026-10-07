@@ -204,6 +204,11 @@ namespace Game.Cube.Tests
             CollectionAssert.IsNotEmpty(InWorldText.Problems("Never sort the stones."), "The forbidden word");
             CollectionAssert.IsEmpty(InWorldText.Problems("Welcome to Town! The Partition split us. Ask the Old Digger*."));
             CollectionAssert.IsEmpty(InWorldText.Problems("They say the Greenwood* is right next door to town."));
+            // 1.24: "entropy" may be said (the user's call); scientists stay banned.
+            CollectionAssert.IsEmpty(InWorldText.Problems("Entropy wins! Everything mixes, and entropy always grows."), "Entropy is allowed");
+            CollectionAssert.IsEmpty(InWorldText.Problems(CoreHud.MeterLabel));
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("Maxwell built the Partition."), "Still a scientist");
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("ask newton about the mixing."), "Still a scientist");
             foreach (string name in InWorldText.Placeholders()) StringAssert.EndsWith("*", name);
             CollectionAssert.AreEquivalent(new[] { "Town", "Partition" }, InWorldText.ChosenNames);
         }
@@ -441,6 +446,20 @@ namespace Game.Cube.Tests
                 }
             }
             Assert.IsEmpty(failures, string.Join("\n", failures));
+        }
+
+        [Test]
+        public void WeightlandsGlaze_IsTheFloorTilesOwnAverage_SoItCalmsTheLinesWithoutChangingTheColour()
+        {
+            ArtCatalog art = AssetDatabase.LoadAssetAtPath<ArtCatalog>("Assets/Resources/ArtCatalog.asset");
+            Color tile = TileAverage(art, ArtKey.FloorPhysics);
+            Color recorded = FloorPattern.PhysicsTileAverage;
+            Assert.AreEqual(tile.r, recorded.r, 0.01f);
+            Assert.AreEqual(tile.g, recorded.g, 0.01f);
+            Assert.AreEqual(tile.b, recorded.b, 0.01f);
+            Assert.That(FloorPattern.GlazeAlpha(Theme.Physics), Is.InRange(0.3f, 0.7f));
+            foreach (Theme other in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Math, Theme.EarthAtmosphere })
+                Assert.AreEqual(0f, FloorPattern.GlazeAlpha(other), $"{other} has no glaze");
         }
 
         [Test]

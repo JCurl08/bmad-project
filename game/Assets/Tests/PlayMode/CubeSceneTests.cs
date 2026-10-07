@@ -129,6 +129,97 @@ namespace Game.Cube.Tests
             AssertLaidOut(model);
         }
 
+        /// <summary>
+        /// Two-way connections (1.24): from every edge screen of every face, walking off the edge with a key and then
+        /// straight back with the reverse key returns to the screen, face and edge the walk started on, rotated edges
+        /// included (the input frame keeps the keys' meaning across them).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EveryFaceEdge_CrossAndStraightBack_ReturnsToTheSameScreen()
+        {
+            yield return LoadCubeScene();
+            foreach (IFaceContent content in world.FaceContents)
+            {
+                if (content is BiologyFace b) b.SpawnEnemies = false;
+                if (content is ChemistryFace c) c.SpawnEnemies = false;
+                if (content is PhysicsFace p) p.SpawnEnemies = false;
+                if (content is EarthFace e) e.SpawnEnemies = false;
+                if (content is MathFace m) m.SpawnEnemies = false;
+            }
+            world.RevealScience();
+            navigator.GetComponent<PlayerStats>().MaxHealth = 999;
+            var body = navigator.GetComponent<Rigidbody2D>();
+            CubeModel model = world.Model;
+            int n = model.FaceSize;
+            var failures = new List<string>();
+            int tried = 0;
+            foreach (FaceId face in Enum.GetValues(typeof(FaceId)))
+            {
+                foreach (Facing direction in new[] { Facing.North, Facing.East, Facing.South, Facing.West })
+                {
+                    for (int i = 0; i < n; i++)
+                    {
+                        Vector2Int cell = direction == Facing.East ? new Vector2Int(n - 1, i)
+                            : direction == Facing.West ? new Vector2Int(0, i)
+                            : direction == Facing.North ? new Vector2Int(i, n - 1) : new Vector2Int(i, 0);
+                        var from = new ScreenAddress(face, cell);
+                        if (!model.TryStep(from, direction, out ScreenAddress expected, out Facing entry)) continue;
+
+                        // Start on the screen's centre lane, a little inside the edge.
+                        navigator.TeleportTo(from, direction);
+                        Vector2 half = CubeWorld.ScreenSize / 2f;
+                        Vector2 start = world.ScreenCenter(from) + Vector2.Scale(direction.ToVector(), half - Vector2.one * 1.2f);
+                        body.position = start;
+                        body.linearVelocity = Vector2.zero;
+                        navigator.transform.position = new Vector3(start.x, start.y, navigator.transform.position.z);
+                        yield return new WaitForFixedUpdate();
+                        yield return null;
+
+                        int crossings = navigator.Crossings;
+                        // Walk off the edge and keep the key held a moment after the crossing: it walks on into the new
+                        // face, never back out over the same edge.
+                        Press(KeyFor(keyboard, direction), queueEventOnly: true);
+                        yield return WaitUntilOrTimeout(() => navigator.Crossings > crossings, 3f);
+                        tried++;
+                        ScreenAddress arrived = navigator.Current;
+                        int afterCrossing = navigator.Crossings;
+                        float holdUntil = Time.realtimeSinceStartup + 0.25f;
+                        while (Time.realtimeSinceStartup < holdUntil) yield return null;
+                        Release(KeyFor(keyboard, direction), queueEventOnly: true);
+                        yield return null;
+                        if (afterCrossing == crossings)
+                        {
+                            failures.Add($"{from} {direction}: never crossed (stuck at {body.position})");
+                            continue;
+                        }
+                        if (arrived != expected) failures.Add($"{from} {direction}: arrived on {arrived}, model says {expected}");
+                        if (navigator.Crossings != afterCrossing || navigator.Face != expected.Face)
+                        {
+                            failures.Add($"{from} {direction} -> {arrived}: holding the key crossed again (now {navigator.Current})");
+                            continue;
+                        }
+
+                        // Straight back: the reverse of the key that crossed (on a rotated edge the input frame turns it
+                        // so it walks back over the same edge).
+                        crossings = navigator.Crossings;
+                        Facing back = direction.Opposite();
+                        yield return this.HoldUntil(KeyFor(keyboard, back), () => navigator.Crossings > crossings, 3f);
+                        yield return null;
+                        if (navigator.Crossings == crossings)
+                            failures.Add($"{from} {direction} -> {arrived}: walking back {back} never crossed (stuck at {body.position})");
+                        else if (navigator.Current != from)
+                            failures.Add($"{from} {direction} -> {arrived}, back {back} -> {navigator.Current}");
+                        else if (navigator.Facing != direction.Opposite())
+                            failures.Add($"{from} {direction} -> {arrived}, back: facing {navigator.Facing}, expected {direction.Opposite()}");
+                        else if (!navigator.InputFrame.IsNormal)
+                            failures.Add($"{from} {direction} -> {arrived} and back: the controls are still turned");
+                    }
+                }
+            }
+            Assert.AreEqual(6 * 4 * n, tried, "Every edge screen of every face was tried");
+            Assert.IsEmpty(failures, string.Join("; ", failures));
+        }
+
         /// <summary>Every built science screen has a module of its theme; one active core entrance per face; sealed faces are empty.</summary>
         private void AssertLaidOut(CubeModel model)
         {

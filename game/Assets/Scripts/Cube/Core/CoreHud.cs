@@ -3,14 +3,14 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The core fight's HUD (OnGUI placeholder): while the player is in the arena, an "Order ↔ Mixing" meter at the bottom
+    /// The core fight's HUD (OnGUI placeholder): while the player is in the arena, an "Order ↔ Entropy" meter at the bottom
     /// right (filled by the current phase's progress, with a mark at its goal) and the phase's name; once the fight ends, a
     /// campy victory or defeat banner above the centre (the combat HUD's death message sits at the centre).
     /// </summary>
     public class CoreHud : MonoBehaviour
     {
-        public const string MeterLabel = "Order ↔ Mixing";
-        public const string VictoryMessage = "The mix wins! The Partition cracks… everybody mingle!";
+        public const string MeterLabel = "Order ↔ Entropy";
+        public const string VictoryMessage = "Entropy wins! The Partition cracks… everybody mingle!";
         public const string DefeatMessage = "Order prevails… the " + InWorldText.Demon + " tidies you away. (For now.)";
 
         /// <summary>The exit door's hint, shown while the player can walk out of the arena.</summary>

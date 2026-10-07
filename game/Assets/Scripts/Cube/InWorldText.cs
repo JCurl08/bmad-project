@@ -136,7 +136,7 @@ namespace Game.Cube
             "atom", "nuclear", "neutron", "proton", "electron", "molecul", @"lab\b", "laborator",
             // Physics.
             "relativ", "gravit", "quantum", @"mass\b", "mc squared", "space-time", "spacetime", "photon", "lensing", "velocity",
-            "momentum", "thermodynamic", "entropy", "particle", "diffus",
+            "momentum", "thermodynamic", "particle", "diffus", // ("entropy" is allowed since 1.24: the user's call)
             // Math.
             "graph", "vertex", "vertices", @"edge", "theorem", "geometr", "polygon", "algebra", "calculus", "equation",
             // Earth and atmosphere.

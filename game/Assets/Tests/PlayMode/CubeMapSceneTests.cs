@@ -174,7 +174,7 @@ namespace Game.Cube.Tests
             }
 
             // Walk onto the next Town screen east.
-            var next = new ScreenAddress(start.Face, 1, 0);
+            var next = new ScreenAddress(start.Face, start.Cell + Vector2Int.right);
             Press(keyboard.dKey, queueEventOnly: true);
             yield return WaitUntilOrTimeout(() => navigator.Current == next, 10f);
             Release(keyboard.dKey, queueEventOnly: true);

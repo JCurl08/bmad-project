@@ -69,8 +69,18 @@ namespace Game.Cube
                 themeByFace[(int)ScienceFaces[i]] = sciences[i];
         }
 
-        /// <summary>The start screen: cell (0,0) on the Town face.</summary>
-        public ScreenAddress StartScreen => new ScreenAddress(StartFace, Vector2Int.zero);
+        /// <summary>The start screen: the centre cell of the Town face (1,1 at 3x3; see StartCell).</summary>
+        public ScreenAddress StartScreen => new ScreenAddress(StartFace, StartCell(FaceSize));
+
+        /// <summary>
+        /// The Town cell a run starts on: the face's centre (1,1 at 3x3, since 1.24), or the cell just below and left of the
+        /// centre on an even face (0,0 at 2x2).
+        /// </summary>
+        public static Vector2Int StartCell(int faceSize)
+        {
+            int c = Math.Max(0, (faceSize - 1) / 2);
+            return new Vector2Int(c, c);
+        }
 
         public Theme ThemeOf(FaceId face) => themeByFace[(int)face];
 

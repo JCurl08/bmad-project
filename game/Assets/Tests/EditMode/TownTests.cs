@@ -97,8 +97,10 @@ namespace Game.Cube.Tests
                     List<TownSpot> spots = SpotsFor(seed, faceSize, library);
                     Assert.AreEqual(count, spots.Count);
                     CollectionAssert.AreEqual(spots, SpotsFor(seed, faceSize, library), $"N={faceSize} seed {seed}: not deterministic");
-                    Assert.AreEqual(new ScreenAddress(CubeModel.StartFace, Vector2Int.zero), spots[0].Screen,
-                        $"N={faceSize} seed {seed}: the greeter stands on the start screen");
+                    var startScreen = new ScreenAddress(CubeModel.StartFace, CubeModel.StartCell(faceSize));
+                    Assert.AreEqual(startScreen, spots[0].Screen, $"N={faceSize} seed {seed}: the greeter stands on the start screen");
+                    Assert.GreaterOrEqual(spots.Count(sp => sp.Screen == startScreen), Mathf.Min(TownPlan.StartScreenNpcs, spots.Count),
+                        $"N={faceSize} seed {seed}: townsfolk stand round the start");
 
                     var footprints = new Dictionary<ScreenAddress, List<Rect>>();
                     for (int i = 0; i < spots.Count; i++)

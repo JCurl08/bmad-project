@@ -189,7 +189,7 @@ namespace Game.Cube
                 floorRoots[f] = NewChild("Floor", parent);
                 parent.name = $"Face {face} ({Model.ThemeOf(face)})";
                 Theme revealed = Model.ThemeOf(face);
-                BuildFloor(face, floorRoots[f], ArtKeys.Floor(revealed), ArtKeys.FloorTint(revealed), true);
+                BuildFloor(face, floorRoots[f], ArtKeys.Floor(revealed), ArtKeys.FloorTint(revealed), true, revealed);
                 BuildScienceModules(face);
             }
             PlaceItems();
@@ -276,7 +276,7 @@ namespace Game.Cube
 
             if (town)
             {
-                BuildFloor(face, floorRoots[f], ArtKeys.Floor(theme), ArtKeys.FloorTint(theme), true);
+                BuildFloor(face, floorRoots[f], ArtKeys.Floor(theme), ArtKeys.FloorTint(theme), true, theme);
                 BuildTownModules();
             }
             else
@@ -288,8 +288,11 @@ namespace Game.Cube
             BuildSealedWalls(face, root);
         }
 
-        /// <summary>A face's floor: its theme's floor art (tinted) over every screen, checkered so neighbouring screens differ.</summary>
-        private void BuildFloor(FaceId face, Transform parent, ArtKey art, Color baseColor, bool checkered)
+        /// <summary>
+        /// A face's floor: its theme's floor art (tinted) over every screen, checkered so neighbouring screens differ. A region
+        /// floor (pattern set) also gets its light, fixed texture (FloorPattern) just above it; dark floors stay plain.
+        /// </summary>
+        private void BuildFloor(FaceId face, Transform parent, ArtKey art, Color baseColor, bool checkered, Theme? pattern = null)
         {
             for (int y = 0; y < FaceSize; y++)
             {
@@ -298,9 +301,39 @@ namespace Game.Cube
                     var address = new ScreenAddress(face, x, y);
                     // Checkerboard shading so neighbouring screens are distinguishable.
                     Color color = !checkered || ((x + y) & 1) == 0 ? baseColor : Color.Lerp(baseColor, Color.black, 0.15f);
-                    CreateBlock($"Screen {x},{y}", parent, ScreenCenter(address), ScreenSize * 0.98f, color, -10, false, art);
+                    GameObject block = CreateBlock($"Screen {x},{y}", parent, ScreenCenter(address), ScreenSize * FloorPattern.FloorFraction, color, -10, false, art);
+                    if (pattern.HasValue) AddFloorPattern(block.transform, pattern.Value, address, color);
                 }
             }
+        }
+
+        /// <summary>
+        /// The floor texture over one screen (exactly the floor block, a one-unit texel on each floor tile, so it never
+        /// shows in the gap between screens and never straddles two tiles), and the Weightlands* glaze under it.
+        /// </summary>
+        private void AddFloorPattern(Transform block, Theme theme, ScreenAddress address, Color blockColor)
+        {
+            // The floor's own sorting order, a hair nearer the camera: over the floor tiles, under everything else (layout
+            // water at -9 included).
+            if (FloorPattern.GlazeAlpha(theme) > 0f)
+            {
+                var glaze = new GameObject("Floor Glaze");
+                glaze.transform.SetParent(block, false);
+                glaze.transform.localPosition = new Vector3(0f, 0f, -0.005f);
+                glaze.transform.localScale = new Vector3(ScreenSize.x * FloorPattern.FloorFraction, ScreenSize.y * FloorPattern.FloorFraction, 1f);
+                var glazeRenderer = glaze.AddComponent<SpriteRenderer>();
+                glazeRenderer.sprite = ArtCatalog.Shape(PartShape.Square);
+                if (material != null) glazeRenderer.sharedMaterial = material;
+                glazeRenderer.color = FloorPattern.Glaze(theme, blockColor);
+                glazeRenderer.sortingOrder = -10;
+            }
+            var go = new GameObject("Floor Pattern");
+            go.transform.SetParent(block, false);
+            go.transform.localPosition = new Vector3(0f, 0f, -0.01f);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = FloorPattern.For(theme, address);
+            if (material != null) renderer.sharedMaterial = material;
+            renderer.sortingOrder = -10;
         }
 
         private void BuildTownModules()

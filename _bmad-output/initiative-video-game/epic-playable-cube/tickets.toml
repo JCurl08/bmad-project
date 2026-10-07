@@ -249,12 +249,23 @@ hitl = false
 risk = "low"
 
 [[entry]]
+id = 24
+type = "story"
+title = "Playtest 2 quick fixes"
+description = "Fast fixes from the second playtest: screens that don't connect both ways, start screen in the middle of the Town face, 'entropy' allowed in text, more floor texture with a calmer blue face, no decor that looks collectible, and Math bridges over real gaps with broken spans for the gap-crosser."
+verify = "Every screen edge leads back where it came from on seeds 1-50; the run starts on Town's centre screen; floors and decor pass a by-eye check; Math bridges cross water or crevices; all tests and the 50-seed sweep pass."
+covers = []
+after = [23]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 14
 type = "story"
 title = "First itch.io release and full-run check"
 description = "Runs the seed sweep and full playtests against the epic's Done when and republishes the WebGL build to the itch.io page from entry 1."
 verify = "Three or more seeds play from town to boss with no softlock, visiting all five science faces of the 3x3 cube, using the map, and leaving the arena on foot at least once; on the itch.io page in a fresh browser a full run ends, upgrades are bought, and they still apply in the next run after a tab reload."
 covers = ["CAP-12"]
-after = [23]
+after = [24]
 hitl = true
 risk = "medium"

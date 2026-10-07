@@ -12,15 +12,25 @@ namespace Game.Cube
     /// faces are unrevealed reveals (lays out) them before the player is moved.
     /// While the player is outside the cube (in the core arena, via EnterCoreArena) edge crossing is off; any teleport onto a
     /// screen (a new run, a debug jump) turns it back on.
+    /// It is also the player's move-input frame (EdgeInputFrame): after a crossing over an edge the flat world draws
+    /// rotated, the held keys keep walking the same way and the reverse key walks straight back, until the player lets go
+    /// or moves on. The frame resets on a teleport, when the map pauses the game, and when the mover stops feeding it.
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
-    public class CubeNavigator : MonoBehaviour
+    public class CubeNavigator : MonoBehaviour, IMoveInputFrame
     {
         [SerializeField] private CubeWorld world;
         [Tooltip("How far inside the entry edge the player is placed after crossing (world units).")]
         [SerializeField, Min(0.05f)] private float entryInset = 0.75f;
 
         private Rigidbody2D body;
+        private readonly EdgeInputFrame inputFrame = new EdgeInputFrame();
+
+        /// <summary>The move-input frame (normal controls except just after a crossing over a rotated edge).</summary>
+        public EdgeInputFrame InputFrame => inputFrame;
+
+        /// <summary>IMoveInputFrame: the raw move input turned by the input frame (read by PlayerMover every physics step).</summary>
+        public Vector2 MapMoveInput(Vector2 raw) => inputFrame.Map(raw, Time.fixedTime);
 
         public CubeWorld World
         {
@@ -56,12 +66,15 @@ namespace Game.Cube
         private void OnEnable()
         {
             if (world != null) world.Rebuilt += OnWorldRebuilt;
+            GamePause.Paused += inputFrame.Reset;
             StartCoroutine(AfterPhysicsLoop());
         }
 
         private void OnDisable()
         {
             if (world != null) world.Rebuilt -= OnWorldRebuilt;
+            GamePause.Paused -= inputFrame.Reset;
+            inputFrame.Reset();
             if (restoreInterpolationIn > 0) RestoreInterpolation();
         }
 
@@ -99,6 +112,7 @@ namespace Game.Cube
         public void TeleportTo(ScreenAddress address, Facing facing)
         {
             RevealIfArriving(address.Face);
+            inputFrame.Reset();
             InCoreArena = false;
             Face = address.Face;
             Facing = facing;
@@ -113,6 +127,7 @@ namespace Game.Cube
         public void EnterCoreArena(Vector2 position)
         {
             InCoreArena = true;
+            inputFrame.Reset();
             SetPosition(position);
         }
 
@@ -168,6 +183,7 @@ namespace Game.Cube
             float newT = CubeModel.MapAlongEdge(Face, direction, t, out _, out _);
             Face = next.Face;
             Facing = newFacing;
+            inputFrame.OnCrossing(direction, newFacing);
             Crossings++;
             SetPosition(world.FaceOrigin(Face) + EntryPoint(newFacing, newT, extent));
         }

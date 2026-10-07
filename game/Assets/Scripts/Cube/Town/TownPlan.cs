@@ -182,9 +182,12 @@ namespace Game.Cube
             return list;
         }
 
+        /// <summary>How many Town NPCs (the greeter first) stand on the start screen, round the player's start (1.24).</summary>
+        public const int StartScreenNpcs = 4;
+
         /// <summary>
-        /// Spots for count NPCs on the Town face (index 0, the greeter, prefers the start screen; the rest go
-        /// round the other screens in a seeded order). Each pick is a seeded choice among the screen's valid,
+        /// Spots for count NPCs on the Town face (the first StartScreenNpcs, the greeter first, prefer the start screen
+        /// (the Town centre), round the player; the rest go round the other screens in a seeded order). Each pick is a seeded choice among the screen's valid,
         /// still-free candidates; accept (optional, e.g. a physics check) can veto a pick, and the next one is
         /// tried. When a screen has nothing left the next screen is tried; an NPC that fits nowhere gets an
         /// unfound spot, never an invalid one.
@@ -194,13 +197,14 @@ namespace Game.Cube
         {
             var rng = new SeededRng(((ulong)(uint)seed << 32) | 0x5350u, RngStream);
 
-            var screens = new List<ScreenAddress>();
-            var start = new ScreenAddress(CubeModel.StartFace, Vector2Int.zero);
+            var others = new List<ScreenAddress>();
+            var start = new ScreenAddress(CubeModel.StartFace, CubeModel.StartCell(faceSize));
             for (int y = 0; y < faceSize; y++)
                 for (int x = 0; x < faceSize; x++)
-                    if (x != 0 || y != 0) screens.Add(new ScreenAddress(CubeModel.StartFace, x, y));
-            rng.Shuffle(screens);
-            screens.Insert(0, start);
+                    if (new Vector2Int(x, y) != start.Cell) others.Add(new ScreenAddress(CubeModel.StartFace, x, y));
+            rng.Shuffle(others);
+            var screens = new List<ScreenAddress> { start };
+            screens.AddRange(others);
 
             var candidates = new Dictionary<ScreenAddress, List<Vector2>>();
             var taken = new Dictionary<ScreenAddress, List<Rect>>();
@@ -214,9 +218,11 @@ namespace Game.Cube
             for (int i = 0; i < count; i++)
             {
                 TownSpot spot = default;
+                // The first StartScreenNpcs stand round the start; the rest go round the other screens.
+                int first = i < StartScreenNpcs || others.Count == 0 ? 0 : 1 + (i - StartScreenNpcs) % others.Count;
                 for (int k = 0; k < screens.Count && !spot.Found; k++)
                 {
-                    ScreenAddress screen = screens[(i + k) % screens.Count];
+                    ScreenAddress screen = screens[(first + k) % screens.Count];
                     var free = new List<Vector2>();
                     foreach (Vector2 c in candidates[screen])
                         if (!OverlapsAny(Footprint(c, Spacing / 2f), taken[screen])) free.Add(c);

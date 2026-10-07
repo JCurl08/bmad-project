@@ -55,9 +55,13 @@ namespace Game.Cube
     /// walked crossing every bridge exactly once; its bridge count is the difficulty parameter, scaled by the Math face's
     /// gate count (BridgesFor). The trial is a bigger layout (TrialBridges, more than any door's) on the first Math screen,
     /// in a seeded order, where it fits.
-    /// Layouts keep off both centre lanes (so lane content of every face stays clear), clear of walls and alcoves, of
-    /// other faces' interactables (Biology buttons and flowers, Chemistry plates, open pickups, hidden-item and
-    /// core-entrance slots) and of each other. FindProblems checks all of it for the seed sweep, solvability first.
+    /// Layouts keep their islands off both centre lanes (so lane content of every face stays clear), clear of walls and
+    /// alcoves, of other faces' interactables (Biology buttons and flowers, Chemistry plates, open pickups, hidden-item and
+    /// core-entrance slots) and of each other. Since 1.24 a layout spans one half of its screen (north or south of the
+    /// east-west lane): real islands on a wide lattice, and its long bridges may cross the north-south lane straight over
+    /// it (planks are floor decoration, so the lane stays walkable). One door's layout per run, and others by a seeded
+    /// coin, has a broken bridge: a one-square gap that only the gap-crosser* spans, so that door also needs the item.
+    /// FindProblems checks all of it for the seed sweep, solvability first.
     /// Uses its own SeededRng stream; each layout draws from that stream with its screen and slot in the seed.
     /// </summary>
     public sealed class MathPlan
@@ -106,7 +110,13 @@ namespace Game.Cube
         public const float LaneClearY = ScreenModule.ExitLaneHalfWidth + BridgeLayout.OnIslandRadius + LaneMargin;
 
         /// <summary>Island centres keep within these bounds (the islands stay on the screen, clear of its edges).</summary>
-        public const float MaxX = 7.3f, MaxY = 4.35f;
+        public const float MaxX = 7.3f, MaxY = 4.4f;
+
+        /// <summary>Distance between a layout's two rows of islands (the roomy and the compact lattice).</summary>
+        public const float RowSpacing = 2.1f, CompactRowSpacing = 1.9f;
+
+        /// <summary>The last-resort lattice (both ways): still most of a square of water between two shores.</summary>
+        public const float TightSpacing = 1.85f;
 
         /// <summary>
         /// Island centres keep this far from the vertical centre line, the same way: a walk through the screen along either
@@ -330,6 +340,28 @@ namespace Game.Cube
                 Placed(s.Screen).Add(layout);
             }
 
+            // Broken bridges: the first door that can have one always does, the others by a seeded coin.
+            bool anyBroken = false;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                MathGateSpec s = specs[i];
+                if (s.Kind != MathGateKind.BridgeDoor || s.Layout == null) continue;
+                var eligible = new List<int>();
+                for (int b = 0; b < s.Layout.BridgeCount; b++)
+                {
+                    // Not a bridge over the north-south lane: its gap would sit in the lane.
+                    s.Layout.Ends(b, out Vector2 e0, out Vector2 e1);
+                    if (s.Layout.CanBreak(b) && Mathf.Sign(e0.x) == Mathf.Sign(e1.x)) eligible.Add(b);
+                }
+                if (eligible.Count == 0) continue;
+                var brokenRng = new SeededRng(ScreenSeed(model.Seed, s.Screen, s.Slot + 40), RngStream);
+                bool breakIt = !anyBroken || brokenRng.NextInt(2) == 0;
+                int pick = eligible[brokenRng.NextInt(eligible.Count)];
+                if (!breakIt) continue;
+                specs[i] = s.WithLayout(s.Layout.WithBroken(pick));
+                anyBroken = true;
+            }
+
             ScreenAddress trialScreen = trialOrder[0];
             BridgeLayout trial = null;
             foreach (ScreenAddress t in trialOrder)
@@ -364,10 +396,12 @@ namespace Game.Cube
 
         /// <summary>
         /// A layout grown on a screen where it fits: a lattice (the roomy spacing first, then the compact one) laid over one
-        /// quadrant of the screen (off both exit lanes) at a seeded offset, its free spots (islands clear of walls, alcoves,
-        /// interactables and other layouts) and free links (planks clear the same way) kept, and a seeded trail of exactly
-        /// bridgeCount links walked over them (BridgeLayout.GenerateOn), so the layout bends round whatever stands in the
-        /// quadrant. The door's quadrant is tried first. FitProblems has the last word. Null when it fits nowhere.
+        /// half of the screen (north or south of the east-west lane; islands off both exit lanes, three columns each side
+        /// of the north-south lane, two rows) at a seeded offset, its free spots (islands clear of walls, alcoves,
+        /// interactables and other layouts) and free links (planks clear the same way; the links between the two innermost
+        /// columns cross the north-south lane) kept, and a seeded trail of exactly bridgeCount links walked over them
+        /// (BridgeLayout.GenerateOn), so the layout bends round whatever stands in the half. The door's half is tried
+        /// first. FitProblems has the last word. Null when it fits nowhere.
         /// </summary>
         private static BridgeLayout Place(int bridgeCount, SeededRng rng, ScreenModule module, List<ScreenMark> screenMarks,
             List<BridgeLayout> placed, Vector2? door)
@@ -377,31 +411,39 @@ namespace Game.Cube
             foreach (BridgeLayout o in placed) placedSamples.Add(o.BridgeSamples(SampleStep));
 
             var anchors = new List<(int order, int sx, int sy, float spacing, float ox, float oy)>();
-            float[] spacings = { BridgeLayout.Spacing, BridgeLayout.CompactSpacing };
+            // Roomy first, then compact, then (a crowded screen's last resort, mostly for the trial on small faces) tight.
+            float[] spacings = { BridgeLayout.Spacing, BridgeLayout.CompactSpacing, TightSpacing };
+            float[] rows = { RowSpacing, CompactRowSpacing, TightSpacing };
             for (int k = 0; k < spacings.Length; k++)
-                foreach (int sx in new[] { 1, -1 })
-                    foreach (int sy in new[] { 1, -1 })
-                    {
-                        bool doorSide = door.HasValue && Mathf.Sign(door.Value.x) == sx && Mathf.Sign(door.Value.y) == sy;
-                        for (float ox = 0f; ox < spacings[k] - 1e-4f; ox += GridStep)
-                            for (float oy = 0f; oy < spacings[k] - 1e-4f; oy += GridStep)
-                                anchors.Add((k * 2 + (doorSide ? 0 : 1), sx, sy, spacings[k], ox, oy));
-                    }
+                foreach (int sy in new[] { 1, -1 })
+                {
+                    bool doorSide = door.HasValue && Mathf.Sign(door.Value.y) == sy;
+                    for (float ox = 0f; ox <= MaxX - LaneClearX - 2f * spacings[k] + 1e-4f; ox += GridStep)
+                        for (float oy = 0f; oy <= MaxY - LaneClearY - rows[k] + 1e-4f; oy += GridStep)
+                            anchors.Add((k * 2 + (doorSide ? 0 : 1), 0, sy, k, ox, oy));
+                }
             rng.Shuffle(anchors);
             anchors = StableByOrder(anchors);
 
             foreach (var a in anchors)
             {
+                float spacing = spacings[(int)a.spacing], row = rows[(int)a.spacing];
                 var points = new List<Vector2>();
+                // Lattice coordinates: column c in -3..-1 (west) and 0..2 (east), row j in 0..1.
                 var index = new Dictionary<Vector2Int, int>();
-                for (int i = 0; LaneClearX + a.ox + i * a.spacing <= MaxX + 1e-4f; i++)
-                    for (int j = 0; LaneClearY + a.oy + j * a.spacing <= MaxY + 1e-4f; j++)
+                for (int c = -3; c <= 2; c++)
+                {
+                    int i = c >= 0 ? c : -1 - c;
+                    float sx = c >= 0 ? 1f : -1f;
+                    for (int j = 0; j < 2; j++)
                     {
-                        var p = new Vector2(a.sx * (LaneClearX + a.ox + i * a.spacing), a.sy * (LaneClearY + a.oy + j * a.spacing));
+                        var p = new Vector2(sx * (LaneClearX + a.ox + i * spacing), a.sy * (LaneClearY + a.oy + j * row));
+                        if (Mathf.Abs(p.x) > MaxX + 1e-4f || Mathf.Abs(p.y) > MaxY + 1e-4f) continue;
                         if (!SpotClear(p, blocked, screenMarks, placed)) continue;
-                        index[new Vector2Int(i, j)] = points.Count;
+                        index[new Vector2Int(c, j)] = points.Count;
                         points.Add(p);
                     }
+                }
                 var links = new List<Vector2Int>();
                 foreach (KeyValuePair<Vector2Int, int> e in index)
                     foreach (Vector2Int step in new[] { Vector2Int.right, Vector2Int.up })
@@ -476,13 +518,24 @@ namespace Game.Cube
                 if (Mathf.Abs(p.x) < LaneClearX - 1e-4f) problems.Add($"island at {p} is in the north-south lane");
                 if (firstOnly && problems.Count > 0) return problems;
             }
-            foreach (Vector2 p in layout.BridgeSamples(SampleStep))
-                if (Mathf.Abs(p.x) < BridgeLaneClear - 1e-4f || Mathf.Abs(p.y) < BridgeLaneClear - 1e-4f)
+            for (int b = 0; b < layout.BridgeCount; b++)
+            {
+                // Planks never touch the east-west lane, and cross the north-south lane only straight over it.
+                layout.Ends(b, out Vector2 e0, out Vector2 e1);
+                bool straightOver = Mathf.Abs(e0.y - e1.y) < 1e-4f && Mathf.Sign(e0.x) != Mathf.Sign(e1.x) &&
+                                    Mathf.Abs(e0.x) >= LaneClearX - 1e-4f && Mathf.Abs(e1.x) >= LaneClearX - 1e-4f;
+                int n = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(e0, e1) / SampleStep));
+                for (int k = 0; k <= n; k++)
                 {
+                    Vector2 p = Vector2.Lerp(e0, e1, k / (float)n);
+                    bool inEastWest = Mathf.Abs(p.y) < BridgeLaneClear - 1e-4f;
+                    bool inNorthSouth = Mathf.Abs(p.x) < BridgeLaneClear - 1e-4f;
+                    if (!inEastWest && (!inNorthSouth || straightOver)) continue;
                     problems.Add($"a bridge at {p} runs into an exit lane");
-                    if (firstOnly) return problems;
                     break;
                 }
+                if (firstOnly && problems.Count > 0) return problems;
+            }
             if (blocked == null) blocked = new List<Rect>();
             // Walls: the player (TimeField.PlayerRadius) walks the islands and bridges.
             float walk = TimeField.PlayerRadius + WallMargin;
@@ -614,10 +667,11 @@ namespace Game.Cube
         /// (when another face is built); with two or more Math gates on Math, at least one gap gate and one bridge door
         /// there; difficulty is the Math face's gate count and each door has BridgesFor it; the trial is on Math. With
         /// moduleAt, the layouts too: each bridge door's and the trial's exist, are solvable from their flag (an Eulerian
-        /// path from the entry), have the right size (the trial bigger than any door), and fit their screen. Last, the
-        /// collection of every item with Math's real gates (bridge doors open by walking a solvable layout, gap gates need
-        /// the gap-crosser*): nothing required sits behind an unsolvable door or a gap gate before the gap-crosser* is
-        /// reachable. Empty when all is well (or when Math is not an item).
+        /// path from the entry), have the right size (the trial bigger than any door), fit their screen, and only doors
+        /// have broken bridges (each long enough for its gap). Last, the collection of every item with Math's real gates
+        /// (bridge doors open by walking a solvable layout, after the gap-crosser* when a bridge is broken; gap gates need
+        /// the gap-crosser*): nothing required sits behind an unsolvable door, or behind a gap or a broken bridge before the
+        /// gap-crosser* is reachable. Empty when all is well (or when Math is not an item).
         /// </summary>
         public static List<string> FindProblems(CubeModel model, ItemPlacement placement, Func<ScreenAddress, ScreenModule> moduleAt = null,
             IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null)
@@ -679,6 +733,7 @@ namespace Game.Cube
                 else
                 {
                     problems.AddRange(TrialLayout.Problems($"the trial on {TrialScreen}"));
+                    if (TrialLayout.HasBroken) problems.Add("the trial has a broken bridge (only doors do)");
                     if (TrialLayout.BridgeCount <= MaxDoorBridges)
                         problems.Add($"the trial has {TrialLayout.BridgeCount} bridges, no more than a door's {MaxDoorBridges}");
                     foreach (string p in FitProblems(TrialLayout, TownPlan.BlockedRects(moduleAt(TrialScreen)), MarksOn(TrialScreen), LayoutsOn(TrialScreen)))
@@ -714,7 +769,9 @@ namespace Game.Cube
             if (!TryGetGate(gate.Screen, gate.Slot, out MathGateSpec spec)) return false;
             if (spec.Kind == MathGateKind.Gap) return held.Contains(Theme.Math);
             if (!HasLayout) return true; // no positions known: the door is assumed laid out
-            return spec.Layout != null && spec.Layout.HasWalkFrom(spec.Layout.Entry);
+            // A broken bridge needs the gap-crosser* before the layout can be walked.
+            return spec.Layout != null && spec.Layout.HasWalkFrom(spec.Layout.Entry) &&
+                   (!spec.Layout.HasBroken || held.Contains(Theme.Math));
         }
     }
 }

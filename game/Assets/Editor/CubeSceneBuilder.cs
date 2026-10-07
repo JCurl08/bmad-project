@@ -60,7 +60,7 @@ public static class CubeSceneBuilder
             ItemCatalogBuilder.LoadOrBuild());
 
         // Player at the centre of the Town start screen (face Front sits at the world origin).
-        Vector2 start = ScreenMath.ScreenCenter(Vector2Int.zero);
+        Vector2 start = ScreenMath.ScreenCenter(CubeModel.StartCell(CubeSettings.DefaultFaceSize));
         var player = new GameObject("Player");
         player.transform.position = start;
         var visual = new GameObject("Visual");
@@ -238,7 +238,7 @@ public static class CubeSceneBuilder
                   $"({HiddenCurrencyPlacement.MinCount}-{HiddenCurrencyPlacement.MaxCount} per run, {HiddenCurrencyPlacement.Amount} each).\n";
         report += $"Timed doors: {doors} ({offHome} off-home), needing 1/2/3 boulders: {required[1]}/{required[2]}/{required[3]}; " +
                   $"{boulders} gate boulders; the Physics trial fits on {trials} seeds.\n";
-        int bridgeDoors = 0, gapGates = 0, offHomeGaps = 0, mathTrials = 0;
+        int bridgeDoors = 0, gapGates = 0, offHomeGaps = 0, mathTrials = 0, brokenDoors = 0, brokenSeeds = 0;
         var bridgeCounts = new SortedDictionary<int, int>();
         foreach (SeedSweep.SeedResult r in results)
         {
@@ -256,12 +256,15 @@ public static class CubeSceneBuilder
                     continue;
                 }
                 bridgeDoors++;
+                if (s.Layout != null && s.Layout.HasBroken) brokenDoors++;
                 bridgeCounts.TryGetValue(s.Bridges, out int c);
                 bridgeCounts[s.Bridges] = c + 1;
             }
             if (plan.TrialLayout != null) mathTrials++;
+            if (plan.Gates.Any(g => g.Layout != null && g.Layout.HasBroken)) brokenSeeds++;
         }
-        report += $"Math: {bridgeDoors} bridge doors (bridges: {string.Join(", ", bridgeCounts.Select(e => $"{e.Key}x{e.Value}"))}), " +
+        report += $"Math: {bridgeDoors} bridge doors (bridges: {string.Join(", ", bridgeCounts.Select(e => $"{e.Key}x{e.Value}"))}; " +
+                  $"{brokenDoors} with a broken bridge, on {brokenSeeds} seeds), " +
                   $"{gapGates} gap gates ({offHomeGaps} off-home); the Math trial fits on {mathTrials} seeds.\n";
         List<Phenomenon> wandKinds = StormcallerItem.VariantKinds(items);
         var rolledWands = new int[StormcallerItem.VariantCount];

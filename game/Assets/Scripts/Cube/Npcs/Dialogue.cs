@@ -277,7 +277,7 @@ namespace Game.Cube
 
         /// <summary>How the gap-crosser* works, as the shape people tell it (true for every run: the mechanics).</summary>
         public const string GapCrosserLine =
-            "A gap in front of a door? Swing the " + GapCrosserItem.Name + " at it and it lays a crossing right over. One gap at a time, mind.";
+            "A gap in front of a door, or in a broken plank? Swing the " + GapCrosserItem.Name + " at it and it lays a crossing right over. One gap at a time, mind.";
 
         /// <summary>
         /// Lines the terrestrial dinosaurs of the Earth face say about their patron, the Old Digger* (one per dinosaur, picked

@@ -91,6 +91,8 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(CubeModel.StartFace, m.StartScreen.Face, $"seed {seed}");
                 Assert.IsTrue(m.IsInside(m.StartScreen.Cell));
                 Assert.IsFalse(m.IsSealed(m.StartScreen.Face));
+                // 1.24: the run starts on Town's centre screen (1,1 at 3x3; 0,0 at 2x2, which has no centre cell).
+                Assert.AreEqual(n == 3 ? new Vector2Int(1, 1) : Vector2Int.zero, m.StartScreen.Cell, $"seed {seed}");
 
                 CollectionAssert.AreEquivalent(Enum.GetValues(typeof(Theme)), Faces.Select(m.ThemeOf),
                     $"seed {seed}: each theme must appear exactly once");
@@ -218,6 +220,155 @@ namespace Game.Cube.Tests
                 ScreenAddress again = CubeModel.Step(n, back, backFacing.Opposite(), out Facing againFacing);
                 Assert.AreEqual(next, again);
                 Assert.AreEqual(facing, againFacing);
+            }
+        }
+
+        /// <summary>
+        /// One step with a raw key through the input frame, as the runtime does: the frame turns the key into the face's
+        /// direction (one physics step later in game time), and a step that leaves the face tells the frame about the crossing.
+        /// </summary>
+        private static ScreenAddress KeyStep(int n, EdgeInputFrame frame, ScreenAddress from, Facing key, ref float now)
+        {
+            now += 0.02f;
+            Facing walk = FacingOf(frame.Map(key.ToVector(), now));
+            ScreenAddress next = CubeModel.Step(n, from, walk, out Facing facing);
+            if (next.Face != from.Face) frame.OnCrossing(walk, facing);
+            return next;
+        }
+
+        private static Facing FacingOf(Vector2 v) => Facings.First(f => Vector2.Dot(f.ToVector(), v) > 0.9f);
+
+        [Test]
+        public void KeyRoundTrip_EveryScreenAndKey_ReverseKeyReturnsToTheSameScreen([ValueSource(nameof(FaceSizes))] int n)
+        {
+            // 1.24 "screens don't connect in both directions": every screen and every key, within a face and over every
+            // edge (straight, quarter-turned and half-turned): a step with a key and an immediate step with the reverse
+            // key returns to the same screen, and the controls are back to normal there.
+            int rotatedEdges = 0;
+            float now = 0f;
+            foreach (ScreenAddress from in new CubeModel(1, n).AllScreens())
+            {
+                foreach (Facing key in Facings)
+                {
+                    var frame = new EdgeInputFrame();
+                    ScreenAddress next = KeyStep(n, frame, from, key, ref now);
+                    if (!frame.IsNormal) rotatedEdges++;
+                    ScreenAddress back = KeyStep(n, frame, next, key.Opposite(), ref now);
+                    Assert.AreEqual(from, back, $"{from} key {key} -> {next}, reverse key -> {back}");
+                    Assert.IsTrue(frame.IsNormal, $"{from} key {key}: the controls are normal again after coming back");
+                }
+            }
+            // Right, Left, Top and Bottom have two quarter-turned edges each; Back-Top and Back-Bottom are half-turned.
+            Assert.AreEqual(12 * n, rotatedEdges, "8 quarter-turned and 4 half-turned edge exits, n screens each");
+        }
+
+        [Test]
+        public void KeyHeld_AcrossEveryEdge_KeepsWalkingIntoTheNewFace([ValueSource(nameof(FaceSizes))] int n)
+        {
+            // Holding the key that crossed an edge walks on into the new face, never straight back out of the same edge
+            // (on a half-turned edge, Back to Top, the held key used to bounce the player between the two faces).
+            float now = 0f;
+            foreach (var (from, dir) in EdgeExits(n))
+            {
+                var frame = new EdgeInputFrame();
+                ScreenAddress next = KeyStep(n, frame, from, dir, ref now);
+                CubeModel.Step(n, from, dir, out Facing entry);
+                now += 0.02f;
+                Assert.AreEqual(entry.ToVector(), Vector2Int.RoundToInt(frame.Map(dir.ToVector(), now)),
+                    $"{from} {dir}: the held key walks on in the entry facing");
+                if (n > 1)
+                {
+                    ScreenAddress further = KeyStep(n, frame, next, dir, ref now);
+                    Assert.AreEqual(next.Face, further.Face, $"{from} {dir}: holding the key left {next.Face} again");
+                }
+            }
+        }
+
+        /// <summary>A frame just after holding keys over the half-turned north edge of Back onto Top (two quarter turns).</summary>
+        private static EdgeInputFrame OverBackToTop(Vector2 held, float now)
+        {
+            var frame = new EdgeInputFrame();
+            frame.Map(held, now);
+            CubeModel.Step(3, new ScreenAddress(FaceId.Back, 1, 2), Facing.North, out Facing entry);
+            frame.OnCrossing(Facing.North, entry);
+            Assert.AreEqual(2, frame.QuarterTurns);
+            return frame;
+        }
+
+        private static void AssertNear(Vector2 expected, Vector2 actual, string message = "") =>
+            Assert.Less(Vector2.Distance(expected, actual), 1e-4f, $"{message}: expected {expected}, was {actual}");
+
+        [Test]
+        public void InputFrame_HeldKeysKeepTheTurnUntilReleased_TheReverseKeyLeadsBack_AndItEndsAfterARest()
+        {
+            const float dt = 0.02f;
+            Vector2 upRight = new Vector2(1f, 1f).normalized;
+
+            // Up held across: it keeps walking into Top (south), not back over the edge.
+            EdgeInputFrame frame = OverBackToTop(Vector2.up, 0f);
+            AssertNear(Vector2.down, frame.Map(Vector2.up, dt));
+
+            // Review case 1: Up+Right held across, then Up let go: the still-held Right keeps its turn (no flip).
+            frame = OverBackToTop(upRight, 0f);
+            AssertNear(-upRight, frame.Map(upRight, dt), "the diagonal keeps walking the same way");
+            AssertNear(Vector2.left, frame.Map(Vector2.right, 2 * dt), "Right, still held, keeps the turn");
+
+            // Review case 2: Up held, a sidestep Left pressed and let go, Up held throughout: Up never walks back over the edge.
+            frame = OverBackToTop(Vector2.up, 0f);
+            Vector2 sidestep = frame.Map(new Vector2(-1f, 1f).normalized, dt);
+            Assert.Less(sidestep.y, 0f, "Up keeps walking south during the sidestep");
+            Assert.Less(sidestep.x, 0f, "the fresh Left walks as drawn");
+            AssertNear(Vector2.down, frame.Map(Vector2.up, 2 * dt), "Up after the sidestep: still south, no bounce");
+
+            // Let go, then the reverse key (Down) within the grace: it walks straight back (north on Top, over the edge).
+            frame = OverBackToTop(Vector2.up, 0f);
+            AssertNear(Vector2.zero, frame.Map(Vector2.zero, dt));
+            AssertNear(Vector2.up, frame.Map(Vector2.down, EdgeInputFrame.ReleaseGrace * 0.5f));
+            Assert.IsFalse(frame.IsNormal);
+
+            // Let go for longer than the grace: normal controls.
+            frame = OverBackToTop(Vector2.up, 0f);
+            frame.Map(Vector2.zero, dt);
+            frame.Map(Vector2.zero, dt + 0.3f);
+            frame.Map(Vector2.zero, dt + EdgeInputFrame.ReleaseGrace + 0.01f);
+            Assert.IsTrue(frame.IsNormal, "released past the grace");
+            AssertNear(Vector2.up, frame.Map(Vector2.up, 1f));
+
+            // Let go, then a fresh key that is not the way back: the player has moved on, normal controls.
+            frame = OverBackToTop(Vector2.up, 0f);
+            frame.Map(Vector2.zero, dt);
+            AssertNear(Vector2.right, frame.Map(Vector2.right, 2 * dt));
+            Assert.IsTrue(frame.IsNormal);
+
+            // A teleport resets it.
+            frame = OverBackToTop(Vector2.up, 0f);
+            frame.Reset();
+            Assert.IsTrue(frame.IsNormal);
+        }
+
+        [Test]
+        public void InputFrame_EndsWhenTheMoverStopsFeedingIt_OrTheMapPausesTheGame()
+        {
+            // The mover frozen or disabled (no Map calls) for longer than the grace, even with the key held throughout.
+            EdgeInputFrame frame = OverBackToTop(Vector2.up, 0f);
+            AssertNear(Vector2.down, frame.Map(Vector2.up, 0.02f));
+            AssertNear(Vector2.up, frame.Map(Vector2.up, 0.02f + EdgeInputFrame.ReleaseGrace + 0.1f), "back to normal after the gap");
+            Assert.IsTrue(frame.IsNormal);
+
+            // The map pausing the game raises GamePause.Paused, which the navigator resets its frame on.
+            frame = OverBackToTop(Vector2.up, 0f);
+            GamePause.Paused += frame.Reset;
+            float scale = Time.timeScale;
+            try
+            {
+                GamePause.Pause();
+                Assert.IsTrue(frame.IsNormal, "the map opening resets the turned controls");
+            }
+            finally
+            {
+                GamePause.Resume();
+                GamePause.Paused -= frame.Reset;
+                Time.timeScale = scale;
             }
         }
 

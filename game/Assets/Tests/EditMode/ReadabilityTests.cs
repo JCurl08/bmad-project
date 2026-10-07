@@ -86,6 +86,78 @@ namespace Game.Cube.Tests
             ArtKey.GateRockPillars, ArtKey.GateFireWall, ArtKey.GateWater, ArtKey.GateDebris,
         };
 
+        /// <summary>
+        /// Tiles that read as something to pick up (1.24: "some things look like objects but cannot be collected"): the
+        /// Tiny Town key, coin, bags, beehive, tools and weapons; the Tiny Dungeon chests, crate-like boxes, ring, shield,
+        /// swords, potions, flasks, hammers, axes, anvil, ladder, wands and spears.
+        /// </summary>
+        private static readonly HashSet<string> ItemLookingTiles = new HashSet<string>(
+            new[] { 93, 94, 107, 115, 116, 117, 118, 119, 127, 128, 129, 130, 131 }.Select(t => $"Tiny Town/tile_{t:0000}")
+                .Concat(new[] { 54, 55, 61, 64, 68, 74, 89, 90, 91, 92, 101, 103, 104, 105, 106, 107, 113, 114, 115, 116, 117, 118, 119,
+                    125, 126, 127, 128, 129, 130, 131 }.Select(t => $"Tiny Dungeon/tile_{t:0000}")));
+
+        [Test]
+        public void DecorTiles_NeverLookLikeSomethingToPickUp()
+        {
+            Dictionary<ArtKey, string> tiles = Catalog().Entries.ToDictionary(e => e.Key, e => e.Tile);
+            var decor = ArtKeys.All.Where(k =>
+            {
+                ArtCategory c = ArtKeys.CategoryOf(k);
+                // Decor, and every non-pickup object that stays put in the world: gates, switches, lamps, portals, particles.
+                return c == ArtCategory.Ruin || c == ArtCategory.Floor || c == ArtCategory.Hazard || c == ArtCategory.Wall ||
+                       c == ArtCategory.Gate || k == ArtKey.Fossil || k == ArtKey.Island || k == ArtKey.GoalPad ||
+                       k == ArtKey.TrialLamp || k == ArtKey.Particle || k == ArtKey.DoorSwitch || k == ArtKey.Portal;
+            }).ToList();
+            Assert.That(decor, Has.Member(ArtKey.Fossil).And.Member(ArtKey.RuinTile).And.Member(ArtKey.RuinBroken)
+                .And.Member(ArtKey.TrialLamp).And.Member(ArtKey.Particle).And.Member(ArtKey.DoorSwitch).And.Member(ArtKey.Portal)
+                .And.Member(ArtKey.GateGeneric).And.Member(ArtKey.PlankBridge).And.Member(ArtKey.GateDebris));
+            foreach (ArtKey key in decor)
+                Assert.IsFalse(ItemLookingTiles.Contains(tiles[key]), $"{key} uses an item-looking tile ({tiles[key]})");
+            // And the real pickups do use them (the list is about what reads as collectible).
+            Assert.IsTrue(ItemLookingTiles.Contains(tiles[ArtKey.Jumbles]));
+            Assert.IsTrue(ItemLookingTiles.Contains(tiles[ArtKey.ItemGlowstone]));
+        }
+
+        [Test]
+        public void FloorPattern_IsLight_Fixed_AndVaried_AndCalmestOnTheWeightlands()
+        {
+            var model = new CubeModel(1);
+            foreach (Theme theme in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere })
+            {
+                float max = 0f;
+                var shades = new HashSet<float>();
+                foreach (ScreenAddress screen in model.AllScreens())
+                {
+                    for (int y = 0; y < 10; y++)
+                    {
+                        for (int x = 0; x < 16; x++)
+                        {
+                            float s = FloorPattern.Shade(theme, screen, new Vector2Int(x, y));
+                            Assert.AreEqual(s, FloorPattern.Shade(theme, screen, new Vector2Int(x, y)), "The same every time");
+                            max = Mathf.Max(max, Mathf.Abs(s));
+                            shades.Add(Mathf.Round(s * 1000f));
+                        }
+                    }
+                }
+                Assert.LessOrEqual(max, FloorPattern.MaxShade * FloorPattern.Strength(theme) + 1e-6f, $"{theme}: low contrast");
+                Assert.LessOrEqual(FloorPattern.MaxShade, 0.1f + 1e-6f, "At most a tenth of white or black over a floor");
+                Assert.Greater(max, 0.5f * FloorPattern.MaxShade * FloorPattern.Strength(theme), $"{theme}: some texture shows");
+                Assert.Greater(shades.Count, 20, $"{theme}: the tiles vary");
+            }
+            Assert.Less(FloorPattern.Strength(Theme.Physics), FloorPattern.Strength(Theme.Biology), "The Weightlands* floor is the calmest");
+            // The overlay covers exactly the floor block (FloorFraction of the screen), one texel per unit from its
+            // bottom-left corner, where the floor's tiles start: every texel sits on one tile.
+            Sprite sprite = FloorPattern.For(Theme.Math, new ScreenAddress(FaceId.Top, 0, 0));
+            Assert.AreEqual(1f, sprite.pixelsPerUnit);
+            Assert.AreEqual(Vector2.zero, sprite.rect.position);
+            Assert.AreEqual((Vector2)(CubeWorld.ScreenSize * FloorPattern.FloorFraction), (Vector2)sprite.bounds.size);
+            Assert.AreEqual(new Vector2(16, 10), new Vector2(sprite.texture.width, sprite.texture.height));
+            // Two screens of a face differ.
+            Assert.AreNotEqual(
+                Enumerable.Range(0, 160).Select(i => FloorPattern.Shade(Theme.Math, new ScreenAddress(FaceId.Top, 0, 0), new Vector2Int(i % 16, i / 16))).ToList(),
+                Enumerable.Range(0, 160).Select(i => FloorPattern.Shade(Theme.Math, new ScreenAddress(FaceId.Top, 1, 0), new Vector2Int(i % 16, i / 16))).ToList());
+        }
+
         [Test]
         public void GateTiles_AreNotFromTheRuinFamilies_SoAGateNeverReadsAsAWalkableRuin()
         {

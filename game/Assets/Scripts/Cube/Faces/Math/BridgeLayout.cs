@@ -13,20 +13,29 @@ namespace Game.Cube
     /// bridges) and that it is well formed (no repeated or crossing bridges, islands apart, no island without a bridge).
     /// Generate makes one on a lattice by walking a seeded trail of unused lattice links from a random start, so it is
     /// solvable by construction; the validator still checks it independently.
+    /// Since 1.24 the islands are real, separate land pads with water between them and the bridges are long enough to read
+    /// as bridges (Spacing). A bridge can be broken (Broken): a gap of BrokenGap (one floor square) in the middle of its
+    /// plank, which only counts once the gap-crosser* has spanned it (BridgeWalk.Mend).
     /// </summary>
     public sealed class BridgeLayout
     {
-        /// <summary>Distance between neighbouring lattice islands.</summary>
-        public const float Spacing = 1.4f;
+        /// <summary>Distance between neighbouring lattice islands (so 1.3 of water between two islands' shores).</summary>
+        public const float Spacing = 2.4f;
 
         /// <summary>The tighter lattice a layout falls back to on a crowded screen.</summary>
-        public const float CompactSpacing = 1.2f;
+        public const float CompactSpacing = 2.0f;
 
         /// <summary>Drawn island radius.</summary>
-        public const float IslandRadius = 0.42f;
+        public const float IslandRadius = 0.55f;
 
         /// <summary>The player's centre within this distance of an island's centre stands on it.</summary>
-        public const float OnIslandRadius = 0.5f;
+        public const float OnIslandRadius = 0.6f;
+
+        /// <summary>The gap in a broken bridge: one floor square, what the gap-crosser* spans.</summary>
+        public const float BrokenGap = 0.9f;
+
+        /// <summary>Plank left on each side of a broken bridge's gap, at least.</summary>
+        public const float MinPlankEnd = 0.2f;
 
         /// <summary>Drawn plank width.</summary>
         public const float BridgeWidth = 0.42f;
@@ -39,6 +48,7 @@ namespace Game.Cube
 
         private readonly Vector2[] islands;
         private readonly Vector2Int[] bridges;
+        private readonly int[] broken;
 
         public IReadOnlyList<Vector2> Islands => islands;
 
@@ -56,8 +66,43 @@ namespace Game.Cube
                 list.Add(b.x <= b.y ? b : new Vector2Int(b.y, b.x));
             list.Sort((a, b) => a.x != b.x ? a.x.CompareTo(b.x) : a.y.CompareTo(b.y));
             bridges = list.ToArray();
+            broken = Array.Empty<int>();
             Entry = entry;
         }
+
+        private BridgeLayout(Vector2[] islands, Vector2Int[] bridges, int entry, int[] broken)
+        {
+            this.islands = islands;
+            this.bridges = bridges;
+            this.broken = broken;
+            Entry = entry;
+        }
+
+        /// <summary>The broken bridges (indices into Bridges), in order.</summary>
+        public IReadOnlyList<int> Broken => broken;
+
+        public bool HasBroken => broken.Length > 0;
+
+        public bool IsBroken(int bridge) => Array.IndexOf(broken, bridge) >= 0;
+
+        /// <summary>The same layout with one more bridge broken (a gap the gap-crosser* spans in the middle of its plank).</summary>
+        public BridgeLayout WithBroken(int bridge)
+        {
+            if (IsBroken(bridge)) return this;
+            var list = new List<int>(broken) { bridge };
+            list.Sort();
+            return new BridgeLayout(islands, bridges, Entry, list.ToArray());
+        }
+
+        /// <summary>The open water a bridge spans: its length between the two islands' shores.</summary>
+        public float Span(int bridge)
+        {
+            Ends(bridge, out Vector2 a, out Vector2 b);
+            return Vector2.Distance(a, b) - 2f * IslandRadius;
+        }
+
+        /// <summary>True when a bridge is long enough to break: its gap and a little plank on both sides fit over its water.</summary>
+        public bool CanBreak(int bridge) => Span(bridge) >= BrokenGap + 2f * MinPlankEnd - 1e-4f;
 
         public int BridgeCount => bridges.Length;
 
@@ -66,7 +111,7 @@ namespace Game.Cube
         {
             var moved = new Vector2[islands.Length];
             for (int i = 0; i < islands.Length; i++) moved[i] = islands[i] + offset;
-            return new BridgeLayout(moved, bridges, Entry);
+            return new BridgeLayout(moved, bridges, Entry, broken);
         }
 
         /// <summary>The bridge's ends.</summary>
@@ -286,6 +331,11 @@ namespace Game.Cube
                     if (SegmentsCross(a, b, c, d)) problems.Add($"{what}: bridges {i} and {j} cross");
                 }
             }
+            foreach (int b in broken)
+            {
+                if (b < 0 || b >= bridges.Length) problems.Add($"{what}: broken bridge {b} does not exist");
+                else if (!CanBreak(b)) problems.Add($"{what}: broken bridge {b} is too short for its gap");
+            }
             if (!HasWalkFrom(Entry)) problems.Add($"{what}: no walk from the flag crosses every bridge exactly once");
             return problems;
         }
@@ -420,10 +470,16 @@ namespace Game.Cube
             foreach (Vector2 p in islands) sb.Append(' ').Append(p.ToString("0.00"));
             sb.Append(" bridges");
             foreach (Vector2Int b in bridges) sb.Append(' ').Append(b.x).Append('-').Append(b.y);
+            if (broken.Length > 0)
+            {
+                sb.Append(" broken");
+                foreach (int b in broken) sb.Append(' ').Append(b);
+            }
             return sb.ToString();
         }
 
-        public override string ToString() => $"{islands.Length} islands, {bridges.Length} bridges, entry {Entry}";
+        public override string ToString() =>
+            $"{islands.Length} islands, {bridges.Length} bridges{(broken.Length > 0 ? $" ({broken.Length} broken)" : "")}, entry {Entry}";
     }
 
     /// <summary>
@@ -434,14 +490,16 @@ namespace Game.Cube
     /// without walking a bridge to it (cutting across the water: no sample on a joining bridge's span) resets them too
     /// (OffTrail; silent while no bridge has been crossed yet, since there is nothing to reset). After
     /// a reset the walk starts again from the entry (at once, if the player is standing on it). Stepping into the water
-    /// on its own does nothing.
+    /// on its own does nothing. A broken bridge (BridgeLayout.Broken) does not count until it is mended (Mend, when the
+    /// gap-crosser* spans its gap): reaching the far island over it resets every bridge (Broken), like cutting across.
     /// </summary>
     public sealed class BridgeWalk
     {
-        public enum Result { None, Started, Crossed, Solved, CrossedTwice, OffTrail }
+        public enum Result { None, Started, Crossed, Solved, CrossedTwice, OffTrail, Broken }
 
         private readonly BridgeLayout layout;
         private readonly bool[] crossed;
+        private readonly bool[] mended;
         private int lastIsland = -1;
         private int via = -1;
         private Vector2? previous;
@@ -456,6 +514,18 @@ namespace Game.Cube
         {
             this.layout = layout ?? throw new ArgumentNullException(nameof(layout));
             crossed = new bool[layout.BridgeCount];
+            mended = new bool[layout.BridgeCount];
+        }
+
+        /// <summary>True while a bridge is broken and not yet mended.</summary>
+        public bool IsGap(int bridge) => layout.IsBroken(bridge) && !mended[bridge];
+
+        /// <summary>Mends a broken bridge (the gap-crosser* spans its gap); it counts from now on. False if it was no gap.</summary>
+        public bool Mend(int bridge)
+        {
+            if (!IsGap(bridge)) return false;
+            mended[bridge] = true;
+            return true;
         }
 
         public BridgeLayout Layout => layout;
@@ -545,6 +615,11 @@ namespace Game.Cube
             }
             if (bridge >= 0)
             {
+                if (IsGap(bridge))
+                {
+                    Restart(island);
+                    return Result.Broken;
+                }
                 if (crossed[bridge])
                 {
                     Restart(island);

@@ -276,6 +276,102 @@ namespace Game.Cube.Tests
             return (from + to) / 2f + normal * 0.6f;
         }
 
+        [Test]
+        public void Walk_ABrokenBridge_CountsOnlyOnceMended_AndReachingAcrossItResets()
+        {
+            BridgeLayout whole = BridgeLayout.Generate(MathPlan.DoorCols, MathPlan.DoorRows, 6, new SeededRng(11UL, MathPlan.RngStream));
+            List<int> path = whole.Solve();
+            int first = whole.BridgeBetween(path[0], path[1]);
+            Assert.IsTrue(whole.CanBreak(first), "A lattice bridge has room for a one-square gap");
+            BridgeLayout layout = whole.WithBroken(first);
+            Assert.IsTrue(layout.IsBroken(first));
+            Assert.IsEmpty(layout.Problems("broken"));
+            StringAssert.Contains("broken", layout.Signature());
+
+            // Over the gap before it is mended: the far island does not count, the walk resets.
+            var walk = new BridgeWalk(layout);
+            Assert.AreEqual(BridgeWalk.Result.Started, walk.Observe(layout.Islands[path[0]]));
+            var results = Steps(layout, path[0], path[1]).Select(walk.Observe).ToList();
+            CollectionAssert.Contains(results, BridgeWalk.Result.Broken);
+            Assert.AreEqual(0, walk.CrossedCount);
+            Assert.IsFalse(walk.Crossed(first));
+
+            // Mended (the gap-crosser* spans it), the same walk solves it.
+            Assert.IsTrue(walk.Mend(first));
+            Assert.IsFalse(walk.Mend(first), "Mended once");
+            Assert.IsFalse(walk.Mend(layout.BridgeBetween(path[1], path[2])), "A whole bridge needs no mending");
+            walk.Reset();
+            walk.Observe(layout.Islands[path[0]]);
+            for (int k = 0; k + 1 < path.Count; k++)
+                foreach (Vector2 p in Steps(layout, path[k], path[k + 1])) walk.Observe(p);
+            Assert.IsTrue(walk.IsSolved);
+
+            // A bridge too short for its gap is a problem.
+            var shortLayout = new BridgeLayout(new[] { Vector2.zero, new Vector2(1.5f, 0f) }, new[] { new Vector2Int(0, 1) }, 0);
+            Assert.IsFalse(shortLayout.CanBreak(0));
+            Assert.IsTrue(shortLayout.WithBroken(0).Problems("short").Any(p => p.Contains("too short")));
+        }
+
+        [Test]
+        public void Layouts_AreRealIslandsWithWaterBetween_SpacedApart_AndSomeDoorsHaveABrokenBridge()
+        {
+            ModuleLibrary library = Library();
+            ItemCatalog catalog = Catalog();
+            int seedsWithBroken = 0;
+            for (int seed = 1; seed <= Seeds; seed++)
+            {
+                MathPlan plan = Plan(seed, library, catalog, out _, out _, out _);
+                var layouts = plan.Gates.Where(g => g.Layout != null).Select(g => g.Layout).Append(plan.TrialLayout).ToList();
+                foreach (BridgeLayout layout in layouts)
+                {
+                    // Islands stand apart: open water of at least a square between any two shores, and every bridge spans
+                    // visible water.
+                    for (int i = 0; i < layout.Islands.Count; i++)
+                        for (int j = i + 1; j < layout.Islands.Count; j++)
+                            Assert.GreaterOrEqual(Vector2.Distance(layout.Islands[i], layout.Islands[j]) - 2f * BridgeLayout.IslandRadius, 0.74f,
+                                $"seed {seed}: islands {i} and {j} too close");
+                    for (int b = 0; b < layout.BridgeCount; b++)
+                        Assert.GreaterOrEqual(layout.Span(b), 0.74f, $"seed {seed}: bridge {b} spans too little water");
+                }
+                Assert.IsFalse(plan.TrialLayout.HasBroken, "The trial has no broken bridge");
+                List<MathGateSpec> doors = plan.Gates.Where(g => g.Kind == MathGateKind.BridgeDoor && g.Layout != null).ToList();
+                foreach (MathGateSpec door in doors)
+                    foreach (int b in door.Layout.Broken)
+                    {
+                        Assert.IsTrue(door.Layout.CanBreak(b), $"seed {seed}: {door}");
+                        door.Layout.Ends(b, out Vector2 e0, out Vector2 e1);
+                        Assert.AreEqual(Mathf.Sign(e0.x), Mathf.Sign(e1.x), $"seed {seed}: {door}: a broken bridge over the lane");
+                    }
+                if (doors.Any(d => d.Layout.HasBroken)) seedsWithBroken++;
+            }
+            Assert.GreaterOrEqual(seedsWithBroken, Seeds * 4 / 5, "Most runs have a broken bridge for the gap-crosser*");
+        }
+
+        [Test]
+        public void SweepRules_ADoorWithABrokenBridge_NeedsTheGapCrosser()
+        {
+            ModuleLibrary library = Library();
+            ItemCatalog catalog = Catalog();
+            for (int seed = 1; seed <= Seeds; seed++)
+            {
+                MathPlan plan = Plan(seed, library, catalog, out CubeModel model, out ItemPlacement placement, out _);
+                int door = plan.Gates.ToList().FindIndex(g => g.Kind == MathGateKind.BridgeDoor && g.Layout != null && g.Layout.HasBroken);
+                if (door < 0) continue;
+                MathGateSpec spec = plan.Gates[door];
+                // Put the gap-crosser* itself behind the broken door: it can never be had, a softlock.
+                var guarded = new ItemPlacement(seed, placement.Gates, placement.Pickups
+                    .Select(p => p.Item == Theme.Math ? new PickupPlacement(Theme.Math, spec.Screen, spec.Slot) : p).ToList());
+                List<string> problems = plan.Problems(model, guarded);
+                Assert.IsTrue(problems.Any(p => p.Contains("softlock") && p.Contains("Math")), string.Join("; ", problems));
+                // The same door mended in advance (no broken bridge) opens by walking alone.
+                MathGateSpec whole = spec.WithLayout(new BridgeLayout(spec.Layout.Islands, spec.Layout.Bridges, spec.Layout.Entry));
+                problems = plan.WithGate(door, whole).Problems(model, guarded);
+                Assert.IsFalse(problems.Any(p => p.Contains("softlock") && p.Contains("Math")), string.Join("; ", problems));
+                return;
+            }
+            Assert.Fail("No seed has a broken bridge");
+        }
+
         // ---------- Plan ----------
 
         [Test]
@@ -441,9 +537,19 @@ namespace Game.Cube.Tests
                         Assert.GreaterOrEqual(Mathf.Abs(p.y) - BridgeLayout.OnIslandRadius, ScreenModule.ExitLaneHalfWidth, $"seed {seed}: an island in the east-west lane");
                         Assert.GreaterOrEqual(Mathf.Abs(p.x) - BridgeLayout.OnIslandRadius, ScreenModule.ExitLaneHalfWidth, $"seed {seed}: an island in the north-south lane");
                     }
-                    foreach (Vector2 p in layout.BridgeSamples(0.1f))
-                        Assert.IsTrue(Mathf.Abs(p.x) - BridgeLayout.OnBridgeHalfWidth >= ScreenModule.ExitLaneHalfWidth &&
-                                      Mathf.Abs(p.y) - BridgeLayout.OnBridgeHalfWidth >= ScreenModule.ExitLaneHalfWidth, $"seed {seed}: a bridge in a lane");
+                    for (int b = 0; b < layout.BridgeCount; b++)
+                    {
+                        // Planks keep off the east-west lane; they cross the north-south lane only straight over it.
+                        layout.Ends(b, out Vector2 e0, out Vector2 e1);
+                        bool straightOver = Mathf.Approximately(e0.y, e1.y) && Mathf.Sign(e0.x) != Mathf.Sign(e1.x);
+                        for (int k = 0; k <= 40; k++)
+                        {
+                            Vector2 p = Vector2.Lerp(e0, e1, k / 40f);
+                            Assert.GreaterOrEqual(Mathf.Abs(p.y) - BridgeLayout.OnBridgeHalfWidth, ScreenModule.ExitLaneHalfWidth, $"seed {seed}: a bridge in the east-west lane");
+                            if (!straightOver)
+                                Assert.GreaterOrEqual(Mathf.Abs(p.x) - BridgeLayout.OnBridgeHalfWidth, ScreenModule.ExitLaneHalfWidth, $"seed {seed}: a bridge along the north-south lane");
+                        }
+                    }
                     List<string> fit = MathPlan.FitProblems(layout, TownPlan.BlockedRects(moduleAt(screen)), plan.MarksOn(screen),
                         plan.LayoutsOn(screen));
                     Assert.IsEmpty(fit, $"seed {seed} {screen}: {string.Join("; ", fit)}");

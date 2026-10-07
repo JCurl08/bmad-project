@@ -144,20 +144,46 @@ namespace Game.Cube.Tests
             yield return StartRunOntoMath(2);
             MathPlan plan = math.Plan;
 
-            // Every bridge door, by walking its layout with the real player.
+            ItemDefinition crosser = world.ItemFor(Theme.Math);
+            Assert.AreEqual(GapCrosserItem.Id, crosser.Id);
+
+            // Every bridge door, by walking its layout with the real player. A door with a broken bridge first: walked
+            // without mending, the walk resets at the gap and the door stays shut; the gap-crosser* swung at the gap lays
+            // the plank, and then the walk opens it.
+            Assert.IsTrue(math.Doors.Any(d => d.Puzzle.Gaps.Count > 0), "Seed 2 has a broken bridge");
             foreach (BridgeDoorGate door in math.Doors)
             {
                 MathGateSpec spec = plan.Gates.First(g => g.Layout == door.Puzzle.Layout);
                 Assert.IsFalse(door.IsOpen);
+                if (door.Puzzle.Gaps.Count > 0)
+                {
+                    yield return WalkSolution(spec.Screen, door.Puzzle);
+                    Assert.IsFalse(door.Puzzle.IsSolved, $"{spec}: not over a gap");
+                    Assert.IsFalse(door.IsOpen);
+                    if (!inventory.Has(crosser)) inventory.Add(crosser);
+                    navigator.GetComponent<Equipment>().Equip(crosser);
+                    foreach (BrokenSpan gap in door.Puzzle.Gaps)
+                    {
+                        door.Puzzle.Layout.Ends(gap.Bridge, out Vector2 a, out Vector2 b);
+                        Vector2 along = (b - a).normalized;
+                        Facing toward = new[] { Facing.North, Facing.East, Facing.South, Facing.West }
+                            .First(f => Vector2.Dot(f.ToVector(), along) > 0.9f);
+                        yield return this.TapThroughPhysics(KeyFor(keyboard, toward));
+                        yield return new WaitForSeconds(attack.Cooldown + 0.02f);
+                        yield return PutPlayerAt(spec.Screen, (Vector2)gap.transform.position - along * 0.9f);
+                        Assert.GreaterOrEqual(attack.TryAttack(), 0, "The swing happened");
+                        yield return null;
+                        Assert.IsTrue(gap.IsMended, $"{spec}: the gap-crosser* spans the gap");
+                    }
+                    navigator.GetComponent<Equipment>().Equip(null);
+                }
                 yield return WalkSolution(spec.Screen, door.Puzzle);
                 Assert.IsTrue(door.Puzzle.IsSolved, $"{spec}: walked");
                 Assert.IsTrue(door.IsOpen, $"{spec}: the door opens");
             }
 
             // Every gap gate (the off-face one included), by swinging the gap-crosser* at it.
-            ItemDefinition crosser = world.ItemFor(Theme.Math);
-            Assert.AreEqual(GapCrosserItem.Id, crosser.Id);
-            inventory.Add(crosser);
+            if (!inventory.Has(crosser)) inventory.Add(crosser);
             navigator.GetComponent<Equipment>().Equip(crosser);
             foreach (MathGateSpec spec in plan.Gates.Where(g => g.Kind == MathGateKind.Gap))
             {
@@ -197,6 +223,13 @@ namespace Game.Cube.Tests
             int popups = PickupPopup.Active.Count(x => x != null &&
                 (x.Text == BridgePuzzle.CrossedTwiceText || x.Text == BridgePuzzle.OffTrailText));
             Vector2 centre = world.ScreenCenter(screen);
+
+            // No water channel is drawn in the north-south exit lane (a plank may cross it; the lane stays plain floor).
+            foreach (BridgePuzzle p in puzzles)
+                foreach (SpriteRenderer r in p.GetComponentsInChildren<SpriteRenderer>().Where(r => r.name.StartsWith("Channel")))
+                    Assert.IsFalse(r.bounds.min.x < centre.x + ScreenModule.ExitLaneHalfWidth - 0.01f &&
+                                   r.bounds.max.x > centre.x - ScreenModule.ExitLaneHalfWidth + 0.01f,
+                        $"{r.name} cuts the north-south lane");
 
             // North to south down the middle, then west to east across it, as a player passing through would.
             var route = new List<Vector2>();

@@ -50,7 +50,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.FloorTown, Town, 109, "plain pale stone: the white ruins town"),
         new Pick(ArtKey.FloorBiology, Town, 1, "grass with tufts, a little greener: the green Greenwood*"),
         new Pick(ArtKey.FloorChemistry, Dungeon, 53, "plain sand, tinted deep red: the Ember Vale*"),
-        new Pick(ArtKey.FloorPhysics, Town, 76, "grey stone panels, tinted blue: the Weightlands*"),
+        new Pick(ArtKey.FloorPhysics, Dungeon, 37, "fine metal deck plates, tinted blue: the Weightlands* (calmer than the old stone panels)"),
         new Pick(ArtKey.FloorMath, Dungeon, 48, "plain sand, tinted gold-yellow: Bridgelands*"),
         new Pick(ArtKey.FloorEarth, Dungeon, 49, "speckled sand, tinted orange: Wildlands*"),
         new Pick(ArtKey.FloorDark, Dungeon, 0, "dark dungeon floor for unrevealed and sealed faces"),
@@ -108,7 +108,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.TrialLamp, Dungeon, 29, "flame banner: a lamp to light"),
         new Pick(ArtKey.Island, Dungeon, 66, "rounded sandy pad: an island in a bridge layout"),
         new Pick(ArtKey.GoalPad, Dungeon, 60, "corner brackets: a target zone for boulders"),
-        new Pick(ArtKey.Fossil, Town, 117, "a bone: the fossil a quake crevice lays bare"),
+        new Pick(ArtKey.Fossil, Town, 92, "a mound of dug-up earth: where a quake crevice laid the ground bare (not the key tile, which read as a pickup)"),
 
         new Pick(ArtKey.WindBand, Dungeon, 62, "white diagonal streaks: a wind band (arrows show which way it blows)"),
         new Pick(ArtKey.SnowPatch, Town, 121, "pale speckled ground, tinted white: a snow patch you slide on"),
@@ -122,8 +122,8 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.RuinPillar, Dungeon, 58, "stone column"),
         new Pick(ArtKey.RuinArch, Town, 114, "broken arch"),
         new Pick(ArtKey.RuinStone, Dungeon, 65, "standing stone"),
-        new Pick(ArtKey.RuinTile, Dungeon, 61, "inlaid tile"),
-        new Pick(ArtKey.RuinBroken, Dungeon, 64, "broken column"),
+        new Pick(ArtKey.RuinTile, Town, 122, "speckled flagstone slab (not the framed crate, which read as a pickup)"),
+        new Pick(ArtKey.RuinBroken, Dungeon, 59, "broken column stub (not the mallet-shaped post, which read as a tool)"),
     };
 
     [MenuItem("Cube/Build Art Catalog")]

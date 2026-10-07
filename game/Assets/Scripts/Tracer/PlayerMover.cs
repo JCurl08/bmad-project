@@ -46,6 +46,17 @@ namespace Game.Tracer
     }
 
     /// <summary>
+    /// Turns the raw move input into the direction the player walks in the world (the Cube's CubeNavigator: after a face
+    /// crossing whose edge is drawn rotated, the held input keeps its meaning until the player lets go or turns). A
+    /// component on the player that implements this is read by PlayerMover every physics step; without one the input is
+    /// used as is.
+    /// </summary>
+    public interface IMoveInputFrame
+    {
+        Vector2 MapMoveInput(Vector2 raw);
+    }
+
+    /// <summary>
     /// Top-down movement driven by the project-wide Player/Move action. The velocity is the input times EffectiveSpeed,
     /// changed only through the player's IMoveModifier (if any), within bounds that keep every way passable: a hazard can
     /// slow the player to no less than MinSpeedMultiplier of its speed, push it by at most MaxPushFraction of that slowed
@@ -188,6 +199,7 @@ namespace Game.Tracer
         private void FixedUpdate()
         {
             Vector2 input = move != null ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
+            if (TryGetComponent(out IMoveInputFrame frame)) input = frame.MapMoveInput(input);
             if (input.sqrMagnitude > 1e-4f) Facing = input.normalized;
             MoveModifier m = Modifier;
             if (m.IsNone)
