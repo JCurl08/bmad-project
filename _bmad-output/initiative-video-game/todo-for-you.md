@@ -15,7 +15,7 @@ Every Epic 1 story except the release is built, reviewed and committed locally. 
 | 1.20 Earth and Atmosphere face | `3f22c7f` |
 | 1.21 Cube-net map | `8be3e09` |
 | 1.22 Look and tone pass | `a414268` |
-| 1.23 Refactor sweep (full cube) | see `git log` (cleanup only, no gameplay change) |
+| 1.23 Refactor sweep (full cube) | `bf1af0b` |
 | **1.14 First itch.io release** | **needs you (section 4)** |
 
 All automated checks pass: EditMode, PlayMode (run in class batches), and the 50-seed sweep with no softlocks.
