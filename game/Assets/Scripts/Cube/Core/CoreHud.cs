@@ -3,20 +3,38 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The core fight's HUD (OnGUI placeholder): while the player is in the arena, an "Order ↔ Entropy" meter at the bottom
+    /// The core fight's HUD (OnGUI placeholder): while the player is in the arena, an "Order ↔ Mixing" meter at the bottom
     /// right (filled by the current phase's progress, with a mark at its goal) and the phase's name; once the fight ends, a
     /// campy victory or defeat banner above the centre (the combat HUD's death message sits at the centre).
     /// </summary>
     public class CoreHud : MonoBehaviour
     {
-        public const string MeterLabel = "Order ↔ Entropy";
-        public const string VictoryMessage = "Entropy wins! The Partition cracks… everybody mingle!";
-        public const string DefeatMessage = "Order prevails… the Demon tidies you away. (For now.)";
+        public const string MeterLabel = "Order ↔ Mixing";
+        public const string VictoryMessage = "The mix wins! The Partition cracks… everybody mingle!";
+        public const string DefeatMessage = "Order prevails… the " + InWorldText.Demon + " tidies you away. (For now.)";
+
+        /// <summary>The exit door's hint, shown while the player can walk out of the arena.</summary>
+        public const string ExitHint = "Walk into the doorway in the left wall to leave";
+
+        /// <summary>Every line this HUD can show (for the text checks), the phase names included.</summary>
+        public static System.Collections.Generic.IEnumerable<string> AllText()
+        {
+            yield return MeterLabel;
+            yield return VictoryMessage;
+            yield return DefeatMessage;
+            yield return ExitHint;
+            yield return new MixingPhase().Name;
+            yield return new FallbackBoss().Name;
+        }
 
         [SerializeField] private CoreArena arena;
 
         private GUIStyle labelStyle;
         private GUIStyle bannerStyle;
+        private GUIStyle hintStyle;
+
+        /// <summary>True while the exit hint shows: the player is in a fight they can still walk out of.</summary>
+        public bool ExitHintVisible => arena != null && arena.PlayerInArena && arena.FightActive && arena.ExitAvailable;
 
         public CoreArena Arena
         {
@@ -107,6 +125,15 @@ namespace Game.Cube
                 GUI.DrawTexture(new Rect(bar.x + bar.width * goal - 1f, bar.y - 4f, 3f, bar.height + 8f), Texture2D.whiteTexture);
             }
             GUI.color = Color.white;
+            if (ExitHintVisible)
+            {
+                if (hintStyle == null)
+                {
+                    hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Italic };
+                    hintStyle.normal.textColor = new Color(0.85f, 0.85f, 0.95f);
+                }
+                GUI.Label(new Rect(x, y + 48f, width, 20f), ExitHint, hintStyle);
+            }
         }
     }
 }

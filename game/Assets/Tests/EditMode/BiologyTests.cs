@@ -407,7 +407,8 @@ namespace Game.Cube.Tests
             }
             StringAssert.Contains("thin", Dialogue.BeakLine(true));
             StringAssert.Contains("thick", Dialogue.BeakLine(false));
-            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains("Adapt or get out of the niche!")));
+            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains("Find your perch and keep it!")));
+            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains(InWorldText.OldFledgling)), "The patron, by its placeholder name");
         }
     }
 }

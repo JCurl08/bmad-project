@@ -92,7 +92,7 @@ namespace Game.Cube
         public int HitsNeeded { get; }
         public int Hits { get; private set; }
 
-        public override string Name => "Bonk the Demon!";
+        public override string Name => "Bonk the " + InWorldText.Demon + "!";
         public override float Progress => Mathf.Clamp01((float)Hits / HitsNeeded);
         public override bool IsComplete => Hits >= HitsNeeded;
 

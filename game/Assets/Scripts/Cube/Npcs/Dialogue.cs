@@ -5,14 +5,15 @@ namespace Game.Cube
     /// <summary>
     /// Campy NPC lines (lore-and-tone.md: silly, never explicit, never the s-word). A conversation is at most two lines
     /// (MaxLines): one flavour line, then the head's first hint (true for the run). For a generic NPC the flavour is its
-    /// role line, flavoured by the race's nouns; the face populations use their scientist's line (or a mechanic line)
-    /// instead. Tables are small (3 to 4 lines each); the NPC's salt picks the variant, so the same NPC always says the
-    /// same thing. Greetings stay in the tables for the tone checks and later use.
+    /// role line, flavoured by the race's nouns; the face populations use their patron's line (or a mechanic line)
+    /// instead. Subtle science (InWorldText): no real names and no science words; patrons and regions go by their
+    /// in-world placeholder names. The table names (DarwinLines, CurieLines...) are code only and never shown.
+    /// Tables are small (3 to 4 lines each); the NPC's salt picks the variant, so the same NPC always says the same thing. Greetings stay in the tables for the tone checks and later use.
     /// </summary>
     public static class Dialogue
     {
         /// <summary>The word the game never says (lore-and-tone.md). Tests check every line against it.</summary>
-        public const string ForbiddenWord = "sort";
+        public const string ForbiddenWord = InWorldText.ForbiddenWord;
 
         /// <summary>The most lines a conversation has: one flavour line, then the hint.</summary>
         public const int MaxLines = 2;
@@ -67,13 +68,13 @@ namespace Game.Cube
                 Rumours = new[]
                 {
                     "the thin-beaks think they're better than everybody. Tweet-tweet, la-di-da.",
-                    "Professor Darwin keeps measuring my beak. Every. Single. Morning.",
+                    "the " + InWorldText.OldFledgling + " keeps measuring my beak. Every. Single. Morning.",
                     "the dinosaurs say they're our cousins. Distant cousins. *Very* distant.",
                 },
                 Greetings = new[]
                 {
                     "Tweet! Oh, sorry, that was rude. Hello!",
-                    "Cheep cheep! Adapted and ready to chat!",
+                    "Cheep cheep! Fluffed up and ready to chat!",
                     "Peep! You're not a cat, are you? Good. Hello!",
                 },
             },
@@ -84,8 +85,8 @@ namespace Game.Cube
                 Errand = "fetch me a nice damp log. For reasons. Fungal reasons",
                 Rumours = new[]
                 {
-                    "old Marcel* is half a skeleton already, and he's *thrilled* about the fingers.",
-                    "the Glowmother* says I glow with potential. Mostly I just glow.",
+                    "old " + InWorldText.Marcel + " is half a skeleton already, and he's *thrilled* about the fingers.",
+                    "the " + InWorldText.Glowmother + " says I glow with potential. Mostly I just glow.",
                     "the skeleton-key folk can open any door. Nobody invites them anywhere, though.",
                 },
                 Greetings = new[]
@@ -97,18 +98,18 @@ namespace Game.Cube
             },
             [Race.Alien] = new RaceFlavour
             {
-                Wares = "anti-gravity socks",
-                Metal = "space-time",
+                Wares = "floaty socks",
+                Metal = "clockwork",
                 Errand = "slow down time near the big door so I can finish my nap",
                 Rumours = new[]
                 {
-                    "Herr Einstein's hair is a gravitational anomaly. Things orbit it.",
+                    "the " + InWorldText.Timekeeper + "'s hair is so big that small things orbit it.",
                     "time runs slower near the boulders. I stand there to stay young.",
-                    "relatively speaking, nobody here is late. Ever.",
+                    "around here nobody is ever late. Time is very forgiving.",
                 },
                 Greetings = new[]
                 {
-                    "Greetings, carbon unit! Relatively speaking, hello.",
+                    "Greetings, squishy visitor! Hello, eventually.",
                     "Bleep. Bloop. Ha! Just kidding. We don't say that.",
                     "Hello from the future! Well, from three seconds ago. Time is funny here.",
                 },
@@ -122,7 +123,7 @@ namespace Game.Cube
                 {
                     "the triangles are unstable. Emotionally. Structurally they're fine.",
                     "the sphere keeps insisting it belongs. 'I have *infinite* faces!' Sure, buddy.",
-                    "the Bridgekeeper* counts the planks in her sleep. She gets the same number every time.",
+                    "the " + InWorldText.Bridgekeeper + " counts the planks in her sleep. She gets the same number every time.",
                 },
                 Greetings = new[]
                 {
@@ -138,7 +139,7 @@ namespace Game.Cube
                 Errand = "count the raindrops on my head. All of them. I'll wait",
                 Rumours = new[]
                 {
-                    "the Old Digger* found my great-great-great-grandma's tooth. We're very proud.",
+                    "the " + InWorldText.OldDigger + " found my great-great-great-grandma's tooth. We're very proud.",
                     "the avian lot keep saying the sky is 'their department'.",
                     "the eye of the hurricane is the calmest spot around. Great for naps.",
                 },
@@ -151,9 +152,9 @@ namespace Game.Cube
                 Errand = "say hello to everyone in town. Everyone! It's what we do here",
                 Rumours = new[]
                 {
-                    "Newton got bonked by another apple this morning. Third one today.",
+                    "the " + InWorldText.AppleSage + " got bonked by another apple this morning. Third one today.",
                     "these ruins have bits of every face in them. Mixed up. Just how we like it.",
-                    "a big stern demon wants everyone neat and apart. Gives me the shivers.",
+                    "the " + InWorldText.Demon + " wants everyone neat and apart. Gives me the shivers.",
                 },
                 Greetings = new[]
                 {
@@ -181,14 +182,14 @@ namespace Game.Cube
             },
         };
 
-        /// <summary>Darwin-flavoured lines the finches of the Biology face say (one per finch, picked by salt).</summary>
+        /// <summary>Lines the finches of the Greenwood* say about their patron, the Old Fledgling* (one per finch, picked by salt).</summary>
         public static readonly string[] DarwinLines =
         {
-            "Adapt or get out of the niche! Professor Darwin says that every morning. Mostly to me.",
-            "Professor Darwin measured my beak again. It grew a whole hair! He wrote three pages about it.",
-            "Survival of the fittest! I'm not the fittest. I'm the chattiest. That counts, right?",
+            "Find your perch and keep it! The " + InWorldText.OldFledgling + " says that every morning. Mostly to me.",
+            "The " + InWorldText.OldFledgling + " measured my beak again. It grew a whole hair! Three pages of notes about it.",
+            "Only the toughest beaks crack the toughest seeds! Mine is not tough. Mine is chatty. That counts, right?",
             "Different beaks for different seeds! Some of us crack, some of us sip. All of us gossip.",
-            "Darwin says every finch has its niche. Mine is this exact spot. Please don't stand in it.",
+            "The " + InWorldText.OldFledgling + " says every finch has a favourite spot. Mine is this exact one. Please don't stand in it.",
         };
 
         /// <summary>The season's beak, as finches tell it: [0] thin, [1] thick. True for the run that says it.</summary>
@@ -204,11 +205,11 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[] CurieLines =
         {
-            "Rule one from the Glowmother*: glow responsibly! Rule two: also glow responsibly.",
-            "The Glowmother* says everything changes, given time. I'm changing too. Very, very slowly.",
+            "Rule one from the " + InWorldText.Glowmother + ": glow responsibly! Rule two: also glow responsibly.",
+            "The " + InWorldText.Glowmother + " says everything changes, given time. I'm changing too. Very, very slowly.",
             "When I'm old I'll be all skeleton, with skeleton-key fingers! Every lock on the face, mine. Can't wait.",
-            "Full heart, steady glow! The Glowmother* taught us that. Then she wrote it down in a notebook that glows.",
-            "Spores? Stones? I prefer mush. The Glowmother* says mush isn't a proper stone. Yet.",
+            "Full heart, steady glow! The " + InWorldText.Glowmother + " taught us that. Then she wrote it down in a notebook that glows.",
+            "Spores? Stones? I prefer mush. The " + InWorldText.Glowmother + " says mush isn't a proper stone. Yet.",
         };
 
         /// <summary>
@@ -225,35 +226,35 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[] StoneLines =
         {
-            "This visit the stones glow! Find the Glowstone* and swing it at the dark doorways to light them up.",
-            "This visit the stones are wild! Find the Wildstone* and swing it at the cracked walls. Boom!",
-            "This visit the stones are heavy! Find the Leadstone* and swing it at the pressure plates to weigh them down.",
+            "This visit the stones glow! Find the " + ChemistryIsotope.GlowName + " and swing it at the dark doorways to light them up.",
+            "This visit the stones are wild! Find the " + ChemistryIsotope.UnstableName + " and swing it at the cracked walls. Boom!",
+            "This visit the stones are heavy! Find the " + ChemistryIsotope.LeadName + " and swing it at the pressure plates to weigh them down.",
         };
 
         /// <summary>The line naming a run's stone (see StoneLines).</summary>
         public static string StoneLine(IsotopeStage stage) => StoneLines[stage == IsotopeStage.None ? 0 : (int)stage];
 
-        /// <summary>Einstein-flavoured lines the alien people of the Physics face say (one per alien, picked by salt).</summary>
+        /// <summary>Lines the alien people of the Weightlands* say about their patron, the Timekeeper* (one per alien, picked by salt).</summary>
         public static readonly string[] EinsteinLines =
         {
-            "It's all relative, darling! Herr Einstein says so, and he is never late. Relatively.",
-            "Herr Einstein says mass tells time how to move. Time mostly tells me to nap.",
-            "E equals MC squared! I don't know what the C is for. Cookies, I hope.",
+            "Time is a stretchy thing, darling! The " + InWorldText.Timekeeper + " says so, and is never, ever late.",
+            "The " + InWorldText.Timekeeper + " says heavy things make time dawdle. Time mostly tells me to nap.",
+            "The " + InWorldText.Timekeeper + " wrote one tiny rule on the wall. Nobody can read it. We think it says 'cookies'.",
             "Stand next to a big boulder and time slows down. I've been twenty for six hundred years.",
-            "Herr Einstein's hair? Gravitational lensing. It bends light AND combs.",
+            "The " + InWorldText.Timekeeper + "'s hair? So big it bends the light. And the comb. Mostly the comb.",
         };
 
         /// <summary>How the timed doors work, as the aliens tell it (true for every run: the mechanics).</summary>
         public const string MassMittLine =
-            "Timed doors open from a switch, then close again. Grab boulders with the Mass Mitt (press Interact or swing it) " +
-            "and drag them near the door: more mass, slower time, so it stays open longer. Then step on the switch and run!";
+            "Timed doors open from a switch, then close again. Grab boulders with the " + MassMittItem.Name + " (press Interact or swing it) " +
+            "and drag them near the door: the heavier the pile, the slower time goes, so it stays open longer. Then step on the switch and run!";
 
-        /// <summary>What Sir Isaac Newton says on the Physics face (the apple cameo).</summary>
+        /// <summary>What the apple-bonked sage* says on the Weightlands* (the apple cameo; Newton-inspired, never named).</summary>
         public static readonly string[] NewtonLines =
         {
             "Ow! Another apple. That makes four hundred and twelve. I am beginning to suspect a pattern.",
             "Every apple falls toward my head. Every single one. I shall call it... a grudge.",
-            "Herr Einstein says the apple isn't falling, the space is curving. My forehead disagrees.",
+            "The " + InWorldText.Timekeeper + " says the apple is just taking its time. My forehead disagrees.",
         };
 
         /// <summary>
@@ -262,11 +263,11 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[] BridgekeeperLines =
         {
-            "The Bridgekeeper* says every plank deserves exactly one visit. Two is clingy. Zero is rude.",
+            "The " + InWorldText.Bridgekeeper + " says every plank deserves exactly one visit. Two is clingy. Zero is rude.",
             "I tried to cross the same plank twice once. The planks noticed. They always notice.",
-            "The Bridgekeeper* walks every plank on the face each morning, once each, and is home in time for tea.",
-            "Start at the flag, finish wherever the planks run out. That's the Bridgekeeper*'s whole rule. It's a good rule.",
-            "Round head, pointy body, sturdy legs! The Bridgekeeper* says we're built for walking planks.",
+            "The " + InWorldText.Bridgekeeper + " walks every plank on the face each morning, once each, and is home in time for tea.",
+            "Start at the flag, finish wherever the planks run out. That's the " + InWorldText.Bridgekeeper + "'s whole rule. It's a good rule.",
+            "Round head, pointy body, sturdy legs! The " + InWorldText.Bridgekeeper + " says we're built for walking planks.",
         };
 
         /// <summary>How the bridge doors work, as the shape people tell it (true for every run: the mechanics).</summary>
@@ -276,7 +277,7 @@ namespace Game.Cube
 
         /// <summary>How the gap-crosser* works, as the shape people tell it (true for every run: the mechanics).</summary>
         public const string GapCrosserLine =
-            "A gap in front of a door? Swing the Gap-Crosser* at it and it lays a crossing right over. One gap at a time, mind.";
+            "A gap in front of a door? Swing the " + GapCrosserItem.Name + " at it and it lays a crossing right over. One gap at a time, mind.";
 
         /// <summary>
         /// Lines the terrestrial dinosaurs of the Earth face say about their patron, the Old Digger* (one per dinosaur, picked
@@ -284,11 +285,11 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[] OldDiggerLines =
         {
-            "The Old Digger* says every rock has a story. Most of them are about being a rock. Riveting stuff.",
-            "When the ground rumbles, the Old Digger* grabs a brush. Crevices open up and bones say hello.",
+            "The " + InWorldText.OldDigger + " says every rock has a story. Most of them are about being a rock. Riveting stuff.",
+            "When the ground rumbles, the " + InWorldText.OldDigger + " grabs a brush. Crevices open up and bones say hello.",
             "I found a bone in a crevice once! Turned out it was mine. Long story. I want it back.",
-            "The Old Digger* digs slowly, gently, for hours. I stomp. We get there in the end, both of us.",
-            "Layers and layers and layers! The Old Digger* reads the cliffs like a book. A very slow, very heavy book.",
+            "The " + InWorldText.OldDigger + " digs slowly, gently, for hours. I stomp. We get there in the end, both of us.",
+            "Layers and layers and layers! The " + InWorldText.OldDigger + " reads the cliffs like a book. A very slow, very heavy book.",
         };
 
         /// <summary>
@@ -297,11 +298,11 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[] SkyWatcherLines =
         {
-            "The Sky-Watcher* reads the clouds every morning. Today they said 'puffy'. Very insightful.",
-            "Feathers up means rain coming! The Sky-Watcher* taught me that. Feathers down means lunch.",
-            "The Sky-Watcher* says the wind is just the sky going somewhere in a hurry. Same, sky. Same.",
-            "I flapped once and a breeze came. The Sky-Watcher* says that was a coincidence. I say it was me.",
-            "Snow, rain, wind, calm! The Sky-Watcher* has a feather for each. She runs out of feathers by noon.",
+            "The " + InWorldText.SkyWatcher + " reads the clouds every morning. Today they said 'puffy'. Very insightful.",
+            "Feathers up means rain coming! The " + InWorldText.SkyWatcher + " taught me that. Feathers down means lunch.",
+            "The " + InWorldText.SkyWatcher + " says the wind is just the sky going somewhere in a hurry. Same, sky. Same.",
+            "I flapped once and a breeze came. The " + InWorldText.SkyWatcher + " says that was a coincidence. I say it was me.",
+            "Snow, rain, wind, calm! The " + InWorldText.SkyWatcher + " has a feather for each. She runs out of feathers by noon.",
         };
 
         /// <summary>
@@ -310,15 +311,15 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[] WandLines =
         {
-            "This visit the Stormcaller* calls up a quake! Find it and swing it at the rock pillars to knock them flat.",
-            "This visit the Stormcaller* calls up rain! Find it and swing it at the walls of fire to douse them.",
-            "This visit the Stormcaller* calls up snow! Find it and swing it at the water to freeze a crossing.",
-            "This visit the Stormcaller* calls up a tornado! Find it and swing it at the debris piles to blow them away.",
+            "This visit the " + StormcallerItem.Name + " calls up a quake! Find it and swing it at the rock pillars to knock them flat.",
+            "This visit the " + StormcallerItem.Name + " calls up rain! Find it and swing it at the walls of fire to douse them.",
+            "This visit the " + StormcallerItem.Name + " calls up snow! Find it and swing it at the water to freeze a crossing.",
+            "This visit the " + StormcallerItem.Name + " calls up a tornado! Find it and swing it at the debris piles to blow them away.",
         };
 
         /// <summary>The wand line when the run's phenomenon is unknown: it names none, so it is never false.</summary>
         public const string NeutralWandLine =
-            "Somewhere out here lies the Stormcaller*. Find it, swing it, and see what the sky has in mind!";
+            "Somewhere out here lies the " + StormcallerItem.Name + ". Find it, swing it, and see what the sky has in mind!";
 
         /// <summary>The line naming a run's Stormcaller* (see WandLines); NeutralWandLine when the phenomenon is unknown.</summary>
         public static string WandLine(Phenomenon kind) =>
@@ -326,7 +327,7 @@ namespace Game.Cube
 
         /// <summary>How the hazards of the Earth face work, as the dinosaurs tell it (true for every run: the mechanics).</summary>
         public const string HazardLine =
-            "Out in the Wildlands* the wind shoves you, snow sends you sliding and freezing rain slows you down. " +
+            "Out in the " + InWorldText.Wildlands + " the wind shoves you, snow sends you sliding and freezing rain slows you down. " +
             "Go round the crevices. The middle of the face is calm, though!";
 
         public static string OldDiggerLine(uint salt) => OldDiggerLines[(int)(salt / 3u % (uint)OldDiggerLines.Length)];

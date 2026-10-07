@@ -77,6 +77,9 @@ namespace Game.Cube
         /// <summary>Every hidden meta-currency pickup instantiated by the reveal (same order as HiddenCurrency.Spots); collected ones become null.</summary>
         public IReadOnlyList<HiddenCurrencyPickup> HiddenCurrencyPickups => hiddenCurrency;
 
+        /// <summary>The run's planned gate looks (RunFacts.Of works them out once per run); cleared on every rebuild.</summary>
+        public IReadOnlyDictionary<(ScreenAddress Screen, int Slot), string> PlannedGateLooks { get; set; }
+
         /// <summary>The science layout of this run; null until the science faces are revealed.</summary>
         public CubeLayout Layout { get; private set; }
 
@@ -145,6 +148,7 @@ namespace Game.Cube
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize, sealedThemes);
             Layout = null;
             ItemPlacement = null;
+            PlannedGateLooks = null;
             HiddenCurrency = null;
             ScienceRevealed = false;
             Relations.Reset();
@@ -220,16 +224,36 @@ namespace Game.Cube
             return new Vector2Int(Mathf.Clamp(index.x, 0, FaceSize - 1), Mathf.Clamp(index.y, 0, FaceSize - 1));
         }
 
+        /// <summary>The screen (of any face) that contains a world position; false outside every face (e.g. the core arena).</summary>
+        public bool TryScreenAt(Vector2 worldPosition, out ScreenAddress screen)
+        {
+            for (int f = 0; f < CubeSettings.FaceCount; f++)
+            {
+                var face = (FaceId)f;
+                Vector2 local = worldPosition - FaceOrigin(face);
+                if (local.x < 0f || local.y < 0f || local.x >= FaceExtent.x || local.y >= FaceExtent.y) continue;
+                screen = new ScreenAddress(face, CellAt(face, worldPosition));
+                return true;
+            }
+            screen = default;
+            return false;
+        }
+
+        /// <summary>
+        /// A face's region colour, as on a solved Rubik's cube: Town white, Biology green, Chemistry red, Physics blue,
+        /// Math yellow, Earth and Atmosphere orange. Walls, ruins, sealed floors and the map take it; floors take a
+        /// per-tile tint of it (ArtKeys.FloorTint).
+        /// </summary>
         public static Color ThemeColor(Theme theme)
         {
             switch (theme)
             {
-                case Theme.Town: return new Color(0.55f, 0.47f, 0.33f);
-                case Theme.Biology: return new Color(0.22f, 0.50f, 0.25f);
-                case Theme.Chemistry: return new Color(0.45f, 0.30f, 0.55f);
-                case Theme.Physics: return new Color(0.22f, 0.38f, 0.62f);
-                case Theme.Math: return new Color(0.60f, 0.55f, 0.25f);
-                default: return new Color(0.30f, 0.55f, 0.60f);
+                case Theme.Town: return new Color(0.94f, 0.94f, 0.92f);
+                case Theme.Biology: return new Color(0.16f, 0.66f, 0.27f);
+                case Theme.Chemistry: return new Color(0.86f, 0.17f, 0.18f);
+                case Theme.Physics: return new Color(0.16f, 0.38f, 0.88f);
+                case Theme.Math: return new Color(0.99f, 0.84f, 0.12f);
+                default: return new Color(1.00f, 0.52f, 0.10f);
             }
         }
 

@@ -14,6 +14,10 @@ namespace Game.Cube
     /// </summary>
     public class DialogueBox : MonoBehaviour
     {
+        /// <summary>The prompt under a line with more to come, and under the last line.</summary>
+        public const string NextPrompt = "[Interact] next   [Esc] skip";
+        public const string ClosePrompt = "[Interact] close";
+
         [SerializeField] private string interactActionPath = "Player/Interact";
 
         /// <summary>The key that closes a conversation at once.</summary>
@@ -134,7 +138,7 @@ namespace Game.Cube
             GUI.color = Color.white;
             GUI.Label(new Rect(rect.x + 14, rect.y + 8, rect.width - 28, 24), Speaker, nameStyle);
             GUI.Label(new Rect(rect.x + 14, rect.y + 34, rect.width - 28, rect.height - 60), CurrentLine, textStyle);
-            string more = Index < lines.Count - 1 ? "[Interact] next   [Esc] skip" : "[Interact] close";
+            string more = Index < lines.Count - 1 ? NextPrompt : ClosePrompt;
             GUI.Label(new Rect(rect.xMax - 250, rect.yMax - 26, 240, 22), more, nameStyle);
         }
     }

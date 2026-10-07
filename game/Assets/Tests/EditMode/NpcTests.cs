@@ -50,7 +50,7 @@ namespace Game.Cube.Tests
                 case HintKind.GateLocation:
                     Assert.IsTrue(facts.Placement.Gates.Any(g => g.Item == hint.Item && g.Screen.Face == hint.Face &&
                         (!hint.Precise || g.Screen == hint.Screen)), $"{context}: no such gate ({text})");
-                    StringAssert.Contains(HintGenerator.ThemeName(hint.Item) + " gate", text, context);
+                    StringAssert.Contains(HintGenerator.GateLook(model.Seed, hint.Item), text, context);
                     break;
                 case HintKind.CoreEntrance:
                 {

@@ -10,13 +10,17 @@ namespace Game.Cube
     /// snout, a townsperson's hat), and what the slot controls gives the variant: heads by HintKind, torsos by role
     /// (a merchant's bag, a quest-giver's sash, a smith's apron, a gossip's frill), legs by movement. Sprites are white
     /// with a light shade and a dark outline, so the part's colour tints them and the outline stays dark.
+    /// Finches are drawn in full colour instead (BakedColour; TintFor gives white): a round fluffy head and body in the
+    /// part's plumage with a cream belly, a clear orange beak (its shape by HintKind), a big eye with a glint, a blush and
+    /// little orange feet, still ringed by a dark outline.
     /// </summary>
     public static class NpcPartArt
     {
         public const float PixelsPerUnit = 32f;
 
-        private const byte Empty = 0, Fill = 1, Shade = 2, Dark = 3, Light = 4, Edge = 5;
+        private const byte Empty = 0, Fill = 1, Shade = 2, Dark = 3, Light = 4, Edge = 5, Beak = 6, Blush = 7, Twig = 8, Shine = 9;
 
+        /// <summary>The tinted races' palette: greys the part's colour tints (the extra entries are fixed colours).</summary>
         private static readonly Color32[] Palette =
         {
             new Color32(0, 0, 0, 0),
@@ -25,7 +29,32 @@ namespace Game.Cube
             new Color32(45, 40, 52, 255),
             new Color32(255, 255, 255, 255),
             new Color32(24, 20, 30, 255),
+            new Color32(255, 168, 48, 255),
+            new Color32(255, 140, 150, 255),
+            new Color32(150, 100, 60, 255),
+            new Color32(255, 255, 255, 255),
         };
+
+        /// <summary>True when a part is drawn in its own colours (finches), so its renderer is not tinted.</summary>
+        public static bool BakedColour(Race race, NpcPart part) => part != null && RaceOf(part, race) == Race.Finch;
+
+        /// <summary>The renderer colour for a part: white for a part drawn in full colour, else the part's colour.</summary>
+        public static Color TintFor(Race race, NpcPart part) =>
+            part == null ? Color.white : BakedColour(race, part) ? Color.white : part.Color;
+
+        /// <summary>A finch part's palette: its plumage colour, a darker shade, a cream belly and the fixed beak colours.</summary>
+        private static Color32[] FinchPalette(Color plumage)
+        {
+            Color shade = Color.Lerp(plumage, Color.black, 0.28f);
+            Color cream = Color.Lerp(plumage, new Color(1f, 0.97f, 0.88f), 0.75f);
+            var palette = (Color32[])Palette.Clone();
+            palette[Fill] = (Color32)plumage;
+            palette[Shade] = (Color32)shade;
+            palette[Dark] = new Color32(48, 34, 40, 255);
+            palette[Light] = (Color32)cream;
+            palette[Edge] = new Color32(52, 36, 42, 255);
+            return palette;
+        }
 
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
@@ -39,7 +68,7 @@ namespace Game.Cube
             int w = Mathf.Max(6, Mathf.RoundToInt(part.Size.x * PixelsPerUnit));
             int h = Mathf.Max(6, Mathf.RoundToInt(part.Size.y * PixelsPerUnit));
             Canvas canvas = Draw(race, part, w, h);
-            Sprite sprite = canvas.ToSprite($"NPC {key}");
+            Sprite sprite = canvas.ToSprite($"NPC {key}", race == Race.Finch ? FinchPalette(part.Color) : Palette);
             Cache[key] = sprite;
             return sprite;
         }
@@ -93,23 +122,29 @@ namespace Game.Cube
             switch (race)
             {
                 case Race.Finch:
-                    c.Ellipse(0.42f, 0.5f, 0.3f, 0.38f, Fill);
-                    c.Ellipse(0.36f, 0.42f, 0.16f, 0.16f, Light);
+                    // A round fluffy head with a pale cheek, a clear orange beak, a big glinting eye and a blush.
+                    c.Ellipse(0.4f, 0.46f, 0.36f, 0.44f, Fill);
+                    c.Ellipse(0.48f, 0.3f, 0.2f, 0.18f, Light);
                     switch (variant)
                     {
-                        case 0: c.Poly(Fill, 0.66f, 0.56f, 0.66f, 0.44f, 0.97f, 0.5f); break; // thin, long
-                        case 1: c.Poly(Shade, 0.62f, 0.74f, 0.62f, 0.26f, 0.92f, 0.5f); break; // thick, blunt
-                        case 2: // hooked
-                            c.Poly(Fill, 0.64f, 0.68f, 0.64f, 0.4f, 0.9f, 0.62f);
-                            c.Rect(0.84f, 0.38f, 0.92f, 0.62f, Fill);
+                        case 0: c.Poly(Beak, 0.7f, 0.56f, 0.7f, 0.42f, 0.99f, 0.48f); break; // thin, long
+                        case 1: // thick, blunt
+                            c.Poly(Beak, 0.66f, 0.72f, 0.66f, 0.24f, 0.95f, 0.47f);
+                            c.Line(0.7f, 0.47f, 0.86f, 0.47f, Dark);
                             break;
-                        default: // crested
-                            c.Poly(Fill, 0.66f, 0.58f, 0.66f, 0.42f, 0.86f, 0.5f);
-                            c.Poly(Shade, 0.2f, 0.78f, 0.34f, 0.84f, 0.14f, 0.98f);
-                            c.Poly(Shade, 0.34f, 0.84f, 0.48f, 0.86f, 0.36f, 0.99f);
+                        case 2: // hooked
+                            c.Poly(Beak, 0.68f, 0.66f, 0.68f, 0.38f, 0.92f, 0.62f);
+                            c.Rect(0.84f, 0.4f, 0.93f, 0.62f, Beak);
+                            break;
+                        default: // crested: a short beak and a feather tuft
+                            c.Poly(Beak, 0.68f, 0.62f, 0.68f, 0.36f, 0.9f, 0.49f);
+                            c.Poly(Shade, 0.2f, 0.8f, 0.36f, 0.86f, 0.16f, 0.99f);
+                            c.Poly(Shade, 0.36f, 0.86f, 0.52f, 0.86f, 0.42f, 0.99f);
                             break;
                     }
-                    c.Dot(0.55f, 0.6f, Dark);
+                    c.Ellipse(0.53f, 0.58f, 0.09f, 0.15f, Dark); // eye
+                    c.Dot(0.55f, 0.66f, Shine); // glint
+                    c.Ellipse(0.5f, 0.34f, 0.06f, 0.08f, Blush);
                     break;
 
                 case Race.Mushroom:
@@ -252,9 +287,12 @@ namespace Game.Cube
             switch (race)
             {
                 case Race.Finch:
-                    c.Ellipse(0.5f, 0.48f, 0.42f, 0.46f, Fill);
-                    c.Ellipse(0.62f, 0.4f, 0.22f, 0.28f, Light); // breast
-                    c.Ellipse(0.3f, 0.52f, 0.2f, 0.26f, Shade); // wing
+                    // A round, fluffy body: a tail tuft behind, a cream belly in front and a folded wing.
+                    c.Poly(Shade, 0.16f, 0.62f, 0.02f, 0.8f, 0.04f, 0.5f);
+                    c.Ellipse(0.52f, 0.48f, 0.42f, 0.47f, Fill);
+                    c.Ellipse(0.62f, 0.4f, 0.26f, 0.33f, Light); // belly
+                    c.Ellipse(0.34f, 0.52f, 0.2f, 0.27f, Shade); // wing
+                    c.Line(0.28f, 0.42f, 0.4f, 0.6f, Fill); // a feather on the wing
                     break;
                 case Race.Mushroom:
                     c.RoundRect(0.24f, 0.02f, 0.76f, 0.9f, Fill); // stem
@@ -319,20 +357,26 @@ namespace Game.Cube
             switch (race)
             {
                 case Race.Finch:
-                    c.Line(0.36f, 0.95f, 0.36f, 0.2f, Fill);
-                    c.Line(0.64f, 0.95f, move == Movement.Wander ? 0.74f : 0.64f, 0.2f, Fill);
-                    foreach (float x in new[] { 0.36f, move == Movement.Wander ? 0.74f : 0.64f })
+                {
+                    // The fluffy underside of the body, then two little orange legs with three-toed feet.
+                    c.Ellipse(0.5f, 1.02f, 0.34f, 0.34f, Fill);
+                    float right = move == Movement.Wander ? 0.72f : 0.64f;
+                    c.Line(0.36f, 0.8f, 0.36f, 0.22f, Beak);
+                    c.Line(0.64f, 0.8f, right, 0.22f, Beak);
+                    foreach (float x in new[] { 0.36f, right })
                     {
-                        c.Line(x, 0.18f, x - 0.14f, 0.06f, Fill);
-                        c.Line(x, 0.18f, x + 0.14f, 0.06f, Fill);
+                        c.Line(x, 0.2f, x - 0.13f, 0.08f, Beak);
+                        c.Line(x, 0.2f, x + 0.13f, 0.08f, Beak);
+                        c.Line(x, 0.2f, x, 0.06f, Beak);
                     }
-                    if (move == Movement.Stand) c.Rect(0.1f, 0.04f, 0.9f, 0.12f, Shade); // a perch
+                    if (move == Movement.Stand) c.Rect(0.06f, 0.0f, 0.94f, 0.08f, Twig); // a perch twig
                     if (move == Movement.Flee) // flutter feathers
                     {
-                        c.Poly(Shade, 0.04f, 0.9f, 0.24f, 0.7f, 0.06f, 0.5f);
-                        c.Poly(Shade, 0.96f, 0.9f, 0.76f, 0.7f, 0.94f, 0.5f);
+                        c.Poly(Shade, 0.04f, 0.9f, 0.24f, 0.7f, 0.06f, 0.46f);
+                        c.Poly(Shade, 0.96f, 0.9f, 0.76f, 0.7f, 0.94f, 0.46f);
                     }
                     break;
+                }
                 case Race.Mushroom:
                     if (move == Movement.Flee) // skeleton legs
                     {
@@ -570,7 +614,7 @@ namespace Game.Cube
                     if (outline[i]) Cells[i] = Edge;
             }
 
-            public Sprite ToSprite(string name)
+            public Sprite ToSprite(string name, Color32[] palette)
             {
                 var texture = new Texture2D(W, H, TextureFormat.RGBA32, false)
                 {
@@ -579,7 +623,7 @@ namespace Game.Cube
                     wrapMode = TextureWrapMode.Clamp,
                 };
                 var pixels = new Color32[Cells.Length];
-                for (int i = 0; i < Cells.Length; i++) pixels[i] = Palette[Cells[i]];
+                for (int i = 0; i < Cells.Length; i++) pixels[i] = palette[Cells[i]];
                 texture.SetPixels32(pixels);
                 texture.Apply();
                 Sprite sprite = Sprite.Create(texture, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), PixelsPerUnit);

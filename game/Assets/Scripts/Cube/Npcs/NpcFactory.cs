@@ -34,7 +34,8 @@ namespace Game.Cube
         /// <summary>Dinosaurs take their variant from the head (then torso); other races have none.</summary>
         public DinoVariant Variant => Head.Variant != DinoVariant.None ? Head.Variant : Torso.Variant;
 
-        public string DisplayName => $"{RaceName(Race, Variant)} {RoleName(Role)}";
+        /// <summary>The speaker name the dialogue box shows, sentence case ("Finch merchant", "Avian dinosaur gossip").</summary>
+        public string DisplayName => $"{RaceName(Race, Variant)} {RoleName(Role).ToLowerInvariant()}";
 
         /// <summary>The same NPC with one part swapped (tests and later part-swapping mechanics).</summary>
         public NpcSpec With(NpcPart part)
@@ -57,7 +58,8 @@ namespace Game.Cube
             switch (race)
             {
                 case Race.Mushroom: return "Mushroom";
-                case Race.Dinosaur: return variant == DinoVariant.Avian ? "Avian Dinosaur" : "Terrestrial Dinosaur";
+                case Race.Dinosaur: return variant == DinoVariant.Avian ? "Avian dinosaur" : "Terrestrial dinosaur";
+                case Race.Shape: return "Shape person";
                 case Race.Townsfolk: return "Townsperson";
                 default: return race.ToString();
             }
@@ -148,7 +150,7 @@ namespace Game.Cube
                 var renderer = visual.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
                 if (material != null) renderer.sharedMaterial = material;
-                renderer.color = part.Color;
+                renderer.color = NpcPartArt.TintFor(spec.Race, part); // white for parts drawn in full colour (finches)
                 renderer.sortingOrder = SortingOrder + (int)part.Slot;
                 renderers.Add(renderer);
                 y += part.Size.y;

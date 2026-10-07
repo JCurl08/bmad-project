@@ -26,7 +26,7 @@ namespace Game.Cube
         public static readonly Color RadicalColor = new Color(0.95f, 0.95f, 0.3f);
         public static readonly Color MiteColor = new Color(0.6f, 0.32f, 0.18f);
 
-        public static string Name(ChemistryEnemyKind kind) => kind == ChemistryEnemyKind.FreeRadical ? "Free Radical" : "Rust Mite";
+        public static string Name(ChemistryEnemyKind kind) => kind == ChemistryEnemyKind.FreeRadical ? "Fizzbug*" : "Rust Mite*";
 
         /// <summary>The weakness item of a kind in a world's run: the rolled stone, or another built theme's item.</summary>
         public static ItemDefinition WeaknessFor(ChemistryEnemyKind kind, CubeWorld world)

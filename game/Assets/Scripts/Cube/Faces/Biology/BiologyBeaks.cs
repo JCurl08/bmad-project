@@ -15,8 +15,8 @@ namespace Game.Cube
     {
         public const string ThinId = "thin-beak";
         public const string ThickId = "thick-beak";
-        public const string ThinName = "Thin Beak";
-        public const string ThickName = "Thick Beak";
+        public const string ThinName = "Thin Beak*";
+        public const string ThickName = "Thick Beak*";
 
         /// <summary>Swing reach with the thin beak equipped (the default reach is 0.85).</summary>
         public const float ThinReach = 2.5f;

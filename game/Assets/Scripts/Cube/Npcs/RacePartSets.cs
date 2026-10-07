@@ -54,23 +54,23 @@ namespace Game.Cube
                 [Race.Finch] = new RacePartSet(Race.Finch,
                     new[]
                     {
-                        NpcPart.Head("finch-thin-beak", "thin beak", C(0.95f, 0.75f, 0.30f), PartShape.Triangle, HintKind.ItemLocation),
-                        NpcPart.Head("finch-thick-beak", "thick beak", C(0.85f, 0.55f, 0.20f), PartShape.Square, HintKind.GateLocation),
-                        NpcPart.Head("finch-hooked-beak", "hooked beak", C(0.70f, 0.45f, 0.25f), PartShape.Diamond, HintKind.CoreEntrance),
-                        NpcPart.Head("finch-crested", "crested head", C(0.95f, 0.40f, 0.35f), PartShape.Circle, HintKind.FaceTheme),
+                        NpcPart.Head("finch-thin-beak", "thin beak", C(0.55f, 0.80f, 1.00f), PartShape.Triangle, HintKind.ItemLocation),
+                        NpcPart.Head("finch-thick-beak", "thick beak", C(1.00f, 0.84f, 0.36f), PartShape.Square, HintKind.GateLocation),
+                        NpcPart.Head("finch-hooked-beak", "hooked beak", C(1.00f, 0.60f, 0.50f), PartShape.Diamond, HintKind.CoreEntrance),
+                        NpcPart.Head("finch-crested", "crested head", C(0.78f, 0.62f, 0.98f), PartShape.Circle, HintKind.FaceTheme),
                     },
                     new[]
                     {
-                        NpcPart.Torso("finch-satchel", "seed satchel", C(0.55f, 0.70f, 0.35f), PartShape.Square, NpcRole.Merchant),
-                        NpcPart.Torso("finch-scroll", "scroll vest", C(0.40f, 0.60f, 0.45f), PartShape.Diamond, NpcRole.QuestGiver),
-                        NpcPart.Torso("finch-anvil", "anvil chest", C(0.45f, 0.45f, 0.40f), PartShape.Square, NpcRole.Smith),
-                        NpcPart.Torso("finch-fluff", "fluffy breast", C(0.85f, 0.80f, 0.55f), PartShape.Circle, NpcRole.Gossip),
+                        NpcPart.Torso("finch-satchel", "seed satchel", C(0.56f, 0.86f, 0.58f), PartShape.Square, NpcRole.Merchant),
+                        NpcPart.Torso("finch-scroll", "scroll vest", C(0.52f, 0.72f, 0.98f), PartShape.Diamond, NpcRole.QuestGiver),
+                        NpcPart.Torso("finch-anvil", "anvil chest", C(0.80f, 0.70f, 0.62f), PartShape.Square, NpcRole.Smith),
+                        NpcPart.Torso("finch-fluff", "fluffy breast", C(1.00f, 0.80f, 0.62f), PartShape.Circle, NpcRole.Gossip),
                     },
                     new[]
                     {
-                        NpcPart.Legs("finch-perch", "perching feet", C(0.80f, 0.60f, 0.30f), PartShape.Square, Movement.Stand),
-                        NpcPart.Legs("finch-hop", "hopping feet", C(0.90f, 0.70f, 0.35f), PartShape.Triangle, Movement.Wander),
-                        NpcPart.Legs("finch-flutter", "flutter feet", C(0.95f, 0.85f, 0.50f), PartShape.Diamond, Movement.Flee),
+                        NpcPart.Legs("finch-perch", "perching feet", C(0.96f, 0.88f, 0.74f), PartShape.Square, Movement.Stand),
+                        NpcPart.Legs("finch-hop", "hopping feet", C(0.84f, 0.94f, 0.78f), PartShape.Triangle, Movement.Wander),
+                        NpcPart.Legs("finch-flutter", "flutter feet", C(1.00f, 0.84f, 0.90f), PartShape.Diamond, Movement.Flee),
                     }),
 
                 [Race.Mushroom] = new RacePartSet(Race.Mushroom,
@@ -84,7 +84,7 @@ namespace Game.Cube
                     new[]
                     {
                         NpcPart.Torso("shroom-spore-sack", "spore sack", C(0.85f, 0.75f, 0.60f), PartShape.Circle, NpcRole.Merchant),
-                        NpcPart.Torso("shroom-lab-coat", "lab coat", C(0.95f, 0.95f, 0.95f), PartShape.Square, NpcRole.QuestGiver),
+                        NpcPart.Torso("shroom-lab-coat", "white coat", C(0.95f, 0.95f, 0.95f), PartShape.Square, NpcRole.QuestGiver),
                         NpcPart.Torso("shroom-leaded-apron", "leaded apron", C(0.40f, 0.42f, 0.45f), PartShape.Square, NpcRole.Smith),
                         NpcPart.Torso("shroom-gill-frill", "gill frill", C(0.80f, 0.60f, 0.70f), PartShape.Diamond, NpcRole.Gossip),
                     },

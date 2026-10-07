@@ -121,7 +121,10 @@ namespace Game.Cube.Tests
         private IEnumerator EnterFightFromTown(int seed)
         {
             world.Rebuild(seed);
-            yield return null;
+            // Let the rebuild's long frame (laying out Town, working out the run's hints) settle first: the physics steps it
+            // queues run before the fight, not inside its first frames, so the fight's timing does not depend on how much
+            // work a run start does.
+            for (int i = 0; i < 3; i++) yield return null;
             NoFaceEnemies();
             arena.UseFallbackBoss = false;
             Assert.IsFalse(world.ScienceRevealed, "No face content in the physics world");
@@ -257,7 +260,7 @@ namespace Game.Cube.Tests
                     Assert.IsTrue(Of(ArenaSide.Cool).All(p => p.Position.x > arena.MembraneX), "Cool on the other");
                     Assert.AreEqual(0f, arena.Meter, 1e-6f, "The meter starts at 0");
                     Assert.IsTrue(hud.MeterVisible);
-                    Assert.AreEqual("Order ↔ Entropy", CoreHud.MeterLabel);
+                    Assert.AreEqual("Order ↔ Mixing", CoreHud.MeterLabel);
                     Assert.IsInstanceOf<MixingPhase>(arena.CurrentPhase);
                     Assert.IsNull(hud.MessageText);
                 }
@@ -397,9 +400,14 @@ namespace Game.Cube.Tests
             Assert.IsTrue(runState.Victory);
             Assert.IsTrue(arena.Demon.Defeated, "The Demon is defeated");
             Assert.AreEqual(CoreHud.VictoryMessage, hud.MessageText);
-            StringAssert.Contains("Entropy wins! The Partition cracks", hud.MessageText);
+            StringAssert.Contains("The mix wins! The Partition cracks", hud.MessageText);
             Assert.AreEqual(1f, hud.MeterValue, 1e-6f);
             Assert.IsEmpty(arena.Pulses, "No pulses after the win");
+            Assert.IsFalse(arena.ExitAvailable, "No exit once the fight is won (the run ends anyway)");
+            Assert.IsFalse(Physics2D.GetIgnoreCollision(arena.ExitBlocker, navigator.GetComponent<Collider2D>()), "The doorway is shut");
+            Assert.IsFalse(arena.ExitDoor.activeSelf, "The exit door is gone");
+            Assert.IsFalse(arena.LeaveThroughExit(), "and cannot be used");
+            Assert.IsFalse(hud.ExitHintVisible);
 
             // Further events are ignored.
             health.TakeDamage(999f, null);
@@ -420,6 +428,134 @@ namespace Game.Cube.Tests
             Assert.AreEqual(CoreOutcome.None, arena.Outcome);
             Assert.IsNull(hud.MessageText);
             Assert.IsFalse(navigator.InCoreArena);
+            Assert.IsTrue(arena.ExitDoor.activeSelf, "A new run brings the exit door back");
+        }
+
+        [UnityTest]
+        public IEnumerator Exit_WalkingIntoTheDoorMidFight_ReturnsToThePortalsScreen_ResetsTheFight_AndEndsNoRun()
+        {
+            yield return Load();
+            yield return EnterThroughAPortal();
+            stats.MaxHealth = 999;
+            CorePortal portal = arena.Portals[0];
+            Assert.IsTrue(world.TryScreenAt(portal.transform.position, out ScreenAddress portalScreen), "The portal sits on a face");
+            Assert.AreEqual(portalScreen, arena.ExitScreen, "The arena remembers the portal's screen");
+            int fights = arena.FightIndex;
+
+            // A visible doorway on the arena's edge: cut into the west wall, its recess outside the playfield.
+            Assert.IsTrue(arena.ExitAvailable);
+            Assert.IsTrue(arena.ExitDoor.activeSelf, "The exit door shows during the fight");
+            Assert.IsNotEmpty(arena.ExitDoor.GetComponentsInChildren<SpriteRenderer>());
+            Assert.Less(arena.ExitDoorCentre.x, arena.Inner.xMin, "In the wall, outside the walkable inside");
+            Assert.LessOrEqual(arena.Recess.xMax, arena.Inner.xMin + 1e-4f, "The recess lies outside the playfield");
+            Assert.Less(arena.ExitZone.xMax, arena.Inner.xMin - 0.4f, "Leaving takes walking deep into the recess");
+            Assert.Greater(arena.ExitZone.yMin, arena.EntryPoint.y + 2f, "Far from where the player arrives");
+            Assert.IsTrue(arena.ExitBlocker.enabled && !arena.ExitBlocker.isTrigger, "A solid block fills the doorway");
+            Assert.IsTrue(arena.Particles.All(p => p.GetComponent<Collider2D>() == null ||
+                                                   !Physics2D.GetIgnoreCollision(arena.ExitBlocker, p.GetComponent<Collider2D>())),
+                "Particles are stopped by it");
+            Assert.IsFalse(arena.DoorwayOpen, "Shut until the player walks straight in");
+            Assert.IsFalse(navigator.GetComponents<Collider2D>().Any(c => Physics2D.GetIgnoreCollision(arena.ExitBlocker, c)),
+                "The whole wall stops the player too, until then");
+            Assert.IsTrue(hud.ExitHintVisible, "The HUD says how to leave");
+
+            // A particle knocked at the doorway bounces back: it never gets into the recess.
+            Particle stray = arena.Particles.First(p => p.Home == ArenaSide.Warm);
+            stray.Teleport(new Vector2(arena.Inner.xMin + 0.6f, arena.Centre.y + CoreArena.ExitOffsetY));
+            stray.GetComponent<Rigidbody2D>().linearVelocity = new Vector2(-8f, 0f);
+            for (int i = 0; i < 40; i++)
+            {
+                yield return new WaitForFixedUpdate();
+                Assert.Greater(stray.Position.x, arena.Inner.xMin - 0.05f, "No particle enters the recess");
+            }
+
+            // Walk west into the door with the move keys.
+            Vector2 start = new Vector2(arena.Inner.xMin + 1.6f, arena.Centre.y + CoreArena.ExitOffsetY);
+            PlacePlayer(start);
+            yield return new WaitForFixedUpdate();
+            Assert.IsTrue(navigator.InCoreArena, "Standing near the door is not leaving");
+            Hold(new Vector2Int(-1, 0));
+            yield return WaitUntilOrGameTimeout(() => !navigator.InCoreArena, 3f);
+            Hold(Vector2Int.zero);
+
+            Assert.IsFalse(navigator.InCoreArena, "Walked out");
+            Assert.AreEqual(portalScreen.Face, navigator.Face, "Back on the portal's face");
+            Assert.AreEqual(portalScreen, navigator.Current, "on the portal's screen");
+            Assert.AreEqual(1, arena.Exits);
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.IsFalse(arena.FightActive, "The fight is abandoned");
+            Assert.IsEmpty(arena.Particles, "and cleared");
+            Assert.IsEmpty(runEvents, "No run end");
+            Assert.IsFalse(runState.Ended);
+            Assert.AreEqual(CoreOutcome.None, arena.Outcome);
+            Assert.IsFalse(arena.LeaveThroughExit(), "Nothing to leave from outside the arena");
+
+            // Back in through the same portal: a fresh, ordered fight.
+            Assert.IsTrue(portal.TryEnter(navigator));
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.IsTrue(arena.FightActive);
+            Assert.AreEqual(fights + 1, arena.FightIndex, "A new fight");
+            Assert.AreEqual(arena.ParticlesPerSide * 2, arena.Particles.Count);
+            Assert.IsTrue(arena.Particles.All(p => p.IsHome), "Ordered again");
+            Assert.IsTrue(arena.LeaveThroughExit(), "The exit works again");
+            Assert.AreEqual(portalScreen, navigator.Current);
+            Assert.IsEmpty(runEvents);
+
+            // A controlled entry (no portal, as the debug tools and the skill check use) has the same door; it leads back
+            // to the screen the player entered from.
+            ScreenAddress from = navigator.Current;
+            Assert.IsTrue(arena.Enter(navigator));
+            yield return new WaitForFixedUpdate();
+            Assert.IsTrue(arena.FightActive);
+            Assert.IsTrue(arena.ExitAvailable);
+            Assert.IsTrue(arena.ExitDoor.activeSelf);
+            Assert.AreEqual(from, arena.ExitScreen);
+            Assert.IsTrue(arena.LeaveThroughExit());
+            Assert.AreEqual(from, navigator.Current);
+            Assert.IsEmpty(runEvents);
+        }
+
+        [UnityTest]
+        public IEnumerator Exit_WalkingAlongOrIntoTheWestWall_OutsideTheDoorway_NeverLeaves()
+        {
+            yield return Load();
+            yield return EnterFightFromTown(1234);
+            stats.MaxHealth = 999;
+            float x = arena.Inner.xMin + 0.45f;
+            float doorY = arena.Centre.y + CoreArena.ExitOffsetY;
+
+            // Pressing into the wall just below and just above the doorway.
+            foreach (float y in new[] { doorY - CoreArena.ExitHalfHeight - 0.5f, doorY + CoreArena.ExitHalfHeight + 0.45f })
+            {
+                PlacePlayer(new Vector2(x + 0.5f, y));
+                Hold(new Vector2Int(-1, 0));
+                for (int i = 0; i < 40; i++) yield return new WaitForFixedUpdate();
+                Hold(Vector2Int.zero);
+                Assert.IsTrue(navigator.InCoreArena, $"Pushing into the wall at y {y - arena.Centre.y:0.0} does not leave");
+            }
+
+            // Walking along the wall, up past the doorway and down again, without turning into it.
+            PlacePlayer(new Vector2(x, doorY - 2.2f));
+            Hold(new Vector2Int(0, 1));
+            yield return WaitUntilOrGameTimeout(() => body.position.y > doorY + 1.3f, 3f);
+            Hold(new Vector2Int(0, -1));
+            yield return WaitUntilOrGameTimeout(() => body.position.y < doorY - 1.3f, 3f);
+            Hold(Vector2Int.zero);
+            yield return new WaitForFixedUpdate();
+            Assert.IsTrue(navigator.InCoreArena, "Walking along the wall past the doorway does not leave");
+            Assert.IsFalse(arena.DoorwayOpen, "nor opens the doorway");
+            Assert.IsTrue(arena.FightActive, "and the fight goes on");
+            Assert.AreEqual(0, arena.Exits);
+
+            // Stepping just into the doorway's mouth (not deep into the recess) does not leave either.
+            PlacePlayer(new Vector2(arena.Inner.xMin - 0.2f, doorY));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            Assert.IsTrue(navigator.InCoreArena, "In the doorway's mouth");
+            Assert.IsTrue(arena.FightActive);
+            Assert.IsEmpty(runEvents);
         }
 
         [UnityTest]
@@ -504,6 +640,8 @@ namespace Game.Cube.Tests
             Assert.IsTrue(runState.Ended);
             Assert.IsFalse(runState.Victory);
             Assert.AreEqual(CoreHud.DefeatMessage, hud.MessageText);
+            Assert.IsFalse(arena.ExitAvailable, "No exit once the fight is lost");
+            Assert.IsFalse(arena.ExitDoor.activeSelf, "The exit door is gone after a defeat");
             Assert.IsFalse(arena.FightActive);
 
             // Further events are ignored: mixing the arena now does nothing.
@@ -906,6 +1044,8 @@ namespace Game.Cube.Tests
             float took = Time.time - start;
             Debug.Log($"Skill check (seed {seed}): outcome {arena.Outcome} after {took:0.0} s, {bot.Swings} swings, {bot.Dodges} dodge frames, " +
                       $"peak meter {peak:0.00}, Demon restored {arena.Demon.Restored} and fired {arena.Demon.PulsesFired}, health {health.Current}/{health.Max}");
+            Assert.AreEqual(0, arena.Exits, "The bot never walks out through the exit door");
+            Assert.IsTrue(arena.ExitDoor != null, "The door was there all along");
             Assert.AreEqual(CoreOutcome.Victory, arena.Outcome, $"The bot wins (meter peaked at {peak:0.00}, health {health.Current})");
             Assert.GreaterOrEqual(took, SkillMinSeconds, "Steady pushing takes a while");
             Assert.LessOrEqual(took, SkillMaxSeconds, "but wins in time");

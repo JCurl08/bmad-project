@@ -113,7 +113,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual("physics-item", mitt.Id, "The id stays stable");
             Assert.AreEqual(MassMittItem.Id, mitt.Id);
             Assert.AreEqual(MassMittItem.Name, mitt.DisplayName);
-            Assert.AreEqual("Mass Mitt", mitt.DisplayName);
+            Assert.AreEqual("Heavy Mitt*", mitt.DisplayName);
             Assert.AreEqual(Theme.Physics, mitt.HomeTheme);
             Assert.IsEmpty(catalog.VariantsOf(Theme.Physics), "One logical item for the 1.4 placer");
             for (int seed = 1; seed <= Seeds; seed++)
@@ -453,14 +453,14 @@ namespace Game.Cube.Tests
                 foreach (string line in lines)
                     StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
             }
-            Assert.IsTrue(Dialogue.EinsteinLines.Any(l => l.Contains("It's all relative, darling!")));
+            Assert.IsTrue(Dialogue.EinsteinLines.Any(l => l.Contains("Time is a stretchy thing, darling!")));
             CollectionAssert.Contains(Dialogue.AllFixedText().ToList(), Dialogue.MassMittLine);
             foreach (string line in Dialogue.EinsteinLines.Concat(Dialogue.NewtonLines))
                 CollectionAssert.Contains(Dialogue.AllFixedText().ToList(), line);
             Assert.IsTrue(Dialogue.NewtonLines.Any(l => l.ToLowerInvariant().Contains("apple")), "Newton gets bonked by apples");
-            // The mitt line is true: it names the switch, the mitt, the boulders and what mass does.
+            // The mitt line is true: it names the switch, the mitt, the boulders and what weight does.
             string mittLine = Dialogue.MassMittLine.ToLowerInvariant();
-            foreach (string word in new[] { "switch", "mass mitt", "boulder", "slower", "longer" })
+            foreach (string word in new[] { "switch", MassMittItem.Name.ToLowerInvariant(), "boulder", "slower", "longer" })
                 StringAssert.Contains(word, mittLine);
             Assert.AreEqual(Race.Townsfolk, PhysicsPopulation.NewtonSpec(3).Race);
         }

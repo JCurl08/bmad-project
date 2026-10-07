@@ -25,7 +25,7 @@ namespace Game.Cube
         public static readonly Color DeadEndColor = new Color(0.6f, 0.45f, 0.95f);
         public static readonly Color LooseEndColor = new Color(0.95f, 0.55f, 0.3f);
 
-        public static string Name(MathEnemyKind kind) => kind == MathEnemyKind.DeadEnd ? "Dead End" : "Loose End";
+        public static string Name(MathEnemyKind kind) => kind == MathEnemyKind.DeadEnd ? "Dead End*" : "Loose End*";
 
         /// <summary>The weakness item of a kind in a world's run: the gap-crosser*, or another built theme's item.</summary>
         public static ItemDefinition WeaknessFor(MathEnemyKind kind, CubeWorld world)

@@ -8,14 +8,22 @@ namespace Game.Cube
     /// The between-runs screen (OnGUI placeholder), drawn over everything while RunLoop.ScreenOpen: how the run ended,
     /// what it earned (trials, the Demon, stray Jumbles) and the balance; the four upgrades with level, next cost and next
     /// effect, each with a Buy button (keys 1-4); and Continue (Enter) back to Town on a new seed. The ended run's seed is
-    /// shown, and in debug builds a button replays it. Campy copy; the currency is "Jumbles".
+    /// shown, and in debug builds a button replays it. Campy copy; the currency is "Jumbles*" (InWorldText.Currency).
     /// </summary>
     public class BetweenRunsScreen : MonoBehaviour
     {
-        public const string CurrencyName = "Jumbles";
-        public const string VictoryTitle = "VICTORY! The Demon's tidy little cube is now a glorious mess.";
+        public const string CurrencyName = InWorldText.Currency;
+        public const string VictoryTitle = "VICTORY! The " + InWorldText.Demon + "'s tidy little cube is now a glorious mess.";
         public const string DefeatTitle = "You were defeated";
         public const string ContinueLabel = "Back to Town (new seed)  [Enter]";
+        public const string SpendLabel = "Spend your " + CurrencyName + " (kicks in next run):";
+
+        /// <summary>The line under the title: the run number, its seed and the victories so far.</summary>
+        public static string RunLine(int runNumber, int seed, int victories) =>
+            $"Run {runNumber} on seed {seed}   Victories so far: {victories}";
+
+        /// <summary>A Buy button's label (key 1-4).</summary>
+        public static string BuyLabel(int index) => $"Buy [{index + 1}]";
 
         [SerializeField] private RunLoop loop;
 
@@ -37,14 +45,19 @@ namespace Game.Cube
         /// <summary>The earnings lines as shown (one per source, then the total banked and the balance).</summary>
         public List<string> EarningsLines()
         {
+            if (loop?.LastRun == null) return new List<string>();
+            return EarningsLinesFor(loop.LastRun.Earnings, loop.LastRun.Banked, loop.Meta.Balance);
+        }
+
+        /// <summary>The earnings lines for a run's earnings, what it banked and the balance after it.</summary>
+        public static List<string> EarningsLinesFor(RunEarnings e, int banked, int balance)
+        {
             var lines = new List<string>();
-            if (loop?.LastRun == null) return lines;
-            RunEarnings e = loop.LastRun.Earnings;
             lines.Add($"Trials solved ({e.CountOf(EarningSource.Trial)}): +{e.Of(EarningSource.Trial)}");
-            lines.Add($"Demon dethroned: +{e.Of(EarningSource.Boss)}");
+            lines.Add($"{InWorldText.Demon} dethroned: +{e.Of(EarningSource.Boss)}");
             lines.Add($"Stray {CurrencyName} found ({e.CountOf(EarningSource.Hidden)}): +{e.Of(EarningSource.Hidden)}");
-            lines.Add($"Banked this run: {loop.LastRun.Banked} {CurrencyName}");
-            lines.Add($"In the jar: {loop.Meta.Balance} {CurrencyName}");
+            lines.Add($"Banked this run: {banked} {CurrencyName}");
+            lines.Add($"In the jar: {balance} {CurrencyName}");
             return lines;
         }
 
@@ -52,8 +65,12 @@ namespace Game.Cube
         public string UpgradeLine(UpgradeStat stat)
         {
             if (loop == null || loop.Meta == null) return "";
-            int level = UpgradeShop.Level(loop.Meta, stat);
-            int baseValue = loop.BaseStats.Get(stat);
+            return UpgradeLineFor(stat, UpgradeShop.Level(loop.Meta, stat), loop.BaseStats.Get(stat));
+        }
+
+        /// <summary>An upgrade's shop line at a level over a base value.</summary>
+        public static string UpgradeLineFor(UpgradeStat stat, int level, int baseValue)
+        {
             string now = UpgradeShop.EffectText(stat, baseValue, level);
             if (level >= UpgradeShop.MaxLevel)
                 return $"{UpgradeShop.Name(stat)}  Lv {level}/{UpgradeShop.MaxLevel}  ({now})  MAXED";
@@ -92,7 +109,7 @@ namespace Game.Cube
             GUI.Label(new Rect(x, y, width, 64f), Title, titleStyle);
             y += 66f;
             GUI.Label(new Rect(x, y, width, 22f),
-                $"Run {run.RunNumber} on seed {run.Seed}   Victories so far: {loop.Meta.Victories}", smallStyle);
+                RunLine(run.RunNumber, run.Seed, loop.Meta.Victories), smallStyle);
             y += 28f;
 
             foreach (string line in EarningsLines())
@@ -102,7 +119,7 @@ namespace Game.Cube
             }
             y += 10f;
 
-            GUI.Label(new Rect(x, y, width, 24f), "Spend your Jumbles (kicks in next run):", textStyle);
+            GUI.Label(new Rect(x, y, width, 24f), SpendLabel, textStyle);
             y += 28f;
             for (int i = 0; i < UpgradeShop.All.Length; i++)
             {
@@ -111,7 +128,7 @@ namespace Game.Cube
                 bool affordable = !maxed && loop.Meta.Balance >= UpgradeShop.NextCost(loop.Meta, stat);
                 GUI.enabled = !maxed;
                 GUI.color = affordable || maxed ? Color.white : new Color(1f, 1f, 1f, 0.6f);
-                if (GUI.Button(new Rect(x, y, 90f, 30f), $"Buy [{i + 1}]", buttonStyle)) loop.Buy(stat);
+                if (GUI.Button(new Rect(x, y, 90f, 30f), BuyLabel(i), buttonStyle)) loop.Buy(stat);
                 GUI.enabled = true;
                 GUI.color = Color.white;
                 GUI.Label(new Rect(x + 100f, y, width - 100f, 22f), UpgradeLine(stat), textStyle);

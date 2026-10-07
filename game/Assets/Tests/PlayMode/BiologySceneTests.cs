@@ -321,7 +321,14 @@ namespace Game.Cube.Tests
                 case HintKind.GateLocation:
                     Assert.IsTrue(world.Gates.Any(g => g != null && g.RequiredItem.HomeTheme == hint.Item && OnFace(g.transform.position, hint.Face, screen)),
                         $"{context}: no {hint.Item} gate there ({text})");
-                    StringAssert.Contains(HintGenerator.ThemeName(hint.Item) + " gate", text, context);
+                    Assert.IsNotNull(hint.GateLook, context);
+                    StringAssert.Contains(hint.GateLook, text, context);
+                    // The look names the gate the world built: a plain gate exactly when the hint says iron bars.
+                    if (screen != null)
+                        Assert.IsTrue(world.Gates.Any(g => g != null && g.RequiredItem.HomeTheme == hint.Item &&
+                                                           OnFace(g.transform.position, hint.Face, screen) &&
+                                                           (g.GetType() == typeof(Gate)) == (hint.GateLook == GateLooks.Plain)),
+                            $"{context}: the built gate does not look like {hint.GateLook} ({text})");
                     break;
                 case HintKind.CoreEntrance:
                     Assert.IsTrue(world.AllModules.Any(m => m.ActiveCoreEntrances().Count > 0 && OnFace(m.transform.position, hint.Face, screen)),
@@ -344,7 +351,7 @@ namespace Game.Cube.Tests
             yield return StartRunOntoBiology(seed, true);
             FaceId face = biology.Plan.Face;
             Assert.AreEqual(BiologyPopulation.FinchCount(biology.Plan.FaceSize), biology.Finches.Count);
-            RunFacts facts = new RunFacts(world.Model, world.Layout, world.ItemPlacement);
+            RunFacts facts = RunFacts.Of(world);
             for (int i = 0; i < biology.Finches.Count; i++)
             {
                 NpcTalker finch = biology.Finches[i];

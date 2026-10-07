@@ -11,3 +11,6 @@
 - source_plan: `_bmad-output/initiative-video-game/epic-playable-cube/story-math-face-plan.md`
   summary: Boss skill-check win times still vary run to run for seeds 1234 and 7 (seed 7 up to ~114 s of the 120 s cap), even from the controlled entry state; likely state left by earlier CoreSceneTests. Investigate in the 1.23 refactor sweep (test isolation), without loosening the window.
   evidence: Two full CoreSceneTests runs gave 1234: 91.0/72.3 s, 7: 114.1/107.8 s, 42: 94.2/94.2 s.
+- source_plan: `_bmad-output/initiative-video-game/epic-playable-cube/story-look-and-tone-pass-plan.md`
+  summary: The boss skill-check bot reacts once per rendered frame while physics runs in fixed steps, so its win time lands on one of a few repeatable paths (e.g. 69/94/128 s on seed 42) depending on frame timing at fight start. Make the bot fixed-step driven (or otherwise frame-independent) in the 1.23 refactor sweep so the test measures the fight, not frame pacing. Seed 7 sits at ~108 s of the 120 s cap.
+  evidence: 1.19 and 1.22 both hit exactly 127.8 s on seed 42 from unrelated changes to run-start work; waiting 3 frames after rebuild restored 85.7 s.

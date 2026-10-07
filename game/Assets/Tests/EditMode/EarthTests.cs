@@ -25,8 +25,6 @@ namespace Game.Cube.Tests
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
         private const int Seeds = 50;
 
-        private static readonly string[] BannedWords =
-            { "weather", "atmosphere", "meteorolog", "seismic", "geolog", "tectonic", "climate", "richter" };
 
         private static ModuleLibrary Library()
         {
@@ -563,8 +561,7 @@ namespace Game.Cube.Tests
             foreach (string text in strings.Concat(EarthNames()).Concat(hints).Concat(earthHints))
             {
                 string lower = text.ToLowerInvariant();
-                foreach (string banned in BannedWords)
-                    StringAssert.DoesNotContain(banned, lower, $"\"{text}\" uses a banned word");
+                CollectionAssert.IsEmpty(InWorldText.BannedIn(text), $"\"{text}\" uses a banned word"); // the shared list (InWorldText.BannedWords)
                 StringAssert.DoesNotContain(Dialogue.ForbiddenWord, lower, text);
                 StringAssert.DoesNotContain("mary anning", lower, $"\"{text}\" names a real person");
             }

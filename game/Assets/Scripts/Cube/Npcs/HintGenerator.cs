@@ -27,12 +27,26 @@ namespace Game.Cube
         /// <summary>The item placement, or null (then item and gate hints fall back to face hints).</summary>
         public ItemPlacement Placement { get; }
 
-        public RunFacts(CubeModel model, CubeLayout layout = null, ItemPlacement placement = null)
+        /// <summary>
+        /// The look of every required gate as the face plans build it (GateLooks.Planned), or null: then a gate hint names
+        /// its item's run-wide look (HintGenerator.GateLook).
+        /// </summary>
+        public IReadOnlyDictionary<(ScreenAddress Screen, int Slot), string> GateLooks { get; }
+
+        public RunFacts(CubeModel model, CubeLayout layout = null, ItemPlacement placement = null,
+            IReadOnlyDictionary<(ScreenAddress Screen, int Slot), string> gateLooks = null)
         {
             Model = model ?? throw new ArgumentNullException(nameof(model));
             Layout = layout;
             Placement = placement;
+            GateLooks = gateLooks;
         }
+
+        /// <summary>The facts of a run from its pure inputs, with every gate's planned look (what RunFacts.Of builds).</summary>
+        public static RunFacts Planned(CubeModel model, CubeLayout layout, ItemPlacement placement, ModuleLibrary library,
+            ItemCatalog catalog, int physicsMaxRequired = PhysicsPlan.DefaultMaxRequired) =>
+            new RunFacts(model, layout, placement,
+                Cube.GateLooks.Planned(model, layout, placement, library, catalog, physicsMaxRequired));
 
         /// <summary>
         /// The facts of a world's run. Before the reveal the layout and placement are generated the same way
@@ -47,7 +61,14 @@ namespace Game.Cube
             if (placement == null && layout != null && world.Library != null && world.ItemCatalog != null)
                 placement = ItemPlacement.ForRun(world.Model, layout, world.Library, world.ItemCatalog.Themes(),
                     world.ItemCatalog.VariantCounts());
-            return new RunFacts(world.Model, layout, placement);
+            // The planned gate looks are worked out once per run (the plans are pure functions of the seed) and kept on the world.
+            if (world.PlannedGateLooks == null && placement != null)
+            {
+                PhysicsFace physics = world.GetComponent<PhysicsFace>();
+                world.PlannedGateLooks = Cube.GateLooks.Planned(world.Model, layout, placement, world.Library, world.ItemCatalog,
+                    physics != null ? physics.MaxRequired : PhysicsPlan.DefaultMaxRequired);
+            }
+            return new RunFacts(world.Model, layout, placement, world.PlannedGateLooks);
         }
     }
 
@@ -74,8 +95,13 @@ namespace Game.Cube
 
         public readonly string Text;
 
-        public Hint(HintKind kind, bool precise, FaceId face, Theme faceTheme, Theme item, ScreenAddress screen, string text)
+        /// <summary>For a gate hint (and an item hint behind a gate), the gate's look as named in the text; else null.</summary>
+        public readonly string GateLook;
+
+        public Hint(HintKind kind, bool precise, FaceId face, Theme faceTheme, Theme item, ScreenAddress screen, string text,
+            string gateLook = null)
         {
+            GateLook = gateLook;
             Kind = kind;
             Precise = precise;
             Face = face;
@@ -154,36 +180,40 @@ namespace Game.Cube
                 {
                     PickupPlacement p = facts.Placement.Pickups[subject];
                     Theme faceTheme = model.ThemeOf(p.Screen.Face);
-                    string text;
+                    string text, look = null;
                     if (full)
                     {
                         string guard = "";
                         if (p.IsGuarded && facts.Placement.TryGetGate(p.Screen, p.GuardSlot, out GatePlacement g))
-                            guard = $", tucked behind a {ThemeName(g.Item)} gate";
-                        text = $"{open} the {ItemNickname(p.Item)} lies on the {ScreenPhrase(p.Screen, model.FaceSize)} screen of the {ThemeName(faceTheme)} face{guard}.";
+                        {
+                            look = LookOf(facts, g);
+                            guard = $", tucked behind {look}";
+                        }
+                        text = $"{open} the {ItemNickname(p.Item)} lies on the {ScreenPhrase(p.Screen, model.FaceSize)} screen of {ThemeName(faceTheme)}{guard}.";
                     }
                     else
                     {
-                        text = $"{open} the {ItemNickname(p.Item)} is somewhere on the {ThemeName(faceTheme)} face.";
+                        text = $"{open} the {ItemNickname(p.Item)} is somewhere in {ThemeName(faceTheme)}.";
                     }
-                    return new Hint(kind, full, p.Screen.Face, faceTheme, p.Item, full ? p.Screen : default, text);
+                    return new Hint(kind, full, p.Screen.Face, faceTheme, p.Item, full ? p.Screen : default, text, look);
                 }
                 case HintKind.GateLocation:
                 {
                     GatePlacement g = facts.Placement.Gates[subject];
                     Theme faceTheme = model.ThemeOf(g.Screen.Face);
+                    string look = LookOf(facts, g);
                     string text = full
-                        ? $"{open} a {ThemeName(g.Item)} gate blocks a nook on the {ScreenPhrase(g.Screen, model.FaceSize)} screen of the {ThemeName(faceTheme)} face."
-                        : $"{open} there's a {ThemeName(g.Item)} gate out on {ThemeName(faceTheme)}. Rude of it.";
-                    return new Hint(kind, full, g.Screen.Face, faceTheme, g.Item, full ? g.Screen : default, text);
+                        ? $"{open} {look} blocks a nook on the {ScreenPhrase(g.Screen, model.FaceSize)} screen of {ThemeName(faceTheme)}."
+                        : $"{open} there's {look} out in {ThemeName(faceTheme)}. Rude of it.";
+                    return new Hint(kind, full, g.Screen.Face, faceTheme, g.Item, full ? g.Screen : default, text, look);
                 }
                 case HintKind.CoreEntrance:
                 {
                     FaceLayout fl = CoreFaces(facts)[subject];
                     var screen = new ScreenAddress(fl.Face, fl.CoreCell);
                     string text = full
-                        ? $"{open} a door down into the core hides on the {ScreenPhrase(screen, model.FaceSize)} screen of the {ThemeName(fl.Theme)} face."
-                        : $"{open} a way into the core is somewhere on {ThemeName(fl.Theme)}.";
+                        ? $"{open} a door down into the core hides on the {ScreenPhrase(screen, model.FaceSize)} screen of {ThemeName(fl.Theme)}."
+                        : $"{open} a way into the core is somewhere in {ThemeName(fl.Theme)}.";
                     return new Hint(kind, full, fl.Face, fl.Theme, fl.Theme, full ? screen : default, text);
                 }
                 default:
@@ -241,23 +271,75 @@ namespace Game.Cube
             return "centre";
         }
 
+        /// <summary>The Math face's in-world placeholder region name (InWorldText.Bridgelands).</summary>
+        public const string MathRegionName = InWorldText.Bridgelands;
+
+        /// <summary>The Earth and Atmosphere face's in-world placeholder region name (InWorldText.Wildlands).</summary>
+        public const string EarthRegionName = InWorldText.Wildlands;
+
         /// <summary>
-        /// A face's name in hints. Math and Earth go by their in-world placeholder region names (subtle science: never the
-        /// science's name); the other faces keep their working names until story 1.22 renames them all.
+        /// A face's name in hints, as it reads mid-sentence: its in-world region name (InWorldText.Region), never the
+        /// science's name: "the Greenwood*", "the Ember Vale*", "the Weightlands*", "Bridgelands*", "Wildlands*", Town.
         /// </summary>
-        public const string MathRegionName = "Bridgelands*";
+        public static string ThemeName(Theme theme) => InWorldText.Region(theme);
 
-        /// <summary>The Earth and Atmosphere face's in-world placeholder region name.</summary>
-        public const string EarthRegionName = "Wildlands*";
-
-        public static string ThemeName(Theme theme)
+        /// <summary>
+        /// How the gates of a theme's item look in this run, as a noun phrase ("a dark doorway"): named by their look, never
+        /// by the science. The run's rolled variant (the same ItemVariants roll the catalog makes) picks the look, so the
+        /// phrase is true for every gate of that item; a theme whose gates come in two looks names both.
+        /// </summary>
+        public static string GateLook(int seed, Theme item)
         {
-            switch (theme)
+            switch (item)
             {
-                case Theme.Math: return MathRegionName;
-                case Theme.EarthAtmosphere: return EarthRegionName;
-                default: return theme.ToString();
+                case Theme.Biology:
+                    return BiologyBeaks.Roll(seed) == BeakKind.Thin ? "a bramble or a button door" : "a mossy rock or a clay pot";
+                case Theme.Chemistry:
+                    switch (ChemistryIsotope.VariantOrder[ItemVariants.Roll(seed, Theme.Chemistry, ChemistryIsotope.VariantCount)])
+                    {
+                        case IsotopeStage.Glow: return "a dark doorway";
+                        case IsotopeStage.Unstable: return "a cracked wall";
+                        default: return "a heavy plated door";
+                    }
+                case Theme.Physics: return "a swinging door";
+                case Theme.Math: return "a gap or a plank door";
+                case Theme.EarthAtmosphere:
+                    switch (StormcallerItem.VariantOrder[ItemVariants.Roll(seed, Theme.EarthAtmosphere, StormcallerItem.VariantCount)])
+                    {
+                        case Phenomenon.Quake: return "a row of rock pillars";
+                        case Phenomenon.Rain: return "a wall of fire";
+                        case Phenomenon.Snow: return "a pool of water";
+                        default: return "a pile of debris";
+                    }
+                default: return "a locked gate";
             }
+        }
+
+        /// <summary>
+        /// The look a hint names for one gate: the look the face plan builds it with (RunFacts.GateLooks, a plain barred
+        /// door where the face falls back), or, without planned looks, its item's run-wide look (GateLook).
+        /// </summary>
+        public static string LookOf(RunFacts facts, GatePlacement gate) =>
+            facts.GateLooks != null && facts.GateLooks.TryGetValue((gate.Screen, gate.Slot), out string look)
+                ? look
+                : GateLook(facts.Model.Seed, gate.Item);
+
+        /// <summary>Every gate look a hint can name (for the text checks).</summary>
+        public static IEnumerable<string> AllGateLooks()
+        {
+            foreach (string look in GateLooks.All()) yield return look;
+            yield return "a bramble or a button door";
+            yield return "a mossy rock or a clay pot";
+            yield return "a dark doorway";
+            yield return "a cracked wall";
+            yield return "a heavy plated door";
+            yield return "a swinging door";
+            yield return "a gap or a plank door";
+            yield return "a row of rock pillars";
+            yield return "a wall of fire";
+            yield return "a pool of water";
+            yield return "a pile of debris";
+            yield return "a locked gate";
         }
 
         /// <summary>What townsfolk call a face's item.</summary>
@@ -267,11 +349,119 @@ namespace Game.Cube
             {
                 case Theme.Biology: return "beak-thing";
                 case Theme.Chemistry: return "changing stone";
-                case Theme.Physics: return "heavy time-rock";
+                case Theme.Physics: return "heavy grabbing mitt";
                 case Theme.Math: return "gap-crossing plank";
                 case Theme.EarthAtmosphere: return "storm-calling stick";
                 default: return "town trinket";
             }
+        }
+    }
+}
+
+namespace Game.Cube
+{
+    /// <summary>
+    /// What each required gate of a run looks like, decided the way the faces build them: the face plans are made from
+    /// the same pure inputs as on the reveal (BiologyFace, ChemistryFace, PhysicsFace, MathFace and EarthFace BeginReveal),
+    /// and a gate gets its themed look exactly when that face's CreateGate would build its themed gate; otherwise (no plan,
+    /// no spec, no door layout, a mismatched stage or wand) the world builds a plain gate (iron bars) and the look is Plain.
+    /// Keep in step with the faces' CreateGate conditions.
+    /// </summary>
+    public static class GateLooks
+    {
+        public const string Plain = "a door of iron bars";
+        public const string Rock = "a mossy rock";
+        public const string Pot = "a clay pot";
+        public const string ButtonDoor = "a button door";
+        public const string Bramble = "a bramble";
+        public const string DarkDoorway = "a dark doorway";
+        public const string CrackedWall = "a cracked wall";
+        public const string PlatedDoor = "a heavy plated door";
+        public const string SwingingDoor = "a swinging door";
+        public const string Gap = "a gap";
+        public const string PlankDoor = "a plank door";
+        public const string Pillars = "a row of rock pillars";
+        public const string FireWall = "a wall of fire";
+        public const string Pool = "a pool of water";
+        public const string Debris = "a pile of debris";
+
+        public static IEnumerable<string> All() => new[]
+        {
+            Plain, Rock, Pot, ButtonDoor, Bramble, DarkDoorway, CrackedWall, PlatedDoor, SwingingDoor, Gap, PlankDoor, Pillars,
+            FireWall, Pool, Debris,
+        };
+
+        public static string Of(IsotopeStage stage) =>
+            stage == IsotopeStage.Glow ? DarkDoorway : stage == IsotopeStage.Unstable ? CrackedWall : PlatedDoor;
+
+        public static string Of(Phenomenon kind)
+        {
+            switch (kind)
+            {
+                case Phenomenon.Quake: return Pillars;
+                case Phenomenon.Rain: return FireWall;
+                case Phenomenon.Snow: return Pool;
+                default: return Debris;
+            }
+        }
+
+        /// <summary>The look of every required gate of a run, keyed by screen and slot (empty without a placement or catalog).</summary>
+        public static Dictionary<(ScreenAddress Screen, int Slot), string> Planned(CubeModel model, CubeLayout layout,
+            ItemPlacement placement, ModuleLibrary library, ItemCatalog catalog, int physicsMaxRequired = PhysicsPlan.DefaultMaxRequired)
+        {
+            var looks = new Dictionary<(ScreenAddress Screen, int Slot), string>();
+            if (model == null || placement == null || catalog == null) return looks;
+            int seed = model.Seed;
+            Func<ScreenAddress, ScreenModule> moduleAt = layout != null && library != null ? SeedSweep.ModuleLookup(layout, library) : null;
+            List<BeakKind> beakKinds = BiologyBeaks.VariantKinds(catalog);
+            List<IsotopeStage> stageKinds = ChemistryIsotope.VariantKinds(catalog);
+            List<Phenomenon> wandKinds = StormcallerItem.VariantKinds(catalog);
+
+            BeakKind? beak = BiologyBeaks.KindOf(catalog.ItemFor(Theme.Biology, seed));
+            BiologyPlan biology = beakKinds != null && beak != null && placement.RolledVariant(Theme.Biology) >= 0
+                ? BiologyPlan.Create(model, placement, beak.Value, beakKinds) : null;
+            IsotopeStage? stage = ChemistryIsotope.KindOf(catalog.ItemFor(Theme.Chemistry, seed));
+            ChemistryPlan chemistry = stageKinds != null && stage != null && placement.RolledVariant(Theme.Chemistry) >= 0
+                ? ChemistryPlan.Create(model, placement, stage.Value, stageKinds) : null;
+            PhysicsPlan physics = catalog.ItemFor(Theme.Physics, seed) != null
+                ? PhysicsPlan.Create(model, placement, moduleAt, beakKinds, physicsMaxRequired, stageKinds) : null;
+            MathPlan math = catalog.ItemFor(Theme.Math, seed) != null
+                ? MathPlan.Create(model, placement, moduleAt, beakKinds, stageKinds) : null;
+            ItemDefinition wand = catalog.ItemFor(Theme.EarthAtmosphere, seed);
+            EarthPlan earth = wand != null ? EarthPlan.Create(model, placement, moduleAt, wandKinds, beakKinds, stageKinds) : null;
+
+            foreach (GatePlacement g in placement.Gates)
+            {
+                string look = Plain;
+                switch (g.Item)
+                {
+                    case Theme.Biology:
+                        if (biology != null && biology.TryGetGate(g.Screen, g.Slot, false, out BeakGateSpec b))
+                            look = b.Kind == BeakGateKind.Breakable ? (b.Look == BreakableLook.Pot ? Pot : Rock)
+                                : b.Kind == BeakGateKind.FlowerVine ? Bramble : ButtonDoor;
+                        break;
+                    case Theme.Chemistry:
+                        if (chemistry != null && chemistry.TryGetGate(g.Screen, g.Slot, false, out IsotopeGateSpec c) && c.Stage == stage)
+                            look = Of(c.Stage);
+                        break;
+                    case Theme.Physics:
+                        if (physics != null)
+                            foreach (TimedDoorSpec d in physics.Doors)
+                                if (d.Screen == g.Screen && d.Slot == g.Slot && d.Layout != null && d.Layout.HasSwitch) look = SwingingDoor;
+                        break;
+                    case Theme.Math:
+                        if (math != null && math.TryGetGate(g.Screen, g.Slot, out MathGateSpec m))
+                            look = m.Kind == MathGateKind.Gap ? Gap : m.Layout != null ? PlankDoor : Plain;
+                        break;
+                    case Theme.EarthAtmosphere:
+                        if (earth != null && earth.TryGetGate(g.Screen, g.Slot, false, out EarthGateSpec e) && e.Kind != Phenomenon.None &&
+                            StormcallerItem.KindOf(wand) == e.Kind)
+                            look = Of(e.Kind);
+                        break;
+                }
+                looks[(g.Screen, g.Slot)] = look;
+            }
+            return looks;
         }
     }
 }

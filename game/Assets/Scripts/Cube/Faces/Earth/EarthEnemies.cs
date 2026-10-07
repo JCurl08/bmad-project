@@ -25,7 +25,7 @@ namespace Game.Cube
         public static readonly Color SquallColor = new Color(0.7f, 0.8f, 1f);
         public static readonly Color RumblerColor = new Color(0.75f, 0.5f, 0.3f);
 
-        public static string Name(EarthEnemyKind kind) => kind == EarthEnemyKind.Squall ? "Squall" : "Rumbler";
+        public static string Name(EarthEnemyKind kind) => kind == EarthEnemyKind.Squall ? "Squall*" : "Rumbler*";
 
         /// <summary>The weakness item of a kind in a world's run: the rolled Stormcaller*, or another built theme's item.</summary>
         public static ItemDefinition WeaknessFor(EarthEnemyKind kind, CubeWorld world)

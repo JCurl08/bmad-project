@@ -26,7 +26,7 @@ namespace Game.Cube
         public static readonly Color FleaColor = new Color(0.75f, 0.45f, 1f);
         public static readonly Color ClingColor = new Color(0.95f, 0.95f, 0.55f);
 
-        public static string Name(PhysicsEnemyKind kind) => kind == PhysicsEnemyKind.QuantumFlea ? "Quantum Flea" : "Static Cling";
+        public static string Name(PhysicsEnemyKind kind) => kind == PhysicsEnemyKind.QuantumFlea ? "Blink Flea*" : "Static Cling*";
 
         /// <summary>The weakness item of a kind in a world's run: the mitt, or another built theme's item.</summary>
         public static ItemDefinition WeaknessFor(PhysicsEnemyKind kind, CubeWorld world)

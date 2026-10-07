@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 namespace Game.Cube
 {
     /// <summary>
-    /// Einstein's Mass Mitt as data: the Physics item (one logical item for ItemPlacement; its id stays the 1.4
+    /// The Heavy Mitt* (code: the Mass Mitt) as data: the Physics item (one logical item for ItemPlacement; its id stays the 1.4
     /// placeholder's "physics-item"). With it equipped the player can grab boulders and drag them.
     /// </summary>
     public static class MassMittItem
@@ -12,7 +12,7 @@ namespace Game.Cube
         /// <summary>The Physics item's id: the 1.4 placeholder's, kept stable.</summary>
         public const string Id = "physics-item";
 
-        public const string Name = "Mass Mitt";
+        public const string Name = "Heavy Mitt*";
 
         public static readonly Color ItemColor = new Color(0.45f, 0.75f, 1f);
 
@@ -98,11 +98,18 @@ namespace Game.Cube
             get
             {
                 if (!IsHeld) return null;
-                if (held != null) return "Mass Mitt: dragging a boulder ([Interact] to let go)";
-                if (!IsEquipped) return "Mass Mitt: equip it to grab boulders";
-                return "Mass Mitt: [Interact] or swing at a boulder to grab it";
+                if (held != null) return DraggingText;
+                if (!IsEquipped) return EquipText;
+                return ReadyText;
             }
         }
+
+        public const string DraggingText = MassMittItem.Name + ": dragging a boulder ([Interact] to let go)";
+        public const string EquipText = MassMittItem.Name + ": equip it to grab boulders";
+        public const string ReadyText = MassMittItem.Name + ": [Interact] or swing at a boulder to grab it";
+
+        /// <summary>Every HUD line the mitt can show (for the text checks).</summary>
+        public static readonly string[] AllHudText = { DraggingText, EquipText, ReadyText };
 
         private void OnEnable()
         {

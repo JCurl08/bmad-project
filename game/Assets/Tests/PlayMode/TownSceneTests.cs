@@ -211,7 +211,7 @@ namespace Game.Cube.Tests
             CollectionAssert.AreEqual(signatures, town.Specs.Select(s => s.Signature()));
             CollectionAssert.AreEqual(signatures, town.Npcs.Select(n => n.Spec.Signature()));
             CollectionAssert.AreEqual(spotsBefore, town.Spots);
-            RunFacts revealed = new RunFacts(model, world.Layout, world.ItemPlacement);
+            RunFacts revealed = RunFacts.Of(world);
             for (int i = 0; i < town.Npcs.Count; i++)
             {
                 List<string> expected = Dialogue.For(town.Npcs[i].Spec, revealed, HintGenerator.FirstRunDensity);

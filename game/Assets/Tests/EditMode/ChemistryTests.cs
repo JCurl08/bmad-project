@@ -20,11 +20,6 @@ namespace Game.Cube.Tests
         private const int Seeds = 50;
 
         /// <summary>Science words in-world text never uses (lore-and-tone.md, subtle science), plus the real patron's name.</summary>
-        private static readonly string[] BannedWords =
-        {
-            "isotope", "radioactive", "radioactivity", "radiation", "radium", "polonium", "uranium", "decay", "half-life",
-            "half life", "element", "atom", "nuclear", "neutron", "proton", "electron", "chemical", "curie",
-        };
 
         private static ModuleLibrary Library()
         {
@@ -520,8 +515,7 @@ namespace Game.Cube.Tests
             foreach (string text in strings)
             {
                 string lower = text.ToLowerInvariant();
-                foreach (string banned in BannedWords)
-                    StringAssert.DoesNotContain(banned, lower, $"\"{text}\" uses a science word");
+                CollectionAssert.IsEmpty(InWorldText.BannedIn(text), $"\"{text}\" uses a science word"); // the shared list (InWorldText.BannedWords)
                 StringAssert.DoesNotContain(Dialogue.ForbiddenWord, lower, text);
             }
 

@@ -352,7 +352,10 @@ namespace Game.Cube
             {
                 ScreenAddress here = PlayerScreen;
                 Rect r = CellRect(n.NetCell(here));
-                Outline(r, Color.white, 2f);
+                // The current screen: a dark ring with a white one inside, so it shows on every region colour.
+                Outline(r, MarkerOutlineColor, MarkerOutlineWidth);
+                Outline(new Rect(r.x + MarkerOutlineWidth, r.y + MarkerOutlineWidth, r.width - 2f * MarkerOutlineWidth,
+                    r.height - 2f * MarkerOutlineWidth), Color.white, MarkerOutlineWidth);
                 Vector2 local = n.ToNetLocal(here.Face,
                     MapMarkers.LocalIn(world.ScreenCenter(here), navigator.transform.position));
                 var at = new Vector2(r.x + local.x * r.width, r.y + (1f - local.y) * r.height);
@@ -362,30 +365,56 @@ namespace Game.Cube
             DrawLegend(w, h, glyph);
         }
 
+        /// <summary>Every marker sits on a dark outline (or dark backing) this wide, so it reads on every region colour.</summary>
+        public const float MarkerOutlineWidth = 2f;
+
+        /// <summary>The marker outline's colour.</summary>
+        public static readonly Color MarkerOutlineColor = Color.black;
+
+        /// <summary>The fill colour of each marker (and the player and the current-screen ring), for the contrast check.</summary>
+        public static IEnumerable<KeyValuePair<string, Color>> MarkerFills()
+        {
+            yield return new KeyValuePair<string, Color>("You", PlayerColor);
+            yield return new KeyValuePair<string, Color>("Here", Color.white);
+            yield return new KeyValuePair<string, Color>("Start", StartColor);
+            yield return new KeyValuePair<string, Color>("Gate", GateColor);
+            yield return new KeyValuePair<string, Color>("Item", ItemColor);
+            yield return new KeyValuePair<string, Color>("Trial", TrialColor);
+            yield return new KeyValuePair<string, Color>("Portal", PortalColor);
+        }
+
+        private static Rect Grow(Rect r, float by) => new Rect(r.x - by, r.y - by, r.width + 2f * by, r.height + 2f * by);
+
         private void DrawMarker(MapMarkerKind kind, bool done, Vector2 at, float s)
         {
+            float o = MarkerOutlineWidth;
+            Color dark = MarkerOutlineColor;
             switch (kind)
             {
                 case MapMarkerKind.Start:
-                    Outline(new Rect(at.x - s / 2f, at.y - s / 2f, s, s), StartColor, 2f);
+                    // A dark ring round the white one, so it shows on Town's white as well as on the dark fog.
+                    var box = new Rect(at.x - s / 2f, at.y - s / 2f, s, s);
+                    Outline(Grow(box, o), dark, o);
+                    Outline(box, StartColor, 2f);
+                    Outline(new Rect(box.x + 2f, box.y + 2f, box.width - 4f, box.height - 4f), dark, o);
                     break;
                 case MapMarkerKind.Gate:
                     var bar = new Rect(at.x - s * 0.8f, at.y - s * 0.3f, s * 1.6f, s * 0.6f);
-                    if (done) Outline(bar, new Color(GateColor.r, GateColor.g, GateColor.b, 0.7f), 1f);
-                    else
-                    {
-                        Fill(bar, Color.black);
-                        Fill(new Rect(bar.x + 1f, bar.y + 1f, bar.width - 2f, bar.height - 2f), GateColor);
-                    }
+                    Fill(Grow(bar, o), dark);
+                    if (done) Outline(bar, GateColor, 1f);
+                    else Fill(bar, GateColor);
                     break;
                 case MapMarkerKind.Item:
-                    Fill(new Rect(at.x - s / 2f, at.y - s / 2f, s, s), Color.black);
-                    Fill(new Rect(at.x - s / 2f + 1f, at.y - s / 2f + 1f, s - 2f, s - 2f), ItemColor);
+                    var square = new Rect(at.x - s / 2f, at.y - s / 2f, s, s);
+                    Fill(Grow(square, o), dark);
+                    Fill(square, ItemColor);
                     break;
                 case MapMarkerKind.Trial:
+                    Tex(Disc, new Rect(at.x - s * 0.6f - o, at.y - s * 0.6f - o, s * 1.2f + 2f * o, s * 1.2f + 2f * o), dark);
                     Tex(done ? Disc : Ring, new Rect(at.x - s * 0.6f, at.y - s * 0.6f, s * 1.2f, s * 1.2f), TrialColor);
                     break;
                 case MapMarkerKind.Portal:
+                    Tex(Disc, new Rect(at.x - s * 0.75f - o, at.y - s * 0.75f - o, s * 1.5f + 2f * o, s * 1.5f + 2f * o), dark);
                     Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), PortalColor);
                     Tex(Disc, new Rect(at.x - s * 0.3f, at.y - s * 0.3f, s * 0.6f, s * 0.6f), PortalColor);
                     break;
@@ -394,12 +423,16 @@ namespace Game.Cube
 
         private void DrawPlayer(Vector2 at, Vector2 netDirection, float s)
         {
-            Tex(Disc, new Rect(at.x - s / 2f - 1f, at.y - s / 2f - 1f, s + 2f, s + 2f), Color.black);
+            // A dark ring, a white ring, then the red disc: readable on red, white and every other region colour.
+            float o = MarkerOutlineWidth;
+            Tex(Disc, new Rect(at.x - s / 2f - 2f * o, at.y - s / 2f - 2f * o, s + 4f * o, s + 4f * o), MarkerOutlineColor);
+            Tex(Disc, new Rect(at.x - s / 2f - o, at.y - s / 2f - o, s + 2f * o, s + 2f * o), Color.white);
             Tex(Disc, new Rect(at.x - s / 2f, at.y - s / 2f, s, s), PlayerColor);
             // The facing: a nub out of the disc (net y is up; GUI y is down).
             Vector2 d = netDirection.sqrMagnitude > 1e-6f ? netDirection.normalized : Vector2.right;
             var tip = new Vector2(at.x + d.x * s * 0.75f, at.y - d.y * s * 0.75f);
             float nub = Mathf.Max(3f, s * 0.4f);
+            Tex(Disc, new Rect(tip.x - nub / 2f - 1f, tip.y - nub / 2f - 1f, nub + 2f, nub + 2f), MarkerOutlineColor);
             Tex(Disc, new Rect(tip.x - nub / 2f, tip.y - nub / 2f, nub, nub), Color.white);
         }
 

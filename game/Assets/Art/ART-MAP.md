@@ -15,10 +15,17 @@ its generated placeholder shape, so nothing renders invisible.
   floors, drawn translucent over the floor so the ground still reads.
 - **Tints:** a tint separates variants (floor themes, enemy kinds, the arena halves, a gate's item colour), but every
   category differs by shape. No tile is used by two keys (a test checks it).
+- **Region colours (Rubik's cube):** Town white, Biology green, Chemistry red, Physics blue, Math yellow, Earth &
+  Atmosphere orange (`CubeWorld.ThemeColor`, also the map's colours). Floors take a per-tile tint of their region colour
+  (`ArtKeys.FloorTint`: tints only darken a tile, so the grey panels carry blue, the sand red, gold and
+  orange, and Town's pale stone stays white; a test checks each floor against its walls, gates and items); walls and alcoves take a soft tint of it, Town's pillars and ruin pieces
+  the colours of the other regions.
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`; shape people have a round
-  face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories), the water
+  face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches
+  are drawn in full colour: a round fluffy body, a clear orange beak, big glinting eyes, blush and little orange feet), the water
   under a bridge layout and its flag, and marks, pips, effects,
-  the membrane and the Demon's door, the wind arrows, rain drops and the calm eye's ring (`ArtCatalog.Shape`). Newton's apple has no tile and stays a red circle.
+  the membrane and the Demon*'s door, the core arena's exit door, the wind arrows, rain drops and the calm eye's ring
+  (`ArtCatalog.Shape`). The apple-bonked sage*'s apple has no tile and stays a red circle.
 
 | Key | Tile | Why |
 |---|---|---|
@@ -26,12 +33,12 @@ its generated placeholder shape, so nothing renders invisible.
 | Wall | D 40 | light stone bricks |
 | WallSealed | D 14 | dark stone bricks for the edges into sealed faces |
 | ArenaWall | T 126 | grey castle bricks around the core arena |
-| FloorTown | T 43 | stone slabs in grass: the ruins town |
-| FloorBiology | T 1 | grass with tufts: Darwin's green face |
-| FloorChemistry | D 37 | grey lab planks, tinted violet |
-| FloorPhysics | T 109 | plain light stone, tinted blue |
-| FloorMath | D 48 | plain sand, tinted gold |
-| FloorEarth | D 49 | speckled sand, tinted teal |
+| FloorTown | T 109 | plain pale stone: the white ruins town |
+| FloorBiology | T 1 | grass with tufts, a little greener: the green Greenwood* |
+| FloorChemistry | D 53 | plain sand, tinted deep red: the Ember Vale* |
+| FloorPhysics | T 76 | grey stone panels, tinted blue: the Weightlands* |
+| FloorMath | D 48 | plain sand, tinted gold-yellow: Bridgelands* |
+| FloorEarth | D 49 | speckled sand, tinted orange: Wildlands* |
 | FloorDark | D 0 | dark dungeon floor for unrevealed and sealed faces |
 | ArenaFloor | D 42 | slabbed sand, tinted warm and cool for the arena halves |
 | GateGeneric | D 77 | iron bars: a plain item gate |
@@ -89,7 +96,7 @@ its generated placeholder shape, so nothing renders invisible.
 | FreezingRain | T 77 | grey-blue slush, tinted icy blue: freezing rain that slows you (generated drops fall over it) |
 | Crevice | D 2 | a dark drop under a stone lip: a quake crevice you go round |
 | Portal | T 104 | blue well in an arch: the way into the core |
-| Demon | D 19 | carved demon face: Maxwell's Demon |
+| Demon | D 19 | carved demon face: the Demon* |
 | Particle | D 102 | round disc, tinted warm or cool |
 | RuinPillar | D 58 | stone column |
 | RuinArch | T 114 | broken arch |

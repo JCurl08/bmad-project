@@ -231,10 +231,35 @@ namespace Game.Cube
         public static ArtKey Enemy(EarthEnemyKind kind) =>
             kind == EarthEnemyKind.Squall ? ArtKey.EnemySquall : ArtKey.EnemyRumbler;
 
-        /// <summary>The floor tint of a theme: the green and the town floors keep their own colours, the rest take a soft theme tint.</summary>
-        public static UnityEngine.Color FloorTint(Theme theme) =>
-            theme == Theme.Town || theme == Theme.Biology
-                ? UnityEngine.Color.white
-                : UnityEngine.Color.Lerp(UnityEngine.Color.white, CubeWorld.ThemeColor(theme), 0.5f);
+        /// <summary>The tint of a face's walls (pillars, bars, alcoves): a soft trim of its region colour.</summary>
+        public static UnityEngine.Color WallTint(Theme theme) =>
+            UnityEngine.Color.Lerp(UnityEngine.Color.white, CubeWorld.ThemeColor(theme), 0.4f);
+
+        /// <summary>The tint of a Town pillar that is a ruin of a science face (in that face's colour).</summary>
+        public static UnityEngine.Color TownPillarTint(Theme science) =>
+            UnityEngine.Color.Lerp(UnityEngine.Color.white, CubeWorld.ThemeColor(science), 0.5f);
+
+        /// <summary>The tint of a Town ruin piece of a science face (visual only).</summary>
+        public static UnityEngine.Color RuinTint(Theme science) =>
+            UnityEngine.Color.Lerp(UnityEngine.Color.white, CubeWorld.ThemeColor(science), 0.6f);
+
+        /// <summary>
+        /// The floor tint of a theme, chosen per floor tile so the floor reads as its Rubik's region colour
+        /// (CubeWorld.ThemeColor) while every dark-outlined sprite on it stays readable: Town's pale stone stays white, the
+        /// grass gets a little greener, one plain sand goes red, the grey stone panels blue, another plain sand gold-yellow and
+        /// the speckled sand orange (the tints multiply the tile, so they can only darken it).
+        /// </summary>
+        public static UnityEngine.Color FloorTint(Theme theme)
+        {
+            switch (theme)
+            {
+                case Theme.Town: return UnityEngine.Color.white;
+                case Theme.Biology: return new UnityEngine.Color(0.78f, 1f, 0.72f);
+                case Theme.Chemistry: return new UnityEngine.Color(0.9f, 0.3f, 0.26f);
+                case Theme.Physics: return new UnityEngine.Color(0.36f, 0.48f, 0.9f);
+                case Theme.Math: return new UnityEngine.Color(1f, 1f, 0.3f);
+                default: return new UnityEngine.Color(1f, 0.68f, 0.4f);
+            }
+        }
     }
 }

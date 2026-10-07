@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Thick Beak
   m_EditorClassIdentifier: Game.Cube::Game.Cube.ItemDefinition
   id: thick-beak
-  displayName: Thick Beak
+  displayName: Thick Beak*
   homeTheme: 1
   placeholderColor: {r: 0.85, g: 0.6, b: 0.3, a: 1}
   attackReach: 0

@@ -23,7 +23,7 @@ namespace Game.Cube
         /// <summary>NPC index of the Newton cameo (a townsperson's parts).</summary>
         public const int NewtonIndex = IndexBase + 99;
 
-        public const string NewtonName = "Sir Isaac Newton";
+        public const string NewtonName = InWorldText.AppleSage;
 
         public static NpcSpec AlienSpec(int seed, int i) => NpcFactory.ChooseParts(seed, Race.Alien, IndexBase + i);
 

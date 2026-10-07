@@ -105,10 +105,10 @@ namespace Game.Cube
         {
             switch (stat)
             {
-                case UpgradeStat.Health: return "Extra Heart";
-                case UpgradeStat.Defence: return "Thick Skin";
-                case UpgradeStat.Power: return "Big Bonk";
-                default: return "Zoomies";
+                case UpgradeStat.Health: return "Extra Heart*";
+                case UpgradeStat.Defence: return "Thick Skin*";
+                case UpgradeStat.Power: return "Big Bonk*";
+                default: return "Zoomies*";
             }
         }
 
@@ -119,7 +119,7 @@ namespace Game.Cube
                 case UpgradeStat.Health: return "More of you to fall apart.";
                 case UpgradeStat.Defence: return "Bonks bounce off. Mostly.";
                 case UpgradeStat.Power: return "Your swings mix things up harder.";
-                default: return "Diffuse faster than a sneeze in a lift.";
+                default: return "Zip about faster than a sneeze in a lift.";
             }
         }
 
@@ -145,7 +145,7 @@ namespace Game.Cube
             int cost = Cost(level);
             if (save.Balance < cost)
                 return new PurchaseResult(PurchaseOutcome.NotEnough, stat, level, cost,
-                    $"Not enough Jumbles for {Name(stat)} ({save.Balance}/{cost}). The Demon calls that \"balanced\".");
+                    $"Not enough {InWorldText.Currency} for {Name(stat)} ({save.Balance}/{cost}). The {InWorldText.Demon} calls that \"balanced\".");
             save.Balance -= cost;
             save.SetUpgradeLevel(Id(stat), level + 1);
             return new PurchaseResult(PurchaseOutcome.Bought, stat, level + 1, cost,

@@ -26,7 +26,7 @@ namespace Game.Cube
         public static readonly Color WeevilColor = new Color(0.45f, 0.3f, 0.15f);
         public static readonly Color PuffColor = new Color(1f, 0.9f, 0.45f);
 
-        public static string Name(BiologyEnemyKind kind) => kind == BiologyEnemyKind.SeedWeevil ? "Seed Weevil" : "Pollen Puff";
+        public static string Name(BiologyEnemyKind kind) => kind == BiologyEnemyKind.SeedWeevil ? "Seed Weevil*" : "Pollen Puff*";
 
         /// <summary>The weakness item of a kind in a world's run: the rolled beak, or another built theme's item.</summary>
         public static ItemDefinition WeaknessFor(BiologyEnemyKind kind, CubeWorld world)

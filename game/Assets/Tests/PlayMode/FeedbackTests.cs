@@ -165,12 +165,12 @@ namespace Game.Cube.Tests
             PickupPopup item = PickupPopup.Active.LastOrDefault();
             Assert.IsNotNull(item);
             Assert.AreEqual("+" + beak.DisplayName, item.Text);
-            Assert.AreEqual("+Thin Beak", item.Text);
+            Assert.AreEqual("+Thin Beak*", item.Text);
             Assert.Greater(item.Position.y, Origin.y, "The popup floats above the player");
 
             Assert.IsTrue(wallet.Add(EarningSource.Hidden, "hidden:test", 5));
             PickupPopup jumbles = PickupPopup.Active.LastOrDefault();
-            Assert.AreEqual("+5 Jumbles", jumbles.Text);
+            Assert.AreEqual("+5 Jumbles*", jumbles.Text);
 
             yield return new WaitForSeconds(0.5f);
             Assert.IsTrue(item != null && jumbles != null, "Still up after half a second");

@@ -240,7 +240,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(mitt.IsHeld, "Walking onto the mitt picks it up");
             navigator.GetComponent<Equipment>().Equip(mitt.Item);
             Assert.IsTrue(mitt.IsEquipped);
-            StringAssert.Contains("Mass Mitt", mitt.HudText);
+            StringAssert.Contains(MassMittItem.Name, mitt.HudText);
 
             // Where every boulder starts (boulders set beside one door go back before the next door's run).
             var starts = new Dictionary<Boulder, Vector2>();
@@ -354,7 +354,7 @@ namespace Game.Cube.Tests
             yield return StartRunOntoPhysics(SeedWithOpenMitt(), true);
             FaceId face = physics.Plan.Face;
             Assert.AreEqual(PhysicsPopulation.AlienCount(physics.Plan.FaceSize), physics.Aliens.Count);
-            var facts = new RunFacts(world.Model, world.Layout, world.ItemPlacement);
+            var facts = RunFacts.Of(world);
             for (int i = 0; i < physics.Aliens.Count; i++)
             {
                 NpcTalker alien = physics.Aliens[i];

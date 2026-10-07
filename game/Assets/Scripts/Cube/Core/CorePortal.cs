@@ -5,7 +5,8 @@ namespace Game.Cube
     /// <summary>
     /// The portal on a built face's active core-entrance slot: a swirling pink trigger that, when the player steps into it,
     /// moves them into the core arena (CoreArena.Enter, which suspends cube navigation). Open from run 1, nothing required.
-    /// CoreArena attaches one to every active core-entrance slot on each reveal.
+    /// CoreArena attaches one to every active core-entrance slot on each reveal. The arena remembers the portal's screen, so
+    /// its exit door brings the player back here.
     /// </summary>
     public class CorePortal : MonoBehaviour
     {
@@ -41,7 +42,9 @@ namespace Game.Cube
         public bool TryEnter(CubeNavigator navigator)
         {
             if (arena == null || navigator == null || !isActiveAndEnabled) return false;
-            if (!arena.Enter(navigator)) return false;
+            ScreenAddress? screen = null;
+            if (arena.World != null && arena.World.TryScreenAt(transform.position, out ScreenAddress here)) screen = here;
+            if (!arena.Enter(navigator, screen)) return false;
             Entries++;
             return true;
         }

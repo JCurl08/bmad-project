@@ -22,7 +22,6 @@ namespace Game.Cube.Tests
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
         private const int Seeds = 50;
 
-        private static readonly string[] BannedWords = { "math", "euler", "graph", "vertex", "vertices", "edge", "theorem" };
 
         private static ModuleLibrary Library()
         {
@@ -629,8 +628,7 @@ namespace Game.Cube.Tests
             foreach (string text in strings.Concat(MathNames()).Concat(hints))
             {
                 string lower = text.ToLowerInvariant();
-                foreach (string banned in BannedWords)
-                    StringAssert.DoesNotContain(banned, lower, $"\"{text}\" uses a banned word");
+                CollectionAssert.IsEmpty(InWorldText.BannedIn(text), $"\"{text}\" uses a banned word"); // the shared list (InWorldText.BannedWords)
                 StringAssert.DoesNotContain(Dialogue.ForbiddenWord, lower, text);
             }
 

@@ -37,12 +37,18 @@ public static class ItemCatalogBuilder
 
     private static readonly Placeholder[] Placeholders =
     {
-        new Placeholder { Theme = Theme.Biology, Id = "biology-item", Name = "Biology Item", Color = new Color(0.45f, 1f, 0.45f) },
+        new Placeholder { Theme = Theme.Biology, Id = BiologyItemId, Name = BiologyItemName, Color = new Color(0.45f, 1f, 0.45f) },
         new Placeholder { Theme = Theme.Chemistry, Id = ChemistryIsotope.Id, Name = ChemistryIsotope.Name, Color = ChemistryIsotope.ItemColor },
         new Placeholder { Theme = Theme.Physics, Id = MassMittItem.Id, Name = MassMittItem.Name, Color = MassMittItem.ItemColor },
         new Placeholder { Theme = Theme.Math, Id = GapCrosserItem.Id, Name = GapCrosserItem.Name, Color = GapCrosserItem.ItemColor },
         new Placeholder { Theme = Theme.EarthAtmosphere, Id = StormcallerItem.Id, Name = StormcallerItem.Name, Color = StormcallerItem.ItemColor },
     };
+
+    /// <summary>The Biology base item's id (never shown in a run: the rolled beak replaces it).</summary>
+    public const string BiologyItemId = "biology-item";
+
+    /// <summary>The Biology base item's in-world placeholder name.</summary>
+    public const string BiologyItemName = "Beak*";
 
     /// <summary>Placeholder names of the Earth base item, renamed to the Stormcaller* on the next build.</summary>
     private static readonly string[] PlaceholderEarthNames = { "Earth Item", "EarthAtmosphere Item" };
@@ -121,6 +127,11 @@ public static class ItemCatalogBuilder
             EditorUtility.SetDirty(earth);
         }
 
+        // Every known item keeps its in-world name (InWorldText rule: invented names carry a star), whatever it was
+        // called before (1.22 renamed the beaks and the mitt): renamed in place, id, theme, colour and reach unchanged.
+        foreach (ItemDefinition item in catalog.Items.Concat(catalog.Variants))
+            SyncName(item);
+
         // Theme variants: keep what is there, add the beaks if missing (in roll order).
         var variants = new List<ItemDefinition>();
         foreach (ItemDefinition existing in catalog.Variants)
@@ -129,7 +140,7 @@ public static class ItemCatalogBuilder
         {
             string id = beak == BeakKind.Thin ? BiologyBeaks.ThinId : BiologyBeaks.ThickId;
             if (variants.Exists(v => v.Id == id)) continue;
-            string path = $"{Root}/{BiologyBeaks.Name(beak)}.asset";
+            string path = $"{Root}/{BiologyBeaks.Name(beak).TrimEnd('*')}.asset";
             var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
             if (item == null)
             {
@@ -177,6 +188,7 @@ public static class ItemCatalogBuilder
             }
             variants.Add(item);
         }
+        foreach (ItemDefinition item in variants) SyncName(item);
         // Canonical order: the beaks in BiologyBeaks.VariantOrder first, then the stones in ChemistryIsotope.VariantOrder
         // (consumers read the kind from the item id anyway), every other variant after them in its existing order.
         List<ItemDefinition> ordered = variants
@@ -189,6 +201,29 @@ public static class ItemCatalogBuilder
         EditorUtility.SetDirty(catalog);
         AssetDatabase.SaveAssets();
         Debug.Log($"Cube: built item catalog at {CatalogPath} ({items.Count} items, {variants.Count} variants).");
+    }
+
+    /// <summary>The in-world name of a known item (by id), or null for an item this builder does not know.</summary>
+    public static string CanonicalName(ItemDefinition item)
+    {
+        if (item == null) return null;
+        if (item.Id == BiologyItemId) return BiologyItemName;
+        if (BiologyBeaks.KindOf(item) is BeakKind beak) return BiologyBeaks.Name(beak);
+        if (item.Id == ChemistryIsotope.Id) return ChemistryIsotope.Name;
+        if (ChemistryIsotope.KindOf(item) is IsotopeStage stage) return ChemistryIsotope.StageName(stage);
+        if (item.Id == MassMittItem.Id) return MassMittItem.Name;
+        if (item.Id == GapCrosserItem.Id) return GapCrosserItem.Name;
+        if (item.Id == StormcallerItem.Id) return StormcallerItem.Name;
+        if (StormcallerItem.KindOf(item) is Phenomenon wand) return StormcallerItem.NameOf(wand);
+        return null;
+    }
+
+    private static void SyncName(ItemDefinition item)
+    {
+        string name = CanonicalName(item);
+        if (name == null || item.DisplayName == name) return;
+        item.Set(item.Id, name, item.HomeTheme, item.PlaceholderColor);
+        EditorUtility.SetDirty(item);
     }
 
     /// <summary>Sort key of a variant: beaks, then stones, then wands, then anything else by its existing position.</summary>

@@ -17,8 +17,8 @@ using UnityEngine;
 /// face (pillar, arch, round stone, diamond tile or broken column, a mismatched shape per module) in that
 /// face's colour. Ruin pieces have no colliders and are placed where KeepsExitsOpen holds, clear of walls,
 /// alcoves and the hidden-item slot.
-/// Walls (pillars, bars and alcove walls) are the ArtCatalog's stone-wall tile, repeated over their size and softly tinted
-/// with the face's colour; each ruin piece is its shape's ruin art (see Assets/Art/ART-MAP.md).
+/// Walls (pillars, bars and alcove walls) are the ArtCatalog's stone-wall tile, repeated over their size and tinted
+/// with the face's Rubik's region colour (CubeWorld.ThemeColor), a coloured trim per region; each ruin piece is its shape's ruin art (see Assets/Art/ART-MAP.md).
 /// Also works from the command line via -executeMethod ModuleLibraryBuilder.Build.
 /// </summary>
 public static class ModuleLibraryBuilder
@@ -257,9 +257,8 @@ public static class ModuleLibraryBuilder
         try
         {
             root.AddComponent<ScreenModule>().Theme = theme;
-            Color themeColor = CubeWorld.ThemeColor(theme);
             // Walls are the stone-wall art with a soft tint of the face's colour.
-            Color obstacleColor = Color.Lerp(Color.white, themeColor, 0.3f);
+            Color obstacleColor = ArtKeys.WallTint(theme);
 
             Transform obstacles = Child("Obstacles", root.transform, Vector2.zero);
             var obstacleRects = new List<Rect>();
@@ -275,7 +274,7 @@ public static class ModuleLibraryBuilder
                 obstacle.gameObject.AddComponent<BoxCollider2D>().size = block.Size;
                 // Town pillars are ruins of every face: each one in a different science face's colour.
                 Color color = town
-                    ? Color.Lerp(Color.white, CubeWorld.ThemeColor(ScienceThemes[(i + townIndex) % ScienceThemes.Length]), 0.45f)
+                    ? ArtKeys.TownPillarTint(ScienceThemes[(i + townIndex) % ScienceThemes.Length])
                     : obstacleColor;
                 AddVisual(obstacle, block.Size, color, -5, sprite, material, ArtKey.Wall);
             }
@@ -396,7 +395,7 @@ public static class ModuleLibraryBuilder
             }
             if (scale <= 0f) throw new InvalidOperationException($"{module}: no room for the {theme} ruin ({shape})");
             placed.Add(new Rect(at - size / 2f, size));
-            Color color = Color.Lerp(Color.white, CubeWorld.ThemeColor(theme), 0.55f);
+            Color color = ArtKeys.RuinTint(theme);
             Transform piece = Child($"Ruin {theme} {shape}", ruins, at);
             piece.localScale = new Vector3(scale, scale, 1f);
             BuildRuinPiece(piece, shape, color, square, round != null ? round : square, material);

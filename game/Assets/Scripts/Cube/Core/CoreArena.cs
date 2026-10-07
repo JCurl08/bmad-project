@@ -16,7 +16,9 @@ namespace Game.Cube
     /// cube navigation, moves the player in and starts the fight: ParticlesPerSide warm and cool particles spawn ordered,
     /// the Order ↔ Entropy meter (EntropyMeter) is computed every physics step, and the boss's phase list (BossFight) runs.
     /// Defeating the last phase is a victory; the player's death in the fight is a defeat. Each raises RunState.EndRun once.
-    /// Leaving mid-fight (a debug jump) abandons it; a world rebuild (new run) resets everything.
+    /// Leaving mid-fight (the exit door in the west wall, or a debug jump) abandons it with no run end; the exit door
+    /// (CAP-27) puts the player back on the screen and face of the portal they came in by, and is gone once the fight is
+    /// won. A world rebuild (new run) resets everything.
     /// UseFallbackBoss swaps the mixing phase for the simpler FallbackBoss.
     /// </summary>
     public class CoreArena : MonoBehaviour, IBossArena
@@ -143,6 +145,185 @@ namespace Game.Cube
             }
         }
 
+        // ---------------------------------------------------------------- the exit (CAP-27)
+
+        /// <summary>Half the height of the exit doorway in the west wall: just wider than the player (radius 0.4), so only walking straight in gets through.</summary>
+        public const float ExitHalfHeight = 0.5f;
+
+        /// <summary>Height of the exit doorway's centre above the arena's centre (the upper west wall, far from the entry point).</summary>
+        public const float ExitOffsetY = 2.75f;
+
+        /// <summary>How deep the recess behind the doorway runs, from the arena's inner west edge (through the wall and beyond).</summary>
+        public const float RecessDepth = 2.0f;
+
+        /// <summary>
+        /// How far past the inner west edge the player's centre must be to leave: down the recess, past the screen's edge (a
+        /// walk of 1.6 units through the doorway). Walking along or against the wall never gets there, and nor does steering
+        /// at a point just behind the wall (anything aimed at the playfield lies within about a unit of it).
+        /// </summary>
+        public const float ExitDepth = 1.6f;
+
+        private Transform exitDoor;
+        private Collider2D exitBlocker;
+        private bool doorwayOpen;
+
+        /// <summary>The player's collider radius (the scene builds it at 0.4).</summary>
+        public const float PlayerRadius = 0.4f;
+
+        /// <summary>How far off the doorway's centre line the player may be and still be let in (walking straight west).</summary>
+        public const float DoorwayAim = 0.25f;
+        private bool hasEntry;
+        private ScreenAddress entryScreen;
+        private Facing entryFacing = Facing.East;
+
+        /// <summary>Raised when the player walks out through the exit door.</summary>
+        public event Action ExitedOnFoot;
+
+        /// <summary>Centre of the exit doorway, in the west wall.</summary>
+        public Vector2 ExitDoorCentre => Centre + new Vector2(-InnerHalf.x - WallThickness / 2f, ExitOffsetY);
+
+        /// <summary>The recess behind the doorway (world): through the west wall and beyond it, outside the playfield.</summary>
+        public Rect Recess
+        {
+            get
+            {
+                Rect inner = Inner;
+                return new Rect(inner.xMin - RecessDepth, Centre.y + ExitOffsetY - ExitHalfHeight, RecessDepth, ExitHalfHeight * 2f);
+            }
+        }
+
+        /// <summary>Where the player's centre must be to leave: deep in the recess, past the inner west edge by ExitDepth.</summary>
+        public Rect ExitZone
+        {
+            get
+            {
+                Rect recess = Recess;
+                return new Rect(recess.xMin, recess.yMin, recess.width - ExitDepth, recess.height);
+            }
+        }
+
+        /// <summary>
+        /// True while the exit can be used: while no fight in this run has ended (a victory ends the run, and so does a
+        /// defeat). Whatever way the player came in (a portal, or a controlled entry by the debug tools or the skill check).
+        /// </summary>
+        public bool ExitAvailable => Outcome == CoreOutcome.None;
+
+        /// <summary>The exit door's visuals (shown while ExitAvailable).</summary>
+        public GameObject ExitDoor
+        {
+            get
+            {
+                EnsureBuilt();
+                return exitDoor != null ? exitDoor.gameObject : null;
+            }
+        }
+
+        /// <summary>
+        /// The whole west wall, doorway included: particles, pulses and enemies never pass it; the player passes it only at
+        /// the doorway, walking straight in, while the exit is available (UpdateDoorway).
+        /// </summary>
+        public Collider2D ExitBlocker
+        {
+            get
+            {
+                EnsureBuilt();
+                return exitBlocker;
+            }
+        }
+
+        /// <summary>
+        /// Where the exit leads: the screen of the portal the player came in by, else (a controlled entry) the screen the
+        /// player stood on when entering, else Town's start screen.
+        /// </summary>
+        public ScreenAddress ExitScreen =>
+            hasEntry ? entryScreen : world != null && world.Model != null ? world.Model.StartScreen : default;
+
+        /// <summary>Times the player walked out through the exit in this run.</summary>
+        public int Exits { get; private set; }
+
+        /// <summary>True while the player is in the arena or in the exit recess behind its doorway.</summary>
+        private bool PlayerInArenaOrRecess =>
+            PlayerTransform != null && (PlayerInArena || Recess.Contains(PlayerTransform.position));
+
+        /// <summary>
+        /// Walks the player out through the exit door: the fight (if running) is abandoned as on any departure (no run end),
+        /// and the player is put back on the screen and face they came in from, facing the way they entered. Refused
+        /// (false) outside the arena or once a fight has ended.
+        /// </summary>
+        public bool LeaveThroughExit()
+        {
+            if (navigator == null || world == null || world.Model == null || !navigator.InCoreArena || !PlayerInArenaOrRecess ||
+                !ExitAvailable) return false;
+            if (FightActive) AbandonFight();
+            navigator.TeleportTo(ExitScreen, entryFacing);
+            Exits++;
+            ExitedOnFoot?.Invoke();
+            return true;
+        }
+
+        /// <summary>Shows the exit door exactly while the exit is available (and shuts the doorway when it is not).</summary>
+        private void RefreshExit()
+        {
+            if (exitDoor != null) exitDoor.gameObject.SetActive(ExitAvailable);
+            if (!ExitAvailable) SetDoorway(false);
+        }
+
+        /// <summary>
+        /// The doorway, without any collider of its own (so the arena's physics, and every fight, are exactly as without
+        /// it): the whole west wall stops everything, the player included, until the player walks straight west (facing
+        /// west, within DoorwayAim of the doorway's centre line) into the wall at the doorway. Then the wall lets the player
+        /// alone through, and the recess behind it is kept by clamping the player's position to its lane; walking back out
+        /// shuts it again. Brushing, sliding along or pushing diagonally into the wall never opens it.
+        /// </summary>
+        private void UpdateDoorway()
+        {
+            if (navigator == null || exitBlocker == null || !navigator.InCoreArena || !ExitAvailable)
+            {
+                SetDoorway(false);
+                return;
+            }
+            Rigidbody2D body = navigator.GetComponent<Rigidbody2D>();
+            Vector2 p = body != null ? body.position : (Vector2)navigator.transform.position;
+            float wallLine = Inner.xMin;
+            float doorY = Centre.y + ExitOffsetY;
+            if (!doorwayOpen)
+            {
+                bool atDoorway = p.x <= wallLine + PlayerRadius + 0.05f && Mathf.Abs(p.y - doorY) <= DoorwayAim;
+                PlayerMover mover = navigator.GetComponent<PlayerMover>();
+                bool walkingWest = mover != null && mover.Facing.x < -0.99f;
+                if (atDoorway && walkingWest) SetDoorway(true);
+                else return;
+            }
+            if (p.x > wallLine + PlayerRadius + 0.05f)
+            {
+                SetDoorway(false); // walked back out of the doorway
+                return;
+            }
+            // In the doorway or the recess: keep the player in its lane (the doorway's width less the player, and the back wall).
+            float lane = ExitHalfHeight - PlayerRadius;
+            var kept = new Vector2(Mathf.Max(p.x, Recess.xMin + 0.3f), Mathf.Clamp(p.y, doorY - lane, doorY + lane));
+            if (kept != p && body != null)
+            {
+                body.position = kept;
+                Vector2 v = body.linearVelocity;
+                if (kept.x != p.x) v.x = 0f;
+                if (kept.y != p.y) v.y = 0f;
+                body.linearVelocity = v;
+            }
+        }
+
+        private void SetDoorway(bool open)
+        {
+            if (doorwayOpen == open || exitBlocker == null) return;
+            doorwayOpen = open;
+            if (navigator == null) return;
+            foreach (Collider2D c in navigator.GetComponentsInChildren<Collider2D>())
+                if (c != null) Physics2D.IgnoreCollision(exitBlocker, c, open);
+        }
+
+        /// <summary>True while the doorway lets the player through the west wall.</summary>
+        public bool DoorwayOpen => doorwayOpen;
+
         public BossFight Fight => fight;
         public BossPhase CurrentPhase => fight?.Current;
         public bool FightActive { get; private set; }
@@ -252,9 +433,10 @@ namespace Game.Cube
 
         /// <summary>
         /// Moves the player into the arena and suspends cube navigation; starts a fight unless one is running or this run
-        /// has already ended. Returns false without a player.
+        /// has already ended. Returns false without a player. from is the screen of the portal used (CorePortal passes its
+        /// own): the exit door returns the player there; without one (a controlled entry), to the screen they stood on.
         /// </summary>
-        public bool Enter(CubeNavigator player)
+        public bool Enter(CubeNavigator player, ScreenAddress? from = null)
         {
             if (player == null) return false;
             EnsureBuilt();
@@ -263,7 +445,15 @@ namespace Game.Cube
                 UnwatchPlayer();
                 navigator = player;
             }
+            // Remember where the player came from (the portal's screen), so the exit door can take them back there.
+            if (!player.InCoreArena && world != null && world.Model != null)
+            {
+                entryScreen = from ?? player.Current;
+                entryFacing = player.Facing;
+                hasEntry = true;
+            }
             player.EnterCoreArena(EntryPoint);
+            RefreshExit();
             Entries++;
             bool runOver = (runState != null && runState.Ended) || Outcome != CoreOutcome.None;
             if (!FightActive && !runOver) StartFight();
@@ -291,6 +481,7 @@ namespace Game.Cube
             FightSteps = 0;
             Outcome = CoreOutcome.None;
             fight = BossFight.Create(useFallbackBoss);
+            RefreshExit();
             FightActive = true;
             fight.Begin(this);
             FightStarted?.Invoke();
@@ -329,8 +520,15 @@ namespace Game.Cube
 
         private void FixedUpdate()
         {
+            // The exit door: walking into it (while the fight is not won) takes the player back out.
+            UpdateDoorway();
+            if (ExitAvailable && doorwayOpen && navigator != null && navigator.InCoreArena && ExitZone.Contains(navigator.transform.position))
+            {
+                LeaveThroughExit();
+                return;
+            }
             if (!FightActive) return;
-            if (!PlayerInArena)
+            if (!PlayerInArenaOrRecess)
             {
                 // Left mid-fight (a debug jump): the fight is abandoned and starts afresh on the next entry.
                 AbandonFight();
@@ -395,6 +593,7 @@ namespace Game.Cube
             FightActive = false;
             Outcome = CoreOutcome.Victory;
             demon.Defeat();
+            RefreshExit();
             ClearPulses();
             ReleaseParticles();
             CrackPartition();
@@ -409,6 +608,7 @@ namespace Game.Cube
             FightActive = false;
             Outcome = CoreOutcome.Defeat;
             demon.Stand();
+            RefreshExit();
             ClearPulses();
             ReleaseParticles();
             UnwatchPlayer();
@@ -434,6 +634,9 @@ namespace Game.Cube
             fight = null;
             RestorePartition();
             portals.Clear();
+            hasEntry = false;
+            Exits = 0;
+            RefreshExit();
         }
 
         private void OnPlayerDied(Health _)
@@ -534,8 +737,10 @@ namespace Game.Cube
                 ArtKey.ArenaWall);
             Block("Wall East", c + new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true, material,
                 ArtKey.ArenaWall);
-            Block("Wall West", c - new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true, material,
-                ArtKey.ArenaWall);
+            // The whole west wall, as for everything but the player (the exit doorway in it is for the player only).
+            GameObject westWall = Block("Wall West", c - new Vector2(InnerHalf.x + w / 2f, 0f), new Vector2(w, screen.y), wallColor, 0, true,
+                material, ArtKey.ArenaWall);
+            exitBlocker = westWall.GetComponent<Collider2D>();
 
             // The membrane: a segment above and below the door, leaving a gap at each end.
             float span = MembraneHalfSpan - DoorHalfHeight;
@@ -576,9 +781,33 @@ namespace Game.Cube
             lineRenderer.sortingOrder = 11;
             lineRenderer.enabled = false;
 
+            BuildExitDoor(material);
+
             demon = demonObject.AddComponent<MaxwellDemon>();
             demon.Configure(this, door.GetComponent<Collider2D>(), door.GetComponentInChildren<SpriteRenderer>(), demonRenderer,
                 lineRenderer);
+        }
+
+        /// <summary>
+        /// The exit's visuals: the dark doorway drawn over the west wall, a pale stone frame, and an arrow on the floor pointing
+        /// out. No colliders: the doorway and its recess are the whole west wall plus UpdateDoorway (see there).
+        /// </summary>
+        private void BuildExitDoor(Material material)
+        {
+            float w = WallThickness, h = ExitHalfHeight * 2f;
+            Block("Exit Doorway", ExitDoorCentre, new Vector2(w, h), new Color(0.08f, 0.06f, 0.1f), 1, false, material);
+
+            exitDoor = new GameObject("Exit Door").transform;
+            exitDoor.SetParent(root, false);
+            exitDoor.position = ExitDoorCentre;
+            ArtCatalog.AddShape(exitDoor, "Frame Top", PartShape.Square, new Vector2(0f, h / 2f + 0.1f), new Vector2(w + 0.3f, 0.2f),
+                new Color(0.92f, 0.88f, 0.78f), 2, material);
+            ArtCatalog.AddShape(exitDoor, "Frame Bottom", PartShape.Square, new Vector2(0f, -h / 2f - 0.1f), new Vector2(w + 0.3f, 0.2f),
+                new Color(0.92f, 0.88f, 0.78f), 2, material);
+            SpriteRenderer arrow = ArtCatalog.AddShape(exitDoor, "Arrow", PartShape.Triangle, new Vector2(w / 2f + 0.55f, 0f),
+                new Vector2(0.5f, 0.45f), new Color(1f, 0.95f, 0.6f, 0.85f), 3, material);
+            arrow.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // apex up, turned to point out (west)
+            RefreshExit();
         }
 
         /// <summary>A block of the arena: art (tiled) when given a key, else a plain square (the membrane and the Demon's door).</summary>

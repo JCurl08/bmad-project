@@ -22,7 +22,7 @@ namespace Game.Cube
         [SerializeField] private CubeWorld world;
         [SerializeField] private CubeNavigator navigator;
         [SerializeField] private CoreArena coreArena;
-        [SerializeField] private bool overlayVisible = true;
+        [SerializeField] private bool overlayVisible; // off by default: F1 shows it
         [SerializeField] private bool slotMarkersVisible;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
         [SerializeField, Min(0.5f)] private float npcSpawnRadius = 2.5f;
@@ -405,7 +405,7 @@ namespace Game.Cube
             {
                 if (world == null || world.Model == null) return "";
                 CubeModel model = world.Model;
-                string head = $"Seed {model.Seed}   N={model.FaceSize}   Science {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
+                string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
                               "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
                               "F8 leave core   F9 rest (full health)   F10 new run   F11 light map   M map";
@@ -414,9 +414,9 @@ namespace Game.Cube
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
                 string facing = navigator != null ? navigator.Facing.ToString() : "-";
                 ScreenModule module = world.ModuleAt(here);
-                string moduleText = module != null ? module.name : model.IsSealed(here.Face) ? "-" : "(unrevealed)";
+                string moduleText = module != null ? module.name.Replace(module.Theme.ToString(), InWorldText.Region(module.Theme)) : model.IsSealed(here.Face) ? "-" : "(unrevealed)";
                 return head +
-                       $"Face {here.Face}   Theme {model.ThemeOf(here.Face)}{(model.IsSealed(here.Face) ? " (sealed)" : "")}\n" +
+                       $"Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}{(model.IsSealed(here.Face) ? " (sealed)" : "")}\n" +
                        $"Cell ({here.Cell.x},{here.Cell.y})   Entered facing {facing}\n" +
                        $"Module {moduleText}\n" +
                        tail;

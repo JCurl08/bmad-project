@@ -47,12 +47,12 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.WallSealed, Dungeon, 14, "dark stone bricks for the edges into sealed faces"),
         new Pick(ArtKey.ArenaWall, Town, 126, "grey castle bricks around the core arena"),
 
-        new Pick(ArtKey.FloorTown, Town, 43, "stone slabs in grass: the ruins town"),
-        new Pick(ArtKey.FloorBiology, Town, 1, "grass with tufts: Darwin's green face"),
-        new Pick(ArtKey.FloorChemistry, Dungeon, 37, "grey lab planks, tinted violet"),
-        new Pick(ArtKey.FloorPhysics, Town, 109, "plain light stone, tinted blue"),
-        new Pick(ArtKey.FloorMath, Dungeon, 48, "plain sand, tinted gold"),
-        new Pick(ArtKey.FloorEarth, Dungeon, 49, "speckled sand, tinted teal"),
+        new Pick(ArtKey.FloorTown, Town, 109, "plain pale stone: the white ruins town"),
+        new Pick(ArtKey.FloorBiology, Town, 1, "grass with tufts, a little greener: the green Greenwood*"),
+        new Pick(ArtKey.FloorChemistry, Dungeon, 53, "plain sand, tinted deep red: the Ember Vale*"),
+        new Pick(ArtKey.FloorPhysics, Town, 76, "grey stone panels, tinted blue: the Weightlands*"),
+        new Pick(ArtKey.FloorMath, Dungeon, 48, "plain sand, tinted gold-yellow: Bridgelands*"),
+        new Pick(ArtKey.FloorEarth, Dungeon, 49, "speckled sand, tinted orange: Wildlands*"),
         new Pick(ArtKey.FloorDark, Dungeon, 0, "dark dungeon floor for unrevealed and sealed faces"),
         new Pick(ArtKey.ArenaFloor, Dungeon, 42, "slabbed sand, tinted warm and cool for the arena halves"),
 
@@ -116,7 +116,7 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.Crevice, Dungeon, 2, "a dark drop under a stone lip: a quake crevice you go round"),
 
         new Pick(ArtKey.Portal, Town, 104, "blue well in an arch: the way into the core"),
-        new Pick(ArtKey.Demon, Dungeon, 19, "carved demon face: Maxwell's Demon"),
+        new Pick(ArtKey.Demon, Dungeon, 19, "carved demon face: the Demon*"),
         new Pick(ArtKey.Particle, Dungeon, 102, "round disc, tinted warm or cool"),
 
         new Pick(ArtKey.RuinPillar, Dungeon, 58, "stone column"),

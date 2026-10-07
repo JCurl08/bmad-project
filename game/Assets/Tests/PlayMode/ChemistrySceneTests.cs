@@ -335,7 +335,7 @@ namespace Game.Cube.Tests
             FaceId face = chemistry.Plan.Face;
             IsotopeStage stage = chemistry.Plan.Stage;
             Assert.AreEqual(ChemistryPopulation.MushroomCount(chemistry.Plan.FaceSize), chemistry.Mushrooms.Count);
-            var facts = new RunFacts(world.Model, world.Layout, world.ItemPlacement);
+            var facts = RunFacts.Of(world);
             for (int i = 0; i < chemistry.Mushrooms.Count; i++)
             {
                 NpcTalker mushroom = chemistry.Mushrooms[i];
