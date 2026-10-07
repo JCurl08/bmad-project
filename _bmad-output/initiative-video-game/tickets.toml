@@ -4,14 +4,21 @@
 id = 1
 slug = "epic-playable-cube"
 title = "One complete run, town to boss"
-covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4", "CAP-5", "CAP-6", "CAP-7", "CAP-8", "CAP-9", "CAP-10", "CAP-11", "CAP-12", "CAP-13", "CAP-25", "CAP-26", "CAP-27"]
+covers = ["CAP-1", "CAP-2", "CAP-3", "CAP-4", "CAP-5", "CAP-6", "CAP-7", "CAP-8", "CAP-10", "CAP-11", "CAP-12", "CAP-13", "CAP-25", "CAP-26", "CAP-27"]
+
+[[epic]]
+id = 4
+slug = "epic-world-worth-exploring"
+title = "A world worth exploring"
+covers = ["CAP-2", "CAP-7", "CAP-8", "CAP-11", "CAP-13", "CAP-28", "CAP-29", "CAP-30", "CAP-31", "CAP-32"]
+after = [{ epic = 1, needs = "the complete verified run through 1.26: seeded cube and shuffle, screen modules and doorway edges, ItemPlacement and gates, the reachability sweep, determinism fixture, every face's puzzles and items, island screens, NPCs and dialogue, boss arena with portals, map, save and meta currency; the first itch.io release (1.14) before release 2" }]
 
 [[epic]]
 id = 2
 slug = "epic-varied-runs"
 title = "Every run plays differently"
-covers = ["CAP-14", "CAP-15", "CAP-16", "CAP-17"]
-after = [{ epic = 1, needs = "seeded swap system, gate/item framework with the commitment mechanic, NPC part system with hostility and role hooks, enemies, boss with a phase slot, face pattern from the built faces, puzzle difficulty parameters, ability collect/reset flow, versioned save format, first itch.io build" }]
+covers = ["CAP-9", "CAP-14", "CAP-15", "CAP-16", "CAP-17"]
+after = [{ epic = 1, needs = "seeded swap system, gate/item framework with the commitment mechanic, NPC part system with hostility and role hooks, enemies, boss with a phase slot, face pattern from the built faces, puzzle difficulty parameters, ability collect/reset flow, versioned save format, first itch.io build" }, { epic = 4, needs = "final screen size; per-race character designs (4.3) for CAP-9 parts to layer on; race voices (4.4); towns and leaders (4.5) for the town draft CAP-14; boss benefits and the real-portal arena (4.8, 4.13) for demon phases CAP-15; puzzle generators with difficulty targets (4.2, 4.10-4.12) for CAP-16; release 2 (4.16)" }]
 
 [[epic]]
 id = 3

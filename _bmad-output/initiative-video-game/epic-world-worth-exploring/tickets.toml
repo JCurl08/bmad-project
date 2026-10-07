@@ -1,0 +1,177 @@
+# tickets.toml — epic-world-worth-exploring's agreed stories. The order of the tables is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Bigger screens, thinner walls"
+description = "Rescales every screen to about 24x15 tiles (about twice the area) on the 960x600 canvas, with half-tile edge walls and people drawn larger, and rescales modules, layouts, face plans, spot filters, the sweep and the tests to match, re-recording the determinism fixture; checks the WebGL build size and memory after the change."
+verify = "Every screen on seeds 1-50 is about 24x15 tiles with a centred doorway per side, all suites pass, the 50-seed sweep passes, the determinism signatures are re-recorded and stable across two runs, and a WebGL build loads within budget."
+covers = ["CAP-2"]
+after = ["1.26"]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 2
+type = "spike"
+title = "Puzzle difficulty research"
+description = "Surveys shipped games' versions of each puzzle type (sliding ice such as Pokemon ice paths, Zelda-style currents and wind, bridge and Euler puzzles, island-bridge puzzles such as Hashiwokakero, boulder and Sokoban-lite puzzles, lamp and ordering puzzles) and writes difficulty targets per generator: solution length, branching and red herrings."
+verify = "A research note beside this epic gives, for each generator (islands, sliding ice, wind streams, boulders, existing face puzzles), cited examples and numeric targets that entries 10-12 can test against."
+covers = ["CAP-7", "CAP-8"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Character redesign"
+description = "Draws one hand-made design per race in the player character's style (shape people, finches, Chemistry folk, Physics folk, ground and avian dinosaurs, townsfolk), with a distinct leader variant per race, at the new larger size; the swappable-parts system stays in code, unused by default, for epic-varied-runs."
+verify = "Every race spawns with its new design on every face and in Town, leaders are visibly distinct, the parts system still compiles and its tests pass behind its switch, and all suites and the sweep pass."
+covers = ["CAP-28", "CAP-32"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Race cultures and names"
+description = "Gives each race its voice (Math logical and terse but helpful, Chemistry emotionally reactive, finches near-Shakespearean and proper, Physics philosophical and abstract, Earth rugged and outdoorsy, townsfolk a friendly mix) and every character a meaningful unstarred name, rewriting all dialogue, HintGenerator output and population lines under the subtle-science rule."
+verify = "A text scan finds no starred character names and no banned science words or scientist names; sampled lines from each race read in that race's voice; all suites and the sweep pass."
+covers = ["CAP-32"]
+after = [3]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Towns on every face"
+description = "Makes each face's centre screen a town with buildings in its race's style, a statue, more people than other screens, no enemies and one named leader who gives that region's quest, moving existing centre-screen content (Math, Physics and others) off; Earth's calm eye and Town's start screen become their towns."
+verify = "On seeds 1-50 every face's centre screen is a town with buildings, a statue, a leader, more NPCs than any other screen on its face and no enemies; displaced content still appears elsewhere on its face; all suites and the sweep pass."
+covers = ["CAP-28"]
+after = [1, 3, 4]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Enterable buildings"
+description = "Lets the player enter at least one building per town into an interior room with people or a shop counter, through a sub-screen system that hooks into the map and screen navigation."
+verify = "In every town on several seeds, walking into the marked door loads its interior, walking out returns the player to that door, the map stays correct, and all suites and the sweep pass."
+covers = ["CAP-28"]
+after = [5]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Roadblock rewards"
+description = "Puts a reward behind every gate, optional gate and hidden spot (coins as meta currency, equipment, an upgrade, a key or a fragment slot), removes loose ground pickups, makes every screen hold a puzzle, enemies or an object, and extends ItemPlacement and the sweep with the new reward kinds."
+verify = "The sweep on seeds 1-50 reports no reward outside a roadblock and no empty screen, every reward kind appears across the seeds, coins from roadblocks persist as meta currency after the run, and all suites pass."
+covers = ["CAP-30", "CAP-13"]
+after = [1]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Fragments and face repair"
+description = "Rolls die numbers per run (Town 1, the others 2-6 shuffled), places k numbered fragments on the face numbered k behind roadblocks, adds each leader's quest to bring them all and repair the face, shows fragments on the HUD and map, and applies one boss benefit per repaired face (fewer particles, wider gap, attraction, slower restore, +1 heart, slower and rarer shots); the plan decides whether faces map to benefits by seed or fixed."
+verify = "On seeds 1-50 every fragment is reachable, Town is always 1 and other numbers vary; handing all fragments to a leader marks the face repaired; each benefit measurably changes its arena parameter in a test; the no-benefit skill check still lands in 60-120 s; all suites and the sweep pass."
+covers = ["CAP-29", "CAP-11"]
+after = [5, 7]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Locked face-edge gates"
+description = "Makes face-edge doorways start locked, each needing a key or a piece of equipment, with different locks on different edges so there are several ways into the world, and extends the sweep to prove reachability through the locks."
+verify = "On seeds 1-50 the sweep proves every screen, fragment and core portal is reachable from Town, at least two different edges can be the first one opened, and all suites pass."
+covers = ["CAP-2"]
+after = [7]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Sliding ice screens"
+description = "Replaces the snow and ice hazard with whole-screen ice puzzles on Earth & Atmosphere: the player slides straight until blocked, into a pit (falls, back to the entry) or onto a grip tile, with a generator and solver at the spike's difficulty targets and a reward roadblock."
+verify = "Every generated ice screen on seeds 1-50 is solver-checked solvable from each connected doorway with difficulty inside the spike's targets, a runtime test walks one solution, and all suites and the sweep pass."
+covers = ["CAP-8"]
+after = [2, 7]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Wind stream screens"
+description = "Replaces the wind hazard with wind-stream puzzles: streams push the player one way until they leave the stream, combined with walls and grip, with a generator and solver at the spike's difficulty targets."
+verify = "Every generated wind screen on seeds 1-50 is solver-checked solvable with difficulty inside the spike's targets, a runtime test rides one solution, and all suites and the sweep pass."
+covers = ["CAP-8"]
+after = [10]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Bridge puzzles, tuned"
+description = "Reworks Math's island screens to the spike's best-matching puzzle (e.g. light every bridge as you cross it to open a reward roadblock), with difficulty set from the spike's targets."
+verify = "Every generated island screen on seeds 1-50 is solver-checked solvable from each connected doorway, its roadblock opens only when the goal is met, difficulty is inside the spike's targets, and all suites and the sweep pass."
+covers = ["CAP-7"]
+after = [2, 7]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Boss lair"
+description = "Makes one seeded core portal lead to the arena and every other portal lead to an underground lair room with trapped people who give hints about the Demon and the repair benefits, shown on the map."
+verify = "On seeds 1-50 exactly one portal reaches the arena and every other reaches a lair room with a hint-giver; the player can walk back out of each; the map shows the lair; all suites and the sweep pass."
+covers = ["CAP-31", "CAP-11"]
+after = [8]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Temples"
+description = "Optional, and the user may drop or reshape it: puts each face's signature item in a temple screen behind that face's hardest roadblock, Zelda-style; fragments and repairs, not the temple item, give boss benefits."
+verify = "On seeds 1-50 each face's signature item sits in its temple behind the face's hardest roadblock and is reachable per the sweep, and all suites pass."
+covers = ["CAP-30"]
+after = [7, 9]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Refactor sweep (world)"
+description = "Cleans up code from entries 1-14, with scope set at start from their build plans and deferred review findings; cleanup only."
+verify = "All tests and the 50-seed sweep pass unchanged, and determinism signatures are unchanged."
+covers = []
+after = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 16
+type = "story"
+title = "itch.io release 2"
+description = "Runs the 50-seed sweep and full playtests against the epic's Done when, then the user builds, uploads and plays the WebGL build on the itch.io page."
+verify = "The sweep passes 50/50; the no-benefit boss skill check holds at 60-120 s; on the itch.io page in a fresh browser a run visits towns, repairs at least one face, finds the lair and the real portal, and upgrades persist after a tab reload."
+covers = []
+after = [15, "1.14"]
+hitl = true
+risk = "medium"

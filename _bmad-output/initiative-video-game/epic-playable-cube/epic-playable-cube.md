@@ -2,7 +2,7 @@
 type: epic
 title: "One complete run, town to boss"
 parent: initiative-video-game
-covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8, CAP-9, CAP-10, CAP-11, CAP-12, CAP-13, CAP-25, CAP-26, CAP-27]
+covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8, CAP-10, CAP-11, CAP-12, CAP-13, CAP-25, CAP-26, CAP-27]
 after: []
 assignee: ""
 risk: high
@@ -20,13 +20,13 @@ A complete, replayable run is playable in the browser. The signal is the spec's 
 
 ## Requirements
 
-The spec is the requirement source: CAP-1 to CAP-13 and CAP-25 to CAP-27 in `spec-entropy-cube.md`, with detail in its companions.
+The spec is the requirement source: CAP-1 to CAP-8, CAP-10 to CAP-13 and CAP-25 to CAP-27 in `spec-entropy-cube.md`, with detail in its companions. CAP-9 (swappable NPC parts) moved to epic-varied-runs; the parts built here (entries 5, 22) stay in code for it. The rewritten CAP-2, CAP-7, CAP-8, CAP-11 and CAP-13 are completed by epic-world-worth-exploring.
 
 ## Done when
 
 1. A WebGL build on itch.io plays a full seeded run: town, a shuffled 3×3 cube with all 5 science faces (puzzle, item, gates, trial), a cube-net map, the core boss (or walking out of its arena), run end, persisted stat upgrades, next run.
 2. The seed sweep finds no softlock across 3+ seeds, and the same seed reproduces the same cube.
-3. NPC parts vary by seed (CAP-9), and every enemy type has an item that makes it markedly easier (CAP-10).
+3. Every enemy type has an item that makes it markedly easier (CAP-10).
 4. Upgrades and meta currency survive closing and reopening the browser tab.
 5. The Must fallback is allowed if its checkpoint triggers: a simpler boss instead of the single-phase demon.
 
@@ -44,7 +44,7 @@ All Must-tier capabilities. Not the Should tier (epic-varied-runs) or the Could 
 
 ## References
 
-- spec — _bmad-output/initiative-video-game/spec-entropy-cube/spec-entropy-cube.md, Capabilities CAP-1 to CAP-13 and CAP-25 to CAP-27, Constraints
+- spec — _bmad-output/initiative-video-game/spec-entropy-cube/spec-entropy-cube.md, Capabilities CAP-1 to CAP-8, CAP-10 to CAP-13 and CAP-25 to CAP-27, Constraints
 - change — _bmad-output/initiative-video-game/change-playtest-feedback-full-cube/change-playtest-feedback-full-cube.md
 - design — _bmad-output/initiative-video-game/spec-entropy-cube/faces-and-races.md
 - design — _bmad-output/initiative-video-game/spec-entropy-cube/lore-and-tone.md
@@ -66,3 +66,4 @@ All Must-tier capabilities. Not the Should tier (epic-varied-runs) or the Could 
 - Decision: added entry 15 'Readability pass' before the release after the user's first playtest found the placeholder visuals and long dialogue confusing; world art from Kenney (CC0), NPCs keep stacked Lego parts redrawn clearly; 'fell apart' death text replaced (user, 2026-10-06).
 - Decision: entries 16–22 added after the first playtest (dev keys, full 3×3 cube, isotope stage item, Math face, Earth & Atmosphere face, cube-net map, look and tone pass), all before the release (14). See change-playtest-feedback-full-cube (user approved, 2026-10-06).
 - Decision: set check on the re-slice made 18 to 22 sequential (shared files), added entry 23 (second refactor sweep) before the release, and added CAP-3, CAP-25 and difficulty parameters to the face entries (2026-10-06).
+- Decision: after playtest 3, CAP-9 moves to epic-varied-runs; entry 26 (island screen fixes) is added before the release (14); the redesign goes to the new epic-world-worth-exploring, built next. See change-playtest-3-world-redesign (user approved, 2026-10-07).

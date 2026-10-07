@@ -271,12 +271,23 @@ hitl = true
 risk = "high"
 
 [[entry]]
+id = 26
+type = "story"
+title = "Island screen fixes"
+description = "From playtest 3: investigate the island screen the user found impossible (runtime mismatch with the sweep, or the deliberately isolated doorway reading as a bug) and fix it or make the dead end readable; replace brown island pads with the region's floor tiles; bridges light up (change colour) once walked or mended."
+verify = "A runtime test walks every island screen on seeds 1-50 from each connected doorway; all suites and the sweep pass; HITL look."
+covers = []
+after = [25]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 14
 type = "story"
 title = "First itch.io release and full-run check"
 description = "Runs the seed sweep and full playtests against the epic's Done when and republishes the WebGL build to the itch.io page from entry 1."
 verify = "Three or more seeds play from town to boss with no softlock, visiting all five science faces of the 3x3 cube, using the map, and leaving the arena on foot at least once; on the itch.io page in a fresh browser a full run ends, upgrades are bought, and they still apply in the next run after a tab reload."
 covers = ["CAP-12"]
-after = [25]
+after = [26]
 hitl = true
 risk = "medium"

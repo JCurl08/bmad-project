@@ -9,9 +9,9 @@
 
 ## Conventions
 - **One seeded swap system, built first.** Face placement, screen modules, NPC parts, beak adaptations and the weather wand's starting phenomenon all come from one seeded random number source. A seed must reproduce a run exactly.
-- **Screen modules** are hand-built templates with tagged entry/exit points and gate slots. The shuffle arranges modules; it doesn't generate rooms.
+- **Screens** are about 24×15 tiles on the 960×600 canvas, with walls on every edge and one centred doorway per side. Non-puzzle screens are hand-built modules with tagged doorways and gate slots, which the shuffle arranges. Puzzle screens (islands, sliding ice, wind streams) are generated.
 - **One "commitment" mechanic is reused** for the town-draft hostility, one-way gates (e.g. lowering down a cliff you can't climb back up) and rival-race lockouts (CAP-21).
 - **Gates are data:** each gate type is bound to the item that opens it.
-- **Puzzle generators validate solvability**, for example a check that each bridge layout is solvable. A seed sweep in the polish window checks for softlocks.
+- **Puzzle generators validate solvability** with a solver and meet per-generator difficulty targets. The seed sweep checks every screen, fragment, locked edge and the real core portal are reachable, with no softlocks.
 - **Debug tools from day 1:** an overlay with the face, screen and seed; a reroll-seed command; jump to any screen.
 - **Upgrades change how the player traverses**, not just raw power.

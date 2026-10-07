@@ -2,7 +2,7 @@
 type: initiative
 title: "Entropy Cube: a campy 2D Zelda-like roguelite, shipped on itch.io"
 parent: none
-covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8, CAP-9, CAP-10, CAP-11, CAP-12, CAP-13, CAP-14, CAP-15, CAP-16, CAP-17, CAP-18, CAP-19, CAP-20, CAP-21, CAP-22, CAP-23, CAP-24, CAP-25]
+covers: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8, CAP-9, CAP-10, CAP-11, CAP-12, CAP-13, CAP-14, CAP-15, CAP-16, CAP-17, CAP-18, CAP-19, CAP-20, CAP-21, CAP-22, CAP-23, CAP-24, CAP-25, CAP-26, CAP-27, CAP-28, CAP-29, CAP-30, CAP-31, CAP-32]
 after: []
 assignee: ""
 risk: medium
@@ -22,7 +22,7 @@ Players on itch.io can play a full seeded run in the browser, and the developer 
 
 1. A WebGL build is live on itch.io and someone other than the developer can play it start to finish.
 2. Three or more seeds play from town to the core boss with no softlock, confirmed by a seed sweep.
-3. Every Must capability (CAP-1 to CAP-13, CAP-25 to CAP-27) is in the shipped build: a 3×3 cube with all 6 faces, a map and an arena exit. Each Should capability (CAP-14 to CAP-17) is either present or cut following `scope-tiers.md`.
+3. Every Must capability (CAP-1 to CAP-8, CAP-10 to CAP-13, CAP-25 to CAP-32) is in the shipped build: a 3×3 cube with all 6 faces, a map, an arena exit, towns, fragments, roadblock rewards and the lair. Each Should capability (CAP-9, CAP-14 to CAP-17) is either present or cut following `scope-tiers.md`.
 4. Two different seeds route the player through the faces in visibly different orders.
 
 ## Boundaries
@@ -52,3 +52,4 @@ One Unity project in one repo, with one owner. Not in scope: the spec's non-goal
 - Decision: the Unity project lives in `game/` (Universal 2D/URP), and stories are built interactively with bmad-build (user, 2026-10-05).
 - Decision: the "commitment closes doors" mechanic and the save format are owned by epic-playable-cube. The save format is versioned and extensible, because epic-varied-runs and epic-stretch extend it (2026-10-05).
 - Decision: after the first playtest, the full 3×3 cube with all 6 faces, the isotope stage item, a cube-net map, an arena exit, Rubik's region colours and a subtle-science text rule move into epic-playable-cube. epic-varied-runs keeps CAP-14 to CAP-17. See change-playtest-feedback-full-cube (user approved, 2026-10-06).
+- Decision: after playtest 3, a new epic-world-worth-exploring (CAP-28 to CAP-32 and the rewritten CAP-2, CAP-7, CAP-8, CAP-11, CAP-13) is built after epic-playable-cube ships, before epic-varied-runs; CAP-9 moves to epic-varied-runs; epic order 1, 4, 2, 3. See change-playtest-3-world-redesign (user approved, 2026-10-07).

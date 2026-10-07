@@ -1,6 +1,6 @@
 ---
 title: 'Playtest 2 quick fixes'
-type: 'bug'
+type: 'bugfix'
 ticket: '24'
 created: '2026-10-07'
 status: 'built'

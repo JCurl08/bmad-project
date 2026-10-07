@@ -2,8 +2,8 @@
 type: epic
 title: "Every run plays differently"
 parent: initiative-video-game
-covers: [CAP-14, CAP-15, CAP-16, CAP-17]
-after: [epic-playable-cube]
+covers: [CAP-9, CAP-14, CAP-15, CAP-16, CAP-17]
+after: [epic-playable-cube, epic-world-worth-exploring]
 assignee: ""
 risk: medium
 ---
@@ -20,7 +20,7 @@ Two runs of the same player feel different because of their own choices and thei
 
 ## Requirements
 
-The spec is the requirement source: CAP-14 to CAP-17. Simple designs, proposed and awaiting the user's confirmation:
+The spec is the requirement source: CAP-9 and CAP-14 to CAP-17. CAP-9: the swappable-part NPC system (already in code) returns as a variety layer on top of the per-race designs from epic-world-worth-exploring. Simple designs, proposed and awaiting the user's confirmation:
 - CAP-14 draft: town records talk order. The ally's face item gains +1 level for the run and its NPCs use a "helpful" hint set. One ally-only gate per face opens. The last race and skipped races set the hostility flag, so their NPCs fight using enemy behaviour.
 - CAP-15 demon: up to 2 extra phases, each drawn from a race present in the run and reusing the arena. The true ending comes after 3 wins, counted in the save.
 - CAP-16 difficulty: one integer (1–3) from the number of completed runs feeds each puzzle generator's difficulty parameter.
@@ -40,7 +40,7 @@ The Should tier only, plus the final release step. Anything not finished by the 
 
 ## References
 
-- spec — _bmad-output/initiative-video-game/spec-entropy-cube/spec-entropy-cube.md, Capabilities CAP-14 to CAP-17
+- spec — _bmad-output/initiative-video-game/spec-entropy-cube/spec-entropy-cube.md, Capabilities CAP-9 and CAP-14 to CAP-17
 - design — _bmad-output/initiative-video-game/spec-entropy-cube/town-draft-and-friendship.md, section Per-run draft
 - design — _bmad-output/initiative-video-game/spec-entropy-cube/faces-and-races.md, section Demon phases
 - constraint — _bmad-output/initiative-video-game/spec-entropy-cube/scope-tiers.md, Cut order
@@ -51,3 +51,5 @@ The Should tier only, plus the final release step. Anything not finished by the 
 - Waits on epic-playable-cube because: it extends that epic's hooks (hostility flag, roles, boss phase slot, puzzle difficulty parameter, ability versions, save format).
 - Assumption: the simple designs above are proposals for the user to confirm at this epic's inception.
 - Decision: Math, Earth & Atmosphere and the 3×3 faces moved to epic-playable-cube (change-playtest-feedback-full-cube, 2026-10-06).
+- Waits on epic-world-worth-exploring because: it builds on that epic's screen size, character designs, towns and leaders, boss benefits and puzzle generators.
+- Decision: CAP-9 (swappable NPC parts) moves here from epic-playable-cube, and this epic is built after epic-world-worth-exploring (change-playtest-3-world-redesign, user approved 2026-10-07).
