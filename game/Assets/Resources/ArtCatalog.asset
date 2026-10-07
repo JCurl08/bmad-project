@@ -190,9 +190,6 @@ MonoBehaviour:
   - Key: 76
     Sprite: {fileID: 21300000, guid: fb5174d789eced64ead3c9d9c8a2aa43, type: 3}
     Tile: Tiny Dungeon/tile_0029
-  - Key: 75
-    Sprite: {fileID: 21300000, guid: 77d0c676d0e544845af46872c145804f, type: 3}
-    Tile: Tiny Dungeon/tile_0066
   - Key: 77
     Sprite: {fileID: 21300000, guid: 26e1ca28c70672244ba2b55da6fcd5cc, type: 3}
     Tile: Tiny Dungeon/tile_0060

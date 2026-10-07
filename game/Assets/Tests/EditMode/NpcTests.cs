@@ -81,6 +81,34 @@ namespace Game.Cube.Tests
             if (place != null) StringAssert.Contains(place, text, context);
         }
 
+        // ---------- Wander keep-out (1.26) ----------
+
+        [Test]
+        public void NpcMover_KeptOutVelocity_NeverCarriesABodyIntoAKeepOutCircle_ItSlidesRound_AndOneInsideMayWalkOut()
+        {
+            var circles = new List<(UnityEngine.Vector2 Centre, float Radius)> { (new UnityEngine.Vector2(0f, 0f), 1.65f) };
+            const float dt = 0.02f;
+            for (int a = 0; a < 72; a++)
+            {
+                // Start just outside, aimed at the centre or past it at any angle, walked for 3 s.
+                float angle = a * 5f * UnityEngine.Mathf.Deg2Rad;
+                var here = new UnityEngine.Vector2(UnityEngine.Mathf.Cos(angle), UnityEngine.Mathf.Sin(angle)) * 1.7f;
+                var aim = (UnityEngine.Vector2.zero - here).normalized + new UnityEngine.Vector2(0.3f * UnityEngine.Mathf.Sin(a), 0f);
+                for (int step = 0; step < 150; step++)
+                {
+                    UnityEngine.Vector2 v = NpcMover.KeptOutVelocity(here, aim.normalized * 1.5f, circles, dt);
+                    here += v * dt;
+                    Assert.GreaterOrEqual(here.magnitude, 1.65f - 1e-4f, $"angle {a * 5}: step {step} went into the keep-out");
+                }
+            }
+            // A body already inside (pushed there) can walk out, not further in.
+            var inside = new UnityEngine.Vector2(1f, 0f);
+            Assert.AreEqual(new UnityEngine.Vector2(1.5f, 0f), NpcMover.KeptOutVelocity(inside, new UnityEngine.Vector2(1.5f, 0f), circles, dt));
+            Assert.LessOrEqual(UnityEngine.Vector2.Dot(NpcMover.KeptOutVelocity(inside, new UnityEngine.Vector2(-1.5f, 0f), circles, dt), UnityEngine.Vector2.left), 1e-4f);
+            Assert.IsTrue(NpcMover.InKeepOut(circles, UnityEngine.Vector2.one));
+            Assert.IsFalse(NpcMover.InKeepOut(circles, UnityEngine.Vector2.one * 2f));
+        }
+
         // ---------- Parts ----------
 
         [Test]

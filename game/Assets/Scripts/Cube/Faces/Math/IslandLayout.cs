@@ -279,6 +279,22 @@ namespace Game.Cube
             return doors;
         }
 
+        /// <summary>
+        /// True for an island of a lone doorway (1.26): with two or more doorways on the screen, its islands join no other
+        /// doorway even with the gap-crosser* and hold no trial, so walking in by that doorway is a dead end and the player
+        /// must go round by another screen.
+        /// </summary>
+        public bool IsLone(int island)
+        {
+            if (island < 0 || island >= islands.Length) return false;
+            int doors = 0;
+            foreach (int d in doorIslands)
+                if (d >= 0) doors++;
+            if (doors < 2 || DoorsReaching(island, true).Count != 1) return false;
+            if (HasTrial && Components(true)[TrialIsland] == Components(true)[island]) return false;
+            return true;
+        }
+
         // ------------------------------------------------------------------ Validation
 
         private static bool Overlaps(Rect a, Rect b, float eps = 1e-4f) =>

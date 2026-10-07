@@ -16,9 +16,13 @@ its generated placeholder shape, so nothing renders invisible.
 - **Screen edges (1.25):** every screen's edges are walls (the `Wall` tile in the face's wall tint, one tile deep) with one
   centred doorway on each side. A doorway onto another face is framed by a stone gate arch (`DoorArch`, stretched over the
   doorway, one tile deep inside the wall band, with its lintel on the edge and its posts on the wall); a doorway within a face is a plain gap in the wall.
-- **Island screens (1.25):** Math's island screens are solid water (a generated flat blue) with `Island` pads stretched over
-  each island's land and `PlankBridge` planks between some of them; a broken span shows the `GateGap` pit with the
-  gap-crosser*'s diamond mark until it is mended.
+- **Island screens (1.25, 1.26):** Math's island screens are solid water (a generated flat blue) with the islands cut out
+  of it, so each island is the face's own floor (`FloorMath`, its tint and texture) with a generated shoreline: a pale
+  foam line on every edge that meets the water and a band of translucent wet sand inside it. `PlankBridge` planks join
+  some of them, a shade dim until walked; a walked plank lights up under a soft green glow and a mended span under the
+  gap-crosser*'s gold (generated overlays). A broken span shows the `GateGap` pit with the gap-crosser*'s diamond mark
+  until it is mended. A lone doorway's island has a generated lookout sign (a post and a board whose arrow points back
+  out of the doorway). The `Island` pad (D 66) is gone (1.26: the brown pads read as odd dots, not land).
 - **Hazards:** the Earth hazards (wind, snow, freezing rain, crevices) are their own category, tiled over their area like
   floors, drawn translucent over the floor so the ground still reads.
 - **Tints:** a tint separates variants (floor themes, enemy kinds, the arena halves, a gate's item colour), but every
@@ -99,7 +103,6 @@ its generated placeholder shape, so nothing renders invisible.
 | LeadPlate | D 31 | pressure plate: the Leadstone* weighs it down (also the Leadstone* trial's plates) |
 | Flower | T 17 | sprout, tinted as a bud then a bloom (also the Biology trial's flowers) |
 | TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
-| Island | D 66 | rounded sandy pad: an island of a Math island screen, stretched over its land (1.25) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
 | Fossil | T 92 | a mound of dug-up earth where a quake crevice laid the ground bare (1.24: was the key tile, which read as a pickup) |
 | WindBand | D 62 | white diagonal streaks: a wind band (generated arrows show which way it blows) |

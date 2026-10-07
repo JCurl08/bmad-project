@@ -15,7 +15,8 @@ namespace Game.Cube.Tests
     /// gap-crosser* is swung at the gap (other items and bare swings do nothing), after which it walks over; a gap gate
     /// opens when the gap-crosser* is swung at it (a crossing is laid), and other items, bare swings and touches do
     /// nothing; stepping onto the trial island fires the trial once; Math enemies take markedly more damage from their
-    /// weakness.
+    /// weakness; and (1.26) a plank lights up when walked, a mended span changes colour, and a lone doorway's island has a
+    /// lookout sign and says go round.
     /// </summary>
     public class MathComponentTests : InputTestFixture
     {
@@ -161,6 +162,72 @@ namespace Game.Cube.Tests
             // Now it walks over to the east doorway's island.
             yield return Push(body, Vector2.right, 0.92f);
             Assert.AreEqual(1, layout.IslandAt(body.position - Origin), $"Over the mended span to the east island (at {body.position - Origin})");
+        }
+
+        [UnityTest]
+        public IEnumerator IslandScreen_APlankLightsUpWhenWalked_AMendedSpanChangesColour_AndTheLoneDoorwaySaysGoRound()
+        {
+            IslandLayout layout = Layout(false);
+            IslandScreen screen = Track(IslandScreen.Create("Test Islands", null, layout, Origin, null).gameObject).GetComponent<IslandScreen>();
+            // The lone west doorway's island carries the lookout sign; no pads, the islands are the floor.
+            Assert.AreEqual(1, screen.Signs.Count);
+            Assert.AreEqual(layout.DoorIsland(Facing.West), layout.IslandAt((Vector2)screen.Signs[0].transform.position - Origin));
+            Assert.IsFalse(screen.GetComponentsInChildren<SpriteRenderer>().Any(r => r.name.StartsWith("Island")), "No island pads");
+            Assert.AreEqual(layout.Islands.Count, screen.transform.Cast<Transform>().Count(t => t.name.StartsWith("Shore ")), "A shoreline per island");
+
+            GameObject player = Player(Origin + IslandLayout.Arrival(Facing.South));
+            player.GetComponent<Game.Tracer.PlayerMover>().enabled = false;
+            var body = player.GetComponent<Rigidbody2D>();
+            screen.Player = player.transform;
+            var lit = new List<int>();
+            screen.Lit += (_, k) => lit.Add(k);
+            int whole = Enumerable.Range(0, layout.Bridges.Count).Count(k => !layout.Bridges[k].Broken);
+            for (int k = 0; k < layout.Bridges.Count; k++)
+            {
+                Assert.AreEqual(PlankLight.Unlit, screen.Lights[k]);
+                Assert.IsFalse(screen.Glow(k).enabled, $"Plank {k} starts unlit");
+            }
+            int lone = PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText);
+            yield return new WaitForFixedUpdate();
+
+            // South doorway's island, up the planks to the north one: both planks light up, once each.
+            yield return Push(body, Vector2.up, 1.1f);
+            Assert.AreEqual(0, layout.IslandAt(body.position - Origin));
+            int[] walked = Enumerable.Range(0, layout.Bridges.Count).Where(k => !layout.Bridges[k].Broken && layout.Bridges[k].Joins(4)
+                && !layout.Bridges[k].Joins(5)).ToArray();
+            Assert.AreEqual(2, walked.Length);
+            CollectionAssert.AreEquivalent(walked, lit, "The two planks walked lit up, each once");
+            foreach (int k in walked)
+            {
+                Assert.AreEqual(PlankLight.Walked, screen.Lights[k]);
+                Assert.IsTrue(screen.Glow(k).enabled);
+                Assert.AreEqual(IslandScreen.WalkedGlow, screen.Glow(k).color);
+            }
+            yield return Push(body, Vector2.down, 0.9f);
+            Assert.AreEqual(2, lit.Count, "Walking them again lights nothing more");
+            Assert.AreEqual(whole - 2, Enumerable.Range(0, layout.Bridges.Count).Count(k => screen.Lights[k] == PlankLight.Unlit && !layout.Bridges[k].Broken),
+                "The plank nobody walked stays unlit");
+
+            // The broken span changes colour when mended.
+            int broken = Enumerable.Range(0, layout.Bridges.Count).First(k => layout.Bridges[k].Broken);
+            Assert.IsFalse(screen.Glow(broken).enabled);
+            Assert.IsTrue(screen.Mend(broken));
+            Assert.AreEqual(PlankLight.Mended, screen.Lights[broken]);
+            Assert.IsTrue(screen.Glow(broken).enabled);
+            Assert.AreEqual(IslandScreen.MendedGlow, screen.Glow(broken).color);
+            Assert.AreNotEqual(IslandScreen.WalkedGlow, IslandScreen.MendedGlow);
+            Assert.AreEqual(lone, PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText), "No 'go round' on joined islands");
+
+            // Arriving on the lone doorway's island: "go round", once per arrival.
+            body.position = Origin + IslandLayout.Arrival(Facing.West);
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            yield return null;
+            Assert.AreEqual(lone + 1, PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText), "The lone doorway says go round");
+            yield return null;
+            Assert.AreEqual(lone + 1, PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText), "Only once while it stays");
+            foreach (PickupPopup p in PickupPopup.Active.ToList())
+                if (p != null) Object.Destroy(p.gameObject);
         }
 
         [UnityTest]

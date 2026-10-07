@@ -238,7 +238,9 @@ namespace Game.Cube
         {
             Vector2 centre = world.ScreenCenter(screen);
             Rect bounds = FaceContent.WanderBounds(centre, feet);
-            return NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
+            NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
+            FaceContent.KeepOffSlots(world, screen, npc);
+            return npc;
         }
 
         private void SpawnPhysicsEnemies(CubeWorld world, FaceSpots spots, SeededRng rng)

@@ -60,6 +60,19 @@ namespace Game.Cube
             };
         }
 
+        /// <summary>
+        /// Keeps a wandering NPC off its screen's gate fronts and slots (1.26): its mover never walks within SlotKeepOut of
+        /// a slot mark (SlotMarks), the same keep-out its spawn spot was picked with.
+        /// </summary>
+        public static void KeepOffSlots(CubeWorld world, ScreenAddress screen, NpcTalker npc)
+        {
+            if (world == null || npc == null || !npc.TryGetComponent(out NpcMover mover)) return;
+            Vector2 centre = world.ScreenCenter(screen);
+            var circles = new List<(Vector2 Centre, float Radius)>();
+            foreach (ScreenMark m in SlotMarks(world.ModuleAt(screen))) circles.Add((centre + m.Local, m.Radius + SlotKeepOut));
+            mover.SetKeepOut(circles);
+        }
+
         /// <summary>The face's screens row by row, then shuffled on rng (one draw sequence per call).</summary>
         public static List<ScreenAddress> ShuffledScreens(FaceId face, int faceSize, SeededRng rng)
         {
@@ -107,6 +120,7 @@ namespace Game.Cube
                 List<string> lines = linesOf(spec, i);
                 NpcTalker npc = NpcFactory.Spawn(spec, lines, centre + feet, bounds, world.Relations, target, root, world.Material);
                 npc.name = $"{label} {i} {spec.DisplayName}";
+                KeepOffSlots(world, screen, npc);
                 into.Add(npc);
             }
         }

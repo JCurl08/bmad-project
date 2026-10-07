@@ -106,7 +106,6 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.LeadPlate, Dungeon, 31, "pressure plate: the Leadstone* weighs it down"),
         new Pick(ArtKey.Flower, Town, 17, "sprout, tinted as a bud then a bloom"),
         new Pick(ArtKey.TrialLamp, Dungeon, 29, "flame banner: a lamp to light"),
-        new Pick(ArtKey.Island, Dungeon, 66, "rounded sandy pad: an island of a Math island screen (stretched over its land)"),
         new Pick(ArtKey.GoalPad, Dungeon, 60, "corner brackets: a target zone for boulders"),
         new Pick(ArtKey.Fossil, Town, 92, "a mound of dug-up earth: where a quake crevice laid the ground bare (not the key tile, which read as a pickup)"),
 

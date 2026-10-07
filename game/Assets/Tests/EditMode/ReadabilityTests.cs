@@ -105,7 +105,7 @@ namespace Game.Cube.Tests
                 ArtCategory c = ArtKeys.CategoryOf(k);
                 // Decor, and every non-pickup object that stays put in the world: gates, switches, lamps, portals, particles.
                 return c == ArtCategory.Ruin || c == ArtCategory.Floor || c == ArtCategory.Hazard || c == ArtCategory.Wall ||
-                       c == ArtCategory.Gate || k == ArtKey.Fossil || k == ArtKey.Island || k == ArtKey.GoalPad ||
+                       c == ArtCategory.Gate || k == ArtKey.Fossil || k == ArtKey.GoalPad ||
                        k == ArtKey.TrialLamp || k == ArtKey.Particle || k == ArtKey.DoorSwitch || k == ArtKey.Portal;
             }).ToList();
             Assert.That(decor, Has.Member(ArtKey.Fossil).And.Member(ArtKey.RuinTile).And.Member(ArtKey.RuinBroken)

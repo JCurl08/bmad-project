@@ -72,7 +72,6 @@ namespace Game.Cube
         LeadPlate = 73,
         Flower = 74,
         TrialLamp = 76,
-        Island = 75,
         GoalPad = 77,
 
         Portal = 80,
@@ -146,8 +145,7 @@ namespace Game.Cube
                 case ArtKey.LeadPlate:
                 case ArtKey.GoalPad: return ArtCategory.Switch;
                 case ArtKey.Flower: return ArtCategory.Plant;
-                case ArtKey.TrialLamp:
-                case ArtKey.Island: return ArtCategory.Prop;
+                case ArtKey.TrialLamp: return ArtCategory.Prop;
                 case ArtKey.Portal: return ArtCategory.Portal;
                 case ArtKey.Demon: return ArtCategory.Demon;
                 case ArtKey.Particle: return ArtCategory.Particle;

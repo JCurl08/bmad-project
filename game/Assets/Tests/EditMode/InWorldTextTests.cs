@@ -52,6 +52,7 @@ namespace Game.Cube.Tests
             yield return ("CoreHud", $"{CoreHud.MeterLabel}   ({new FallbackBoss().Name})");
             foreach (string line in CubeMap.AllTexts()) yield return ("CubeMap", line);
             yield return ("IslandScreen", IslandScreen.MendedText);
+            yield return ("IslandScreen", IslandScreen.LoneText);
             foreach (string line in MassMitt.AllHudText) yield return ("MassMitt HUD", line);
             foreach (string line in ChemistryIsotope.AllText()) yield return ("ChemistryIsotope", line);
             foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)

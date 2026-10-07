@@ -10,21 +10,61 @@ namespace Game.Cube
     /// water between some of them, and the broken spans' gaps (BrokenSpan: solid until the gap-crosser* is swung at them,
     /// which lays the missing plank for good). Every doorway lands on its own island, so the player can always walk back
     /// out the way it came.
+    /// 1.26 (visual only): the islands are the region's own floor showing through the water (no pads), each with a
+    /// shoreline (a foam line and a band of wet sand) where it meets the water; a plank lights up the first time the player
+    /// stands on it and a broken span changes colour when it is mended (PlankLights); and the island of a lone doorway (one
+    /// whose islands join no other doorway, IslandLayout.IsLone) carries a lookout sign pointing back out of its doorway,
+    /// and says "go round" when the player arrives on it.
     /// </summary>
     public class IslandScreen : MonoBehaviour
     {
         public static readonly Color WaterColor = new Color(0.22f, 0.45f, 0.8f, 1f);
-        public static readonly Color PlankColor = Color.white;
+
+        /// <summary>A plank no one has walked yet: a shade dimmer than a lit one.</summary>
+        public static readonly Color PlankColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+
+        /// <summary>A lit plank (walked, or mended) shows its art at full brightness under its glow.</summary>
+        public static readonly Color LitPlankColor = Color.white;
+
+        /// <summary>The glow over a walked plank (soft green).</summary>
+        public static readonly Color WalkedGlow = new Color(0.45f, 1f, 0.5f, 0.42f);
+
+        /// <summary>The glow over a mended span (the gap-crosser*'s gold).</summary>
+        public static readonly Color MendedGlow = new Color(1f, 0.8f, 0.15f, 0.55f);
+
         public static readonly Color MendedColor = new Color(1f, 0.92f, 0.6f);
+
+        /// <summary>The shoreline: a foam line on the island's edge, and wet sand just inside it.</summary>
+        public static readonly Color FoamColor = new Color(0.93f, 0.97f, 1f, 0.9f);
+        public static readonly Color WetSandColor = new Color(0.45f, 0.36f, 0.1f, 0.4f);
+        public const float FoamWidth = 0.07f, WetSandWidth = 0.12f;
+
+        public static readonly Color SignColor = new Color(0.8f, 0.62f, 0.38f);
+        public static readonly Color LoneTextColor = new Color(0.8f, 0.92f, 1f);
 
         public const string MendedText = "The gap is spanned!";
 
+        /// <summary>Said on arriving on a lone doorway's islands (they join nothing else on the screen).</summary>
+        public const string LoneText = "Only water here. Go round!";
+
+        /// <summary>How long the lone doorway's words stay up.</summary>
+        public const float LoneTextSeconds = 2.5f;
+
         private const int WaterOrder = -9;
         private const int PlankOrder = -8;
-        private const int IslandOrder = -7;
+        private const int ShoreOrder = -7;
+        private const int GlowOrder = -7;
+        private const int SignOrder = -5;
 
         private readonly List<BrokenSpan> gaps = new List<BrokenSpan>();
         private readonly List<Collider2D> water = new List<Collider2D>();
+        private readonly List<GameObject> signs = new List<GameObject>();
+        private readonly Dictionary<int, List<SpriteRenderer>> plankArt = new Dictionary<int, List<SpriteRenderer>>();
+        private SpriteRenderer[] glows = Array.Empty<SpriteRenderer>();
+        private bool[] lone = Array.Empty<bool>();
+        private int lastIsland = -1;
+        private Transform player;
+        private float nextPlayerSearch;
         private Material material;
 
         public IslandLayout Layout { get; private set; }
@@ -38,11 +78,34 @@ namespace Game.Cube
         /// <summary>The solid water pieces.</summary>
         public IReadOnlyList<Collider2D> Water => water;
 
+        /// <summary>The planks' lights (walked, mended).</summary>
+        public PlankLights Lights { get; private set; }
+
+        /// <summary>The lookout signs on lone doorways' islands.</summary>
+        public IReadOnlyList<GameObject> Signs => signs;
+
+        /// <summary>The player whose steps light the planks (found in the scene when not set).</summary>
+        public Transform Player
+        {
+            get => player;
+            set => player = value;
+        }
+
         /// <summary>Raised when the gap-crosser* mends a broken span, with the plank's index.</summary>
         public event Action<IslandScreen, int> Mended;
 
+        /// <summary>Raised when a plank lights up under the player's first step on it, with the plank's index.</summary>
+        public event Action<IslandScreen, int> Lit;
+
         /// <summary>The world position of an island's middle.</summary>
         public Vector2 IslandWorld(int island) => Centre + Layout.Islands[island].center;
+
+        /// <summary>The colour a plank's glow shows for a light (clear while unlit).</summary>
+        public static Color GlowFor(PlankLight light) =>
+            light == PlankLight.Walked ? WalkedGlow : light == PlankLight.Mended ? MendedGlow : Color.clear;
+
+        /// <summary>The glow over a plank (its renderer; disabled while unlit).</summary>
+        public SpriteRenderer Glow(int plank) => glows[plank];
 
         /// <summary>
         /// The water as rects (local): the water area less the islands, the planks and the gaps, cut on every island and
@@ -104,6 +167,113 @@ namespace Game.Cube
             return done;
         }
 
+        /// <summary>
+        /// The shoreline of an island (local rects): the foam line along each edge that meets the water (not an edge on the
+        /// wall), then a band of wet sand just inside it. Both lie on the island, so the land the player can stand on is
+        /// exactly what reads as land.
+        /// </summary>
+        public static List<(Rect Rect, bool Foam)> ShoreRects(Rect island)
+        {
+            Rect area = IslandLayout.WaterArea;
+            var rects = new List<(Rect, bool)>();
+            const float eps = 1e-4f;
+            bool west = island.xMin > area.xMin + eps, east = island.xMax < area.xMax - eps;
+            bool south = island.yMin > area.yMin + eps, north = island.yMax < area.yMax - eps;
+            foreach ((float width, float inset, bool foam) in new[] { (FoamWidth, 0f, true), (WetSandWidth, FoamWidth, false) })
+            {
+                Rect r = Rect.MinMaxRect(island.xMin + (west ? inset : 0f), island.yMin + (south ? inset : 0f),
+                    island.xMax - (east ? inset : 0f), island.yMax - (north ? inset : 0f));
+                if (south) rects.Add((Rect.MinMaxRect(r.xMin, r.yMin, r.xMax, r.yMin + width), foam));
+                if (north) rects.Add((Rect.MinMaxRect(r.xMin, r.yMax - width, r.xMax, r.yMax), foam));
+                float y0 = r.yMin + (south ? width : 0f), y1 = r.yMax - (north ? width : 0f);
+                if (west) rects.Add((Rect.MinMaxRect(r.xMin, y0, r.xMin + width, y1), foam));
+                if (east) rects.Add((Rect.MinMaxRect(r.xMax - width, y0, r.xMax, y1), foam));
+            }
+            return rects;
+        }
+
+        /// <summary>The lookout sign's board (with its dark edge) and where it sits above the sign's spot.</summary>
+        public static readonly Vector2 SignBoardSize = new Vector2(0.86f, 0.54f), SignBoardOffset = new Vector2(0f, 0.1f);
+
+        /// <summary>The sign's spot keeps at least this far off the doorway's centre line (the walk in).</summary>
+        public const float SignOffWalk = 0.6f;
+
+        /// <summary>The board of a sign standing at a spot (local rect).</summary>
+        public static Rect SignBoard(Vector2 spot) => new Rect(spot + SignBoardOffset - SignBoardSize / 2f, SignBoardSize);
+
+        /// <summary>Where the planks of an island leave it (local): each plank's end on the island's shore, a line across the plank.</summary>
+        public static List<Rect> PlankMouths(IslandLayout layout, int island)
+        {
+            var mouths = new List<Rect>();
+            Rect r = layout.Islands[island];
+            foreach (IslandBridge b in layout.Bridges)
+            {
+                if (!b.Joins(island)) continue;
+                Rect p = b.Plank;
+                if (b.Vertical)
+                {
+                    float y = Mathf.Abs(p.yMin - r.yMax) < Mathf.Abs(p.yMax - r.yMin) ? p.yMin : p.yMax;
+                    mouths.Add(Rect.MinMaxRect(p.xMin, y, p.xMax, y));
+                }
+                else
+                {
+                    float x = Mathf.Abs(p.xMin - r.xMax) < Mathf.Abs(p.xMax - r.xMin) ? p.xMin : p.xMax;
+                    mouths.Add(Rect.MinMaxRect(x, p.yMin, x, p.yMax));
+                }
+            }
+            return mouths;
+        }
+
+        /// <summary>The distance between two rects (0 when they touch or overlap).</summary>
+        public static float RectGap(Rect a, Rect b)
+        {
+            float dx = Mathf.Max(0f, Mathf.Max(a.xMin - b.xMax, b.xMin - a.xMax));
+            float dy = Mathf.Max(0f, Mathf.Max(a.yMin - b.yMax, b.yMin - a.yMax));
+            return Mathf.Sqrt(dx * dx + dy * dy);
+        }
+
+        /// <summary>
+        /// Where a lone doorway's lookout sign stands (local): on the doorway's island with its whole board on the land,
+        /// at least SignOffWalk aside of the walk in from the doorway, and with its board at least half its width clear of
+        /// every plank mouth on the island. Of the spots that qualify, the one nearest the island's middle out to one side
+        /// (searched on a 0.05 grid, so it is the same every time); with none, the spot farthest from the mouths.
+        /// </summary>
+        public static Vector2 SignSpot(IslandLayout layout, Facing side)
+        {
+            int door = layout.DoorIsland(side);
+            Rect r = layout.Islands[door];
+            List<Rect> mouths = PlankMouths(layout, door);
+            float margin = SignBoardSize.x / 2f;
+            Vector2 preferred = r.center + (side.IsHorizontal() ? Vector2.up : Vector2.right) * SignOffWalk;
+            Vector2 best = preferred, fallback = preferred;
+            float bestDistance = float.MaxValue, fallbackGap = -1f;
+            const float step = 0.05f;
+            for (float x = r.xMin; x <= r.xMax + 1e-4f; x += step)
+                for (float y = r.yMin; y <= r.yMax + 1e-4f; y += step)
+                {
+                    var spot = new Vector2(x, y);
+                    Rect board = SignBoard(spot);
+                    if (board.xMin < r.xMin - 1e-4f || board.xMax > r.xMax + 1e-4f || board.yMin < r.yMin - 1e-4f || board.yMax > r.yMax + 1e-4f)
+                        continue;
+                    if ((side.IsHorizontal() ? Mathf.Abs(y) : Mathf.Abs(x)) < SignOffWalk - 1e-4f) continue;
+                    float gap = float.MaxValue;
+                    foreach (Rect m in mouths) gap = Mathf.Min(gap, RectGap(board, m));
+                    if (gap > fallbackGap + 1e-4f)
+                    {
+                        fallbackGap = gap;
+                        fallback = spot;
+                    }
+                    if (gap < margin) continue;
+                    float distance = (spot - preferred).sqrMagnitude;
+                    if (distance < bestDistance - 1e-6f)
+                    {
+                        bestDistance = distance;
+                        best = spot;
+                    }
+                }
+            return bestDistance < float.MaxValue ? best : fallback;
+        }
+
         /// <summary>Builds the screen's water, islands, planks and gaps (layout local to screenCentre) under this object.</summary>
         public void Configure(IslandLayout layout, Vector2 screenCentre, Material material)
         {
@@ -113,6 +283,10 @@ namespace Game.Cube
             transform.position = screenCentre;
             gaps.Clear();
             water.Clear();
+            signs.Clear();
+            plankArt.Clear();
+            Lights = new PlankLights(layout);
+            lastIsland = -1;
 
             List<Rect> waterRects = WaterRects(layout);
             for (int i = 0; i < waterRects.Count; i++)
@@ -129,17 +303,27 @@ namespace Game.Cube
                 water.Add(box);
                 sprite.name = $"Water {i}";
             }
+            // The islands are the face's own floor, showing through the water; only their shorelines are drawn.
+            lone = new bool[layout.Islands.Count];
             for (int i = 0; i < layout.Islands.Count; i++)
             {
-                Rect r = layout.Islands[i];
-                ArtCatalog.AddSprite(transform, $"Island {i}", ArtKey.Island, r.center, r.size, Color.white, IslandOrder, material);
+                lone[i] = layout.IsLone(i);
+                var shore = new GameObject($"Shore {i}").transform;
+                shore.SetParent(transform, false);
+                foreach ((Rect r, bool foam) in ShoreRects(layout.Islands[i]))
+                    ArtCatalog.AddShape(shore, foam ? "Foam" : "Wet Sand", PartShape.Square, r.center, r.size, foam ? FoamColor : WetSandColor,
+                        ShoreOrder, material);
             }
+            glows = new SpriteRenderer[layout.Bridges.Count];
             for (int k = 0; k < layout.Bridges.Count; k++)
             {
                 IslandBridge b = layout.Bridges[k];
+                glows[k] = ArtCatalog.AddShape(transform, $"Plank {k} (glow)", PartShape.Square, b.Plank.center, b.Plank.size, Color.clear,
+                    GlowOrder, material);
+                glows[k].enabled = false;
                 if (!b.Broken)
                 {
-                    Plank($"Plank {k}", b.Plank, b.Vertical, material);
+                    Plank(k, $"Plank {k}", b.Plank, b.Vertical, material);
                     continue;
                 }
                 Rect gap = b.Gap;
@@ -147,24 +331,102 @@ namespace Game.Cube
                     : Rect.MinMaxRect(b.Plank.xMin, b.Plank.yMin, gap.xMin, b.Plank.yMax);
                 Rect far = b.Vertical ? Rect.MinMaxRect(b.Plank.xMin, gap.yMax, b.Plank.xMax, b.Plank.yMax)
                     : Rect.MinMaxRect(gap.xMax, b.Plank.yMin, b.Plank.xMax, b.Plank.yMax);
-                Plank($"Plank {k}", near, b.Vertical, material);
-                Plank($"Plank {k} (far)", far, b.Vertical, material);
+                Plank(k, $"Plank {k}", near, b.Vertical, material);
+                Plank(k, $"Plank {k} (far)", far, b.Vertical, material);
                 gaps.Add(BrokenSpan.Create(this, k, gap, b.Vertical, material));
+            }
+            for (int f = 0; f < 4; f++)
+            {
+                int door = layout.DoorIsland((Facing)f);
+                if (door >= 0 && lone[door]) signs.Add(BuildSign((Facing)f, material));
             }
         }
 
-        private SpriteRenderer Plank(string name, Rect r, bool vertical, Material material)
+        private SpriteRenderer Plank(int bridge, string name, Rect r, bool vertical, Material material)
         {
             // The plank art runs along x; a north-south plank is turned a quarter.
             Vector2 size = vertical ? new Vector2(r.height, r.width) : r.size;
             SpriteRenderer plank = ArtCatalog.AddSprite(transform, name, ArtKey.PlankBridge, r.center, size, PlankColor, PlankOrder, material, false);
             if (vertical) plank.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            if (!plankArt.TryGetValue(bridge, out List<SpriteRenderer> list)) plankArt[bridge] = list = new List<SpriteRenderer>();
+            list.Add(plank);
             return plank;
         }
 
+        /// <summary>A lone doorway's lookout sign: a post and a board with an arrow pointing back out of the doorway.</summary>
+        private GameObject BuildSign(Facing side, Material material)
+        {
+            var go = new GameObject($"Lookout Sign ({side})");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = SignSpot(Layout, side);
+            ArtCatalog.AddShape(go.transform, "Post", PartShape.Square, new Vector2(0f, -0.2f), new Vector2(0.1f, 0.55f),
+                new Color(0.35f, 0.24f, 0.12f), SignOrder, material);
+            ArtCatalog.AddShape(go.transform, "Board Edge", PartShape.Square, SignBoardOffset, SignBoardSize,
+                new Color(0.3f, 0.2f, 0.1f), SignOrder + 1, material);
+            ArtCatalog.AddShape(go.transform, "Board", PartShape.Square, new Vector2(0f, 0.1f), new Vector2(0.78f, 0.46f), SignColor,
+                SignOrder + 2, material);
+            SpriteRenderer arrow = ArtCatalog.AddShape(go.transform, "Arrow", PartShape.Triangle, new Vector2(0f, 0.1f),
+                new Vector2(0.34f, 0.32f), new Color(0.25f, 0.16f, 0.08f), SignOrder + 3, material);
+            arrow.transform.localRotation = Quaternion.Euler(0f, 0f, ScreenEdges.ArchAngle(side));
+            return go;
+        }
+
+        /// <summary>Colours a plank (all its pieces, a laid span included) and its glow for its light.</summary>
+        private void ShowLight(int bridge)
+        {
+            PlankLight light = Lights[bridge];
+            if (plankArt.TryGetValue(bridge, out List<SpriteRenderer> list))
+                foreach (SpriteRenderer r in list)
+                    if (r != null) r.color = light == PlankLight.Unlit ? PlankColor : LitPlankColor;
+            SpriteRenderer glow = glows[bridge];
+            if (glow == null) return;
+            glow.color = GlowFor(light);
+            glow.enabled = light != PlankLight.Unlit;
+        }
+
         /// <summary>
-        /// Mends a broken span (the gap-crosser* swung at its gap): the missing plank is laid and the gap stops blocking.
-        /// False when the plank is not a gap (whole, or mended already).
+        /// The player standing at a world point: a plank under it lights up (first step only), and arriving on a lone
+        /// doorway's islands from anywhere else says "go round". Off the screen it forgets the last island.
+        /// </summary>
+        public void Visit(Vector2 world)
+        {
+            Vector2 local = world - Centre;
+            Vector2 half = ScreenEdges.Half;
+            if (Mathf.Abs(local.x) > half.x || Mathf.Abs(local.y) > half.y)
+            {
+                lastIsland = -1;
+                return;
+            }
+            int lit = Lights.Walk(local);
+            if (lit >= 0)
+            {
+                ShowLight(lit);
+                Lit?.Invoke(this, lit);
+            }
+            int island = Layout.IslandAt(local);
+            if (island < 0) return;
+            if (lone[island] && (lastIsland < 0 || !lone[lastIsland]))
+                PickupPopup.Show(Centre + Layout.Islands[island].center, LoneText, LoneTextColor, LoneTextSeconds);
+            lastIsland = island;
+        }
+
+        private void Update()
+        {
+            if (Layout == null) return;
+            if (player == null)
+            {
+                if (Time.unscaledTime < nextPlayerSearch) return;
+                nextPlayerSearch = Time.unscaledTime + 1f;
+                CubeNavigator navigator = FindAnyObjectByType<CubeNavigator>();
+                if (navigator == null) return;
+                player = navigator.transform;
+            }
+            Visit(player.position);
+        }
+
+        /// <summary>
+        /// Mends a broken span (the gap-crosser* swung at its gap): the missing plank is laid, the gap stops blocking and the
+        /// span changes colour. False when the plank is not a gap (whole, or mended already).
         /// </summary>
         public bool Mend(int bridge)
         {
@@ -172,7 +434,10 @@ namespace Game.Cube
             {
                 if (gap == null || gap.Bridge != bridge || gap.IsMended) continue;
                 IslandBridge b = Layout.Bridges[bridge];
-                gap.ShowMended(Plank($"Plank {bridge} (laid)", b.Gap, b.Vertical, material));
+                Plank(bridge, $"Plank {bridge} (laid)", b.Gap, b.Vertical, material);
+                gap.ShowMended();
+                Lights.Mend(bridge);
+                ShowLight(bridge);
                 PickupPopup.Show(Centre + b.Gap.center, MendedText, MendedColor);
                 Mended?.Invoke(this, bridge);
                 return true;
@@ -219,14 +484,13 @@ namespace Game.Cube
             return owner.Mend(Bridge);
         }
 
-        /// <summary>The plank is laid: the hole and the mark go and the gap stops blocking.</summary>
-        public void ShowMended(SpriteRenderer laid)
+        /// <summary>The plank is laid: the hole and the mark go and the gap stops blocking (the owner colours the span).</summary>
+        public void ShowMended()
         {
             IsMended = true;
             if (solid != null) solid.enabled = false;
             if (hole != null) hole.gameObject.SetActive(false);
             if (mark != null) mark.gameObject.SetActive(false);
-            if (laid != null) laid.color = IslandScreen.MendedColor;
         }
 
         public static BrokenSpan Create(IslandScreen owner, int bridge, Rect gap, bool vertical, Material material)

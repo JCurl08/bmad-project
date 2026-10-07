@@ -219,6 +219,136 @@ namespace Game.Cube.Tests
         }
 
         [Test]
+        public void PlankLights_AWalkedPlankLightsOnce_ABrokenSpanOnlyWhenMended_AndAMendedSpanStaysMended()
+        {
+            for (ulong s = 0; s < 40; s++)
+            {
+                IslandLayout layout = Generated(s, s % 2 == 0);
+                var lights = new PlankLights(layout);
+                Assert.AreEqual(layout.Bridges.Count, lights.Count);
+                for (int k = 0; k < lights.Count; k++) Assert.AreEqual(PlankLight.Unlit, lights[k], $"layout {s}: plank {k} starts unlit");
+                // Islands and the water light nothing.
+                foreach (Rect island in layout.Islands) Assert.AreEqual(-1, lights.Walk(island.center), $"layout {s}: an island");
+                Assert.AreEqual(-1, lights.Walk(IslandLayout.WaterArea.min + new Vector2(0.05f, 0.05f)), $"layout {s}: the water");
+                for (int k = 0; k < layout.Bridges.Count; k++)
+                {
+                    IslandBridge b = layout.Bridges[k];
+                    Assert.AreEqual(k, lights.PlankAt(b.Plank.center));
+                    if (b.Broken)
+                    {
+                        // Its ends light nothing; the mend changes its colour, for good.
+                        Vector2 end = b.Vertical ? new Vector2(b.Plank.center.x, b.Plank.yMin + 0.1f) : new Vector2(b.Plank.xMin + 0.1f, b.Plank.center.y);
+                        Assert.AreEqual(-1, lights.Walk(end), $"layout {s}: a broken span's end");
+                        Assert.AreEqual(PlankLight.Unlit, lights[k]);
+                        Assert.IsTrue(lights.Mend(k));
+                        Assert.AreEqual(PlankLight.Mended, lights[k]);
+                        Assert.IsFalse(lights.Mend(k), "Mended already");
+                        Assert.AreEqual(-1, lights.Walk(b.Plank.center), "Walking a mended span changes nothing");
+                        Assert.AreEqual(PlankLight.Mended, lights[k]);
+                        continue;
+                    }
+                    Assert.IsFalse(lights.Mend(k), "A whole plank is never mended");
+                    Assert.AreEqual(k, lights.Walk(b.Plank.center), $"layout {s}: plank {k} lights on the first step");
+                    Assert.AreEqual(PlankLight.Walked, lights[k]);
+                    Assert.AreEqual(-1, lights.Walk(b.Plank.center), "Only the first step lights it");
+                    Assert.AreEqual(PlankLight.Walked, lights[k]);
+                }
+            }
+            Assert.AreNotEqual(IslandScreen.GlowFor(PlankLight.Walked), IslandScreen.GlowFor(PlankLight.Mended), "Walked and mended differ");
+            Assert.AreEqual(0f, IslandScreen.GlowFor(PlankLight.Unlit).a, "Unlit has no glow");
+        }
+
+        [Test]
+        public void IslandLayout_IsLone_MarksExactlyTheIslandsOfADoorwayThatJoinsNoOther_AndItsSignStandsOnItsIsland()
+        {
+            int withLookout = 0, mouthed = 0;
+            for (ulong s = 0; s < 300; s++)
+            {
+                IslandLayout layout = Generated(s, s % 2 == 0);
+                int[] all = layout.Components(true);
+                for (int i = 0; i < layout.Islands.Count; i++)
+                {
+                    bool expected = layout.DoorsReaching(i, true).Count == 1 && (!layout.HasTrial || all[layout.TrialIsland] != all[i]);
+                    Assert.AreEqual(expected, layout.IsLone(i), $"layout {s}: island {i}");
+                }
+                Facing[] loneDoors = Sides.Where(d => layout.IsLone(layout.DoorIsland(d))).ToArray();
+                Assert.AreEqual(1, loneDoors.Length, $"layout {s}: one lone doorway");
+                Facing side = loneDoors[0];
+                int door = layout.DoorIsland(side);
+                Vector2 sign = IslandScreen.SignSpot(layout, side);
+                Assert.AreEqual(door, layout.IslandAt(sign), $"layout {s}: the sign stands on the lone doorway's island");
+                Assert.IsFalse(layout.Bridges.Any(b => b.Plank.Contains(sign)), $"layout {s}: not on a plank");
+                // The whole board is on the island, aside of the walk in, and half its width clear of every plank mouth.
+                Rect board = IslandScreen.SignBoard(sign), land = layout.Islands[door];
+                Assert.IsTrue(board.xMin >= land.xMin - 1e-4f && board.xMax <= land.xMax + 1e-4f && board.yMin >= land.yMin - 1e-4f &&
+                              board.yMax <= land.yMax + 1e-4f, $"layout {s}: the board stands on the island");
+                float off = side.IsHorizontal() ? Mathf.Abs(sign.y) : Mathf.Abs(sign.x);
+                Assert.GreaterOrEqual(off, IslandScreen.SignOffWalk - 1e-4f, $"layout {s}: the sign stands aside of the walk in");
+                List<Rect> mouths = IslandScreen.PlankMouths(layout, door);
+                Assert.AreEqual(layout.Bridges.Count(b => b.Joins(door)), mouths.Count);
+                foreach (Rect m in mouths)
+                {
+                    Assert.IsTrue(Mathf.Abs(m.xMin - land.xMin) < 1e-4f || Mathf.Abs(m.xMax - land.xMax) < 1e-4f ||
+                                  Mathf.Abs(m.yMin - land.yMin) < 1e-4f || Mathf.Abs(m.yMax - land.yMax) < 1e-4f, $"layout {s}: a mouth on the shore");
+                    Assert.GreaterOrEqual(IslandScreen.RectGap(board, m), IslandScreen.SignBoardSize.x / 2f - 1e-4f,
+                        $"layout {s}: the {side} sign's board keeps clear of the plank mouth {m}");
+                }
+                if (Enumerable.Range(0, layout.Islands.Count).Count(layout.IsLone) > 1) withLookout++;
+                if (mouths.Count > 0) mouthed++;
+                if (layout.HasTrial) Assert.IsFalse(layout.IsLone(layout.TrialIsland), $"layout {s}: the trial island is never lone");
+            }
+            Assert.Greater(withLookout, 25, "Some lone doorways have a lookout island");
+            Assert.Greater(mouthed, 100, "Many signs share their island with a plank mouth");
+            // With a single doorway there is no lone doorway (it is just the way in).
+            IslandLayout single = IslandLayout.Generate(new SeededRng(1, MathPlan.RngStream), d => d == Facing.South, false);
+            if (single != null) Assert.IsFalse(single.IsLone(single.DoorIsland(Facing.South)));
+        }
+
+        [Test]
+        public void PickupPopup_TheLabelFitsTheLoneDoorwayLine_OnOneLine_AndShortLinesKeepTheOldSize()
+        {
+            var style = new GUIStyle
+            {
+                font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"), fontSize = 20, fontStyle = FontStyle.Bold, wordWrap = false
+            };
+            Vector2 text = style.CalcSize(new GUIContent(IslandScreen.LoneText));
+            Assert.Greater(text.x, 100f, "The line measures");
+            Vector2 label = PickupPopup.LabelSize(text);
+            Assert.GreaterOrEqual(label.x, text.x + 8f, $"The label ({label.x}) fits the line ({text.x})");
+            Assert.GreaterOrEqual(label.y, text.y);
+            Assert.AreEqual(PickupPopup.MinLabelSize, PickupPopup.LabelSize(new Vector2(40f, 20f)));
+        }
+
+        [Test]
+        public void IslandShore_RunsAlongEveryEdgeThatMeetsTheWater_OnTheIslandItself_AndNeverAlongAWall()
+        {
+            Rect area = IslandLayout.WaterArea;
+            for (ulong s = 0; s < 40; s++)
+            {
+                IslandLayout layout = Generated(s, s % 2 == 0);
+                for (int i = 0; i < layout.Islands.Count; i++)
+                {
+                    Rect island = layout.Islands[i];
+                    List<(Rect Rect, bool Foam)> shore = IslandScreen.ShoreRects(island);
+                    foreach ((Rect r, bool _) in shore)
+                        Assert.IsTrue(r.xMin >= island.xMin - 1e-4f && r.xMax <= island.xMax + 1e-4f && r.yMin >= island.yMin - 1e-4f &&
+                                      r.yMax <= island.yMax + 1e-4f, $"layout {s}: island {i}'s shore lies on the island");
+                    // Every edge in the water has foam on it; an edge on the wall has none.
+                    var edges = new[]
+                    {
+                        (new Vector2(island.center.x, island.yMin + 0.01f), island.yMin > area.yMin + 1e-4f),
+                        (new Vector2(island.center.x, island.yMax - 0.01f), island.yMax < area.yMax - 1e-4f),
+                        (new Vector2(island.xMin + 0.01f, island.center.y), island.xMin > area.xMin + 1e-4f),
+                        (new Vector2(island.xMax - 0.01f, island.center.y), island.xMax < area.xMax - 1e-4f),
+                    };
+                    foreach ((Vector2 p, bool wet) in edges)
+                        Assert.AreEqual(wet, shore.Any(e => e.Foam && e.Rect.Contains(p)), $"layout {s}: island {i} edge at {p}");
+                    Assert.IsFalse(shore.Any(e => e.Rect.Contains(island.center)), "The island's middle is plain floor");
+                }
+            }
+        }
+
+        [Test]
         public void DoorwayReach_WalksDoorwayByDoorway_AnIslandScreenSplitsIntoItsIslands_AndEveryJoinIsTwoWay()
         {
             var model = new CubeModel(3);
@@ -542,6 +672,7 @@ namespace Game.Cube.Tests
             strings.Add(Dialogue.IslandLine);
             strings.Add(Dialogue.GapCrosserLine);
             strings.Add(IslandScreen.MendedText);
+            strings.Add(IslandScreen.LoneText);
             strings.Add(GapCrosserItem.Name);
             strings.Add(HintGenerator.ItemNickname(Theme.Math));
             ItemDefinition item = Catalog().ForTheme(Theme.Math);

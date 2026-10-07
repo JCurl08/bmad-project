@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Game.Tracer;
 using UnityEngine;
 
@@ -10,6 +11,8 @@ namespace Game.Cube
     /// Drives a dynamic Rigidbody2D (no gravity, rotation frozen) by velocity in FixedUpdate, so module
     /// walls and closed gates stop the NPC, and the physics solver (not a kinematic shove) settles contacts
     /// with the player, who therefore cannot be pushed into a wall.
+    /// Keep-out circles (SetKeepOut: a face's gate fronts and slots, 1.26) are never walked into: a wander target inside
+    /// one is drawn again, and a step that would carry the NPC further into one loses its inward part (it slides round).
     /// </summary>
     public class NpcMover : MonoBehaviour
     {
@@ -30,6 +33,10 @@ namespace Game.Cube
         private bool hasTarget;
         private float pause;
         private float giveUpIn;
+        private readonly List<(Vector2 Centre, float Radius)> keepOut = new List<(Vector2 Centre, float Radius)>();
+
+        /// <summary>Draws at a wander target before giving up on a clear one this time (the NPC pauses instead).</summary>
+        public const int TargetDraws = 8;
 
         public Movement Movement => movement;
         public Rect Bounds => bounds;
@@ -39,6 +46,48 @@ namespace Game.Cube
         {
             get => player;
             set => player = value;
+        }
+
+        /// <summary>The circles (world centre, radius) the NPC never walks into.</summary>
+        public IReadOnlyList<(Vector2 Centre, float Radius)> KeepOut => keepOut;
+
+        /// <summary>Sets the circles (world centre, radius) the NPC never walks into (its face's gate fronts and slots).</summary>
+        public void SetKeepOut(IEnumerable<(Vector2 Centre, float Radius)> circles)
+        {
+            keepOut.Clear();
+            if (circles != null) keepOut.AddRange(circles);
+            hasTarget = false;
+        }
+
+        /// <summary>True when a point (world) lies inside a keep-out circle.</summary>
+        public static bool InKeepOut(IReadOnlyList<(Vector2 Centre, float Radius)> circles, Vector2 point)
+        {
+            foreach ((Vector2 c, float r) in circles)
+                if ((point - c).sqrMagnitude < r * r) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// The velocity with its part toward any keep-out circle the next step would end inside removed, so the body slides
+        /// round the circle and never goes deeper (one already inside, pushed there, may still walk out).
+        /// </summary>
+        public static Vector2 KeptOutVelocity(Vector2 here, Vector2 velocity, IReadOnlyList<(Vector2 Centre, float Radius)> circles, float dt)
+        {
+            if (dt <= 0f || circles == null) return velocity;
+            for (int pass = 0; pass < 2; pass++)
+                foreach ((Vector2 c, float r) in circles)
+                {
+                    Vector2 next = here + velocity * dt;
+                    if ((next - c).sqrMagnitude >= r * r) continue;
+                    Vector2 toCentre = c - here;
+                    if (toCentre.sqrMagnitude < 1e-8f) continue;
+                    Vector2 n = toCentre.normalized;
+                    float inward = Vector2.Dot(velocity, n);
+                    if (inward > 0f) velocity -= n * inward;
+                    // Still ending inside after the slide (a tangent step on a curve): hold still if outside now.
+                    if (((here + velocity * dt) - c).sqrMagnitude < r * r && (here - c).sqrMagnitude >= r * r) velocity = Vector2.zero;
+                }
+            return velocity;
         }
 
         private Vector2 Position => body != null ? body.position : (Vector2)transform.position;
@@ -80,9 +129,19 @@ namespace Game.Cube
             Vector2 here = Position;
             if (!hasTarget)
             {
-                target = new Vector2(
-                    bounds.xMin + bounds.width * rng.NextInt(1001) / 1000f,
-                    bounds.yMin + bounds.height * rng.NextInt(1001) / 1000f);
+                bool clear = false;
+                for (int draw = 0; draw < TargetDraws && !clear; draw++)
+                {
+                    target = new Vector2(
+                        bounds.xMin + bounds.width * rng.NextInt(1001) / 1000f,
+                        bounds.yMin + bounds.height * rng.NextInt(1001) / 1000f);
+                    clear = !InKeepOut(keepOut, target);
+                }
+                if (!clear)
+                {
+                    pause = pauseSeconds;
+                    return Vector2.zero;
+                }
                 hasTarget = true;
                 // A wall or closed gate may block the way: give up after the straight-line time plus slack.
                 giveUpIn = Vector2.Distance(here, target) / Mathf.Max(0.01f, wanderSpeed) + 1f;
@@ -114,6 +173,7 @@ namespace Game.Cube
         {
             Vector2 here = Position;
             velocity = BoundedVelocity(here, velocity, bounds, dt);
+            if (keepOut.Count > 0) velocity = KeptOutVelocity(here, velocity, keepOut, dt);
             if (body != null) body.linearVelocity = velocity;
             else transform.position = (Vector3)(here + velocity * dt) + Vector3.forward * transform.position.z;
         }
