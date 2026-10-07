@@ -511,8 +511,8 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// Spots other faces' content uses on each screen (local): Biology buttons and flowers, Chemistry lead plates and
-        /// open pickups (Physics avoids Math's layouts instead, see PhysicsPlan).
+        /// Spots other faces' content uses on each screen (local): Biology buttons and flowers, Chemistry lead plates, Earth
+        /// gates' fronts and open pickups (Physics avoids Math's layouts instead, see PhysicsPlan).
         /// </summary>
         private static Dictionary<ScreenAddress, List<ScreenMark>> OtherFaceMarks(CubeModel model, ItemPlacement placement,
             Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> kinds, IReadOnlyList<IsotopeStage> stoneKinds)
@@ -543,6 +543,9 @@ namespace Game.Cube
                 foreach (IsotopeGateSpec s in chemistry.Gates)
                     if (s.Stage == IsotopeStage.Lead && SlotLocal(s.Screen, s.Slot) is Vector2 local)
                         Add(s.Screen, $"lead plate ({s})", LeadPlateGate.PlateLocal(local), LeadPlate.Radius);
+            // Earth: the front of every Earth gate (so layouts and Math's own NPCs and enemies keep clear of them).
+            foreach (KeyValuePair<ScreenAddress, List<ScreenMark>> e in EarthPlan.GateFrontMarks(placement, moduleAt))
+                foreach (ScreenMark m in e.Value) Add(e.Key, m.What, m.Local, m.Radius);
             foreach (PickupPlacement p in placement.Pickups)
                 if (!p.IsGuarded) Add(p.Screen, $"{p.Item} pickup", CubeWorld.OpenPickupOffset, ItemPickup.Radius);
             return result;

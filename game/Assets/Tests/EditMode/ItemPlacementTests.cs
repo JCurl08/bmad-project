@@ -17,7 +17,7 @@ namespace Game.Cube.Tests
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
         private static readonly int[] FaceSizes = { 2, 3 };
-        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math };
+        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere };
 
         /// <summary>The items of the hand-made placements below (the three faces they were written for).</summary>
         private static readonly Theme[] HandMadeItems = { Theme.Biology, Theme.Chemistry, Theme.Physics };

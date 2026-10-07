@@ -343,7 +343,7 @@ namespace Game.Cube
             /// <summary>
             /// Spots other faces' content uses on each screen (local): Biology buttons (required and optional),
             /// flowers and trial pieces, Chemistry lead plates and trial pieces, Math gap gates' fronts and bridge layouts
-            /// (MathPlan.ContentMarks), and open pickups.
+            /// (MathPlan.ContentMarks), Earth gates' fronts, crevices and trial pieces (EarthPlan.ContentMarks), and open pickups.
             /// </summary>
             private static Dictionary<ScreenAddress, List<ScreenMark>> OtherFaceMarks(CubeModel model, ItemPlacement placement,
                 Func<ScreenAddress, ScreenModule> moduleAt, IReadOnlyList<BeakKind> kinds, IReadOnlyList<IsotopeStage> stoneKinds)
@@ -397,6 +397,12 @@ namespace Game.Cube
                 MathPlan math = MathPlan.Create(model, placement, moduleAt, kinds, stoneKinds);
                 if (math != null)
                     foreach (KeyValuePair<ScreenAddress, List<ScreenMark>> e in math.ContentMarks())
+                        foreach (ScreenMark m in e.Value) Add(e.Key, m.What, m.Local, m.Radius);
+
+                // Earth: every Earth gate's front (on any face), every crevice and the trial's pieces.
+                EarthPlan earth = EarthPlan.Create(model, placement, moduleAt, null, kinds, stoneKinds);
+                if (earth != null)
+                    foreach (KeyValuePair<ScreenAddress, List<ScreenMark>> e in earth.ContentMarks())
                         foreach (ScreenMark m in e.Value) Add(e.Key, m.What, m.Local, m.Radius);
 
                 foreach (PickupPlacement p in placement.Pickups)

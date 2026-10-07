@@ -237,7 +237,7 @@ namespace Game.Cube.Tests
                     if (slot is CoreEntranceSlot) coreMarkers++;
                 }
             }
-            Assert.AreEqual(4, coreMarkers, "One core-entrance marker per built science face");
+            Assert.AreEqual(5, coreMarkers, "One core-entrance marker per built science face");
 
             yield return this.Tap(keyboard.f2Key, holdFrames: 2);
             Assert.IsFalse(debug.SlotMarkersVisible, "F2 did not turn slot markers off");
@@ -248,16 +248,28 @@ namespace Game.Cube.Tests
         public IEnumerator WalkTowardSealedFace_IsBlocked()
         {
             yield return LoadCubeScene();
-            // Only Earth & Atmosphere is sealed now: start a run on a seed where it borders Town.
+            // Nothing is sealed in play since Earth was built; the sealed-face path is kept for faces sealed on purpose.
+            // Seal Earth & Atmosphere and start a run on a seed where it borders Town.
+            Theme[] sealedThemes = { Theme.EarthAtmosphere };
             int seed = Enumerable.Range(1, 200).First(s =>
             {
-                var m = new CubeModel(s);
+                var m = new CubeModel(s, CubeSettings.DefaultFaceSize, sealedThemes);
                 return new[] { Facing.East, Facing.North, Facing.West, Facing.South }.Any(d => m.IsSealed(CubeModel.NeighborFace(CubeModel.StartFace, d)));
             });
-            world.Rebuild(seed);
+            world.SealedThemes.Clear();
+            world.SealedThemes.AddRange(sealedThemes);
+            try
+            {
+                world.Rebuild(seed);
+            }
+            finally
+            {
+                world.SealedThemes.Clear();
+            }
             yield return null;
             yield return null;
             CubeModel model = world.Model;
+            Assert.IsTrue(model.IsSealed(model.FaceOf(Theme.EarthAtmosphere)), "Earth is sealed for this run");
 
             // Earth & Atmosphere is sealed and borders Town on this seed.
             Facing direction = new[] { Facing.East, Facing.North, Facing.West, Facing.South }

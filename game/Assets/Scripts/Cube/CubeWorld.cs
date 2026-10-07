@@ -96,6 +96,14 @@ namespace Game.Cube
         /// <summary>World size of one face: N screens by N screens.</summary>
         public Vector2 FaceExtent => ScreenSize * FaceSize;
 
+        private readonly List<Theme> sealedThemes = new List<Theme>();
+
+        /// <summary>
+        /// Themes the next rebuilds seal on purpose (CubeModel's sealedThemes): empty in play, where every face is built;
+        /// tests use it to keep the sealed-face paths covered. Takes effect on the next Rebuild.
+        /// </summary>
+        public List<Theme> SealedThemes => sealedThemes;
+
         /// <summary>Raised after every (re)build, once the new model and visuals exist.</summary>
         public event Action Rebuilt;
 
@@ -134,7 +142,7 @@ namespace Game.Cube
         public void Rebuild(int newSeed)
         {
             seed = newSeed;
-            Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize);
+            Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize, sealedThemes);
             Layout = null;
             ItemPlacement = null;
             HiddenCurrency = null;

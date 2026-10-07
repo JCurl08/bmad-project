@@ -242,17 +242,20 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// A face's name in hints. Math goes by its in-world placeholder region name (subtle science: never "Math"); the
-        /// other faces keep their working names until story 1.22 renames them all.
+        /// A face's name in hints. Math and Earth go by their in-world placeholder region names (subtle science: never the
+        /// science's name); the other faces keep their working names until story 1.22 renames them all.
         /// </summary>
         public const string MathRegionName = "Bridgelands*";
+
+        /// <summary>The Earth and Atmosphere face's in-world placeholder region name.</summary>
+        public const string EarthRegionName = "Wildlands*";
 
         public static string ThemeName(Theme theme)
         {
             switch (theme)
             {
                 case Theme.Math: return MathRegionName;
-                case Theme.EarthAtmosphere: return "Earth & Atmosphere";
+                case Theme.EarthAtmosphere: return EarthRegionName;
                 default: return theme.ToString();
             }
         }
@@ -266,7 +269,7 @@ namespace Game.Cube
                 case Theme.Chemistry: return "changing stone";
                 case Theme.Physics: return "heavy time-rock";
                 case Theme.Math: return "gap-crossing plank";
-                case Theme.EarthAtmosphere: return "weather wand";
+                case Theme.EarthAtmosphere: return "storm-calling stick";
                 default: return "town trinket";
             }
         }

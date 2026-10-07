@@ -24,7 +24,11 @@ namespace Game.Cube
     /// another face's interactable, and the Physics trial fitting). With a Math item, the Math plan is checked too
     /// (MathPlan.FindProblems: every bridge layout, doors' and the trial's, solvable from its flag and fitting its screen, the
     /// trial bigger than any door, the gap-crosser* opening a gap gate on another face, and nothing required behind a door
-    /// that never opens before the gap-crosser* is reachable). When the catalog knows hidden-item slots
+    /// that never opens before the gap-crosser* is reachable). With an Earth item, the Earth plan is checked too
+    /// (EarthPlan.FindProblems: required gates use the rolled Stormcaller* phenomenon and it opens a gate on another face,
+    /// optional ones the other phenomena, on Earth; the calm eye at the centre and no hazard on it or on a timed door's
+    /// screen; every hazard within PlayerMover's bounds, so it only slows or deflects; every crevice off the lanes, clear of
+    /// everything that stands on its screen and cutting nothing off; the trial fitting). When the catalog knows hidden-item slots
     /// (IHiddenSlotCatalog), the hidden meta-currency placement is checked too (HiddenCurrencyPlacement.FindProblems:
     /// 4-6 items in distinct hidden-item slots on built faces, each reachable from Town, outside every gated alcove
     /// and off the exit lanes).
@@ -290,7 +294,8 @@ namespace Game.Cube
         public static List<SeedResult> Run(int firstSeed = DefaultFirstSeed, int count = DefaultSeedCount,
             int faceSize = CubeSettings.DefaultFaceSize, IModuleCatalog catalog = null,
             IEnumerable<Theme> itemThemes = null, IReadOnlyDictionary<Theme, int> variantCounts = null,
-            IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null)
+            IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null,
+            IReadOnlyList<Phenomenon> earthVariantKinds = null)
         {
             var results = new List<SeedResult>(count);
             for (int s = firstSeed; s < firstSeed + count; s++)
@@ -317,6 +322,9 @@ namespace Game.Cube
                             result.ItemProblems.Add("physics: " + problem);
                         foreach (string problem in MathPlan.FindProblems(model, placement, moduleAt, biologyVariantKinds, chemistryVariantKinds))
                             result.ItemProblems.Add("math: " + problem);
+                        foreach (string problem in EarthPlan.FindProblems(model, placement, earthVariantKinds, moduleAt, biologyVariantKinds,
+                            chemistryVariantKinds))
+                            result.ItemProblems.Add("earth: " + problem);
                     }
                     if (catalog is IHiddenSlotCatalog hiddenCatalog)
                     {
@@ -372,7 +380,8 @@ namespace Game.Cube
                         "the rolled stone opening a gate on another face, the Chemistry trial fitting, " +
                         "every timed door with enough reachable boulders on its screen, the Physics trial fitting, " +
                         "every bridge layout solvable from its flag, the gap-crosser* opening a gate on another face, " +
-                        "the Math trial fitting";
+                        "the Math trial fitting, the rolled Stormcaller* opening a gate on another face, hazards that never " +
+                        "block a way or trap the player, the calm eye at the centre, the Earth trial fitting";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";

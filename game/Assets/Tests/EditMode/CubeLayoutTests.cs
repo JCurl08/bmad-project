@@ -16,7 +16,7 @@ namespace Game.Cube.Tests
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
         private static readonly int[] FaceSizes = { 2, 3 };
         private static readonly FaceId[] Faces = (FaceId[])Enum.GetValues(typeof(FaceId));
-        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math };
+        private static readonly Theme[] BuiltSciences = { Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere };
 
         /// <summary>Four modules per theme; modules 0 and 2 have one and two core slots.</summary>
         private sealed class FakeCatalog : IModuleCatalog
@@ -99,10 +99,16 @@ namespace Game.Cube.Tests
 
                     var expected = Faces.Where(f => f != CubeModel.StartFace && !model.IsSealed(f)).ToList();
                     CollectionAssert.AreEquivalent(expected, layout.Faces.Keys, $"seed {seed}");
-                    Assert.AreEqual(4, layout.Faces.Count, $"seed {seed}: Biology, Chemistry, Physics and Math");
+                    Assert.AreEqual(5, layout.Faces.Count, $"seed {seed}: every science face is built");
                     Assert.IsFalse(layout.TryGetFace(CubeModel.StartFace, out _), "Town uses its fixed modules");
                     foreach (FaceId face in Faces.Where(model.IsSealed))
                         Assert.IsFalse(layout.TryGetFace(face, out _), $"seed {seed}: sealed {face} got modules");
+
+                    // The sealed-face path still works: a face sealed on purpose gets no modules.
+                    var sealedModel = new CubeModel(seed, n, new[] { Theme.EarthAtmosphere });
+                    CubeLayout sealedLayout = CubeLayout.Generate(sealedModel, catalog);
+                    Assert.AreEqual(4, sealedLayout.Faces.Count, $"seed {seed}: sealed Earth is not laid out");
+                    Assert.IsFalse(sealedLayout.TryGetFace(sealedModel.FaceOf(Theme.EarthAtmosphere), out _));
 
                     foreach (FaceLayout fl in layout.Faces.Values)
                     {

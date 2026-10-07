@@ -80,7 +80,7 @@ namespace Game.Cube.Tests
             Assert.IsNotNull(baseItem);
             Assert.AreEqual("chemistry-item", baseItem.Id, "The base id stays stable");
             Assert.AreEqual(ChemistryIsotope.Name, baseItem.DisplayName);
-            Assert.AreEqual(4, catalog.Items.Count, "Existing entries are kept");
+            Assert.AreEqual(5, catalog.Items.Count, "Existing entries are kept");
 
             List<ItemDefinition> stones = catalog.VariantsOf(Theme.Chemistry);
             CollectionAssert.AreEqual(new[] { "glowstone", "wildstone", "leadstone" }, stones.Select(s => s.Id).ToArray());

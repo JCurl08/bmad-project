@@ -93,10 +93,9 @@ namespace Game.Cube.Tests
         // ---------- Unsealed and catalog ----------
 
         [Test]
-        public void Math_IsBuilt_AndOnlyEarthStaysSealed_AndMathIsAnItemOnEverySeed()
+        public void Math_IsBuilt_AndMathIsAnItemOnEverySeed()
         {
             Assert.IsTrue(CubeModel.IsBuilt(Theme.Math));
-            Assert.IsFalse(CubeModel.IsBuilt(Theme.EarthAtmosphere));
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
             for (int seed = 1; seed <= Seeds; seed++)

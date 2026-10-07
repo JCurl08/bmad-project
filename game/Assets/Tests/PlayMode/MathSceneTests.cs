@@ -62,6 +62,7 @@ namespace Game.Cube.Tests
                 if (content is BiologyFace b) b.SpawnEnemies = false;
                 if (content is ChemistryFace c) c.SpawnEnemies = false;
                 if (content is PhysicsFace p) p.SpawnEnemies = false;
+                if (content is EarthFace e) e.SpawnEnemies = false;
             }
             math.SpawnEnemies = false;
             Assert.IsFalse(world.Model.IsSealed(world.Model.FaceOf(Theme.Math)), "Math is unsealed");

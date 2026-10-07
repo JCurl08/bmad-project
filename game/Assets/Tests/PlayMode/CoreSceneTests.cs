@@ -90,6 +90,7 @@ namespace Game.Cube.Tests
             world.GetComponent<ChemistryFace>().SpawnEnemies = false;
             world.GetComponent<PhysicsFace>().SpawnEnemies = false;
             world.GetComponent<MathFace>().SpawnEnemies = false;
+            world.GetComponent<EarthFace>().SpawnEnemies = false;
         }
 
         /// <summary>A new run on a seed, enemies off, science revealed (teleport to a built face), then through its portal.</summary>

@@ -69,6 +69,10 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.PlankBridge, Dungeon, 80, "planks on rails: a bridge between islands, and the crossing the gap-crosser* lays"),
         new Pick(ArtKey.GateGap, Dungeon, 12, "floor crumbled into pits: a gap nobody can step over"),
         new Pick(ArtKey.GateBridgeDoor, Town, 85, "plank door in a timber frame: opened by walking its bridges"),
+        new Pick(ArtKey.GateRockPillars, Dungeon, 18, "a stone pillar standing in the way: the quake Stormcaller* knocks the pillars down"),
+        new Pick(ArtKey.GateFireWall, Dungeon, 41, "iron fire grate, tinted flame orange: a wall of fire the rain Stormcaller* douses"),
+        new Pick(ArtKey.GateWater, Dungeon, 44, "a pool under a stone lip, tinted blue: water the snow Stormcaller* freezes into a crossing"),
+        new Pick(ArtKey.GateDebris, Town, 106, "a fallen log: a debris pile the tornado Stormcaller* blows away"),
 
         new Pick(ArtKey.ItemGeneric, Town, 107, "sack: an item with no art of its own"),
         new Pick(ArtKey.ItemThinBeak, Dungeon, 131, "long spear: the thin beak's long reach"),
@@ -79,6 +83,10 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.ItemWildstone, Dungeon, 115, "red potion: the Wildstone*"),
         new Pick(ArtKey.ItemLeadstone, Dungeon, 113, "grey flask: the Leadstone*"),
         new Pick(ArtKey.ItemGapCrosser, Dungeon, 68, "short ladder: the gap-crosser* lays it over a gap"),
+        new Pick(ArtKey.ItemWandQuake, Dungeon, 127, "wand with a red tip: the quake Stormcaller*"),
+        new Pick(ArtKey.ItemWandRain, Dungeon, 128, "wand with a blue tip: the rain Stormcaller*"),
+        new Pick(ArtKey.ItemWandSnow, Dungeon, 125, "wand with a white tip: the snow Stormcaller*"),
+        new Pick(ArtKey.ItemWandTornado, Dungeon, 129, "staff with a violet gem: the tornado Stormcaller*"),
 
         new Pick(ArtKey.EnemyGeneric, Dungeon, 109, "cyclops"),
         new Pick(ArtKey.EnemySeedWeevil, Dungeon, 122, "spider: a crawling seed weevil"),
@@ -89,6 +97,8 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.EnemyStaticCling, Dungeon, 124, "grey rat: a clingy ball of static"),
         new Pick(ArtKey.EnemyDeadEnd, Dungeon, 111, "hooded figure with red eyes: a stubborn dead end"),
         new Pick(ArtKey.EnemyLooseEnd, Town, 105, "bomb with a fizzing fuse: a loose end"),
+        new Pick(ArtKey.EnemySquall, Dungeon, 84, "grey-bearded figure in a swirling robe, tinted pale blue: a grumpy squall"),
+        new Pick(ArtKey.EnemyRumbler, Dungeon, 123, "curled orange creature: a rumbling rock grub"),
 
         new Pick(ArtKey.Boulder, Dungeon, 56, "round rock"),
         new Pick(ArtKey.BeakButton, Town, 95, "target: peck it from afar"),
@@ -98,6 +108,12 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.TrialLamp, Dungeon, 29, "flame banner: a lamp to light"),
         new Pick(ArtKey.Island, Dungeon, 66, "rounded sandy pad: an island in a bridge layout"),
         new Pick(ArtKey.GoalPad, Dungeon, 60, "corner brackets: a target zone for boulders"),
+        new Pick(ArtKey.Fossil, Town, 117, "a bone: the fossil a quake crevice lays bare"),
+
+        new Pick(ArtKey.WindBand, Dungeon, 62, "white diagonal streaks: a wind band (arrows show which way it blows)"),
+        new Pick(ArtKey.SnowPatch, Town, 121, "pale speckled ground, tinted white: a snow patch you slide on"),
+        new Pick(ArtKey.FreezingRain, Town, 77, "grey-blue slush, tinted icy blue: freezing rain that slows you"),
+        new Pick(ArtKey.Crevice, Dungeon, 2, "a dark drop under a stone lip: a quake crevice you go round"),
 
         new Pick(ArtKey.Portal, Town, 104, "blue well in an arch: the way into the core"),
         new Pick(ArtKey.Demon, Dungeon, 19, "carved demon face: Maxwell's Demon"),

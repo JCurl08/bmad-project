@@ -11,12 +11,14 @@ its generated placeholder shape, so nothing renders invisible.
   it. A gate's art is one tile deep, set back into its alcove so its lane-side edge sits on the unchanged collider.
 - **Gates vs ruins:** no gate uses a tile of the ruin families (the Town arch pieces T 111-114, the Dungeon columns
   D 57-59), so a solid gate never reads as a walkable ruin (a test checks it).
+- **Hazards:** the Earth hazards (wind, snow, freezing rain, crevices) are their own category, tiled over their area like
+  floors, drawn translucent over the floor so the ground still reads.
 - **Tints:** a tint separates variants (floor themes, enemy kinds, the arena halves, a gate's item colour), but every
   category differs by shape. No tile is used by two keys (a test checks it).
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories), the water
   under a bridge layout and its flag, and marks, pips, effects,
-  the membrane and the Demon's door (`ArtCatalog.Shape`). Newton's apple has no tile and stays a red circle.
+  the membrane and the Demon's door, the wind arrows, rain drops and the calm eye's ring (`ArtCatalog.Shape`). Newton's apple has no tile and stays a red circle.
 
 | Key | Tile | Why |
 |---|---|---|
@@ -45,6 +47,10 @@ its generated placeholder shape, so nothing renders invisible.
 | PlankBridge | D 80 | planks on rails: a bridge between islands, and the crossing the gap-crosser* lays (stretched, not tiled) |
 | GateGap | D 12 | floor crumbled into pits: a gap nobody can step over (the gap-crosser* lays a crossing over it) |
 | GateBridgeDoor | T 85 | plank door in a timber frame: opened by walking its bridges (its flag mark matches its layout's flag) |
+| GateRockPillars | D 18 | a stone pillar standing in the way: the quake Stormcaller* knocks the pillars down (also the quake trial's pillars) |
+| GateFireWall | D 41 | iron fire grate, tinted flame orange: a wall of fire the rain Stormcaller* douses (also the rain trial's fires) |
+| GateWater | D 44 | a pool under a stone lip, tinted blue: water the snow Stormcaller* freezes into a crossing (also the snow trial's puddles) |
+| GateDebris | T 106 | a fallen log: a debris pile the tornado Stormcaller* blows away (also the tornado trial's heaps) |
 | ItemGeneric | T 107 | sack: an item with no art of its own |
 | ItemThinBeak | D 131 | long spear: the thin beak's long reach |
 | ItemThickBeak | D 117 | hammer: the thick beak breaks rocks and pots |
@@ -54,6 +60,10 @@ its generated placeholder shape, so nothing renders invisible.
 | ItemWildstone | D 115 | red potion: the Wildstone* |
 | ItemLeadstone | D 113 | grey flask: the Leadstone* |
 | ItemGapCrosser | D 68 | short ladder: the gap-crosser* lays it over a gap |
+| ItemWandQuake | D 127 | wand with a red tip: the quake Stormcaller* |
+| ItemWandRain | D 128 | wand with a blue tip: the rain Stormcaller* |
+| ItemWandSnow | D 125 | wand with a white tip: the snow Stormcaller* |
+| ItemWandTornado | D 129 | staff with a violet gem: the tornado Stormcaller* |
 | EnemyGeneric | D 109 | cyclops |
 | EnemySeedWeevil | D 122 | spider: a crawling seed weevil |
 | EnemyPollenPuff | D 121 | ghost, tinted yellow: a drifting pollen puff |
@@ -63,6 +73,8 @@ its generated placeholder shape, so nothing renders invisible.
 | EnemyStaticCling | D 124 | grey rat: a clingy ball of static |
 | EnemyDeadEnd | D 111 | hooded figure with red eyes: a stubborn dead end |
 | EnemyLooseEnd | T 105 | bomb with a fizzing fuse: a loose end |
+| EnemySquall | D 84 | grey-bearded figure in a swirling robe, tinted pale blue: a grumpy squall |
+| EnemyRumbler | D 123 | curled orange creature: a rumbling rock grub |
 | Boulder | D 56 | round rock |
 | BeakButton | T 95 | target: peck it from afar (also the Biology trial's buttons) |
 | DoorSwitch | D 32 | crystal floor switch: step on it |
@@ -71,6 +83,11 @@ its generated placeholder shape, so nothing renders invisible.
 | TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
 | Island | D 66 | rounded sandy pad: an island in a bridge layout (doors' and the Math trial's) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
+| Fossil | T 117 | a bone: the fossil a quake crevice lays bare |
+| WindBand | D 62 | white diagonal streaks: a wind band (generated arrows show which way it blows) |
+| SnowPatch | T 121 | pale speckled ground, tinted white: a snow patch you slide on |
+| FreezingRain | T 77 | grey-blue slush, tinted icy blue: freezing rain that slows you (generated drops fall over it) |
+| Crevice | D 2 | a dark drop under a stone lip: a quake crevice you go round |
 | Portal | T 104 | blue well in an arch: the way into the core |
 | Demon | D 19 | carved demon face: Maxwell's Demon |
 | Particle | D 102 | round disc, tinted warm or cool |

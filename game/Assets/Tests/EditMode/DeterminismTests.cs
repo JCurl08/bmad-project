@@ -71,6 +71,8 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("hiddenCurrency", HiddenCurrencyPlacement.RngStream),
             new KeyValuePair<string, ulong>("mathPlan", MathPlan.RngStream),
             new KeyValuePair<string, ulong>("mathPopulation", MathFace.PopulationRngStream),
+            new KeyValuePair<string, ulong>("earthPlan", EarthPlan.RngStream),
+            new KeyValuePair<string, ulong>("earthPopulation", EarthFace.PopulationRngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -106,6 +108,9 @@ namespace Game.Cube.Tests
             Add("physicsPlan", physics?.Signature());
             MathPlan math = MathPlan.Create(model, placement, moduleAt, kinds, ChemistryIsotope.VariantKinds(catalog));
             Add("mathPlan", math?.Signature());
+            EarthPlan earth = EarthPlan.Create(model, placement, moduleAt, StormcallerItem.VariantKinds(catalog), kinds,
+                ChemistryIsotope.VariantKinds(catalog));
+            Add("earthPlan", earth?.Signature());
             Add("hidden", HiddenCurrencyPlacement.Generate(model, layout, library).Signature());
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
@@ -135,6 +140,13 @@ namespace Game.Cube.Tests
                 Add("mathPopulation", $"screens {Screens(math.Face, math.FaceSize, rng)}");
                 Add("mathNpcs", string.Join(" ", Enumerable.Range(0, MathPopulation.ShapeCount(model.FaceSize))
                     .Select(i => MathPopulation.ShapeSpec(seed, i).Signature())));
+            }
+            if (earth != null)
+            {
+                var rng = new SeededRng(unchecked((ulong)(uint)seed), EarthFace.PopulationRngStream);
+                Add("earthPopulation", $"screens {Screens(earth.Face, earth.FaceSize, rng)}");
+                Add("earthNpcs", string.Join(" ", Enumerable.Range(0, EarthPopulation.DinoCount(model.FaceSize))
+                    .Select(i => EarthPopulation.DinoSpec(seed, i).Signature())));
             }
 
             Add("npcs", string.Join(" ",

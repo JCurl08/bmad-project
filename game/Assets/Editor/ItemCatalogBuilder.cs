@@ -6,7 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// Cube > Build Item Catalog: creates a placeholder ItemDefinition for each built science theme
-/// (Biology, Chemistry, Physics, Math) and the ItemCatalog asset that lists them. Existing catalog entries
+/// (Biology, Chemistry, Physics, Math, Earth) and the ItemCatalog asset that lists them. Existing catalog entries
 /// are kept and only themes the catalog has no item for are filled in, so a face story's real item
 /// (wherever its asset lives) is never replaced.
 /// It also adds the Biology beak variants (Thin Beak, Thick Beak; BiologyBeaks.VariantOrder) to the catalog's
@@ -18,6 +18,9 @@ using UnityEngine;
 /// The Physics item is Einstein's Mass Mitt (MassMittItem), renamed in place the same way (id "physics-item"), also
 /// one item with no variants. The Math item is the gap-crosser* (GapCrosserItem, id "math-item"), one item with no
 /// variants; a "Math Item" placeholder is renamed to it in place.
+/// The Earth item is the Stormcaller* (StormcallerItem), on the stone pattern: its base entry ("earth-item"; an "Earth Item"
+/// placeholder or "EarthAtmosphere Item" name is renamed in place, id kept) and four wand variants (quake, rain, snow,
+/// tornado; StormcallerItem.VariantOrder), added to the variant list when missing; each run uses the rolled one.
 /// Also works from the command line via -executeMethod ItemCatalogBuilder.Build.
 /// </summary>
 public static class ItemCatalogBuilder
@@ -38,7 +41,11 @@ public static class ItemCatalogBuilder
         new Placeholder { Theme = Theme.Chemistry, Id = ChemistryIsotope.Id, Name = ChemistryIsotope.Name, Color = ChemistryIsotope.ItemColor },
         new Placeholder { Theme = Theme.Physics, Id = MassMittItem.Id, Name = MassMittItem.Name, Color = MassMittItem.ItemColor },
         new Placeholder { Theme = Theme.Math, Id = GapCrosserItem.Id, Name = GapCrosserItem.Name, Color = GapCrosserItem.ItemColor },
+        new Placeholder { Theme = Theme.EarthAtmosphere, Id = StormcallerItem.Id, Name = StormcallerItem.Name, Color = StormcallerItem.ItemColor },
     };
+
+    /// <summary>Placeholder names of the Earth base item, renamed to the Stormcaller* on the next build.</summary>
+    private static readonly string[] PlaceholderEarthNames = { "Earth Item", "EarthAtmosphere Item" };
 
     /// <summary>The placeholder name of the Math item, renamed to the gap-crosser* on the next build.</summary>
     private const string PlaceholderMathName = "Math Item";
@@ -68,7 +75,7 @@ public static class ItemCatalogBuilder
         foreach (Placeholder p in Placeholders)
         {
             if (catalog.ForTheme(p.Theme) != null) continue;
-            string path = $"{Root}/{p.Theme} Item.asset";
+            string path = p.Theme == Theme.EarthAtmosphere ? $"{Root}/Earth Item.asset" : $"{Root}/{p.Theme} Item.asset";
             var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
             if (item == null)
             {
@@ -104,6 +111,14 @@ public static class ItemCatalogBuilder
         {
             math.Set(math.Id, GapCrosserItem.Name, Theme.Math, GapCrosserItem.ItemColor);
             EditorUtility.SetDirty(math);
+        }
+
+        // The Earth base entry is the Stormcaller*, renamed in place the same way (same asset, id "earth-item").
+        ItemDefinition earth = catalog.ForTheme(Theme.EarthAtmosphere);
+        if (earth != null && earth.Id == StormcallerItem.Id && System.Array.IndexOf(PlaceholderEarthNames, earth.DisplayName) >= 0)
+        {
+            earth.Set(earth.Id, StormcallerItem.Name, Theme.EarthAtmosphere, StormcallerItem.ItemColor);
+            EditorUtility.SetDirty(earth);
         }
 
         // Theme variants: keep what is there, add the beaks if missing (in roll order).
@@ -144,6 +159,24 @@ public static class ItemCatalogBuilder
             }
             variants.Add(item);
         }
+        // The Stormcallers*, the same way (in roll order, assets named "Stormcaller Quake" and so on).
+        foreach (Phenomenon kind in StormcallerItem.VariantOrder)
+        {
+            string id = StormcallerItem.IdOf(kind);
+            if (variants.Exists(v => v.Id == id)) continue;
+            string word = StormcallerItem.Word(kind);
+            string path = $"{Root}/Stormcaller {char.ToUpperInvariant(word[0])}{word.Substring(1)}.asset";
+            var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
+            if (item == null)
+            {
+                ItemDefinition template = StormcallerItem.CreateItem(kind);
+                item = ScriptableObject.CreateInstance<ItemDefinition>();
+                item.Set(template.Id, template.DisplayName, template.HomeTheme, template.PlaceholderColor);
+                Object.DestroyImmediate(template);
+                AssetDatabase.CreateAsset(item, path);
+            }
+            variants.Add(item);
+        }
         // Canonical order: the beaks in BiologyBeaks.VariantOrder first, then the stones in ChemistryIsotope.VariantOrder
         // (consumers read the kind from the item id anyway), every other variant after them in its existing order.
         List<ItemDefinition> ordered = variants
@@ -158,13 +191,15 @@ public static class ItemCatalogBuilder
         Debug.Log($"Cube: built item catalog at {CatalogPath} ({items.Count} items, {variants.Count} variants).");
     }
 
-    /// <summary>Sort key of a variant: beaks, then stones, then anything else by its existing position.</summary>
+    /// <summary>Sort key of a variant: beaks, then stones, then wands, then anything else by its existing position.</summary>
     private static int CanonicalIndex(ItemDefinition item, int index)
     {
         if (BiologyBeaks.KindOf(item) is BeakKind beak) return System.Array.IndexOf(BiologyBeaks.VariantOrder, beak);
         if (ChemistryIsotope.KindOf(item) is IsotopeStage stage)
             return BiologyBeaks.VariantCount + System.Array.IndexOf(ChemistryIsotope.VariantOrder, stage);
-        return BiologyBeaks.VariantCount + ChemistryIsotope.VariantCount + index;
+        if (StormcallerItem.KindOf(item) is Phenomenon wand)
+            return BiologyBeaks.VariantCount + ChemistryIsotope.VariantCount + System.Array.IndexOf(StormcallerItem.VariantOrder, wand);
+        return BiologyBeaks.VariantCount + ChemistryIsotope.VariantCount + StormcallerItem.VariantCount + index;
     }
 
     /// <summary>Loads the catalog asset, building it first if it does not exist.</summary>

@@ -81,7 +81,7 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void TownIsFixedOnTheStartFace_AndOnlyEarthIsSealed([ValueSource(nameof(FaceSizes))] int n)
+        public void TownIsFixedOnTheStartFace_AndNoFaceIsSealed([ValueSource(nameof(FaceSizes))] int n)
         {
             for (int seed = 1; seed <= 50; seed++)
             {
@@ -98,8 +98,12 @@ namespace Game.Cube.Tests
                 {
                     Theme theme = m.ThemeOf(face);
                     Assert.AreEqual(face, m.FaceOf(theme));
-                    bool shouldBeSealed = theme == Theme.EarthAtmosphere;
-                    Assert.AreEqual(shouldBeSealed, m.IsSealed(face), $"seed {seed}: {face} ({theme})");
+                    Assert.IsTrue(CubeModel.IsBuilt(theme), $"{theme} is built");
+                    Assert.IsFalse(m.IsSealed(face), $"seed {seed}: {face} ({theme}) is sealed");
+                    // Sealing on purpose (tests, future content) still seals exactly that theme, never Town.
+                    var sealedModel = new CubeModel(seed, n, new[] { Theme.EarthAtmosphere, Theme.Town });
+                    Assert.AreEqual(theme == Theme.EarthAtmosphere, sealedModel.IsSealed(face), $"seed {seed}: {face} ({theme})");
+                    Assert.AreEqual(theme, sealedModel.ThemeOf(face), "Sealing never moves a theme");
                 }
             }
         }
@@ -312,7 +316,8 @@ namespace Game.Cube.Tests
             int refused = 0;
             for (int seed = 1; seed <= 50; seed++)
             {
-                var m = new CubeModel(seed, n);
+                // Nothing is sealed in play since Earth was built; the path is kept for faces sealed on purpose.
+                var m = new CubeModel(seed, n, new[] { Theme.EarthAtmosphere });
                 foreach (ScreenAddress from in m.AllScreens().Where(s => !m.IsSealed(s.Face)))
                 {
                     foreach (Facing dir in Facings)
@@ -345,9 +350,9 @@ namespace Game.Cube.Tests
             Assert.AreEqual(50, results.Count);
             Assert.IsTrue(results.All(r => r.Passed), SeedSweep.Describe(results));
 
-            // Sanity: the sweep covers all unsealed screens (5 unsealed faces since Math was built).
+            // Sanity: the sweep covers every screen (all 6 faces since Earth was built).
             var m = new CubeModel(1, n);
-            Assert.AreEqual(5 * n * n, m.AllScreens().Count(s => !m.IsSealed(s.Face)));
+            Assert.AreEqual(6 * n * n, m.AllScreens().Count(s => !m.IsSealed(s.Face)));
         }
 
         [Test]

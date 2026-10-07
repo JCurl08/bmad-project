@@ -12,10 +12,57 @@ namespace Game.Tracer
         float MoveSpeedMultiplier { get; }
     }
 
-    /// <summary>Top-down movement driven by the project-wide Player/Move action.</summary>
+    /// <summary>
+    /// What the ground and air around the player do to its movement this step (the Cube's Earth hazards): a speed
+    /// multiplier (freezing rain), a push as a fraction of the player's speed (wind) and a grip (snow: below 1 the
+    /// velocity only eases toward the wanted one, so the player slides). None leaves movement exactly as it was.
+    /// </summary>
+    public struct MoveModifier
+    {
+        /// <summary>Multiplies the walking speed (1 = unchanged); PlayerMover clamps it to [MinSpeedMultiplier, 1].</summary>
+        public float SpeedMultiplier;
+
+        /// <summary>A push, as a fraction of the walking speed (its direction and strength); clamped to MaxPushFraction.</summary>
+        public Vector2 Push;
+
+        /// <summary>How much of the way to the wanted velocity each physics step goes (1 = all of it, no sliding).</summary>
+        public float Grip;
+
+        public static MoveModifier None => new MoveModifier { SpeedMultiplier = 1f, Push = Vector2.zero, Grip = 1f };
+
+        public bool IsNone => SpeedMultiplier >= 1f && Push.sqrMagnitude < 1e-8f && Grip >= 1f;
+
+        public override string ToString() => $"speed x{SpeedMultiplier:0.##}, push {Push}, grip {Grip:0.###}";
+    }
+
+    /// <summary>
+    /// The one movement-modifier hook (CAP-8 hazards): a component on the player that implements this is read by
+    /// PlayerMover every physics step. It changes how the player moves, never the player's speed itself
+    /// (EffectiveSpeed), so speed upgrades and anything that reads EffectiveSpeed (Physics' timed doors) are unaffected.
+    /// </summary>
+    public interface IMoveModifier
+    {
+        MoveModifier CurrentMoveModifier { get; }
+    }
+
+    /// <summary>
+    /// Top-down movement driven by the project-wide Player/Move action. The velocity is the input times EffectiveSpeed,
+    /// changed only through the player's IMoveModifier (if any), within bounds that keep every way passable: a hazard can
+    /// slow the player to no less than MinSpeedMultiplier of its speed, push it by at most MaxPushFraction of that slowed
+    /// speed (so walking against a push always makes headway), and make it slide (grip no lower than MinGrip).
+    /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class PlayerMover : MonoBehaviour
     {
+        /// <summary>The slowest a modifier can make the player: this fraction of its speed.</summary>
+        public const float MinSpeedMultiplier = 0.5f;
+
+        /// <summary>The strongest push a modifier can give: this fraction of the player's (slowed) speed.</summary>
+        public const float MaxPushFraction = 0.5f;
+
+        /// <summary>The least grip a modifier can give (per physics step), so a slide always ends.</summary>
+        public const float MinGrip = 0.03f;
+
         [SerializeField, Min(0f)] private float speed = 6f;
         [SerializeField] private string moveActionPath = "Player/Move";
 
@@ -23,6 +70,8 @@ namespace Game.Tracer
         private InputAction move;
         private IMoveSpeedScale speedScale;
         private bool speedScaleResolved;
+        private IMoveModifier modifier;
+        private bool modifierResolved;
 
         /// <summary>Base speed in units per second (before any IMoveSpeedScale on the player).</summary>
         public float Speed
@@ -46,6 +95,56 @@ namespace Game.Tracer
                 if (speedScale is Object o && o == null) speedScale = null;
                 return speed * (speedScale != null ? Mathf.Max(0f, speedScale.MoveSpeedMultiplier) : 1f);
             }
+        }
+
+        /// <summary>The player's movement modifier this step, clamped to the mover's bounds (None without one).</summary>
+        public MoveModifier Modifier
+        {
+            get
+            {
+                // Looked up once (a missing one is cached too, like the speed scale); RefreshModifier looks again after
+                // content adds one. A destroyed one is dropped.
+                if (!modifierResolved)
+                {
+                    modifier = GetComponent<IMoveModifier>();
+                    modifierResolved = true;
+                }
+                if (modifier is Object o && o == null) modifier = null;
+                return modifier != null ? Clamp(modifier.CurrentMoveModifier) : MoveModifier.None;
+            }
+        }
+
+        /// <summary>Looks the player's IMoveModifier up again on the next step (call after adding or replacing one).</summary>
+        public void RefreshModifier()
+        {
+            modifier = null;
+            modifierResolved = false;
+        }
+
+        /// <summary>A modifier within the mover's bounds: slows to no less than MinSpeedMultiplier, pushes by at most MaxPushFraction, grips at least MinGrip.</summary>
+        public static MoveModifier Clamp(MoveModifier m) => new MoveModifier
+        {
+            SpeedMultiplier = Mathf.Clamp(float.IsNaN(m.SpeedMultiplier) ? 1f : m.SpeedMultiplier, MinSpeedMultiplier, 1f),
+            Push = Vector2.ClampMagnitude(m.Push, MaxPushFraction),
+            Grip = Mathf.Clamp(float.IsNaN(m.Grip) ? 1f : m.Grip, MinGrip, 1f),
+        };
+
+        /// <summary>
+        /// The velocity the player is steered to for an input (length at most 1) at a speed under a modifier: the input
+        /// at the slowed speed plus the push (a fraction of that slowed speed). Pure.
+        /// </summary>
+        public static Vector2 TargetVelocity(Vector2 input, float speed, MoveModifier m)
+        {
+            m = Clamp(m);
+            float walk = Mathf.Max(0f, speed) * m.SpeedMultiplier;
+            return Vector2.ClampMagnitude(input, 1f) * walk + m.Push * walk;
+        }
+
+        /// <summary>The next velocity from the current one: the target at once with full grip, else eased toward it. Pure.</summary>
+        public static Vector2 NextVelocity(Vector2 current, Vector2 target, MoveModifier m)
+        {
+            float grip = Clamp(m).Grip;
+            return grip >= 1f ? target : Vector2.Lerp(current, target, grip);
         }
 
         /// <summary>The last non-zero move direction (unit length; down until the player first moves).</summary>
@@ -81,7 +180,13 @@ namespace Game.Tracer
         {
             Vector2 input = move != null ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
             if (input.sqrMagnitude > 1e-4f) Facing = input.normalized;
-            body.linearVelocity = input * EffectiveSpeed;
+            MoveModifier m = Modifier;
+            if (m.IsNone)
+            {
+                body.linearVelocity = input * EffectiveSpeed;
+                return;
+            }
+            body.linearVelocity = NextVelocity(body.linearVelocity, TargetVelocity(input, EffectiveSpeed, m), m);
         }
     }
 }

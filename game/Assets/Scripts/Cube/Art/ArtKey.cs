@@ -40,6 +40,10 @@ namespace Game.Cube
         PlankBridge = 40,
         GateGap = 41,
         GateBridgeDoor = 42,
+        GateRockPillars = 43,
+        GateFireWall = 44,
+        GateWater = 45,
+        GateDebris = 46,
 
         ItemGeneric = 50,
         ItemThinBeak = 51,
@@ -60,6 +64,7 @@ namespace Game.Cube
         EnemyStaticCling = 66,
         EnemyDeadEnd = 67,
         EnemyLooseEnd = 68,
+        EnemySquall = 69,
 
         Boulder = 70,
         BeakButton = 71,
@@ -79,12 +84,24 @@ namespace Game.Cube
         RuinStone = 92,
         RuinTile = 93,
         RuinBroken = 94,
+
+        WindBand = 100,
+        SnowPatch = 101,
+        FreezingRain = 102,
+        Crevice = 103,
+        Fossil = 104,
+
+        ItemWandQuake = 110,
+        ItemWandRain = 111,
+        ItemWandSnow = 112,
+        ItemWandTornado = 113,
+        EnemyRumbler = 114,
     }
 
     /// <summary>What kind of thing a key draws. Two keys of different categories must never share a sprite.</summary>
     public enum ArtCategory
     {
-        None, Player, Wall, Floor, Gate, Item, Currency, Enemy, Boulder, Switch, Plant, Prop, Portal, Demon, Particle, Ruin,
+        None, Player, Wall, Floor, Gate, Item, Currency, Enemy, Boulder, Switch, Plant, Prop, Portal, Demon, Particle, Ruin, Hazard,
     }
 
     /// <summary>Pure facts about the art keys: category, fallback shape, tiling and the key for a theme, item or enemy.</summary>
@@ -113,6 +130,16 @@ namespace Game.Cube
             if (v >= 60 && v < 70) return ArtCategory.Enemy;
             switch (key)
             {
+                case ArtKey.WindBand:
+                case ArtKey.SnowPatch:
+                case ArtKey.FreezingRain:
+                case ArtKey.Crevice: return ArtCategory.Hazard;
+                case ArtKey.Fossil: return ArtCategory.Prop;
+                case ArtKey.ItemWandQuake:
+                case ArtKey.ItemWandRain:
+                case ArtKey.ItemWandSnow:
+                case ArtKey.ItemWandTornado: return ArtCategory.Item;
+                case ArtKey.EnemyRumbler: return ArtCategory.Enemy;
                 case ArtKey.Boulder: return ArtCategory.Boulder;
                 case ArtKey.BeakButton:
                 case ArtKey.DoorSwitch:
@@ -128,11 +155,12 @@ namespace Game.Cube
             return v >= 90 && v < 100 ? ArtCategory.Ruin : ArtCategory.None;
         }
 
-        /// <summary>True for surfaces drawn by repeating the tile over their size (walls, floors, gates) instead of stretching it.</summary>
+        /// <summary>True for surfaces drawn by repeating the tile over their size (walls, floors, gates, hazards) instead of stretching it.</summary>
         public static bool IsTiled(ArtKey key)
         {
             ArtCategory category = CategoryOf(key);
-            return category == ArtCategory.Wall || category == ArtCategory.Floor || category == ArtCategory.Gate;
+            return category == ArtCategory.Wall || category == ArtCategory.Floor || category == ArtCategory.Gate ||
+                   category == ArtCategory.Hazard;
         }
 
         /// <summary>The generated placeholder shape a key falls back to when it has no art.</summary>
@@ -167,7 +195,7 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>The art of an item, by its stable id (the beaks, the three Chemistry stones, the Mass Mitt, the gap-crosser*; anything else is generic).</summary>
+        /// <summary>The art of an item, by its stable id (the beaks, the three Chemistry stones, the Mass Mitt, the gap-crosser*, the four Stormcallers*; anything else is generic).</summary>
         public static ArtKey Item(ItemDefinition item)
         {
             if (item == null) return ArtKey.ItemGeneric;
@@ -180,6 +208,10 @@ namespace Game.Cube
                 case ChemistryIsotope.LeadId: return ArtKey.ItemLeadstone;
                 case MassMittItem.Id: return ArtKey.ItemMassMitt;
                 case GapCrosserItem.Id: return ArtKey.ItemGapCrosser;
+                case StormcallerItem.QuakeId: return ArtKey.ItemWandQuake;
+                case StormcallerItem.RainId: return ArtKey.ItemWandRain;
+                case StormcallerItem.SnowId: return ArtKey.ItemWandSnow;
+                case StormcallerItem.TornadoId: return ArtKey.ItemWandTornado;
                 default: return ArtKey.ItemGeneric;
             }
         }
@@ -195,6 +227,9 @@ namespace Game.Cube
 
         public static ArtKey Enemy(MathEnemyKind kind) =>
             kind == MathEnemyKind.DeadEnd ? ArtKey.EnemyDeadEnd : ArtKey.EnemyLooseEnd;
+
+        public static ArtKey Enemy(EarthEnemyKind kind) =>
+            kind == EarthEnemyKind.Squall ? ArtKey.EnemySquall : ArtKey.EnemyRumbler;
 
         /// <summary>The floor tint of a theme: the green and the town floors keep their own colours, the rest take a soft theme tint.</summary>
         public static UnityEngine.Color FloorTint(Theme theme) =>

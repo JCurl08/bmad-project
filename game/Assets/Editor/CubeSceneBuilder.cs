@@ -15,7 +15,9 @@ using UnityEngine.SceneManagement;
 /// CombatHud shows its hearts and equipped item. A TownPopulation fills the Town face with NPCs on every run start.
 /// The CubeWorld also carries the face content hooks (IFaceContent): BiologyFace for Darwin's face and ChemistryFace
 /// for Curie's (the player carries the Isotope that shows the held stone), and PhysicsFace for Einstein's (the player
-/// carries the MassMitt it sets up for each run), and MathFace for the Bridgekeeper*'s (bridge doors and gap gates).
+/// carries the MassMitt it sets up for each run), MathFace for the Bridgekeeper*'s (bridge doors and gap gates), and
+/// EarthFace for the Wildlands* (Stormcaller* gates, hazards, trial and dinosaurs; the player carries the HazardReceiver
+/// that feeds the hazards to PlayerMover's modifier hook).
 /// The run's outcome lives in a RunState (one per scene, reset on every rebuild). The CoreArena (Maxwell's Demon) puts a
 /// portal on each built face's active core-entrance slot on every reveal and raises RunState's run-end event on victory or
 /// defeat; a CoreHud shows its Order ↔ Entropy meter and the outcome.
@@ -86,6 +88,8 @@ public static class CubeSceneBuilder
         player.AddComponent<Isotope>();
         // The Mass Mitt: grabs and drags Physics boulders (set up for each run by PhysicsFace).
         player.AddComponent<MassMitt>();
+        // The Earth hazards' way into movement (PlayerMover's one modifier hook); nothing off the Earth face.
+        player.AddComponent<HazardReceiver>();
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
 
@@ -97,6 +101,8 @@ public static class CubeSceneBuilder
         worldObject.AddComponent<PhysicsFace>().Player = player.transform;
         // The Bridgekeeper*'s face (bridge doors, gap gates, trial, shape people and enemies) plugs in the same way.
         worldObject.AddComponent<MathFace>().Player = player.transform;
+        // The Wildlands* (Stormcaller* gates, hazards, trial, dinosaurs and enemies) plugs in the same way.
+        worldObject.AddComponent<EarthFace>().Player = player.transform;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -172,7 +178,7 @@ public static class CubeSceneBuilder
         List<SeedSweep.SeedResult> results =
             SeedSweep.Run(catalog: ModuleLibraryBuilder.LoadOrBuild(), itemThemes: items.Themes(),
                 variantCounts: items.VariantCounts(), biologyVariantKinds: BiologyBeaks.VariantKinds(items),
-                chemistryVariantKinds: ChemistryIsotope.VariantKinds(items));
+                chemistryVariantKinds: ChemistryIsotope.VariantKinds(items), earthVariantKinds: StormcallerItem.VariantKinds(items));
         string report = SeedSweep.Describe(results);
         int thin = results.Count(r => r.Placement != null && r.Placement.RolledVariant(Theme.Biology) == (int)BeakKind.Thin);
         int withOptional = results.Count(r => r.Placement != null && r.Placement.OptionalGates.Count > 0);
@@ -245,6 +251,34 @@ public static class CubeSceneBuilder
         }
         report += $"Math: {bridgeDoors} bridge doors (bridges: {string.Join(", ", bridgeCounts.Select(e => $"{e.Key}x{e.Value}"))}), " +
                   $"{gapGates} gap gates ({offHomeGaps} off-home); the Math trial fits on {mathTrials} seeds.\n";
+        List<Phenomenon> wandKinds = StormcallerItem.VariantKinds(items);
+        var rolledWands = new int[StormcallerItem.VariantCount];
+        int earthGates = 0, offHomeEarth = 0, optionalEarth = 0, earthTrials = 0;
+        var hazardCounts = new int[4];
+        var levels = new SortedDictionary<int, int>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Placement == null) continue;
+            var model = new CubeModel(r.Seed);
+            CubeLayout layout = CubeLayout.Generate(model, library);
+            EarthPlan plan = EarthPlan.Create(model, r.Placement, SeedSweep.ModuleLookup(layout, library), wandKinds, kinds, stoneKinds);
+            if (plan == null) continue;
+            if (plan.Rolled != Phenomenon.None) rolledWands[(int)plan.Rolled]++;
+            foreach (EarthGateSpec g in plan.Gates)
+            {
+                earthGates++;
+                if (g.Optional) optionalEarth++;
+                else if (!g.OnHome) offHomeEarth++;
+            }
+            foreach (HazardSpec h in plan.Hazards) hazardCounts[(int)h.Kind]++;
+            levels.TryGetValue(plan.Level, out int c);
+            levels[plan.Level] = c + 1;
+            if (plan.TrialSpots != null && plan.TrialSpots.Count >= EarthTrial.PieceCount) earthTrials++;
+        }
+        report += $"Earth: Stormcallers* {rolledWands[0]} quake, {rolledWands[1]} rain, {rolledWands[2]} snow, {rolledWands[3]} tornado; " +
+                  $"{earthGates} gates ({offHomeEarth} off-home, {optionalEarth} optional); hazards {hazardCounts[0]} wind, " +
+                  $"{hazardCounts[1]} snow, {hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
+                  $"{string.Join(", ", levels.Select(e => $"{e.Key}x{e.Value}"))}; the Earth trial fits on {earthTrials} seeds.\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

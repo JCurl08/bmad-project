@@ -136,7 +136,7 @@ namespace Game.Cube
             if (root == null) root = new GameObject("Biology Face Content").transform;
             var rng = new SeededRng(unchecked((ulong)(uint)world.Seed), PopulationRngStream);
             BuildTrial(world, rng);
-            var spots = new FaceSpots(world, rng);
+            var spots = new FaceSpots(world, rng, FaceContent.ClearOfSlots(world));
             SpawnFinches(world, spots, rng);
             if (spawnEnemies) SpawnBiologyEnemies(world, spots, rng);
         }

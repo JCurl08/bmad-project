@@ -139,7 +139,7 @@ namespace Game.Cube
             if (root == null) root = new GameObject("Chemistry Face Content").transform;
             var rng = new SeededRng(unchecked((ulong)(uint)world.Seed), PopulationRngStream);
             BuildTrial(world, rng);
-            var spots = new FaceSpots(world, rng);
+            var spots = new FaceSpots(world, rng, FaceContent.ClearOfSlots(world));
             SpawnMushrooms(world, spots, rng);
             if (spawnEnemies) SpawnChemistryEnemies(world, spots, rng);
         }

@@ -83,6 +83,7 @@ namespace Game.Cube.Tests
         {
             ArtKey.GateGeneric, ArtKey.GateRock, ArtKey.GatePot, ArtKey.GateButtonDoor, ArtKey.GateVine, ArtKey.GateDarkRoom,
             ArtKey.GateCrackedWall, ArtKey.GateLeadDoor, ArtKey.GateTimedDoor, ArtKey.GateGap, ArtKey.GateBridgeDoor,
+            ArtKey.GateRockPillars, ArtKey.GateFireWall, ArtKey.GateWater, ArtKey.GateDebris,
         };
 
         [Test]

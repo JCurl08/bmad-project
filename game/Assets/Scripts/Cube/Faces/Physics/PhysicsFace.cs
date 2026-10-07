@@ -169,7 +169,7 @@ namespace Game.Cube
             var rng = new SeededRng(unchecked((ulong)(uint)world.Seed), PopulationRngStream);
             BuildTrial(world);
             Physics2D.SyncTransforms();
-            var spots = new FaceSpots(world, rng);
+            var spots = new FaceSpots(world, rng, FaceContent.ClearOfSlots(world));
             SpawnAliens(world, spots, rng);
             if (spawnEnemies) SpawnPhysicsEnemies(world, spots, rng);
         }

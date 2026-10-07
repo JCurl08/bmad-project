@@ -6,7 +6,9 @@ namespace Game.Cube
 {
     /// <summary>
     /// Pure cube world model, fully determined by (seed, faceSize). Town sits on the start face (Front);
-    /// the five science themes are shuffled onto the other faces; unbuilt themes are sealed.
+    /// the five science themes are shuffled onto the other faces; unbuilt themes are sealed. Every theme is built now, so
+    /// nothing is sealed by default; a model can still seal themes on purpose (sealedThemes: tests and future content),
+    /// and every sealed-face path (refused steps, walls, no layout) keeps working for them.
     /// Edge adjacency is derived from each face's 3D basis, not from a hand-typed table.
     /// </summary>
     public sealed class CubeModel
@@ -37,15 +39,26 @@ namespace Game.Cube
         };
 
         private readonly Theme[] themeByFace = new Theme[CubeSettings.FaceCount];
+        private readonly HashSet<Theme> sealedThemes = new HashSet<Theme>();
 
         public int Seed { get; }
         public int FaceSize { get; }
 
-        public CubeModel(int seed, int faceSize = CubeSettings.DefaultFaceSize)
+        /// <summary>Themes this model seals on purpose, besides the unbuilt ones (Town never: it is the start).</summary>
+        public IReadOnlyCollection<Theme> SealedThemes => sealedThemes;
+
+        /// <summary>
+        /// The model of a seed. sealedThemes (optional) seals built science themes on purpose (tests of the sealed-face
+        /// paths, future content); the theme placement is the same whatever is sealed.
+        /// </summary>
+        public CubeModel(int seed, int faceSize = CubeSettings.DefaultFaceSize, IEnumerable<Theme> sealedThemes = null)
         {
             if (faceSize < 1) throw new ArgumentOutOfRangeException(nameof(faceSize), "Face size must be at least 1");
             Seed = seed;
             FaceSize = faceSize;
+            if (sealedThemes != null)
+                foreach (Theme theme in sealedThemes)
+                    if (theme != Theme.Town) this.sealedThemes.Add(theme);
 
             var rng = new SeededRng(seed);
             var sciences = new List<Theme>(ScienceThemes);
@@ -68,12 +81,17 @@ namespace Game.Cube
             throw new ArgumentOutOfRangeException(nameof(theme));
         }
 
-        /// <summary>Themes built this epic. Only Earth and Atmosphere is sealed.</summary>
+        /// <summary>Themes built this epic: all of them (Earth and Atmosphere since 1.20), so no face is sealed by default.</summary>
         public static bool IsBuilt(Theme theme) =>
             theme == Theme.Town || theme == Theme.Biology || theme == Theme.Chemistry || theme == Theme.Physics ||
-            theme == Theme.Math;
+            theme == Theme.Math || theme == Theme.EarthAtmosphere;
 
-        public bool IsSealed(FaceId face) => !IsBuilt(ThemeOf(face));
+        /// <summary>True for a face whose theme is not built or is sealed on purpose in this model.</summary>
+        public bool IsSealed(FaceId face)
+        {
+            Theme theme = ThemeOf(face);
+            return !IsBuilt(theme) || sealedThemes.Contains(theme);
+        }
 
         public bool IsInside(Vector2Int cell) =>
             cell.x >= 0 && cell.y >= 0 && cell.x < FaceSize && cell.y < FaceSize;

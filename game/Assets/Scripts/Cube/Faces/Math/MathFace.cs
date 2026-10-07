@@ -143,7 +143,9 @@ namespace Game.Cube
                         return false;
                 return true;
             }
-            var spots = new FaceSpots(world, rng, Allowed);
+            // Every gate front and slot too (other faces' gates on Math included).
+            System.Func<ScreenAddress, Vector2, bool> clearOfSlots = FaceContent.ClearOfSlots(world);
+            var spots = new FaceSpots(world, rng, (screen, feet) => Allowed(screen, feet) && clearOfSlots(screen, feet));
             SpawnShapes(world, spots, rng);
             if (spawnEnemies) SpawnMathEnemies(world, spots, rng);
         }

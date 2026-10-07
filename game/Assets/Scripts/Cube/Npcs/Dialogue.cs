@@ -138,8 +138,8 @@ namespace Game.Cube
                 Errand = "count the raindrops on my head. All of them. I'll wait",
                 Rumours = new[]
                 {
-                    "Mary Anning found my great-great-great-grandma's tooth. We're very proud.",
-                    "the avian lot keep saying the weather is 'their department'.",
+                    "the Old Digger* found my great-great-great-grandma's tooth. We're very proud.",
+                    "the avian lot keep saying the sky is 'their department'.",
                     "the eye of the hurricane is the calmest spot around. Great for naps.",
                 },
                 Greetings = new[] { "RAWR! ...That means hello." },
@@ -169,7 +169,7 @@ namespace Game.Cube
         {
             [DinoVariant.Terrestrial] = new[]
             {
-                "RAWR! ...That means hello. *stomp* Sorry, that was a small quake.",
+                "RAWR! ...That means hello. *stomp!* Sorry, that was a small quake.",
                 "Hello, tiny friend! Mind your toes, mine are enormous.",
                 "Greetings from ground level! Everything here shakes. It's fine.",
             },
@@ -177,7 +177,7 @@ namespace Game.Cube
             {
                 "SKRAW! Hello from up here! Well, slightly up here.",
                 "Hello! Is it going to rain? I can feel it in my feathers.",
-                "Greetings! Ask me about the weather. Please. Nobody ever asks.",
+                "Greetings! Ask me about the clouds. Please. Nobody ever asks.",
             },
         };
 
@@ -278,6 +278,61 @@ namespace Game.Cube
         public const string GapCrosserLine =
             "A gap in front of a door? Swing the Gap-Crosser* at it and it lays a crossing right over. One gap at a time, mind.";
 
+        /// <summary>
+        /// Lines the terrestrial dinosaurs of the Earth face say about their patron, the Old Digger* (one per dinosaur, picked
+        /// by salt). Subtle science: no real names and no science words, only digging, bones, rocks and rumbles.
+        /// </summary>
+        public static readonly string[] OldDiggerLines =
+        {
+            "The Old Digger* says every rock has a story. Most of them are about being a rock. Riveting stuff.",
+            "When the ground rumbles, the Old Digger* grabs a brush. Crevices open up and bones say hello.",
+            "I found a bone in a crevice once! Turned out it was mine. Long story. I want it back.",
+            "The Old Digger* digs slowly, gently, for hours. I stomp. We get there in the end, both of us.",
+            "Layers and layers and layers! The Old Digger* reads the cliffs like a book. A very slow, very heavy book.",
+        };
+
+        /// <summary>
+        /// Lines the avian dinosaurs of the Earth face say about their patron, the Sky-Watcher* (one per dinosaur, picked by
+        /// salt). Subtle science: no real names and no science words, only clouds, wind, rain and feathers.
+        /// </summary>
+        public static readonly string[] SkyWatcherLines =
+        {
+            "The Sky-Watcher* reads the clouds every morning. Today they said 'puffy'. Very insightful.",
+            "Feathers up means rain coming! The Sky-Watcher* taught me that. Feathers down means lunch.",
+            "The Sky-Watcher* says the wind is just the sky going somewhere in a hurry. Same, sky. Same.",
+            "I flapped once and a breeze came. The Sky-Watcher* says that was a coincidence. I say it was me.",
+            "Snow, rain, wind, calm! The Sky-Watcher* has a feather for each. She runs out of feathers by noon.",
+        };
+
+        /// <summary>
+        /// This visit's Stormcaller*, as the dinosaurs tell it, by phenomenon: [0] quake, [1] rain, [2] snow, [3] tornado. True
+        /// for the run that says it (it names the rolled wand and what it does).
+        /// </summary>
+        public static readonly string[] WandLines =
+        {
+            "This visit the Stormcaller* calls up a quake! Find it and swing it at the rock pillars to knock them flat.",
+            "This visit the Stormcaller* calls up rain! Find it and swing it at the walls of fire to douse them.",
+            "This visit the Stormcaller* calls up snow! Find it and swing it at the water to freeze a crossing.",
+            "This visit the Stormcaller* calls up a tornado! Find it and swing it at the debris piles to blow them away.",
+        };
+
+        /// <summary>The wand line when the run's phenomenon is unknown: it names none, so it is never false.</summary>
+        public const string NeutralWandLine =
+            "Somewhere out here lies the Stormcaller*. Find it, swing it, and see what the sky has in mind!";
+
+        /// <summary>The line naming a run's Stormcaller* (see WandLines); NeutralWandLine when the phenomenon is unknown.</summary>
+        public static string WandLine(Phenomenon kind) =>
+            kind >= Phenomenon.Quake && (int)kind < WandLines.Length ? WandLines[(int)kind] : NeutralWandLine;
+
+        /// <summary>How the hazards of the Earth face work, as the dinosaurs tell it (true for every run: the mechanics).</summary>
+        public const string HazardLine =
+            "Out in the Wildlands* the wind shoves you, snow sends you sliding and freezing rain slows you down. " +
+            "Go round the crevices. The middle of the face is calm, though!";
+
+        public static string OldDiggerLine(uint salt) => OldDiggerLines[(int)(salt / 3u % (uint)OldDiggerLines.Length)];
+
+        public static string SkyWatcherLine(uint salt) => SkyWatcherLines[(int)(salt / 3u % (uint)SkyWatcherLines.Length)];
+
         public static string BridgekeeperLine(uint salt) => BridgekeeperLines[(int)(salt / 3u % (uint)BridgekeeperLines.Length)];
 
         public static string EinsteinLine(uint salt) => EinsteinLines[(int)(salt / 3u % (uint)EinsteinLines.Length)];
@@ -357,6 +412,11 @@ namespace Game.Cube
             foreach (string line in BridgekeeperLines) yield return line;
             yield return BridgeLine;
             yield return GapCrosserLine;
+            foreach (string line in OldDiggerLines) yield return line;
+            foreach (string line in SkyWatcherLines) yield return line;
+            foreach (string line in WandLines) yield return line;
+            yield return NeutralWandLine;
+            yield return HazardLine;
         }
     }
 }
