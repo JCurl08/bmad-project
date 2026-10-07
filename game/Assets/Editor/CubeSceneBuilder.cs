@@ -24,6 +24,7 @@ using UnityEngine.SceneManagement;
 /// The run loop: a RunWallet collects the run's meta currency (trials, the Demon, hidden items), and the RunLoop banks it
 /// on every run end (death anywhere or the boss outcome), saves the MetaSave, opens the BetweenRunsScreen (earnings and
 /// upgrade shop) and starts the next run on Continue.
+/// The Cube Map object carries the VisitTracker (screens visited this run) and the CubeMap pause map (M or Tab).
 /// Everything is drawn from the ArtCatalog (built first if missing): the player is the hero tile, and the player carries a
 /// PickupFeedback for item and Jumble popups.
 /// Cube > Seed Sweep: runs the reachability, core-entrance and item-softlock sweep over 50 seeds and logs the result.
@@ -154,6 +155,17 @@ public static class CubeSceneBuilder
         var loop = new GameObject("Run Loop").AddComponent<RunLoop>();
         loop.Configure(world, runState, arena, wallet, player.GetComponent<PlayerStats>());
         new GameObject("Between Runs Screen").AddComponent<BetweenRunsScreen>().Loop = loop;
+
+        // The pause map (M or Tab): the cube net with the screens visited this run, their content and the player.
+        var mapObject = new GameObject("Cube Map");
+        var tracker = mapObject.AddComponent<VisitTracker>();
+        tracker.World = world;
+        tracker.Navigator = navigator;
+        var map = mapObject.AddComponent<CubeMap>();
+        map.World = world;
+        map.Navigator = navigator;
+        map.Tracker = tracker;
+        map.Loop = loop;
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
         {

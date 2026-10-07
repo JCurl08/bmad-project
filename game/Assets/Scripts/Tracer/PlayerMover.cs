@@ -147,8 +147,17 @@ namespace Game.Tracer
             return grip >= 1f ? target : Vector2.Lerp(current, target, grip);
         }
 
-        /// <summary>The last non-zero move direction (unit length; down until the player first moves).</summary>
+        /// <summary>
+        /// The last non-zero move direction (unit length; down until the player first moves). A teleport (a new run, a
+        /// debug jump) resets it with SetFacing.
+        /// </summary>
         public Vector2 Facing { get; private set; } = Vector2.down;
+
+        /// <summary>Sets the facing (e.g. to the entry facing after a teleport). A zero direction is ignored.</summary>
+        public void SetFacing(Vector2 direction)
+        {
+            if (direction.sqrMagnitude > 1e-6f) Facing = direction.normalized;
+        }
 
         private void Awake()
         {

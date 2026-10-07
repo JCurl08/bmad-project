@@ -71,7 +71,7 @@ namespace Game.Cube
 
         private void Update()
         {
-            if (!IsOpen) return;
+            if (!IsOpen || GamePause.Active) return; // the map is open: the conversation waits
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard[SkipKey].wasPressedThisFrame)
             {

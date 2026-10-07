@@ -14,7 +14,8 @@ namespace Game.Cube
     /// hostility for the race of the NPC nearest the player. F7 spawns a placeholder enemy near the player, weak
     /// to a random owned item (or the Biology item when nothing is owned). Spawned NPCs and enemies are
     /// removed on a rebuild. While the player is in the core arena, the overlay says so (instead of a face and cell) and
-    /// F3/F7 spawn inside the arena's screen.
+    /// F3/F7 spawn inside the arena's screen. F11 lights the whole cube-net map for the run (debug "visit all"); the
+    /// overlay also reminds that M opens the map. While the map pauses the game (GamePause) only F1 works.
     /// </summary>
     public class CubeDebug : MonoBehaviour, IHintDensityTarget
     {
@@ -136,6 +137,7 @@ namespace Game.Cube
             if (keyboard == null || world == null) return;
 
             if (keyboard.f1Key.wasPressedThisFrame) overlayVisible = !overlayVisible;
+            if (GamePause.Active) return; // the map pauses the game: no debug commands but the overlay toggle
             if (keyboard.f2Key.wasPressedThisFrame) SetSlotMarkersVisible(!slotMarkersVisible);
             if (keyboard.f3Key.wasPressedThisFrame) SpawnNpcs();
             if (keyboard.f4Key.wasPressedThisFrame) ToggleNearestHostility();
@@ -145,6 +147,7 @@ namespace Game.Cube
             if (keyboard.f8Key.wasPressedThisFrame) LeaveCoreArena();
             if (keyboard.f9Key.wasPressedThisFrame) Rest();
             if (keyboard.f10Key.wasPressedThisFrame) StartNewRun();
+            if (keyboard.f11Key.wasPressedThisFrame) RevealMap();
         }
 
         /// <summary>
@@ -175,6 +178,21 @@ namespace Game.Cube
             RunLoop loop = FindAnyObjectByType<RunLoop>();
             if (loop == null) return false;
             loop.StartRun(RunLoop.NextSeed(world.Seed, DateTime.Now.Ticks));
+            return true;
+        }
+
+        /// <summary>
+        /// F11: lights the whole map for this run (reveals the science faces if they are not yet, then marks every unsealed
+        /// screen visited). Returns false without a VisitTracker in the scene, or when it has no world.
+        /// </summary>
+        public bool RevealMap()
+        {
+            VisitTracker tracker = FindAnyObjectByType<VisitTracker>();
+            if (tracker == null || tracker.World == null || world.Model == null) return false;
+            if (!world.ScienceRevealed) world.RevealScience();
+            tracker.VisitAll();
+            CubeMap map = FindAnyObjectByType<CubeMap>();
+            if (map != null) map.Refresh();
             return true;
         }
 
@@ -390,7 +408,7 @@ namespace Game.Cube
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Science {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
                               "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
-                              "F8 leave core   F9 rest (full health)   F10 new run";
+                              "F8 leave core   F9 rest (full health)   F10 new run   F11 light map   M map";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;

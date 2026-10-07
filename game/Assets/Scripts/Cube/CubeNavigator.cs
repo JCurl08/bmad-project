@@ -1,4 +1,5 @@
 using System.Collections;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -91,13 +92,17 @@ namespace Game.Cube
             TeleportTo(world.Model.StartScreen, Facing.East);
         }
 
-        /// <summary>Places the player at the centre of a screen.</summary>
+        /// <summary>
+        /// Places the player at the centre of a screen, facing the given way: the entry facing, and the PlayerMover's facing
+        /// too (so a new run or a jump never keeps the last run's direction).
+        /// </summary>
         public void TeleportTo(ScreenAddress address, Facing facing)
         {
             RevealIfArriving(address.Face);
             InCoreArena = false;
             Face = address.Face;
             Facing = facing;
+            if (TryGetComponent(out PlayerMover mover)) mover.SetFacing(facing.ToVector());
             SetPosition(world.ScreenCenter(address));
         }
 

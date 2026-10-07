@@ -113,6 +113,7 @@ namespace Game.Cube
         private void Update()
         {
             if (interact == null || !interact.WasPressedThisFrame()) return;
+            if (GamePause.Active) return; // the map is open: no talking
             TryTalk();
         }
 

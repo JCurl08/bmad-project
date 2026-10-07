@@ -45,6 +45,7 @@ namespace Game.Cube
         private void Update()
         {
             if (Equipped != null && !Inventory.Has(Equipped)) Equip(Inventory.Items.Count > 0 ? Inventory.Items[0] : null);
+            if (GamePause.Active) return; // the map is open: no item cycling
             if (next != null && next.WasPressedThisFrame()) Cycle(1);
             if (previous != null && previous.WasPressedThisFrame()) Cycle(-1);
         }
