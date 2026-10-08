@@ -47,6 +47,10 @@ context:
 - [ ] Add the 500-seed generation-only robustness test and the reveal-time problem logging.
 - [ ] Verify: all suites pass, the sweep is 50/50, and the fixture is unchanged.
 
+## Routed from earlier reviews
+
+- From 4.17: the verify batch lists (`vpart.sh` and `verify.sh`) live only in the session scratchpad. Move a verify script into the repo, for example `tools/verify.sh`, with every PlayMode test class in a batch. Add a check that fails when a test class is in no batch.
+
 ## Implementation Notes
 
 - Self-approved under the overnight instruction (2026-10-07).

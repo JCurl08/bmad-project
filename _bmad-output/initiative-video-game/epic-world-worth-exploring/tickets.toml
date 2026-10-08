@@ -144,15 +144,37 @@ hitl = false
 risk = "medium"
 
 [[entry]]
+id = 17
+type = "bug"
+title = "Bridge puzzles: colour and solvability"
+description = "Playtest 4: 'bridges don't change colour' and 'some of the bridge puzzles are still impossible'. Reproduce in the real scene, find the root cause (runtime vs solver mismatch, crossing detection, readability of which planks count), fix, and make the rule readable in play."
+verify = "A runtime test walks every island screen's solution on seeds 1-50 from every network doorway with real input and sees every plank light and the chest open; the user confirms in play."
+covers = ["CAP-7"]
+after = [13]
+hitl = true
+risk = "high"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Playtest 4 polish"
+description = "Playtest 4 changes: freeze the player and pause NPCs and enemies while a conversation is open; a quest log of every quest given; fewer duplicate quest lines; Town's fragment as a lost-and-found side quest across 2-3 townsfolk; whiter Town floor; townsfolk replaced by a mix of all races (Mayor and greeter keep a unique look); a less penguin-like avian dinosaur; a less human, Humpty-Dumpty-style shape person."
+verify = "Tests cover the dialogue freeze, the quest log, the Town side quest on seeds 1-50, and distinct quest lines; all suites and the sweep pass; the user confirms the look in play."
+covers = ["CAP-28", "CAP-29", "CAP-32"]
+after = [17]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 14
 type = "story"
 title = "Temples"
-description = "Optional, and the user may drop or reshape it: puts each face's signature item in a temple screen behind that face's hardest roadblock, Zelda-style; fragments and repairs, not the temple item, give boss benefits."
-verify = "On seeds 1-50 each face's signature item sits in its temple behind the face's hardest roadblock and is reachable per the sweep, and all suites pass."
+description = "Redesigned by the user on 2026-10-08: handing all of a face's fragments to its leader unseals the face's temple; inside is a difficult puzzle based on that face's puzzle; solving it mends the fragments and gives the face's gem, which grants its boss benefit."
+verify = "On seeds 1-50 every temple puzzle is solvable, a hand-in unseals the temple, solving it grants the gem and its arena benefit, and all suites and the sweep pass."
 covers = ["CAP-30"]
-after = [7, 9]
+after = [7, 9, 18]
 hitl = false
-risk = "medium"
+risk = "high"
 
 [[entry]]
 id = 15

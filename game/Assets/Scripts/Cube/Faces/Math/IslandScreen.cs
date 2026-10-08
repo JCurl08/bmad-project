@@ -24,14 +24,25 @@ namespace Game.Cube
     {
         public static readonly Color WaterColor = new Color(0.22f, 0.45f, 0.8f, 1f);
 
-        /// <summary>A dark plank (unlit, or off the network): dark wood.</summary>
+        /// <summary>A dark plank of the lit network (unlit): dark wood.</summary>
         public static readonly Color PlankColor = new Color(0.62f, 0.55f, 0.5f, 1f);
+
+        /// <summary>
+        /// 4.17: a plank that never lights (a lookout off the network, or a broken span until mended) is grey: weathered wood
+        /// under a grey wash (OffNetworkWash), so it never reads as a dark plank of the puzzle. The rule sign says so.
+        /// </summary>
+        public static readonly Color OffNetworkPlankColor = new Color(0.72f, 0.72f, 0.74f, 1f);
+        public static readonly Color OffNetworkWash = new Color(0.62f, 0.64f, 0.68f, 0.7f);
 
         /// <summary>A lit plank (or a mended span) shows its art at full brightness under its glow.</summary>
         public static readonly Color LitPlankColor = Color.white;
 
-        /// <summary>The glow over a lit plank: Math's own yellow (CubeWorld.ThemeColor).</summary>
-        public static readonly Color LitGlow = new Color(1f, 0.95f, 0.25f, 0.55f);
+        /// <summary>
+        /// The glow over a lit plank. 4.17: a vivid mint green, nearly opaque. It was Math's yellow at half strength, which on
+        /// the yellow islands read as more island floor, not as a plank that had lit (the playtest's "bridges don't change
+        /// colour"). Green is far from the islands' yellow, the water's blue, the dark wood and the snuff's red.
+        /// </summary>
+        public static readonly Color LitGlow = new Color(0.3f, 1f, 0.55f, 0.85f);
 
         /// <summary>Every network plank flashes this red when a lit one is crossed again, then goes dark.</summary>
         public static readonly Color SnuffGlow = new Color(1f, 0.2f, 0.15f, 0.65f);
@@ -40,12 +51,12 @@ namespace Game.Cube
         public const float FlashSeconds = 0.45f;
 
         /// <summary>The rim of an island whose network planks are all lit.</summary>
-        public static readonly Color RimColor = new Color(1f, 0.92f, 0.3f, 0.95f);
+        public static readonly Color RimColor = new Color(0.3f, 1f, 0.55f, 0.95f);
         public const float RimWidth = 0.14f * ScreenMath.ContentScale;
 
         /// <summary>A lamp on the roadblock: dark, or lit for a lit plank.</summary>
         public static readonly Color LampOff = new Color(0.25f, 0.24f, 0.22f, 1f);
-        public static readonly Color LampOn = new Color(1f, 0.95f, 0.35f, 1f);
+        public static readonly Color LampOn = new Color(0.35f, 1f, 0.6f, 1f);
         public static readonly Color PlinthColor = new Color(0.32f, 0.3f, 0.36f, 1f);
         public static readonly Color BarColor = new Color(0.2f, 0.2f, 0.24f, 1f);
 
@@ -56,6 +67,23 @@ namespace Game.Cube
         /// <summary>The light chain's run from the last plank to the roadblock, before its bars lift.</summary>
         public const float ChainSeconds = 0.8f;
         public const int ChainLinks = 10;
+
+        /// <summary>
+        /// 4.17: the rule, said on arriving on a doorway's island of the lit network while the puzzle is unsolved (a rule sign
+        /// stands there). One short line each, so the popup stays narrow.
+        /// </summary>
+        public const string RuleText = "A plank glows when you cross it.\nIf you cross a glowing plank, then they all go dark.\nIf you leave unfinished, then they all go dark too.\nIf every plank that can glow does, then the chest is free.\nGrey planks never glow.";
+
+        /// <summary>4.17: said on arriving on the gap doorway's island (off the lit network), while the puzzle is unsolved.</summary>
+        public const string GapDoorText = "Grey planks never glow.\nThe planks that can glow lie past the gap.\nIf you carry the Gap-Crosser*, then swing it at the gap.\nIf not, then go round by another doorway.";
+
+        /// <summary>4.17 review: the gap doorway's line once its span is mended (the way on is open).</summary>
+        public const string GapDoorMendedText = "Grey planks never glow.\nThe gap is spanned. The planks that can glow lie past it.\nIf you cross a glowing plank, then they all go dark.";
+
+        /// <summary>How long the rule stays up.</summary>
+        public const float RuleTextSeconds = 6f;
+
+        public static readonly Color RuleTextColor = new Color(0.85f, 1f, 0.9f);
 
         /// <summary>Said when the light chain reaches the roadblock.</summary>
         public const string SolvedText = "Every plank lit. The chest is free.";
@@ -82,14 +110,18 @@ namespace Game.Cube
         public const float LoneTextSeconds = 2.5f;
 
         private const int WaterOrder = -9;
+        // 4.17 review: every layer of the screen has its own order (the floor is -10, people and pickups 3 and up).
         private const int PlankOrder = -8;
-        private const int ShoreOrder = -7;
-        private const int GlowOrder = -7;
-        private const int SignOrder = -5;
+        private const int WashOrder = -7; // the grey wash over a plank that never lights, above its wood
+        private const int GlowOrder = -6;
+        private const int ShoreOrder = -5; // the rim draws one above
+        private const int SignOrder = -3; // post, board edge, board, glyphs: -3..0
 
         private readonly List<BrokenSpan> gaps = new List<BrokenSpan>();
         private readonly List<Collider2D> water = new List<Collider2D>();
         private readonly List<GameObject> signs = new List<GameObject>();
+        private readonly List<GameObject> ruleSigns = new List<GameObject>();
+        private readonly Dictionary<int, List<SpriteRenderer>> washes = new Dictionary<int, List<SpriteRenderer>>();
         private readonly Dictionary<int, List<SpriteRenderer>> plankArt = new Dictionary<int, List<SpriteRenderer>>();
         private readonly List<SpriteRenderer> lamps = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> bars = new List<SpriteRenderer>();
@@ -99,6 +131,23 @@ namespace Game.Cube
         private bool[] lone = Array.Empty<bool>();
         private int lastIsland = -1;
         private bool onScreen;
+
+        /// <summary>4.17 review: the player was put somewhere (a teleport) since the last Visit; read once when it comes on screen.</summary>
+        private bool placed;
+
+        /// <summary>4.17 review: this visit came in by walking (a doorway, a face crossing), not a teleport.</summary>
+        private bool walkedIn;
+
+        /// <summary>4.17 review: the rule was said in this unsolved attempt (until the player leaves the screen).</summary>
+        private bool ruleSaid;
+
+        /// <summary>The rule popup this screen showed last (null once it has gone).</summary>
+        private PickupPopup rulePopup;
+
+        /// <summary>4.17 review: this visit came in by walking (not a teleport), and whether its attempt has said the rule.</summary>
+        public bool WalkedIn => walkedIn;
+
+        public bool RuleSaid => ruleSaid;
         private float flashLeft;
         private float chainAge = -1f;
         private Vector2 chainFrom;
@@ -120,11 +169,16 @@ namespace Game.Cube
         /// <summary>
         /// The player was put somewhere new (a teleport, any CubeNavigator placement; 4.12 review): every screen's walker
         /// forgets its last island and plank, so a teleport is never read as a crossing. The lights are left as they are.
+        /// teleport (4.17 review): false for a walked face crossing; a teleport onto a screen never says its rule.
         /// </summary>
-        public static void ForgetSteps()
+        public static void ForgetSteps(bool teleport = true)
         {
             foreach (IslandScreen s in Active)
-                if (s != null && s.Walker != null) s.Walker.Leave();
+            {
+                if (s == null || s.Walker == null) continue;
+                s.Walker.Leave();
+                if (teleport) s.placed = true;
+            }
         }
 
         public IslandLayout Layout { get; private set; }
@@ -175,6 +229,17 @@ namespace Game.Cube
 
         /// <summary>The lookout signs on lone doorways' islands.</summary>
         public IReadOnlyList<GameObject> Signs => signs;
+
+        /// <summary>4.17: the rule signs, one on each doorway's island (not a lone one).</summary>
+        public IReadOnlyList<GameObject> RuleSigns => ruleSigns;
+
+        /// <summary>4.17: the grey wash over a plank that never lights (one per piece), empty for a plank of the lit network.</summary>
+        public IReadOnlyList<SpriteRenderer> Wash(int plank) =>
+            washes.TryGetValue(plank, out List<SpriteRenderer> list) ? list : (IReadOnlyList<SpriteRenderer>)Array.Empty<SpriteRenderer>();
+
+        /// <summary>4.17: true for a plank that never lights and shows grey (a lookout, or a broken span until mended).</summary>
+        public bool ShowsGrey(int plank) => Layout != null && plank >= 0 && plank < Layout.Bridges.Count && !Layout.IsNetworkPlank(plank) &&
+                                            Lights[plank] != PlankLight.Mended;
 
         /// <summary>The player whose steps light the planks (found in the scene when not set).</summary>
         public Transform Player
@@ -288,6 +353,9 @@ namespace Game.Cube
         /// <summary>The sign's spot keeps at least this far off the doorway's centre line (the walk in).</summary>
         public const float SignOffWalk = 0.6f * ScreenMath.ContentScale;
 
+        /// <summary>4.17: a rule sign keeps farther aside, so the player arriving on the doorway's island never stands on it.</summary>
+        public const float RuleSignOffWalk = 0.85f * ScreenMath.ContentScale;
+
         /// <summary>The board of a sign standing at a spot (local rect).</summary>
         public static Rect SignBoard(Vector2 spot) => new Rect(spot + SignBoardOffset - SignBoardSize / 2f, SignBoardSize);
 
@@ -328,13 +396,51 @@ namespace Game.Cube
         /// every plank mouth on the island. Of the spots that qualify, the one nearest the island's middle out to one side
         /// (searched on a 0.05 grid, so it is the same every time); with none, the spot farthest from the mouths.
         /// </summary>
-        public static Vector2 SignSpot(IslandLayout layout, Facing side)
+        public static Vector2 SignSpot(IslandLayout layout, Facing side) => SignSpot(layout, side, SignOffWalk, out _);
+
+        /// <summary>
+        /// 4.17: where a doorway island's rule sign stands: as SignSpot, but farther aside of the walk in (RuleSignOffWalk) where
+        /// a spot there is clear of the plank mouths, stepping back toward SignOffWalk where none is.
+        /// </summary>
+        public static Vector2 RuleSignSpot(IslandLayout layout, Facing side)
+        {
+            Vector2 spot = Vector2.zero;
+            foreach (float offWalk in RuleSignOffWalks)
+            {
+                spot = SignSpot(layout, side, offWalk, out bool clear, true);
+                if (clear) return spot;
+            }
+            return spot;
+        }
+
+        /// <summary>The distances aside of the walk in a rule sign tries, farthest first; never under MinRuleSignOffWalk.</summary>
+        public static readonly float[] RuleSignOffWalks =
+            { RuleSignOffWalk, 0.75f * ScreenMath.ContentScale, SignOffWalk, MinRuleSignOffWalk };
+
+        /// <summary>4.17 review: the nearest a rule sign (even a fallback) stands to the walk in.</summary>
+        public const float MinRuleSignOffWalk = 0.4f * ScreenMath.ContentScale;
+
+        /// <summary>A sign's post (local rect) standing at a spot: under the board, down to the ground.</summary>
+        public static Rect SignPost(Vector2 spot) =>
+            new Rect(spot + SignPostOffset - SignPostSize / 2f, SignPostSize);
+
+        public static readonly Vector2 SignPostOffset = new Vector2(0f, -0.2f) * ScreenMath.ContentScale, SignPostSize = new Vector2(0.1f, 0.55f) * ScreenMath.ContentScale;
+
+        /// <summary>4.17 review: all of a sign (board and post) as one rect, for the rule sign's spot.</summary>
+        public static Rect SignFootprint(Vector2 spot)
+        {
+            Rect b = SignBoard(spot), p = SignPost(spot);
+            return Rect.MinMaxRect(Mathf.Min(b.xMin, p.xMin), Mathf.Min(b.yMin, p.yMin), Mathf.Max(b.xMax, p.xMax), Mathf.Max(b.yMax, p.yMax));
+        }
+
+        /// <summary>SignSpot at a distance aside of the walk in; clear: a spot met every rule (else the fallback).</summary>
+        public static Vector2 SignSpot(IslandLayout layout, Facing side, float offWalk, out bool clear, bool withPost = false)
         {
             int door = layout.DoorIsland(side);
             Rect r = layout.Islands[door];
             List<Rect> mouths = PlankMouths(layout, door);
             float margin = SignBoardSize.x / 2f;
-            Vector2 preferred = r.center + (side.IsHorizontal() ? Vector2.up : Vector2.right) * SignOffWalk;
+            Vector2 preferred = r.center + (side.IsHorizontal() ? Vector2.up : Vector2.right) * offWalk;
             Vector2 best = preferred, fallback = preferred;
             float bestDistance = float.MaxValue, fallbackGap = -1f;
             const float step = 0.05f * ScreenMath.ContentScale;
@@ -342,10 +448,10 @@ namespace Game.Cube
                 for (float y = r.yMin; y <= r.yMax + 1e-4f; y += step)
                 {
                     var spot = new Vector2(x, y);
-                    Rect board = SignBoard(spot);
+                    Rect board = withPost ? SignFootprint(spot) : SignBoard(spot);
                     if (board.xMin < r.xMin - 1e-4f || board.xMax > r.xMax + 1e-4f || board.yMin < r.yMin - 1e-4f || board.yMax > r.yMax + 1e-4f)
                         continue;
-                    if ((side.IsHorizontal() ? Mathf.Abs(y) : Mathf.Abs(x)) < SignOffWalk - 1e-4f) continue;
+                    if ((side.IsHorizontal() ? Mathf.Abs(y) : Mathf.Abs(x)) < offWalk - 1e-4f) continue;
                     float gap = float.MaxValue;
                     foreach (Rect m in mouths) gap = Mathf.Min(gap, RectGap(board, m));
                     if (gap > fallbackGap + 1e-4f)
@@ -361,7 +467,8 @@ namespace Game.Cube
                         best = spot;
                     }
                 }
-            return bestDistance < float.MaxValue ? best : fallback;
+            clear = bestDistance < float.MaxValue;
+            return clear ? best : fallback;
         }
 
         /// <summary>Builds the screen's water, islands, planks and gaps (layout local to screenCentre) under this object.</summary>
@@ -374,6 +481,8 @@ namespace Game.Cube
             gaps.Clear();
             water.Clear();
             signs.Clear();
+            ruleSigns.Clear();
+            washes.Clear();
             plankArt.Clear();
             lamps.Clear();
             bars.Clear();
@@ -382,6 +491,7 @@ namespace Game.Cube
             Walker = new PlankWalker(layout);
             lastIsland = -1;
             onScreen = false;
+            placed = walkedIn = ruleSaid = false;
             flashLeft = 0f;
             chainAge = -1f;
             RoadblockOpen = false;
@@ -439,6 +549,7 @@ namespace Game.Cube
             {
                 int door = layout.DoorIsland((Facing)f);
                 if (door >= 0 && lone[door]) signs.Add(BuildSign((Facing)f, material));
+                else if (door >= 0 && layout.HasPuzzle) ruleSigns.Add(BuildRuleSign((Facing)f, layout.OnNetwork(door), material));
             }
             // 4.12: a glowing rim round each network island, shown once all its network planks are lit.
             rims = new GameObject[layout.Islands.Count];
@@ -477,6 +588,13 @@ namespace Game.Cube
             if (vertical) plank.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
             if (!plankArt.TryGetValue(bridge, out List<SpriteRenderer> list)) plankArt[bridge] = list = new List<SpriteRenderer>();
             list.Add(plank);
+            if (!Layout.IsNetworkPlank(bridge))
+            {
+                // 4.17: a plank that never lights wears a grey wash over its wood (under the glow, which shows gold once mended).
+                SpriteRenderer wash = ArtCatalog.AddShape(transform, $"{name} (grey)", PartShape.Square, r.center, r.size, OffNetworkWash, WashOrder, material);
+                if (!washes.TryGetValue(bridge, out List<SpriteRenderer> w)) washes[bridge] = w = new List<SpriteRenderer>();
+                w.Add(wash);
+            }
             return plank;
         }
 
@@ -498,14 +616,41 @@ namespace Game.Cube
             return go;
         }
 
+        /// <summary>
+        /// 4.17: a doorway island's rule sign: a post and a board showing a green plank above a dark one (the gap doorway's: a
+        /// grey plank above a dark gap), at SignSpot (on the island, clear of the plank mouths and the walk in).
+        /// </summary>
+        private GameObject BuildRuleSign(Facing side, bool network, Material material)
+        {
+            var go = new GameObject($"Rule Sign ({side})");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = RuleSignSpot(Layout, side);
+            ArtCatalog.AddShape(go.transform, "Post", PartShape.Square, SignPostOffset, SignPostSize,
+                new Color(0.35f, 0.24f, 0.12f), SignOrder, material);
+            ArtCatalog.AddShape(go.transform, "Board Edge", PartShape.Square, SignBoardOffset, SignBoardSize,
+                new Color(0.3f, 0.2f, 0.1f), SignOrder + 1, material);
+            ArtCatalog.AddShape(go.transform, "Board", PartShape.Square, SignBoardOffset, new Vector2(0.78f, 0.46f) * ScreenMath.ContentScale, SignColor,
+                SignOrder + 2, material);
+            Vector2 glyph = new Vector2(0.5f, 0.12f) * ScreenMath.ContentScale;
+            ArtCatalog.AddShape(go.transform, "Glyph Top", PartShape.Square, SignBoardOffset + new Vector2(0f, 0.09f) * ScreenMath.ContentScale, glyph,
+                network ? new Color(LitGlow.r, LitGlow.g, LitGlow.b) : new Color(OffNetworkWash.r, OffNetworkWash.g, OffNetworkWash.b), SignOrder + 3, material);
+            ArtCatalog.AddShape(go.transform, "Glyph Bottom", PartShape.Square, SignBoardOffset + new Vector2(0f, -0.09f) * ScreenMath.ContentScale, glyph,
+                network ? new Color(0.36f, 0.25f, 0.16f) : new Color(0.12f, 0.08f, 0.06f), SignOrder + 3, material);
+            return go;
+        }
+
         /// <summary>Colours a plank (all its pieces, a laid span included) and its glow for its light.</summary>
         private void ShowLight(int bridge)
         {
             PlankLight light = Lights[bridge];
             bool flash = flashLeft > 0f && Layout.IsNetworkPlank(bridge);
+            bool grey = ShowsGrey(bridge);
             if (plankArt.TryGetValue(bridge, out List<SpriteRenderer> list))
                 foreach (SpriteRenderer r in list)
-                    if (r != null) r.color = light == PlankLight.Unlit && !flash ? PlankColor : LitPlankColor;
+                    if (r != null) r.color = grey ? OffNetworkPlankColor : light == PlankLight.Unlit && !flash ? PlankColor : LitPlankColor;
+            if (washes.TryGetValue(bridge, out List<SpriteRenderer> wash))
+                foreach (SpriteRenderer r in wash)
+                    if (r != null) r.enabled = grey;
             SpriteRenderer glow = glows[bridge];
             if (glow == null) return;
             glow.color = flash ? SnuffGlow : GlowFor(light);
@@ -532,11 +677,14 @@ namespace Game.Cube
         {
             Vector2 local = world - Centre;
             Vector2 half = ScreenEdges.Half;
+            bool teleported = placed;
+            placed = false;
             if (Mathf.Abs(local.x) > half.x || Mathf.Abs(local.y) > half.y)
             {
                 if (onScreen) Leave();
                 return;
             }
+            if (!onScreen) walkedIn = !teleported;
             onScreen = true;
             Walker.Step(local, out _, out _);
             foreach ((int plank, _, _) in Walker.Crossings) Cross(plank);
@@ -544,7 +692,52 @@ namespace Game.Cube
             if (island < 0) return;
             if (lone[island] && (lastIsland < 0 || !lone[lastIsland]))
                 PickupPopup.Show(Centre + Layout.Islands[island].center, LoneText, LoneTextColor, LoneTextSeconds);
+            else if (lastIsland < 0) ShowRule(island);
             lastIsland = island;
+        }
+
+        /// <summary>
+        /// 4.17: arriving on a doorway's island (the first island stood on since coming onto the screen) while the puzzle is
+        /// unsolved says the rule there; the gap doorway's island says where the glowing planks are and how to reach them.
+        /// 4.17 review: once per unsolved attempt (until the player leaves the screen), only when the player walked in (a
+        /// teleport onto the screen says nothing), and never while the same words are still up.
+        /// </summary>
+        private void ShowRule(int island)
+        {
+            if (Lights.Solved || ruleSaid || !walkedIn) return;
+            string text = RuleTextFor(Layout, island, GapMended(island));
+            if (text == null) return;
+            ruleSaid = true;
+            if (rulePopup != null && rulePopup.Text == text) return; // this screen's same words are still up
+            rulePopup = PickupPopup.Show(Centre + Layout.Islands[island].center, text, RuleTextColor, RuleTextSeconds);
+        }
+
+        /// <summary>
+        /// 4.17 review: true when a broken span from an island's whole-plank component onto the lit network is mended (the
+        /// gap doorway's way on is open).
+        /// </summary>
+        public bool GapMended(int island)
+        {
+            if (Layout == null || island < 0 || island >= Layout.Islands.Count) return false;
+            int[] whole = Layout.Components(false);
+            for (int k = 0; k < Layout.Bridges.Count; k++)
+            {
+                IslandBridge b = Layout.Bridges[k];
+                if (!b.Broken || Lights[k] != PlankLight.Mended) continue;
+                if ((whole[b.A] == whole[island] && Layout.OnNetwork(b.B)) || (whole[b.B] == whole[island] && Layout.OnNetwork(b.A))) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The rule a doorway's island says on arrival: RuleText on the lit network; off it (the gap doorway) GapDoorText, or
+        /// GapDoorMendedText once its span is mended; null elsewhere.
+        /// </summary>
+        public static string RuleTextFor(IslandLayout layout, int island, bool gapMended = false)
+        {
+            if (layout == null || !layout.HasPuzzle || island < 0 || island >= layout.Islands.Count || !layout.DoorOf(island).HasValue) return null;
+            if (layout.IsLone(island)) return null;
+            return layout.OnNetwork(island) ? RuleText : gapMended ? GapDoorMendedText : GapDoorText;
         }
 
         /// <summary>The player crossed a plank (from one island onto the other): the puzzle's response, shown.</summary>
@@ -553,6 +746,7 @@ namespace Game.Cube
             CrossResult result = Lights.Cross(plank);
             if (result == CrossResult.None) return result;
             if (result == CrossResult.Snuffed) flashLeft = FlashSeconds;
+            else flashLeft = 0f; // 4.17: a plank lit during the red flash shows lit at once (the flash hid it for up to 0.45 s)
             if (result == CrossResult.Solved)
             {
                 chainFrom = Centre + Layout.Bridges[plank].Plank.center;
@@ -568,6 +762,8 @@ namespace Game.Cube
         {
             onScreen = false;
             lastIsland = -1;
+            walkedIn = false;
+            if (!Lights.Solved) ruleSaid = false; // the attempt is over: the next one says the rule again
             Walker.Leave();
             if (!Lights.Reset()) return;
             flashLeft = 0f;

@@ -61,9 +61,11 @@ Every science face has a colour and a race of people:
 **Puzzle screens:**
 - **Ice (Wildlands\*):** you slide in a straight line until something stops you. Pits drop you back at the doorway you came in by, with no damage. Grip tiles stop you. Slide onto the gold pad to open the chest.
 - **Wind (Wildlands\*):** step into a gust and it carries you to the next island or grip rock. You can't steer while riding. Reach the gold ring to open the chest.
-- **Bridges (Bridgelands\*):** every plank lights up when you cross it. **Crossing a lit plank again turns them all off**, so you need a route that uses each plank exactly once. Light them all and the chest opens.
+- **Bridges (Bridgelands\*):** every dark wooden plank glows green when you cross it. **Crossing a glowing plank again turns them all off** (a red flash), so you need a route that uses each plank exactly once. Leaving the screen unfinished turns them off too. Light them all and the chest opens.
+  - **Grey planks never glow:** they are lookouts, or broken spans (gold once mended). They don't count.
+  - A sign stands on each doorway's island, and arriving there says the rule.
   - Tip: count each island's planks. If two islands have an odd number, start on one of them.
-  - One doorway reaches the puzzle only over a broken span, so use the Gap-Crosser\* there.
+  - One doorway reaches the puzzle only over a broken span, so use the Gap-Crosser\* there. Without it, go round by another doorway (its sign says so).
 - **Trials:** each face has one harder puzzle (numbered targets, boulder booths and similar) that pays Jumbles\*.
 
 ### 4. Mend faces for help against the boss

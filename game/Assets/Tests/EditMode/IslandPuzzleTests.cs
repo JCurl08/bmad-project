@@ -325,6 +325,7 @@ namespace Game.Cube.Tests
                     if (layout.FromTemplate) templates++;
                     foreach (string p in layout.Problems($"{tier} seed {seed}", _ => true)) problems.Add(p);
                     if (!layout.HasPuzzle) problems.Add($"{tier} seed {seed}: no puzzle");
+                    RuleSignProblems(layout, $"{tier} seed {seed}", problems); // 4.17 review
                 }
             Debug.Log($"Island generation over seeds 1-500 x 3 tiers: {templates} template fallbacks, {steps / 1500} search steps on average.");
             Assert.IsEmpty(problems, string.Join("\n", problems.Take(20)));
@@ -423,6 +424,121 @@ namespace Game.Cube.Tests
             List<string> problems = RewardPlacement.FindProblems(model, layout, items, hidden, rewards, library, stuck, stuckGoals);
             Assert.IsTrue(problems.Any(p => p.Contains("can never be reached")), string.Join("; ", problems));
             Assert.IsTrue(new DoorwayReach(model, stuck).Problems().Any(p => p.Contains("can never be reached")));
+        }
+
+        // ---------- Readability (4.17) ----------
+
+        private static float HueGap(Color a, Color b)
+        {
+            Color.RGBToHSV(a, out float ha, out _, out _);
+            Color.RGBToHSV(b, out float hb, out _, out _);
+            float d = Mathf.Abs(ha - hb);
+            return Mathf.Min(d, 1f - d);
+        }
+
+        /// <summary>
+        /// 4.17: a lit plank is a vivid, nearly opaque colour far in hue from Math's yellow floor, the water and the dark wood
+        /// (it was the floor's yellow at half strength), and the lamps and rims share it; planks that never light are grey;
+        /// the rule texts keep the text rules and stay narrow; every doorway's island of seeds 1-50 says the rule (the gap
+        /// doorway's says where the glowing planks are), and its rule sign stands on it, aside of the walk in, clear of the
+        /// plank mouths.
+        /// </summary>
+        [Test]
+        public void Readability_LitPlanksStandOut_GreyPlanksNeverLight_AndEveryDoorwaySaysTheRule()
+        {
+            Color lit = IslandScreen.LitGlow;
+            Assert.GreaterOrEqual(lit.a, 0.75f, "a lit plank's glow is nearly opaque");
+            Assert.GreaterOrEqual(HueGap(lit, CubeWorld.ThemeColor(Theme.Math)), 0.2f, "lit is far in hue from Math's yellow floor");
+            Assert.GreaterOrEqual(HueGap(lit, IslandScreen.WaterColor), 0.15f, "and from the water");
+            Assert.GreaterOrEqual(HueGap(lit, IslandScreen.PlankColor), 0.2f, "and from the dark wood");
+            Assert.GreaterOrEqual(HueGap(lit, IslandScreen.SnuffGlow), 0.25f, "and from the snuff's red");
+            Assert.Less(HueGap(lit, IslandScreen.LampOn), 0.03f, "the lamps light in the planks' colour");
+            Assert.Less(HueGap(lit, IslandScreen.RimColor), 0.03f, "and the rims");
+            Color.RGBToHSV(IslandScreen.OffNetworkWash, out _, out float greySat, out _);
+            Assert.Less(greySat, 0.15f, "planks that never light are grey");
+
+            foreach (string text in new[] { IslandScreen.RuleText, IslandScreen.GapDoorText, IslandScreen.GapDoorMendedText })
+            {
+                CollectionAssert.IsEmpty(InWorldText.BannedIn(text), text);
+                CollectionAssert.IsEmpty(InWorldText.UnstarredNames(text), text);
+                foreach (string line in text.Split('\n')) Assert.LessOrEqual(line.Length, 60, $"a short line: {line}");
+                StringAssert.Contains("Grey planks never glow", text);
+            }
+            StringAssert.Contains("all go dark", IslandScreen.RuleText);
+            StringAssert.Contains("If you leave unfinished, then they all go dark too.", IslandScreen.RuleText);
+            StringAssert.Contains("every plank that can glow", IslandScreen.RuleText);
+            StringAssert.Contains("planks that can glow", IslandScreen.GapDoorText);
+            StringAssert.Contains("planks that can glow", IslandScreen.GapDoorMendedText);
+            StringAssert.Contains("spanned", IslandScreen.GapDoorMendedText);
+
+            // The unlit plank and a grey one as drawn: the plank art (its measured average, WoodTone) under each tint, the
+            // grey one under its wash. They differ clearly in brightness (screenshot: luma 0.28 against 0.58).
+            Color unlit = WoodTone * IslandScreen.PlankColor;
+            Color greyWood = WoodTone * IslandScreen.OffNetworkPlankColor;
+            Color wash = IslandScreen.OffNetworkWash;
+            Color grey = Color.Lerp(greyWood, new Color(wash.r, wash.g, wash.b), wash.a);
+            Assert.GreaterOrEqual(Luma(grey) - Luma(unlit), 0.2f, $"grey {grey} reads clearly lighter than an unlit plank {unlit}");
+            Assert.GreaterOrEqual(Luma(new Color(lit.r, lit.g, lit.b)) - Luma(unlit), 0.4f, "and a lit one much lighter still");
+            StringAssert.Contains(GapCrosserItem.Name, IslandScreen.GapDoorText);
+
+            ModuleLibrary library = Library();
+            int network = 0, gapDoors = 0;
+            var signProblems = new List<string>();
+            for (int seed = 1; seed <= 50; seed++)
+            {
+                var model = new CubeModel(seed);
+                IslandPlan plan = IslandPlan.Create(model, CubeLayout.Generate(model, library));
+                foreach (IslandScreenSpec spec in plan.Screens)
+                {
+                    IslandLayout layout = spec.Layout;
+                    for (int i = 0; i < layout.Islands.Count; i++)
+                        if (!layout.DoorOf(i).HasValue) Assert.IsNull(IslandScreen.RuleTextFor(layout, i), $"seed {seed} {spec}: inner island {i} says nothing");
+                    foreach (Facing side in Sides)
+                    {
+                        int door = layout.DoorIsland(side);
+                        if (door < 0) continue;
+                        bool on = layout.OnNetwork(door);
+                        if (on) network++;
+                        else gapDoors++;
+                        Assert.AreEqual(on ? IslandScreen.RuleText : IslandScreen.GapDoorText, IslandScreen.RuleTextFor(layout, door), $"seed {seed} {spec} {side}");
+                        Assert.AreEqual(on ? IslandScreen.RuleText : IslandScreen.GapDoorMendedText, IslandScreen.RuleTextFor(layout, door, true), $"seed {seed} {spec} {side}, mended");
+                    }
+                    RuleSignProblems(layout, $"seed {seed} {spec}", signProblems);
+                }
+            }
+            Assert.Greater(network, 0);
+            Assert.Greater(gapDoors, 0);
+            Assert.IsEmpty(signProblems, string.Join("\n", signProblems.Take(20)));
+        }
+
+        /// <summary>The plank art's average colour (measured from the 4.17 screenshots: an unlit plank / PlankColor).</summary>
+        private static readonly Color WoodTone = new Color(0.55f, 0.48f, 0.47f);
+
+        private static float Luma(Color c) => 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+
+        /// <summary>
+        /// 4.17 review: every doorway's rule sign, board and post, stands on its island, at least MinRuleSignOffWalk aside of
+        /// the walk in (a fallback too), and at least half the board's width clear of every plank mouth.
+        /// </summary>
+        public static void RuleSignProblems(IslandLayout layout, string what, List<string> problems)
+        {
+            foreach (Facing side in Sides)
+            {
+                int door = layout.DoorIsland(side);
+                if (door < 0 || layout.IsLone(door)) continue;
+                Vector2 spot = IslandScreen.RuleSignSpot(layout, side);
+                Rect sign = IslandScreen.SignFootprint(spot), r = layout.Islands[door];
+                if (!(sign.xMin >= r.xMin - 1e-3f && sign.xMax <= r.xMax + 1e-3f && sign.yMin >= r.yMin - 1e-3f && sign.yMax <= r.yMax + 1e-3f))
+                    problems.Add($"{what} {side}: the rule sign (board and post) is not all on its island");
+                if ((side.IsHorizontal() ? Mathf.Abs(spot.y) : Mathf.Abs(spot.x)) < IslandScreen.MinRuleSignOffWalk - 1e-3f)
+                    problems.Add($"{what} {side}: the rule sign stands in the walk in");
+                foreach (Rect m in IslandScreen.PlankMouths(layout, door))
+                    if (IslandScreen.RectGap(sign, m) < IslandScreen.SignBoardSize.x / 2f - 1e-3f)
+                    {
+                        problems.Add($"{what} {side}: the rule sign is {IslandScreen.RectGap(sign, m):0.00} from a plank mouth");
+                        break;
+                    }
+            }
         }
     }
 }

@@ -228,7 +228,7 @@ namespace Game.Cube
                     clamped.y = Mathf.Clamp(local.y, EntryInset, extent.y - EntryInset);
                     velocity.y = 0f;
                 }
-                SetPosition(origin + clamped);
+                SetPosition(origin + clamped, false);
                 if (body != null) body.linearVelocity = velocity;
                 return;
             }
@@ -240,7 +240,7 @@ namespace Game.Cube
             Face = next.Face;
             Facing = newFacing;
             Crossings++;
-            SetPosition(world.FaceOrigin(Face) + EntryPoint(newFacing, newT, extent));
+            SetPosition(world.FaceOrigin(Face) + EntryPoint(newFacing, newT, extent), false);
             // Arrive facing into the new face and stand still until a fresh press (held keys are ignored).
             if (body != null) body.linearVelocity = Vector2.zero;
             if (TryGetComponent(out PlayerMover arrived))
@@ -269,12 +269,12 @@ namespace Game.Cube
         /// Snaps the player without interpolation, so no in-between frame is drawn. Interpolation stays off
         /// for two physics steps so its history starts from the new position, then is restored.
         /// </summary>
-        private void SetPosition(Vector2 position)
+        private void SetPosition(Vector2 position, bool teleport = true)
         {
             // 4.10: any placement (a teleport, a crossing) ends an ice move under way; the slider settles afresh.
             if (TryGetComponent(out IceSlider ice)) ice.Clear();
             if (TryGetComponent(out WindRider wind)) wind.Clear(); // 4.11: and a ride
-            IslandScreen.ForgetSteps(); // 4.12 review: and no island walk reads a teleport as a plank crossing
+            IslandScreen.ForgetSteps(teleport); // 4.12 review: and no island walk reads a teleport as a plank crossing (4.17: a walked face crossing is no teleport)
             if (body != null)
             {
                 body.interpolation = RigidbodyInterpolation2D.None;
