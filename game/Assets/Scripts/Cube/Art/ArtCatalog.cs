@@ -10,7 +10,8 @@ namespace Game.Cube
     /// Assets/Art/ART-MAP.md). Get(key) returns that sprite, or, for a key with no mapping (or no catalog at all), logs
     /// once and returns the key's generated placeholder shape, so nothing ever renders invisible. Shape(shape) gives the
     /// generated shapes themselves (marks, pips, effects), and NpcPart(...) the outlined, race-specific NPC parts
-    /// (NpcPartArt). The catalog also holds the white hit-flash material (HitFlash).
+    /// (NpcPartArt, drawn only with NpcFactory.PartArt on; NPCs are otherwise drawn with NpcDesignArt's race designs).
+    /// The catalog also holds the white hit-flash material (HitFlash).
     /// </summary>
     [CreateAssetMenu(menuName = "Cube/Art Catalog", fileName = "ArtCatalog")]
     public class ArtCatalog : ScriptableObject

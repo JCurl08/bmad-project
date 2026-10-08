@@ -167,6 +167,10 @@ namespace Game.Cube.Tests
                 }
                 foreach (string line in PhysicsPopulation.NewtonLines()) yield return ("Apple sage", line);
                 yield return ("Speaker", PhysicsPopulation.NewtonSpec(seed).DisplayName);
+                // Leaders (4.3, spawned by 4.5): a few per race, so both dinosaur kinds turn up.
+                foreach (Race race in RaceExtensions.All)
+                    for (int i = 0; i < 4; i++)
+                        yield return ("Speaker", NpcFactory.ChooseLeader(seed, race, i).DisplayName);
             }
         }
 
@@ -441,6 +445,40 @@ namespace Game.Cube.Tests
                     foreach ((string name, Color colour) in against)
                         if (!Distinct(shade, colour))
                             failures.Add($"{theme} floor vs {name}: contrast {ContrastRatio(shade, colour):0.00}, ΔE {DeltaE(shade, colour):0.0}");
+                }
+            }
+            Assert.IsEmpty(failures, string.Join("\n", failures));
+        }
+
+        [Test]
+        public void NpcDesigns_AndTheirLeaders_StandApartFromEveryRegionFloor()
+        {
+            // 4.3: every NPC design in every accent (and every leader), averaged over its opaque pixels with its outline as
+            // drawn, reads against both shades of every region's floor (people of every race meet in the Town).
+            ArtCatalog art = AssetDatabase.LoadAssetAtPath<ArtCatalog>("Assets/Resources/ArtCatalog.asset");
+            Assert.IsNotNull(art);
+            var failures = new List<string>();
+            foreach (NpcLook look in (NpcLook[])Enum.GetValues(typeof(NpcLook)))
+            foreach (bool leader in new[] { false, true })
+            for (int accent = 0; accent < (leader ? 1 : NpcDesignArt.AccentCount); accent++)
+            {
+                Color32[] pixels = NpcDesignArt.Pixels(look, leader, accent);
+                Color sum = Color.clear;
+                int n = 0;
+                foreach (Color32 p in pixels)
+                {
+                    if (p.a == 0) continue;
+                    sum += (Color)p;
+                    n++;
+                }
+                Color figure = sum / Mathf.Max(1, n);
+                figure.a = 1f;
+                foreach (Theme theme in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere })
+                {
+                    Color floor = Tinted(TileAverage(art, ArtKeys.Floor(theme)), ArtKeys.FloorTint(theme));
+                    foreach (Color shade in new[] { floor, Color.Lerp(floor, Color.black, 0.15f) })
+                        if (!Distinct(shade, figure))
+                            failures.Add($"{look}{(leader ? " leader" : "")} accent {accent} on {theme}: contrast {ContrastRatio(shade, figure):0.00}, ΔE {DeltaE(shade, figure):0.0}");
                 }
             }
             Assert.IsEmpty(failures, string.Join("\n", failures));

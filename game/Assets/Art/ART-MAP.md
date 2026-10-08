@@ -35,7 +35,23 @@ its generated placeholder shape, so nothing renders invisible.
 - **Floor texture (1.24):** every region floor carries a light, fixed shading over its tiles (`FloorPattern`: soft
   patches a few tiles across and the odd tile picked out, at most 10 % white or black, less on the Weightlands*), drawn
   just above the floor. It is a hash of the theme, screen and tile, so it is the same every run and touches no RNG.
-- **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`; shape people have a round
+- **NPC designs (4.3, generated in code, `NpcDesignArt`):** every race has one hand-drawn 16×16 design in the player's
+  style (the D 112 hero): a big head over a short body, front-facing, Kenney's palette, a two-pixel outline in the
+  player's own dark plum (added around each figure in code) and the feet on the tile's bottom edge. They are drawn at
+  the player's size (one first-screen tile × `PeopleArtScale`) and white-tinted. The packs have no non-human people,
+  so no Kenney tile is used; Tiny Town has no characters at all.
+  - Townsfolk: a straw hat, brown hair, a tunic. Finches: a round fluffy bird with big glinting eyes, an orange beak,
+    a cream breast and blush. Chemistry folk: a spotted mushroom cap, a cream face, a white coat. Physics folk: a green,
+    big-eyed, two-antenna alien in a jumpsuit. Shape people: a round face, a triangular body, rectangular legs. Ground
+    dinosaurs: a green, toothy, spiky-backed snout with a bandana. Avian dinosaurs: a blue feathered raptor with a crest.
+  - Each NPC wears one of three seeded accent tints (tunic, plumage, cap, suit, body, bandana or crest; from its salt,
+    no random draw).
+  - Leaders (`NpcFactory.ChooseLeader`): a gold crown (gold circlet in a wild white mane for the Physics folk; among long
+    plumes for the avian dinosaurs) and royal purple trim with a gold hem, which no ordinary NPC wears; most also carry
+    a staff (the Town's, the Chemistry folk's flask staff, the shape people's ruler, a bone club for the ground dinosaurs)
+    or a ruff (finches).
+- **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`, drawn only with
+  `NpcFactory.PartArt` on, kept for epic-varied-runs; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches
   are drawn in full colour: a round fluffy body, a clear orange beak, big glinting eyes, blush and little orange feet), the water
   of an island screen and the Math trial's flag, and marks, pips, effects,

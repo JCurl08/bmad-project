@@ -230,7 +230,7 @@ namespace Game.Cube
             {
                 Newton = SpawnNpc(world, newton, PhysicsPopulation.NewtonLines(), at, newtonFeet, target);
                 Newton.name = $"Physics Cameo {PhysicsPopulation.NewtonName}";
-                AppleBonk.Add(Newton.gameObject, NpcFactory.MaxBodyHeight * CubeSettings.PeopleArtScale, world.Material);
+                AppleBonk.Add(Newton.gameObject, NpcFactory.HeadTop(newton), world.Material);
             }
         }
 

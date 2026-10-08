@@ -11,7 +11,7 @@ namespace Game.Cube
     /// F1 toggles the overlay (face, theme, cell, module, seed), F2 toggles slot markers (a sprite on
     /// every active slot of every module, with labels on the visible screen), F5 rerolls to a new random
     /// seed and rebuilds, F6 jumps to the next unsealed screen.
-    /// F3 spawns one NPC of each race around the player (true hints for the run at hintDensity), F4 toggles
+    /// F3 spawns one NPC of each race around the player (true hints for the run at hintDensity; Shift+F3 their leaders), F4 toggles
     /// hostility for the race of the NPC nearest the player. F7 spawns a placeholder enemy near the player, weak
     /// to a random owned item (or the Biology item when nothing is owned). Spawned NPCs and enemies are
     /// removed on a rebuild. While the player is in the core arena, the overlay says so (instead of a face and cell) and
@@ -140,7 +140,7 @@ namespace Game.Cube
             if (keyboard.f1Key.wasPressedThisFrame) overlayVisible = !overlayVisible;
             if (GamePause.Active) return; // the map pauses the game: no debug commands but the overlay toggle
             if (keyboard.f2Key.wasPressedThisFrame) SetSlotMarkersVisible(!slotMarkersVisible);
-            if (keyboard.f3Key.wasPressedThisFrame) SpawnNpcs();
+            if (keyboard.f3Key.wasPressedThisFrame) SpawnNpcs(keyboard.shiftKey.isPressed);
             if (keyboard.f4Key.wasPressedThisFrame) ToggleNearestHostility();
             if (keyboard.f5Key.wasPressedThisFrame) Reroll();
             if (keyboard.f6Key.wasPressedThisFrame) JumpToNextUnsealed();
@@ -217,9 +217,10 @@ namespace Game.Cube
 
         /// <summary>
         /// Spawns one NPC of each race in a ring around the player, inside the player's screen. Parts come from
-        /// the run seed (each press uses the next index per race); lines carry true hints for the run.
+        /// the run seed (each press uses the next index per race); lines carry true hints for the run. With leaders,
+        /// each is its race's leader (NpcFactory.ChooseLeader), drawn with the leader design.
         /// </summary>
-        public List<NpcTalker> SpawnNpcs()
+        public List<NpcTalker> SpawnNpcs(bool leaders = false)
         {
             var spawned = new List<NpcTalker>();
             if (world == null || world.Model == null) return spawned;
@@ -237,7 +238,7 @@ namespace Game.Cube
             for (int i = 0; i < races.Length; i++)
             {
                 Vector2 at = ClearSpawnSpot(centre, i, races.Length, bounds);
-                NpcSpec spec = NpcFactory.ChooseParts(world.Seed, races[i], npcBatch);
+                NpcSpec spec = leaders ? NpcFactory.ChooseLeader(world.Seed, races[i], npcBatch) : NpcFactory.ChooseParts(world.Seed, races[i], npcBatch);
                 List<string> lines = Dialogue.For(spec, facts, hintDensity);
                 NpcTalker npc = NpcFactory.Spawn(spec, lines, at, bounds, world.Relations, player, npcRoot, world.Material);
                 spawned.Add(npc);
@@ -408,7 +409,7 @@ namespace Game.Cube
                 CubeModel model = world.Model;
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
-                              "F1 overlay   F2 slots   F3 NPCs   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
+                              "F1 overlay   F2 slots   F3 NPCs (+Shift leaders)   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
                               "F8 leave core   F9 rest (full health)   F10 new run   F11 light map   M map";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;

@@ -6,6 +6,8 @@ namespace Game.Cube
 {
     /// <summary>
     /// The NPC Lego parts, drawn in code as clean outlined pixel sprites (32 px per world unit, sized to the part).
+    /// Since 4.3 NPCs are drawn with their race's design (NpcDesignArt); these parts are drawn only with
+    /// NpcFactory.PartArt on (off by default), kept for epic-varied-runs (CAP-9). The parts' data still drives hints.
     /// The race gives the silhouette (a finch's beak, a mushroom cap, alien antennae and big eyes, a shape person's round face, a dinosaur
     /// snout, a townsperson's hat), and what the slot controls gives the variant: heads by HintKind, torsos by role
     /// (a merchant's bag, a quest-giver's sash, a smith's apron, a gossip's frill), legs by movement. Sprites are white

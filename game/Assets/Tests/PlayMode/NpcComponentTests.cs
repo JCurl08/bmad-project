@@ -13,7 +13,8 @@ namespace Game.Cube.Tests
     /// NPC runtime behaviour on objects built in the test (far from anything a scene may hold): Interact in
     /// range opens the dialogue, advances it and closes it after the last line; out of range it does
     /// nothing; a hostile race refuses until the flag is cleared; and stand / wander / flee legs move as
-    /// they should.
+    /// they should. 4.3: an NPC is drawn as its race's design (its leader's design for a leader); the swappable parts
+    /// are drawn only with NpcFactory.PartArt on, and their tests turn it on.
     /// </summary>
     public class NpcComponentTests : InputTestFixture
     {
@@ -44,6 +45,7 @@ namespace Game.Cube.Tests
             foreach (Object o in created)
                 if (o != null) Object.Destroy(o);
             created.Clear();
+            NpcFactory.PartArt = false;
             base.TearDown();
         }
 
@@ -77,14 +79,16 @@ namespace Game.Cube.Tests
             Enemy enemy = Track(Enemy.Spawn(null, Origin + new Vector2(6f * K, 0f), BoundsAround(Origin)).gameObject).GetComponent<Enemy>();
             yield return null;
 
-            // NPC: the parts' authored height (first screens' units) against the drawn height.
+            // NPC (4.3): its design is one tile drawn exactly as big as the player's (one first-screen tile, 1.33x on the
+            // canvas), standing on its feet; its collider is the parts' authored height, scaled with the screen only.
             NpcSpec spec = npc.Spec;
             float authored = spec.Legs.Size.y + spec.Torso.Size.y + spec.Head.Size.y;
-            SpriteRenderer[] parts = npc.GetComponentsInChildren<SpriteRenderer>();
-            float top = parts.Max(p => p.bounds.max.y), bottom = parts.Min(p => p.bounds.min.y);
-            float drawn = top - bottom;
-            float canvasRatio = drawn * PixelsPerUnit(CubeWorld.ScreenSize.y) / (authored * PixelsPerUnit(10f));
-            Assert.AreEqual(CubeSettings.PeopleArtScale, canvasRatio, 0.01f, "An NPC reads 1.33x as tall on the canvas as before");
+            SpriteRenderer body = npc.GetComponentsInChildren<SpriteRenderer>().Single();
+            float canvasRatio = body.bounds.size.y * PixelsPerUnit(CubeWorld.ScreenSize.y) / (1f * PixelsPerUnit(10f));
+            Assert.AreEqual(CubeSettings.PeopleArtScale, canvasRatio, 0.01f, "An NPC reads 1.33x as tall on the canvas as a first-screen tile, like the player");
+            Assert.AreEqual(NpcFactory.DesignSize, body.bounds.size.x, 1e-3f, "Square, like the player's tile");
+            Assert.AreEqual(ScreenMath.ContentScale * CubeSettings.PeopleArtScale, NpcFactory.DesignSize, 1e-5f, "The player's drawn size (CubeSceneBuilder)");
+            Assert.AreEqual(npc.transform.position.y, body.bounds.min.y, 1e-3f, "Standing on its feet");
             var box = npc.GetComponent<BoxCollider2D>();
             Assert.AreEqual(authored * ScreenMath.ContentScale, box.size.y, 1e-3f, "Its collider only scales with the screen");
             Assert.AreEqual(NpcFactory.BodyWidth, box.size.x, 1e-4f);
@@ -97,8 +101,63 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator Spawn_StacksThreePartSprites_WithACollider()
+        public IEnumerator SwappableParts_AreDrawnAThirdLargerOnTheCanvas_WithTheirCollidersUnchanged_WhenSwitchedOn()
         {
+            // The parts' look, kept behind NpcFactory.PartArt (epic-varied-runs): the 4.1 size rule still holds for it.
+            NpcFactory.PartArt = true;
+            NpcTalker npc = MakeNpc(Movement.Stand, Origin);
+            yield return null;
+            NpcSpec spec = npc.Spec;
+            float authored = spec.Legs.Size.y + spec.Torso.Size.y + spec.Head.Size.y;
+            SpriteRenderer[] parts = npc.GetComponentsInChildren<SpriteRenderer>();
+            float drawn = parts.Max(p => p.bounds.max.y) - parts.Min(p => p.bounds.min.y);
+            float canvasRatio = drawn * PixelsPerUnit(CubeWorld.ScreenSize.y) / (authored * PixelsPerUnit(10f));
+            Assert.AreEqual(CubeSettings.PeopleArtScale, canvasRatio, 0.01f, "An NPC reads 1.33x as tall on the canvas as before");
+            Assert.AreEqual(authored * ScreenMath.ContentScale, npc.GetComponent<BoxCollider2D>().size.y, 1e-3f, "Its collider only scales with the screen");
+            Assert.AreEqual(NpcFactory.MaxBodyHeight * CubeSettings.PeopleArtScale, NpcFactory.HeadTop(spec), 1e-4f, "The apple lands on the parts' head");
+        }
+
+        [UnityTest]
+        public IEnumerator Spawn_DrawsItsRacesDesign_AsOneSprite_AndALeaderItsLeaderDesign()
+        {
+            Assert.IsFalse(NpcFactory.PartArt, "The swappable parts are off by default");
+            int i = 0;
+            foreach (Race race in RaceExtensions.All)
+            {
+                NpcSpec spec = NpcFactory.ChooseParts(1, race, 0);
+                NpcTalker npc = Track(NpcFactory.Spawn(spec, TestLines, Origin + new Vector2(3f * K * i++, 0f), BoundsAround(Origin), relations, player).gameObject).GetComponent<NpcTalker>();
+                SpriteRenderer body = npc.GetComponentsInChildren<SpriteRenderer>().Single();
+                Assert.AreEqual("Body", body.name);
+                Assert.AreSame(NpcDesignArt.SpriteFor(NpcDesignArt.LookOf(spec), false, NpcDesignArt.AccentOf(spec.Salt)), body.sprite, $"{race}: its race's design in its accent");
+                Assert.AreEqual(Color.white, body.color, $"{race}: drawn in its own colours");
+
+                // The leader: from its own index space (never the ordinary NPC at its index), the leader's design, named as the leader.
+                NpcSpec leaderSpec = NpcFactory.ChooseLeader(1, race, 0);
+                Assert.IsTrue(leaderSpec.IsLeader);
+                Assert.IsFalse(spec.IsLeader);
+                Assert.AreNotEqual(spec.Salt, leaderSpec.Salt);
+                StringAssert.EndsWith("leader", leaderSpec.DisplayName);
+                NpcTalker leader = Track(NpcFactory.Spawn(leaderSpec, TestLines, Origin + new Vector2(3f * K * i++, 0f), BoundsAround(Origin), relations, player).gameObject).GetComponent<NpcTalker>();
+                SpriteRenderer crowned = leader.GetComponentsInChildren<SpriteRenderer>().Single();
+                Assert.AreSame(NpcDesignArt.SpriteFor(NpcDesignArt.LookOf(leaderSpec), true, 0), crowned.sprite, $"{race}: the leader's design");
+                Assert.AreEqual(crowned.bounds.max.y - leader.transform.position.y, NpcFactory.HeadTop(leaderSpec), 1e-3f, "The leader's crown is its top");
+                Assert.AreNotSame(body.sprite, crowned.sprite, $"{race}: the leader looks different");
+                Assert.AreEqual(npc.GetComponent<BoxCollider2D>().size, leader.GetComponent<BoxCollider2D>().size, "Same body");
+            }
+            yield return null;
+            // The apple lands on the drawn top: a townsperson's hat reaches the tile's top row (its outline in row 0 of 16).
+            NpcSpec sage = PhysicsPopulation.NewtonSpec(1);
+            Assert.AreEqual(16, NpcDesignArt.DrawnRows(NpcLook.Townsfolk, false));
+            Assert.AreEqual(NpcFactory.DesignSize, NpcFactory.HeadTop(sage), 1e-4f, "The apple lands on the design's head");
+            // Dinosaurs: the ground and avian kinds each have their design.
+            NpcSpec dino = NpcFactory.ChooseParts(1, Race.Dinosaur, 0);
+            Assert.AreEqual(dino.Variant == DinoVariant.Avian ? NpcLook.AvianDino : NpcLook.GroundDino, NpcDesignArt.LookOf(dino));
+        }
+
+        [UnityTest]
+        public IEnumerator Spawn_StacksThreePartSprites_WithACollider_WhenTheSwappablePartsAreSwitchedOn()
+        {
+            NpcFactory.PartArt = true;
             NpcTalker npc = MakeNpc(Movement.Stand, Origin);
             yield return null;
             SpriteRenderer[] parts = npc.GetComponentsInChildren<SpriteRenderer>();
@@ -299,7 +358,7 @@ namespace Game.Cube.Tests
         public IEnumerator HostilityChangedWhileInactive_TintIsRightOnReenable()
         {
             NpcTalker npc = MakeNpc(Movement.Stand, Origin, Race.Alien);
-            SpriteRenderer head = npc.GetComponentsInChildren<SpriteRenderer>().Single(r => r.name == "Head");
+            SpriteRenderer head = npc.GetComponentsInChildren<SpriteRenderer>().Single(r => r.name == "Body");
             Color normal = head.color;
             yield return null;
 

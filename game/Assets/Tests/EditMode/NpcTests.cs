@@ -15,6 +15,34 @@ namespace Game.Cube.Tests
         private const string LibraryPath = "Assets/Modules/ModuleLibrary.asset";
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
 
+        [Test]
+        public void Leaders_HaveTheirOwnIndexSpace_SoALeaderIsNeverTheOrdinaryNpcAtItsIndex()
+        {
+            foreach (int populationBase in new[] { TownPlan.IndexBase, BiologyPopulation.IndexBase, ChemistryPopulation.IndexBase,
+                         PhysicsPopulation.IndexBase, MathPopulation.IndexBase, EarthPopulation.IndexBase })
+                Assert.Less(populationBase + 100000, NpcFactory.LeaderIndexBase, "Leaders sit above every population's indices");
+            Assert.Less(NpcFactory.LeaderIndexBase + 1000, 1 << 24, "Inside NpcSeed's 24-bit index field");
+
+            RunFacts facts = Facts(3);
+            int sameLines = 0, total = 0;
+            for (int seed = 1; seed <= 10; seed++)
+            foreach (Race race in RaceExtensions.All)
+            for (int i = 0; i < 3; i++)
+            {
+                NpcSpec folk = NpcFactory.ChooseParts(seed, race, i);
+                NpcSpec leader = NpcFactory.ChooseLeader(seed, race, i);
+                Assert.IsTrue(leader.IsLeader);
+                Assert.IsFalse(folk.IsLeader);
+                // The salt picks the lines' variants, the hint subject and the wander path (NpcMover), so they differ too.
+                Assert.AreNotEqual(folk.Salt, leader.Salt, $"{race} seed {seed} index {i}: the leader is the ordinary NPC");
+                Assert.AreEqual(NpcFactory.ChooseParts(seed, race, NpcFactory.LeaderIndexBase + i).Signature() + "+leader", leader.Signature());
+                Assert.AreEqual(leader.Signature(), NpcFactory.ChooseLeader(seed, race, i).Signature(), "Deterministic");
+                total++;
+                if (Dialogue.For(folk, facts, HintDensity.Full).SequenceEqual(Dialogue.For(leader, facts, HintDensity.Full))) sameLines++;
+            }
+            Assert.Less(sameLines, total / 2, $"Leaders say the same as the ordinary NPC at their index ({sameLines} of {total})");
+        }
+
         private static readonly string[] ScreenWords = { "screen", "north", "south", "east", "west", "centre", "edge" };
 
         private static RunFacts Facts(int seed)

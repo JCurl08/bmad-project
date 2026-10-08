@@ -11,7 +11,8 @@ namespace Game.Cube.Tests
     /// The readability pass (1.15): the art catalog maps every key the game uses to a Kenney sprite imported as 16 px per
     /// unit pixel art, no sprite is shared between two categories (or two enemies, items or gate kinds), a missing key
     /// logs once and falls back to its generated shape, NPC parts are outlined race silhouettes (never catalog art),
-    /// conversations are at most two lines ending on a true hint, and the death text is plain.
+    /// conversations are at most two lines ending on a true hint, and the death text is plain. 4.3: every race's NPC
+    /// design (and its leader's) is an outlined 16 px figure in the player's style, distinct by silhouette.
     /// </summary>
     public class ReadabilityTests
     {
@@ -306,7 +307,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(flash.shader.isSupported);
         }
 
-        // ---------- NPC parts ----------
+        // ---------- NPC parts (the swappable parts, drawn only with NpcFactory.PartArt on) ----------
 
         [Test]
         public void NpcParts_AreOutlinedRaceSilhouettes_NeverCatalogArt()
@@ -350,6 +351,161 @@ namespace Game.Cube.Tests
             var heads = RaceExtensions.All
                 .Select(r => string.Join("", NpcPartArt.Pixels(r, RacePartSets.For(r).Heads[0], out _, out _))).ToList();
             Assert.AreEqual(heads.Count, heads.Distinct().Count(), "Two races share a head silhouette");
+        }
+
+        // ---------- NPC designs (4.3) ----------
+
+        private static readonly NpcLook[] Looks = (NpcLook[])System.Enum.GetValues(typeof(NpcLook));
+
+        /// <summary>The player's tile (D 112) as texture pixels, read from its PNG.</summary>
+        private static Color32[] PlayerPixels()
+        {
+            Assert.IsTrue(Catalog().TryGetSprite(ArtKey.Player, out Sprite sprite));
+            var texture = new Texture2D(2, 2);
+            try
+            {
+                Assert.IsTrue(texture.LoadImage(System.IO.File.ReadAllBytes(AssetDatabase.GetAssetPath(sprite))));
+                Assert.AreEqual(NpcDesignArt.Size, texture.width);
+                return texture.GetPixels32();
+            }
+            finally
+            {
+                Object.DestroyImmediate(texture);
+            }
+        }
+
+        private static bool Opaque(Color32[] px, int x, int y) =>
+            x >= 0 && y >= 0 && x < NpcDesignArt.Size && y < NpcDesignArt.Size && px[y * NpcDesignArt.Size + x].a > 0;
+
+        private static bool[] Mask(Color32[] px) => px.Select(p => p.a > 0).ToArray();
+
+        private static int TopRow(Color32[] px)
+        {
+            for (int y = NpcDesignArt.Size - 1; y >= 0; y--)
+                for (int x = 0; x < NpcDesignArt.Size; x++)
+                    if (Opaque(px, x, y)) return y;
+            return -1;
+        }
+
+        [Test]
+        public void NpcDesigns_AreOutlinedSixteenPixelFigures_InThePlayersStyle()
+        {
+            Color32[] player = PlayerPixels();
+            int playerArea = player.Count(p => p.a > 0);
+            Color32 outline = NpcDesignArt.OutlineColor;
+            Assert.IsTrue(player.Any(p => p.a > 0 && p.r == outline.r && p.g == outline.g && p.b == outline.b),
+                "The designs use the player's own outline colour");
+            foreach (NpcLook look in Looks)
+            foreach (bool leader in new[] { false, true })
+            for (int accent = 0; accent < NpcDesignArt.AccentCount; accent++)
+            {
+                string name = $"{look}{(leader ? " leader" : "")} accent {accent}";
+                Color32[] px = NpcDesignArt.Pixels(look, leader, accent);
+                Assert.AreEqual(NpcDesignArt.Size * NpcDesignArt.Size, px.Length, name);
+                int area = px.Count(p => p.a > 0);
+                Assert.That(area, Is.InRange(playerArea * 0.85f, playerArea * 1.3f), $"{name}: about the player's bulk");
+                Assert.That(TopRow(px), Is.InRange(TopRow(player) - 2, NpcDesignArt.Size - 1), $"{name}: about the player's height");
+                Assert.IsTrue(Enumerable.Range(0, NpcDesignArt.Size).Any(x => Opaque(px, x, 0)), $"{name}: stands on the tile's bottom edge, like the player");
+                for (int y = 0; y < NpcDesignArt.Size; y++)
+                for (int x = 0; x < NpcDesignArt.Size; x++)
+                {
+                    Color32 c = px[y * NpcDesignArt.Size + x];
+                    if (c.a == 0) continue;
+                    Assert.AreEqual(255, c.a, $"{name}: crisp pixels");
+                    bool isOutline = c.r == outline.r && c.g == outline.g && c.b == outline.b;
+                    if (isOutline) continue;
+                    // A closed, thick outline: no figure pixel touches empty space, even diagonally (the feet may meet the
+                    // tile's bottom edge, as the player's do).
+                    for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (ny < 0) continue;
+                        Assert.IsTrue(Opaque(px, nx, ny), $"{name}: figure pixel {x},{y} is not outlined");
+                    }
+                }
+                // Two pixels thick at the sides: the outline ring is followed by more outline or the figure, never a gap.
+                for (int y = 1; y < NpcDesignArt.Size; y++)
+                {
+                    int left = 0;
+                    while (left < NpcDesignArt.Size && !Opaque(px, left, y)) left++;
+                    if (left == NpcDesignArt.Size) continue;
+                    Assert.IsTrue(Opaque(px, left + 1, y), $"{name}: the outline is two pixels thick at row {y}");
+                }
+
+                Sprite sprite = NpcDesignArt.SpriteFor(look, leader, accent);
+                Assert.AreEqual(FilterMode.Point, sprite.texture.filterMode, name);
+                Assert.AreEqual(NpcDesignArt.Size, sprite.texture.width, name);
+            }
+        }
+
+        [Test]
+        public void NpcDesigns_EachRaceHasItsOwnSilhouette_AndItsLeaderStandsOut()
+        {
+            Color32 purple = new Color32(0x68, 0x38, 0x6c, 255);
+            bool Royal(Color32 c) => c.a > 0 && c.r == purple.r && c.g == purple.g && c.b == purple.b;
+            bool Gold(Color32 c) => c.a > 0 && c.r == NpcDesignArt.CrownGold.r && c.g == NpcDesignArt.CrownGold.g && c.b == NpcDesignArt.CrownGold.b;
+            int Diff(bool[] a, bool[] b) => a.Where((v, i) => v != b[i]).Count();
+
+            // Every race (and dinosaur kind) differs from every other by shape, not only colour.
+            for (int i = 0; i < Looks.Length; i++)
+            for (int j = i + 1; j < Looks.Length; j++)
+            {
+                int d = Diff(Mask(NpcDesignArt.Pixels(Looks[i], false, 0)), Mask(NpcDesignArt.Pixels(Looks[j], false, 0)));
+                Assert.GreaterOrEqual(d, 12, $"{Looks[i]} and {Looks[j]} share a silhouette ({d} pixels differ)");
+            }
+            // The mapping is pinned race by race, so swapping two designs fails here.
+            Assert.AreEqual(NpcLook.Finch, NpcDesignArt.LookOf(Race.Finch, DinoVariant.None));
+            Assert.AreEqual(NpcLook.Chemistry, NpcDesignArt.LookOf(Race.Mushroom, DinoVariant.None));
+            Assert.AreEqual(NpcLook.Physics, NpcDesignArt.LookOf(Race.Alien, DinoVariant.None));
+            Assert.AreEqual(NpcLook.Shape, NpcDesignArt.LookOf(Race.Shape, DinoVariant.None));
+            Assert.AreEqual(NpcLook.Townsfolk, NpcDesignArt.LookOf(Race.Townsfolk, DinoVariant.None));
+            Assert.AreEqual(NpcLook.GroundDino, NpcDesignArt.LookOf(Race.Dinosaur, DinoVariant.Terrestrial));
+            Assert.AreEqual(NpcLook.AvianDino, NpcDesignArt.LookOf(Race.Dinosaur, DinoVariant.Avian));
+            Assert.AreEqual(NpcLook.GroundDino, NpcDesignArt.LookOf(Race.Dinosaur, DinoVariant.None), "A dinosaur without a kind is drawn as a ground one");
+            // And by what each design shows: the finch's orange beak, the alien's green skin, the mushroom's spotted cap
+            // (white pixels on its cap rows), the townsperson's straw hat, the ground dinosaur's teeth, the avian's blue.
+            bool Has(NpcLook look, string hex) => NpcDesignArt.Pixels(look, false, 0).Any(c => c.a > 0 && $"{c.r:x2}{c.g:x2}{c.b:x2}" == hex);
+            Assert.IsTrue(Has(NpcLook.Finch, "f77622"), "The finch has its orange beak");
+            Assert.IsTrue(Has(NpcLook.Physics, "63c74d"), "The Physics folk are green");
+            Assert.IsTrue(Has(NpcLook.AvianDino, "0099db"), "The avian dinosaur is blue");
+            Assert.IsTrue(Has(NpcLook.Townsfolk, "feae34"), "The townsperson wears a straw hat");
+            Assert.AreEqual(Looks.Length - 1, RaceExtensions.All.Select(r => NpcDesignArt.LookOf(r, DinoVariant.None)).Distinct().Count(),
+                "One design per race (the dinosaurs' two kinds add one)");
+
+            foreach (NpcLook look in Looks)
+            {
+                Color32[] folk = NpcDesignArt.Pixels(look, false, 0);
+                Color32[] leader = NpcDesignArt.Pixels(look, true, 0);
+                int d = Diff(Mask(folk), Mask(leader));
+                Assert.GreaterOrEqual(d, 12, $"{look}: the leader's silhouette is too close to its people's ({d} pixels differ)");
+                // The leader's marks: a gold crown on top and royal purple trim, which no ordinary NPC wears.
+                int crownRows = 0;
+                for (int y = NpcDesignArt.Size - 6; y < NpcDesignArt.Size; y++)
+                    if (Enumerable.Range(0, NpcDesignArt.Size).Any(x => Gold(leader[y * NpcDesignArt.Size + x]))) crownRows++;
+                Assert.GreaterOrEqual(crownRows, 2, $"{look}: the leader wears a gold crown");
+                Assert.GreaterOrEqual(leader.Count(Royal), 6, $"{look}: the leader wears royal purple");
+                for (int accent = 0; accent < NpcDesignArt.AccentCount; accent++)
+                    Assert.AreEqual(0, NpcDesignArt.Pixels(look, false, accent).Count(Royal), $"{look} accent {accent}: royal purple is the leaders'");
+                // A leader never varies; ordinary NPCs vary only by tint (the same silhouette in every accent).
+                Assert.AreEqual(leader, NpcDesignArt.Pixels(look, true, 2), $"{look}: leaders do not vary");
+                var accents = Enumerable.Range(0, NpcDesignArt.AccentCount).Select(a => NpcDesignArt.Pixels(look, false, a)).ToList();
+                Assert.AreEqual(accents.Count, accents.Select(a => string.Join(",", a.Select(c => $"{c.r}.{c.g}.{c.b}.{c.a}"))).Distinct().Count(),
+                    $"{look}: every accent looks different");
+                foreach (Color32[] a in accents)
+                    Assert.AreEqual(0, Diff(Mask(folk), Mask(a)), $"{look}: an accent changes the silhouette");
+            }
+
+            // The accent is seeded by the salt (no random draw), and every accent turns up.
+            var seen = new HashSet<int>();
+            for (uint salt = 0; salt < 64; salt++)
+            {
+                int accent = NpcDesignArt.AccentOf(salt);
+                Assert.That(accent, Is.InRange(0, NpcDesignArt.AccentCount - 1));
+                Assert.AreEqual(accent, NpcDesignArt.AccentOf(salt));
+                seen.Add(accent);
+            }
+            Assert.AreEqual(NpcDesignArt.AccentCount, seen.Count);
         }
 
         // ---------- Dialogue and text ----------
