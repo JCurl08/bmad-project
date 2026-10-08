@@ -8,6 +8,8 @@ namespace Game.Cube
     /// each building (a solid collider over its base and its art: Kenney tiles for the Town's cottages, TownArt for the
     /// rest), the statue in stone on its pedestal (solid), the marked door's TownDoor with its doormat and lantern, and a
     /// vent hut's bubbles. Everything lives under the module, so a rebuild removes it with the module.
+    /// Once its face is repaired (4.8, CubeWorld.RepairFace) the statue is lit: a gold halo behind it, the stone warmed to
+    /// gold, and a banner in the region's colour on each side. Art only, no colliders: a repair never moves anything.
     /// </summary>
     public class TownSquareView : MonoBehaviour
     {
@@ -36,6 +38,58 @@ namespace Game.Cube
 
         /// <summary>The marked door (story 4.6 makes it enterable).</summary>
         public TownDoor MarkedDoor { get; private set; }
+
+        /// <summary>The tint a lit statue's stone takes (4.8).</summary>
+        public static readonly Color LitStatueTint = new Color(1f, 0.9f, 0.55f);
+
+        /// <summary>A repair banner's scale (its art is 12 x 26 pixels at 8 a unit).</summary>
+        public const float BannerScale = 0.8f;
+
+        private SpriteRenderer statueArt;
+        private GameObject repairArt;
+        private bool repaired;
+
+        /// <summary>The repair's art (halo and banners), or null until the face is repaired.</summary>
+        public GameObject RepairArt => repairArt;
+
+        /// <summary>The statue's art.</summary>
+        public SpriteRenderer StatueArt => statueArt;
+
+        /// <summary>True once its face is repaired (4.8): the statue is lit and the banners fly.</summary>
+        public bool Repaired
+        {
+            get => repaired;
+            set
+            {
+                repaired = value;
+                if (value && repairArt == null) BuildRepairArt();
+                if (repairArt != null) repairArt.SetActive(value);
+                if (statueArt != null) statueArt.color = value ? LitStatueTint : Color.white;
+            }
+        }
+
+        /// <summary>The halo behind the statue and a banner each side of it (no colliders).</summary>
+        private void BuildRepairArt()
+        {
+            if (Layout == null) return;
+            Material material = statueArt != null ? statueArt.sharedMaterial : null;
+            repairArt = new GameObject("Repair");
+            repairArt.transform.SetParent(transform, false);
+            Rect art = Layout.StatueArt;
+            SpriteRenderer halo = NewRenderer("Halo", repairArt.transform, art.center, material, ArtOrder - 1);
+            halo.sprite = TownArt.RepairHalo();
+            float across = Mathf.Max(art.width, art.height) * 1.5f;
+            halo.transform.localScale = Vector3.one * (across / (halo.sprite.rect.width / halo.sprite.pixelsPerUnit));
+            foreach (float side in new[] { -1f, 1f })
+            {
+                // Poles at the statue's shoulders, the cloths flying outwards, clear of the leader's stand to the east.
+                SpriteRenderer banner = NewRenderer(side < 0f ? "Banner West" : "Banner East", repairArt.transform,
+                    new Vector2(side < 0f ? art.xMin + 0.2f : art.xMax - 0.2f, art.yMax - 0.3f), material, ArtOrder + 1);
+                banner.sprite = TownArt.RepairBanner(Layout.Theme);
+                banner.transform.localScale = Vector3.one * BannerScale;
+                if (side < 0f) banner.flipX = true;
+            }
+        }
 
         /// <summary>Builds the town of a town module's theme on it (once). Returns the view, or null for any other module.</summary>
         public static TownSquareView Build(ScreenModule module, Material material)
@@ -102,6 +156,7 @@ namespace Game.Cube
             Statue.size = layout.StatueSolid.size;
             SpriteRenderer figure = NewRenderer("Art", statue.transform, layout.StatueArt.center - layout.StatueSolid.center, material, ArtOrder);
             figure.sprite = TownArt.Statue(layout.Theme);
+            statueArt = figure;
         }
 
         /// <summary>A Town cottage from Kenney tiles (two roof tiles over a door tile and a wall tile); false without the art.</summary>

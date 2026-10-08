@@ -16,6 +16,8 @@ namespace Game.Cube
     /// TelegraphSeconds, holding still, then fires an order pulse along that line, so a moving player can step aside.
     /// Otherwise it follows the player's height along the membrane (or waits at the door while fetching).
     /// A swing that hits the Demon is passed to the arena (the fallback boss counts them).
+    /// The fight's tuning (ApplyTuning, 4.8's boss benefits) can slow its restoring (RestoreScale, NudgeSpeedNow) and its
+    /// pulses (PulseIntervalNow, PulseSpeedNow); ResetForFight puts the 1.11 values back.
     /// </summary>
     public class MaxwellDemon : MonoBehaviour, IAttackReceiver
     {
@@ -59,6 +61,28 @@ namespace Game.Cube
 
         private float pulseTimer;
         private float telegraphTimer;
+
+        /// <summary>The pause between fetches is RestoreIntervalAt times this (1, or more with SlowerRestore).</summary>
+        public float RestoreScale { get; private set; } = 1f;
+
+        /// <summary>The speed it steers a fetched particle at this fight (NudgeSpeed, or slower with SlowerRestore).</summary>
+        public float NudgeSpeedNow { get; private set; } = NudgeSpeed;
+
+        /// <summary>Seconds between pulses this fight (PulseInterval, or longer with SlowerShots).</summary>
+        public float PulseIntervalNow { get; private set; } = PulseInterval;
+
+        /// <summary>A pulse's speed this fight (PulseSpeed, or slower with SlowerShots).</summary>
+        public float PulseSpeedNow { get; private set; } = PulseSpeed;
+
+        /// <summary>Applies a fight's tuning (the arena calls it right after ResetForFight).</summary>
+        public void ApplyTuning(ArenaTuning tuning)
+        {
+            RestoreScale = tuning.RestoreScale;
+            NudgeSpeedNow = tuning.NudgeSpeed;
+            PulseIntervalNow = tuning.PulseInterval;
+            PulseSpeedNow = tuning.PulseSpeed;
+            restoreTimer = RestoreInterval * RestoreScale;
+        }
 
         /// <summary>The pause between fetches after fightSeconds of fight: RestoreInterval, growing as the Demon tires.</summary>
         public static float RestoreIntervalAt(float fightSeconds) =>
@@ -109,6 +133,10 @@ namespace Game.Cube
             Firing = false;
             Defeated = false;
             PulseDamage = DefaultPulseDamage;
+            RestoreScale = 1f;
+            NudgeSpeedNow = NudgeSpeed;
+            PulseIntervalNow = PulseInterval;
+            PulseSpeedNow = PulseSpeed;
             Restored = 0;
             PulsesFired = 0;
             HitsTaken = 0;
@@ -186,7 +214,7 @@ namespace Game.Cube
                 {
                     // Knocked free, gone or stuck: give up on this one for now.
                     StopFetch();
-                    restoreTimer = RestoreIntervalAt(arena.FightSeconds) * 0.5f;
+                    restoreTimer = RestoreIntervalAt(arena.FightSeconds) * RestoreScale * 0.5f;
                     return;
                 }
                 Vector2 door = arena.DoorCentre;
@@ -194,7 +222,7 @@ namespace Game.Cube
                 if (leg == FetchLeg.Approach)
                 {
                     Vector2 approach = door + new Vector2(strayDir * DoorApproach, 0f);
-                    fetching.Nudge(approach, NudgeSpeed);
+                    fetching.Nudge(approach, NudgeSpeedNow);
                     if (Vector2.Distance(fetching.Position, approach) < 0.35f * ScreenMath.ContentScale)
                     {
                         leg = FetchLeg.Through;
@@ -204,12 +232,12 @@ namespace Game.Cube
                 if (leg == FetchLeg.Through)
                 {
                     Vector2 exit = door + new Vector2(-strayDir * (HomeClearance + 0.4f * ScreenMath.ContentScale), 0f);
-                    fetching.Nudge(exit, NudgeSpeed);
+                    fetching.Nudge(exit, NudgeSpeedNow);
                     if (fetching.IsHome && Mathf.Abs(fetching.Position.x - arena.MembraneX) >= HomeClearance)
                     {
                         Restored++;
                         StopFetch();
-                        restoreTimer = RestoreIntervalAt(arena.FightSeconds);
+                        restoreTimer = RestoreIntervalAt(arena.FightSeconds) * RestoreScale;
                     }
                 }
                 return;
@@ -226,7 +254,7 @@ namespace Game.Cube
             fetching = stray;
             leg = FetchLeg.Approach;
             fetchElapsed = 0f;
-            stray.Nudge(stray.Position, NudgeSpeed);
+            stray.Nudge(stray.Position, NudgeSpeedNow);
         }
 
         private Particle NearestStray()
@@ -272,7 +300,7 @@ namespace Game.Cube
                 Vector2 aim = TelegraphAim;
                 EndTelegraph();
                 FirePulse(aim);
-                pulseTimer = PulseInterval;
+                pulseTimer = PulseIntervalNow;
                 return;
             }
             pulseTimer -= dt;
@@ -289,7 +317,7 @@ namespace Game.Cube
         {
             if (direction.sqrMagnitude < 1e-6f) direction = Vector2.left;
             PulsesFired++;
-            return arena.SpawnPulse(Position, direction.normalized * PulseSpeed, PulseDamage);
+            return arena.SpawnPulse(Position, direction.normalized * PulseSpeedNow, PulseDamage);
         }
 
         private void DrawTelegraph()

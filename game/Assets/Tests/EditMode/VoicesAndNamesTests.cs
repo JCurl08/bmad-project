@@ -339,6 +339,14 @@ namespace Game.Cube.Tests
             lines[Voice.Shape].UnionWith(Dialogue.BridgekeeperLines.Append(Dialogue.IslandLine).Append(Dialogue.GapCrosserLine).Append(Dialogue.LeaderLine(Race.Shape)).Append(Dialogue.QuestLine(Race.Shape)));
             lines[Voice.Ground].UnionWith(Dialogue.OldDiggerLines.Concat(Dialogue.WandLines).Append(Dialogue.NeutralWandLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
             lines[Voice.Sky].UnionWith(Dialogue.SkyWatcherLines.Append(Dialogue.HazardLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
+            // 4.8: every quest (each count and found), repair and mended line, in its leader's voice (the dinosaur's in both).
+            lines[Voice.Finch].UnionWith(Dialogue.LeaderQuestLines(Race.Finch));
+            lines[Voice.Mushroom].UnionWith(Dialogue.LeaderQuestLines(Race.Mushroom));
+            lines[Voice.Alien].UnionWith(Dialogue.LeaderQuestLines(Race.Alien));
+            lines[Voice.Shape].UnionWith(Dialogue.LeaderQuestLines(Race.Shape));
+            lines[Voice.Ground].UnionWith(Dialogue.LeaderQuestLines(Race.Dinosaur));
+            lines[Voice.Sky].UnionWith(Dialogue.LeaderQuestLines(Race.Dinosaur));
+            lines[Voice.Town].UnionWith(Dialogue.LeaderQuestLines(Race.Townsfolk));
             return lines;
         }
 

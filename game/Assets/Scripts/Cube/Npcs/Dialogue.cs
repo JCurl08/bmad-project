@@ -389,25 +389,113 @@ namespace Game.Cube
         public static string LeaderLine(Race race) => LeaderLines[race];
 
         /// <summary>
-        /// Each race's leader's quest hook (4.5), in their voice: their region is coming apart, and they ask the player to help
-        /// mend it by bringing back what was lost. Story 4.8 fills it in (the face's fragments) through QuestLine. The dinosaur
-        /// leader's suits both dinosaur voices.
+        /// Each race's leader's quest (4.5, filled in by 4.8), in their voice: their region broke into {count} fragments (its
+        /// die number), the player holds {found}, and all of them mend it. Count words come from CountWord ("four",
+        /// "none"). The Mayor's is MayorGiftLine (Town's one fragment, handed over at once). The dinosaur leader's suits both
+        /// dinosaur voices.
         /// </summary>
-        public static readonly IReadOnlyDictionary<Race, string> QuestLines = new Dictionary<Race, string>
+        public static readonly IReadOnlyDictionary<Race, string> QuestTemplates = new Dictionary<Race, string>
         {
-            [Race.Townsfolk] = "Here's the job, friend: every face out there is coming apart at the seams. Bring back whatever bits you find, and we'll mend the lot together!",
-            [Race.Finch] = "Hark: the " + InWorldText.Greenwood + " doth fray at every seam. Prithee, find what was lost and bring it hither, that we may mend it together.",
-            [Race.Mushroom] = "Ugh, the " + InWorldText.EmberVale + " is falling to *pieces* and I'm furious! And sad! Find what was lost and help me mend it? Oh, I'd love you forever!",
-            [Race.Alien] = "The " + InWorldText.Weightlands + " is coming apart, I think. Perhaps it always was? Bring me what was lost, and together we may mend it... or ponder it.",
-            [Race.Shape] = "The " + InWorldText.Bridgelands + " is broken into parts. If you find the lost parts, then bring them here. Given all of them, we mend it. Therefore, search.",
-            [Race.Dinosaur] = "The " + InWorldText.Wildlands + " is cracking from ridge to sky. Scout the trails, haul back what was lost, and we'll mend this ground together.",
+            [Race.Finch] = "Hark: the " + InWorldText.Greenwood + " doth fray, and {count} fragments are lost. Thou bearest {found} of them. Prithee, bring all {count} hither, that we may mend it together.",
+            [Race.Mushroom] = "Ugh, the " + InWorldText.EmberVale + " broke into {count} fragments and I'm furious! You've found {found}. Bring me all {count} and we'll mend it? Oh, I'd love you forever!",
+            [Race.Alien] = "The " + InWorldText.Weightlands + " lost {count} fragments, I think. You carry {found}... or do they carry you? Bring all {count}, and perhaps together we may mend it.",
+            [Race.Shape] = "The " + InWorldText.Bridgelands + " is broken into {count} fragments. You hold {found}. If you bring all {count}, then we mend it. Therefore, search.",
+            [Race.Dinosaur] = "The " + InWorldText.Wildlands + " cracked into {count} fragments, ridge to sky. You've hauled back {found}. Scout the trails, bring all {count} to camp, and we'll mend this ground.",
         };
 
-        /// <summary>A leader's quest hook (QuestLines; 4.8 adds the face's fragments).</summary>
-        public static string QuestLine(Race race) => QuestLines[race];
+        /// <summary>
+        /// The Mayor's quest (4.8): Town lost one fragment, and the Mayor hands it over on the spot (LeaderQuest grants it);
+        /// talking again hands it back and mends Town.
+        /// </summary>
+        public const string MayorGiftLine = "Here's the job, friend: every face is coming apart. Town lost just one fragment, and look, I found it! Hold on to it, then hand it back to me and we'll mend Town!";
 
-        /// <summary>A leader's whole conversation (4.5): their greeting, then their region's quest hook (two lines, MaxLines).</summary>
+        /// <summary>
+        /// What each leader says on taking all {count} fragments (4.8): the face is mended, and how it will help in the core
+        /// (BossBenefits.Of its theme), in voice and in plain words.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<Race, string> RepairTemplates = new Dictionary<Race, string>
+        {
+            [Race.Townsfolk] = "That's the one! There... Town is mended! At the core, Town's got your back: one extra heart for the fight. Now, every other face lost more fragments, so help each leader!",
+            [Race.Finch] = "Verily, all {count}! The " + InWorldText.Greenwood + " is whole again. When thou facest the Demon, its bouncing motes shall drift toward thee, as finches to seed.",
+            [Race.Mushroom] = "All {count}! Oh, I'm crying, it's mended! And I'm so furious at the Demon that I'll fizz away some of its bouncing motes. Fewer to mix for you!",
+            [Race.Alien] = "All {count}... the " + InWorldText.Weightlands + " is whole, I think. In the core, perhaps time will drag for the Demon, and it will tidy things back more slowly. Curious, no?",
+            [Race.Shape] = "Given all {count} fragments, the " + InWorldText.Bridgelands + " is mended. Therefore, in the core, the gaps at both ends of the Demon's wall will be wider. Use them.",
+            [Race.Dinosaur] = "All {count}! The " + InWorldText.Wildlands + " is solid ground again. I'll send a headwind into the core: the Demon's shots will fly slower and come less often.",
+        };
+
+        /// <summary>What each leader says once their face is mended (4.8), in voice.</summary>
+        public static readonly IReadOnlyDictionary<Race, string> MendedLines = new Dictionary<Race, string>
+        {
+            [Race.Townsfolk] = "Town's mended and gloriously messy again! Now the other faces: each leader is waiting on their own fragments.",
+            [Race.Finch] = "The " + InWorldText.Greenwood + " doth flourish, thanks to thee. Go now, and may the wind be kind to thy feathers.",
+            [Race.Mushroom] = "It's mended and I'm *so* happy! Go bonk that Demon for me! I'll be cheering! Loudly!",
+            [Race.Alien] = "Whole again. I wonder whether it was ever truly broken? Go well, traveller.",
+            [Race.Shape] = "The " + InWorldText.Bridgelands + " is whole. If the core waits, then go there.",
+            [Race.Dinosaur] = "Ground's holding and the sky's clear. Go give that Demon a storm of its own.",
+        };
+
+        /// <summary>A count in words for the quest lines: "none", "one" .. "six" (numerals past six).</summary>
+        public static string CountWord(int n)
+        {
+            switch (n)
+            {
+                case 0: return "none";
+                case 1: return "one";
+                case 2: return "two";
+                case 3: return "three";
+                case 4: return "four";
+                case 5: return "five";
+                case 6: return "six";
+                default: return n.ToString();
+            }
+        }
+
+        /// <summary>The count a leader's quest names when no run is given (QuestLine(race), the scans): four, none found.</summary>
+        public const int SampleCount = 4;
+
+        /// <summary>A leader's quest line for their face's count of fragments, with found of them held (the Mayor's: MayorGiftLine).</summary>
+        public static string QuestLine(Race race, int count, int found) => race == Race.Townsfolk
+            ? MayorGiftLine
+            : QuestTemplates[race].Replace("{count}", CountWord(count)).Replace("{found}", CountWord(found));
+
+        /// <summary>A leader's quest hook with no run to read (SampleCount, none found; the Mayor's gift line).</summary>
+        public static string QuestLine(Race race) => QuestLine(race, SampleCount, 0);
+
+        /// <summary>A leader's line on taking all count fragments (4.8).</summary>
+        public static string RepairLine(Race race, int count) => RepairTemplates[race].Replace("{count}", CountWord(count));
+
+        /// <summary>A leader's line once their face is mended (4.8).</summary>
+        public static string MendedLine(Race race) => MendedLines[race];
+
+        /// <summary>A leader's whole conversation (4.5) with no run to read: their greeting, then their quest hook (two lines, MaxLines).</summary>
         public static List<string> LeaderConversation(Race race) => new List<string>(MaxLines) { LeaderLine(race), QuestLine(race) };
+
+        /// <summary>A leader's conversation while their face's fragments are still out (4.8): their greeting, then the quest naming the count.</summary>
+        public static List<string> QuestConversation(Race race, int count, int found) =>
+            new List<string>(MaxLines) { LeaderLine(race), QuestLine(race, count, found) };
+
+        /// <summary>A leader's conversation as they mend the face (4.8).</summary>
+        public static List<string> RepairConversation(Race race, int count) => new List<string>(MaxLines) { RepairLine(race, count) };
+
+        /// <summary>A leader's conversation once the face is mended (4.8).</summary>
+        public static List<string> MendedConversation(Race race) => new List<string>(MaxLines) { MendedLine(race) };
+
+        /// <summary>Every quest, repair and mended line a race's leader can say (every count 2-6 and found 0..count; Town's own), for the scans.</summary>
+        public static IEnumerable<string> LeaderQuestLines(Race race)
+        {
+            if (race == Race.Townsfolk)
+            {
+                yield return MayorGiftLine;
+                yield return RepairLine(race, 1);
+            }
+            else
+                for (int count = 2; count <= DieNumbers.Highest; count++)
+                {
+                    for (int found = 0; found <= count; found++) yield return QuestLine(race, count, found);
+                    yield return RepairLine(race, count);
+                }
+            yield return MendedLine(race);
+        }
 
         /// <summary>
         /// What a shop's keeper says (4.6), in their voice: a welcome to a bare counter, then that the currency (InWorldText.Currency) is spent between
@@ -705,7 +793,8 @@ namespace Game.Cube
             foreach (Voice voice in Voices.All)
                 foreach (string line in SpokenLines(voice)) yield return line;
             foreach (string line in LeaderLines.Values) yield return line;
-            foreach (string line in QuestLines.Values) yield return line;
+            foreach (Race race in RaceExtensions.All)
+                foreach (string line in LeaderQuestLines(race)) yield return line;
             foreach (string[] keeper in KeeperLineTable.Values)
                 foreach (string line in keeper) yield return line;
             foreach (string line in DarwinLines) yield return line;

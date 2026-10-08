@@ -39,7 +39,9 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 - A dinosaur speaks by its kind: avian dinosaurs use Sky, the others Ground.
 - Townsfolk, the greeter and Sage Conkwell speak in the Town voice.
 
-**Leaders (4.5):** a leader greets the player (`Dialogue.LeaderLines`), then gives the region's quest hook in their voice (`Dialogue.QuestLines`): the region is coming apart, so bring back what was lost and help mend it. Story 4.8 fills the hook in with the face's fragments. Chief Rockjaw's hook suits both dinosaur voices.
+**Leaders (4.5):** a leader greets the player (`Dialogue.LeaderLines`), then gives the region's quest hook in their voice (`Dialogue.QuestLines`): the region is coming apart, so bring back what was lost and help mend it. Chief Rockjaw's hook suits both dinosaur voices.
+
+**Fragments (4.8):** the quest now names the face's count in words and how many the player holds (`Dialogue.QuestTemplates`, "{count}" and "{found}", e.g. "broken into five fragments. You hold two."). Handing in all of them gets the leader's repair line (`RepairTemplates`), which says in voice what the mended face does in the core; after that the leader thanks the player (`MendedLines`). The Mayor's quest is `MayorGiftLine`: he found Town's one fragment and hands it over, and the next talk hands it back. Every variant (counts 2-6, found 0..count) is in the voice and length scans (`Dialogue.LeaderQuestLines`).
 
 **Shop keepers (4.6):** a shop's keeper (`Dialogue.KeeperLines`, one pair per voice) welcomes the player to a bare counter, then says Jumbles* (`InWorldText.Currency`) are spent between trips (spending stays on the between-runs screen). Their label reads "Name the <race> shopkeeper". Everyone else inside a building talks like the town's residents.
 

@@ -66,6 +66,16 @@ namespace Game.Cube
             if (!IsDead) current = Mathf.Min(max, before + gained);
         }
 
+        /// <summary>
+        /// Caps current health at a value (never raises it, never kills: a dead or non-positive cap does nothing). The core
+        /// arena uses it to take back a fight's extra heart with no net heal (4.8 review).
+        /// </summary>
+        public void CapCurrent(float atMost)
+        {
+            if (IsDead || atMost <= 0f) return;
+            current = Mathf.Min(Current, atMost);
+        }
+
         /// <summary>Back to full health and alive (tests and tools; no run loop uses it yet).</summary>
         public void ResetHealth()
         {

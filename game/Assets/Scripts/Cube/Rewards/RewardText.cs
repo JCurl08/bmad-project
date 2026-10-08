@@ -13,8 +13,34 @@ namespace Game.Cube
         public const string SpeedPopup = "Quicker feet (this run)";
         public const string PowerPopup = "Harder bonk (this run)";
 
-        /// <summary>A fragment slot's popup until 4.8 numbers the fragments: "A shard of the Greenwood*".</summary>
-        public static string FragmentPopup(Theme theme) => "A shard of " + InWorldText.Region(theme);
+        /// <summary>A fragment's popup (4.8): "Fragment 3 of 5 from the Greenwood*".</summary>
+        public static string FragmentPopup(Theme theme, int ordinal, int count) => $"Fragment {ordinal} of {count} from {InWorldText.Region(theme)}";
+
+        /// <summary>The popup when a face is repaired: "The Greenwood* is mended!" ("Town is mended!").</summary>
+        public static string RepairPopup(Theme theme)
+        {
+            string region = InWorldText.Region(theme);
+            return char.ToUpperInvariant(region[0]) + region.Substring(1) + " is mended!";
+        }
+
+        /// <summary>The HUD's fragments label (the dice follow it, one per face, a pip per fragment).</summary>
+        public const string FragmentsLabel = "Fragments";
+
+        /// <summary>One face's fragment count as the HUD and map spell it: "2/4", or "mended".</summary>
+        public static string FragmentCount(int found, int count, bool mended) => mended ? "mended" : $"{found}/{count}";
+
+        /// <summary>
+        /// The HUD's fragments line as text (the HUD draws it as dice): "Fragments: Town mended, the Greenwood* 2/4, ...", for
+        /// the faces given (Town first), or null with none.
+        /// </summary>
+        public static string FragmentsLine(IEnumerable<(Theme Theme, int Found, int Count, bool Mended)> faces)
+        {
+            var parts = new List<string>();
+            if (faces != null)
+                foreach ((Theme theme, int found, int count, bool mended) in faces)
+                    parts.Add(InWorldText.Region(theme) + " " + FragmentCount(found, count, mended));
+            return parts.Count == 0 ? null : FragmentsLabel + ": " + string.Join(", ", parts);
+        }
 
         public static string UpgradePopup(RunUpgrade upgrade)
         {
@@ -69,7 +95,14 @@ namespace Game.Cube
             yield return HeartPopup;
             yield return SpeedPopup;
             yield return PowerPopup;
-            foreach (Theme t in CubeModel.ScienceThemes) yield return FragmentPopup(t);
+            yield return FragmentPopup(Theme.Town, 1, 1);
+            yield return RepairPopup(Theme.Town);
+            foreach (Theme t in CubeModel.ScienceThemes)
+            {
+                yield return FragmentPopup(t, 3, 5);
+                yield return RepairPopup(t);
+            }
+            yield return FragmentsLine(new[] { (Theme.Town, 1, 1, true), (Theme.Biology, 2, 4, false), (Theme.Math, 0, 6, false) });
             yield return HudLine(2, new[] { RunUpgrade.Heart, RunUpgrade.Heart, RunUpgrade.Speed, RunUpgrade.Power });
             yield return HudLine(1, new[] { RunUpgrade.Speed });
             yield return ChestsLine(3, 15);

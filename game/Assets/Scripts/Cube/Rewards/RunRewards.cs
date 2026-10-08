@@ -24,8 +24,20 @@ namespace Game.Cube
         /// <summary>The boosts taken this run, in order.</summary>
         public IReadOnlyList<RunUpgrade> Upgrades => upgrades;
 
-        /// <summary>The fragment slots found this run (their face and number): the hook 4.8's fragments fill.</summary>
+        /// <summary>The fragments found this run (their face and number), in the order found (4.8).</summary>
         public IReadOnlyList<(FaceId Face, int Ordinal)> Fragments => fragments;
+
+        /// <summary>How many of a face's fragments are held.</summary>
+        public int FragmentsOf(FaceId face)
+        {
+            int n = 0;
+            foreach ((FaceId f, int _) in fragments)
+                if (f == face) n++;
+            return n;
+        }
+
+        /// <summary>True when a face's fragment of that number is held.</summary>
+        public bool HasFragment(FaceId face, int ordinal) => fragments.Contains((face, ordinal));
 
         /// <summary>Raised whenever keys, boosts or fragments change.</summary>
         public event Action<RunRewards> Changed;
@@ -76,6 +88,7 @@ namespace Game.Cube
                     Apply(reward.Upgrade, +1);
                     break;
                 case RewardKind.FragmentSlot:
+                    if (fragments.Contains((face, reward.Ordinal))) return false;
                     fragments.Add((face, reward.Ordinal));
                     break;
                 default:

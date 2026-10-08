@@ -16,7 +16,7 @@ namespace Game.Cube
         Trial = 3,
         /// <summary>A portal to the cube's core.</summary>
         Portal = 4,
-        /// <summary>A face's town (4.5), on its centre screen.</summary>
+        /// <summary>A face's town (4.5), on its centre screen; Done = the face is mended (4.8).</summary>
         Town = 5,
     }
 
@@ -29,7 +29,7 @@ namespace Game.Cube
         /// <summary>Position inside the screen, 0..1 each way in the face's own frame (x right, y up).</summary>
         public readonly Vector2 Local;
 
-        /// <summary>Opened (gates) or completed (trials); false for the other kinds.</summary>
+        /// <summary>Opened (gates), completed (trials) or mended (towns, 4.8); false for the other kinds.</summary>
         public readonly bool Done;
 
         public MapMarker(MapMarkerKind kind, ScreenAddress screen, Vector2 local, bool done = false)
@@ -69,7 +69,8 @@ namespace Game.Cube
             {
                 ScreenModule module = world.ModuleAt(screen);
                 if (module == null) continue;
-                if (module.IsTownScreen) markers.Add(new MapMarker(MapMarkerKind.Town, screen, TownLocal));
+                if (module.IsTownScreen)
+                    markers.Add(new MapMarker(MapMarkerKind.Town, screen, TownLocal, world.Repairs != null && world.Repairs.IsRepaired(screen.Face)));
                 foreach (Gate gate in module.GetComponentsInChildren<Gate>())
                     markers.Add(At(world, MapMarkerKind.Gate, screen, gate.transform.position, gate.IsOpen));
                 foreach (ItemPickup pickup in module.GetComponentsInChildren<ItemPickup>())

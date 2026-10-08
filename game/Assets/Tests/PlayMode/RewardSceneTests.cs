@@ -231,7 +231,7 @@ namespace Game.Cube.Tests
             PlacePlayer(buried.transform.position + Vector3.right * 0.01f);
             yield return WaitUntilOrGameTimeout(() => buried.IsOpen, 1f);
             Assert.IsTrue(buried.IsOpen, "Touching a dug-up chest opens it");
-            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == RewardChest.PopupText(buried.Spot.What, buried.Theme)), "Its popup");
+            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == RewardChest.PopupText(buried.Spot.What, buried.Theme, buried.FragmentCount)), "Its popup");
             Assert.IsFalse(buried.Open(navigator.gameObject), "A chest opens once");
 
             // The key.

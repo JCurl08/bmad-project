@@ -49,7 +49,7 @@ namespace Game.Cube
 
         /// <summary>The legend's labels, in drawing order (one per marker style).</summary>
         public static readonly string[] LegendLabels =
-            { "You", "Start", "Town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal" };
+            { "You", "Start", "Town", "Mended town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal" };
 
         /// <summary>Every piece of text the map can show (for the voice-rule tests).</summary>
         public static IEnumerable<string> AllTexts()
@@ -60,6 +60,8 @@ namespace Game.Cube
             foreach (string label in LegendLabels) yield return label;
             foreach (InteriorKind kind in new[] { InteriorKind.Shop, InteriorKind.LeadersHall, InteriorKind.Home })
                 yield return InsideText(kind);
+            yield return RewardText.FragmentCount(2, 4, false);
+            yield return RewardText.FragmentCount(1, 1, true);
         }
 
         /// <summary>The map's header band (title, inside badge, close hint): the net starts below it.</summary>
@@ -90,6 +92,9 @@ namespace Game.Cube
         private static readonly Color PortalColor = new Color(1f, 0.4f, 0.8f);
         private static readonly Color StartColor = Color.white;
         private static readonly Color TownColor = new Color(1f, 0.62f, 0.3f);
+
+        /// <summary>A mended face's town marker and fragment tag (4.8): gold.</summary>
+        private static readonly Color MendedColor = new Color(1f, 0.9f, 0.3f);
         private static readonly Color PlayerColor = new Color(1f, 0.35f, 0.3f);
 
         [SerializeField] private CubeWorld world;
@@ -108,6 +113,7 @@ namespace Game.Cube
         private GUIStyle textStyle;
         private GUIStyle bannerStyle;
         private GUIStyle insideStyle;
+        private GUIStyle tagStyle;
 
         public CubeWorld World
         {
@@ -234,6 +240,24 @@ namespace Game.Cube
 
         public bool Toggle() => IsOpen ? Close() : Open();
 
+        /// <summary>
+        /// A face's fragment tag on the map (4.8): "found/count" of its fragments, or "mended"; null for a face with no
+        /// visited screen yet (the fog) or without a run.
+        /// </summary>
+        public string FragmentTag(FaceId face)
+        {
+            if (world == null || world.Model == null || world.Dice == null || world.Model.IsSealed(face)) return null;
+            if (tracker == null || tracker.Visits == null) return null;
+            bool visited = false;
+            for (int y = 0; y < world.FaceSize && !visited; y++)
+                for (int x = 0; x < world.FaceSize && !visited; x++)
+                    visited = tracker.Visits.IsVisited(new ScreenAddress(face, x, y));
+            if (!visited) return null;
+            RunRewards rewards = navigator != null ? navigator.GetComponent<RunRewards>() : null;
+            return RewardText.FragmentCount(rewards != null ? rewards.FragmentsOf(face) : 0, world.Dice.Of(face),
+                world.Repairs != null && world.Repairs.IsRepaired(face));
+        }
+
         /// <summary>Re-reads the markers from the live world (gates opened, items taken, trials solved since).</summary>
         public void Refresh()
         {
@@ -310,6 +334,53 @@ namespace Game.Cube
         /// <summary>Gap between faces in the net (pixels).</summary>
         private const float FaceGap = 6f;
 
+        /// <summary>A face's fragment tag on the map (4.8), in pixels: wide enough for "mended" at the tag's font.</summary>
+        public const float TagWidth = 54f, TagHeight = 16f;
+
+        /// <summary>Where the net sits on a screen this size: its top-left corner and the screen-cell size (pixels).</summary>
+        public static void NetFrame(float w, float h, int faceSize, out float left, out float top, out float cell)
+        {
+            cell = CellSize(w, h, faceSize);
+            float faceSpan = cell * faceSize;
+            float netW = CubeNet.Columns * faceSpan + (CubeNet.Columns - 1) * FaceGap;
+            float netH = CubeNet.Rows * faceSpan + (CubeNet.Rows - 1) * FaceGap;
+            left = Mathf.Floor((w - netW) / 2f);
+            top = HeaderHeight + Mathf.Floor(Mathf.Max(0f, (h - HeaderHeight - LegendHeight(w) - netH) / 2f));
+        }
+
+        /// <summary>The pixel rect of a net slot (a face's 3x3 of screens, its frame excluded).</summary>
+        public static Rect SlotRect(Vector2Int slot, int faceSize, float left, float top, float cell)
+        {
+            float span = cell * faceSize;
+            return new Rect(left + slot.x * (span + FaceGap), top + (CubeNet.Rows - 1 - slot.y) * (span + FaceGap), span, span);
+        }
+
+        /// <summary>
+        /// Where a face's fragment tag goes (4.8 review): never over a screen, always in an empty slot of the net touching the
+        /// face, just past its frame. Tried in order: the slot above (the tag's bottom-left there), below (top-left), left
+        /// (top-right), right (top-left), then the diagonals, below-right first (the corner touching the face). Town in the
+        /// middle of the cross has all four sides taken, so its tag sits in the empty slot below-right of it.
+        /// </summary>
+        public static Rect FragmentTagRect(CubeNet net, FaceId face, float left, float top, float cell)
+        {
+            Vector2Int slot = net.PlacementOf(face).Slot;
+            Rect f = SlotRect(slot, net.FaceSize, left, top, cell);
+            const float pad = 3f; // past the face's 2-pixel frame
+            bool Empty(int dx, int dy)
+            {
+                var s = new Vector2Int(slot.x + dx, slot.y + dy);
+                return s.x >= 0 && s.y >= 0 && s.x < CubeNet.Columns && s.y < CubeNet.Rows && !net.TryGetFace(s, out _);
+            }
+            if (Empty(0, 1)) return new Rect(f.xMin, f.yMin - pad - TagHeight, TagWidth, TagHeight);
+            if (Empty(0, -1)) return new Rect(f.xMin, f.yMax + pad, TagWidth, TagHeight);
+            if (Empty(-1, 0)) return new Rect(f.xMin - pad - TagWidth, f.yMin, TagWidth, TagHeight);
+            if (Empty(1, 0)) return new Rect(f.xMax + pad, f.yMin, TagWidth, TagHeight);
+            if (Empty(1, -1)) return new Rect(f.xMax + pad, f.yMax + pad, TagWidth, TagHeight);
+            if (Empty(-1, -1)) return new Rect(f.xMin - pad - TagWidth, f.yMax + pad, TagWidth, TagHeight);
+            if (Empty(1, 1)) return new Rect(f.xMax + pad, f.yMin - pad - TagHeight, TagWidth, TagHeight);
+            return new Rect(f.xMin - pad - TagWidth, f.yMin - pad - TagHeight, TagWidth, TagHeight);
+        }
+
         /// <summary>The legend's narrowest column (pixels): a marker glyph and the longest label at the map's font size.</summary>
         public const float MinLegendStep = 150f;
 
@@ -374,12 +445,9 @@ namespace Game.Cube
 
             CubeNet n = Net;
             int size = n.FaceSize;
-            float cell = CellSize(w, h, size);
+            NetFrame(w, h, size, out float left, out float top, out float cell);
             float faceSpan = cell * size;
-            float netW = CubeNet.Columns * faceSpan + (CubeNet.Columns - 1) * FaceGap;
             float netH = CubeNet.Rows * faceSpan + (CubeNet.Rows - 1) * FaceGap;
-            float left = Mathf.Floor((w - netW) / 2f);
-            float top = HeaderHeight + Mathf.Floor(Mathf.Max(0f, (h - HeaderHeight - LegendHeight(w) - netH) / 2f));
 
             Rect CellRect(Vector2Int netCell)
             {
@@ -407,6 +475,19 @@ namespace Game.Cube
                         Fill(new Rect(r.x + 1f, r.y + 1f, r.width - 2f, r.height - 2f), c);
                     }
                 }
+            }
+
+            // Each visited face's fragments (4.8): a tag beside the face, in an empty slot of the net (FragmentTagRect, never
+            // over a screen), "2/4", or "mended" in gold.
+            foreach (NetPlacement p in n.Placements)
+            {
+                string tag = FragmentTag(p.Face);
+                if (tag == null) continue;
+                Rect tagRect = FragmentTagRect(n, p.Face, left, top, cell);
+                Fill(tagRect, new Color(0.05f, 0.04f, 0.07f, 0.6f));
+                GUI.color = world.Repairs != null && world.Repairs.IsRepaired(p.Face) ? MendedColor : Color.white;
+                GUI.Label(tagRect, tag, tagStyle);
+                GUI.color = Color.white;
             }
 
             float glyph = Mathf.Max(6f, Mathf.Round(cell * 0.2f));
@@ -459,6 +540,7 @@ namespace Game.Cube
             yield return new KeyValuePair<string, Color>("Trial", TrialColor);
             yield return new KeyValuePair<string, Color>("Portal", PortalColor);
             yield return new KeyValuePair<string, Color>("Town", TownColor);
+            yield return new KeyValuePair<string, Color>("Mended town", MendedColor);
         }
 
         private static Rect Grow(Rect r, float by) => new Rect(r.x - by, r.y - by, r.width + 2f * by, r.height + 2f * by);
@@ -497,17 +579,28 @@ namespace Game.Cube
                     Tex(Disc, new Rect(at.x - s * 0.3f, at.y - s * 0.3f, s * 0.6f, s * 0.6f), PortalColor);
                     break;
                 case MapMarkerKind.Town:
-                    // A little house: a square under a stepped roof, on a dark backing.
+                    // A little house: a square under a stepped roof, on a dark backing; gold with a pennant once mended (4.8).
+                    Color house = done ? MendedColor : TownColor;
                     var wall = new Rect(at.x - s * 0.55f, at.y - s * 0.15f, s * 1.1f, s * 0.7f);
                     var roof = new Rect(at.x - s * 0.75f, at.y - s * 0.45f, s * 1.5f, s * 0.3f);
                     var peak = new Rect(at.x - s * 0.35f, at.y - s * 0.7f, s * 0.7f, s * 0.25f);
                     Fill(Grow(wall, o), dark);
                     Fill(Grow(roof, o), dark);
                     Fill(Grow(peak, o), dark);
-                    Fill(wall, TownColor);
-                    Fill(roof, TownColor);
-                    Fill(peak, TownColor);
+                    Fill(wall, house);
+                    Fill(roof, house);
+                    Fill(peak, house);
                     Fill(new Rect(at.x - s * 0.12f, at.y + s * 0.2f, s * 0.24f, s * 0.35f), dark);
+                    if (done)
+                    {
+                        // A pennant on a pole over the peak.
+                        var pole = new Rect(at.x - s * 0.05f, at.y - s * 1.15f, s * 0.12f, s * 0.5f);
+                        var flag = new Rect(at.x + s * 0.07f, at.y - s * 1.15f, s * 0.45f, s * 0.25f);
+                        Fill(Grow(pole, o), dark);
+                        Fill(Grow(flag, o), dark);
+                        Fill(pole, house);
+                        Fill(flag, house);
+                    }
                     break;
             }
         }
@@ -541,11 +634,12 @@ namespace Game.Cube
                     case 0: DrawPlayer(at, Vector2.right, s * 1.4f); break;
                     case 1: DrawMarker(MapMarkerKind.Start, false, at, s); break;
                     case 2: DrawMarker(MapMarkerKind.Town, false, at, s); break;
-                    case 3: DrawMarker(MapMarkerKind.Gate, false, at, s); break;
-                    case 4: DrawMarker(MapMarkerKind.Gate, true, at, s); break;
-                    case 5: DrawMarker(MapMarkerKind.Item, false, at, s); break;
-                    case 6: DrawMarker(MapMarkerKind.Trial, false, at, s); break;
-                    case 7: DrawMarker(MapMarkerKind.Trial, true, at, s); break;
+                    case 3: DrawMarker(MapMarkerKind.Town, true, at, s); break;
+                    case 4: DrawMarker(MapMarkerKind.Gate, false, at, s); break;
+                    case 5: DrawMarker(MapMarkerKind.Gate, true, at, s); break;
+                    case 6: DrawMarker(MapMarkerKind.Item, false, at, s); break;
+                    case 7: DrawMarker(MapMarkerKind.Trial, false, at, s); break;
+                    case 8: DrawMarker(MapMarkerKind.Trial, true, at, s); break;
                     default: DrawMarker(MapMarkerKind.Portal, false, at, s); break;
                 }
                 GUI.Label(new Rect(x + s * 2f + 6f, y, step - s * 2f - 6f, 24f), LegendLabels[i], textStyle);
@@ -614,6 +708,9 @@ namespace Game.Cube
             bannerStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             bannerStyle.normal.textColor = Color.white;
             insideStyle = new GUIStyle(GUI.skin.label) { fontSize = InsideFontSize, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+                padding = new RectOffset(0, 0, 0, 0) };
+            tagStyle.normal.textColor = Color.white;
             insideStyle.normal.textColor = Color.white;
         }
     }

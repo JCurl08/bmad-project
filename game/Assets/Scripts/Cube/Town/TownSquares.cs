@@ -10,7 +10,7 @@ namespace Game.Cube
     /// stand on the town's stands (TownLayout.Stands) and talk with their usual run-true hints. So a town is always its
     /// face's busiest screen, and no enemy is ever spawned there (the faces skip it). The Town face's own town is
     /// TownPopulation's (its first NPCs and Mayor Muddleton). Everything is removed on a rebuild.
-    /// Story 4.8 reads the leaders (LeaderOf) to hand them their face's fragments.
+    /// Each leader carries their face's quest (LeaderQuest, 4.8): bring all the face's fragments to mend it.
     /// </summary>
     public class TownSquares : MonoBehaviour, IHintDensityTarget
     {
@@ -116,7 +116,7 @@ namespace Game.Cube
                 Vector2 centre = world.ScreenCenter(screen);
 
                 NpcSpec leaderSpec = TownSquare.LeaderSpec(world.Seed, theme);
-                NpcTalker leader = SpawnLeader(world, leaderSpec, centre, layout.LeaderStand, target, root);
+                NpcTalker leader = SpawnLeader(world, leaderSpec, face, centre, layout.LeaderStand, target, root);
                 leader.name = $"Town Leader {face} {leaderSpec.DisplayName}";
                 leaders[face] = leader;
 
@@ -133,12 +133,18 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>A town's leader at their stand by the statue, keeping close to it (LeaderRoom), saying their quest hook.</summary>
-        public static NpcTalker SpawnLeader(CubeWorld world, NpcSpec spec, Vector2 screenCentre, Vector2 stand, Transform player, Transform parent)
+        /// <summary>
+        /// A town's leader at their stand by the statue, keeping close to it (LeaderRoom), with their face's quest (LeaderQuest,
+        /// 4.8): the greeting, then the quest naming the face's fragments; talking hands them in.
+        /// </summary>
+        public static NpcTalker SpawnLeader(CubeWorld world, NpcSpec spec, FaceId face, Vector2 screenCentre, Vector2 stand, Transform player,
+            Transform parent)
         {
             Vector2 at = screenCentre + stand;
             var bounds = new Rect(at - LeaderRoom, LeaderRoom * 2f);
-            return NpcFactory.Spawn(spec, TownSquare.LeaderLines(spec.Race), at, bounds, world.Relations, player, parent, world.Material);
+            NpcTalker leader = NpcFactory.Spawn(spec, TownSquare.LeaderLines(spec.Race), at, bounds, world.Relations, player, parent, world.Material);
+            LeaderQuest.Attach(leader, world, face);
+            return leader;
         }
 
         private void OnDestroy()

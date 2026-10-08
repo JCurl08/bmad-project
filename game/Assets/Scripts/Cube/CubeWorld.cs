@@ -89,6 +89,33 @@ namespace Game.Cube
         /// <summary>The run's roadblock rewards (4.7); null until the science faces are revealed.</summary>
         public RewardPlacement Rewards { get; private set; }
 
+        /// <summary>The run's die numbers (4.8): Town 1, the other faces 2-6; rolled on every rebuild.</summary>
+        public DieNumbers Dice { get; private set; }
+
+        /// <summary>The faces repaired this run (4.8; a fresh record on every rebuild). Repairing a face lights its town (TownViewOf).</summary>
+        public FaceRepairs Repairs { get; private set; } = new FaceRepairs();
+
+        /// <summary>Raised when a face is repaired this run (after its town shows it).</summary>
+        public event Action<FaceId> FaceRepaired;
+
+        /// <summary>A face's town (its centre module's TownSquareView), or null (no town, or not built yet).</summary>
+        public TownSquareView TownViewOf(FaceId face)
+        {
+            if (Model == null || !TownSquare.HasTown(FaceSize)) return null;
+            ScreenModule module = ModuleAt(new ScreenAddress(face, TownSquare.Cell(FaceSize)));
+            return module != null ? module.GetComponentInChildren<TownSquareView>(true) : null;
+        }
+
+        /// <summary>Repairs a face (its leader took all its fragments, LeaderQuest): records it and lights its town. False if it already was.</summary>
+        public bool RepairFace(FaceId face)
+        {
+            if (Repairs == null || !Repairs.Repair(face)) return false;
+            TownSquareView view = TownViewOf(face);
+            if (view != null) view.Repaired = true;
+            FaceRepaired?.Invoke(face);
+            return true;
+        }
+
         /// <summary>Every reward chest the reveal built (keys, boosts, fragment slots, Jumbles* chests).</summary>
         public IReadOnlyList<RewardChest> RewardChests => rewardChests;
 
@@ -167,6 +194,8 @@ namespace Game.Cube
         {
             seed = newSeed;
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize, sealedThemes);
+            Dice = DieNumbers.Roll(Model);
+            Repairs = new FaceRepairs();
             Layout = null;
             ItemPlacement = null;
             PlannedGateLooks = null;
@@ -494,7 +523,7 @@ namespace Game.Cube
         private void PlaceRewards()
         {
             if (Layout == null || library == null || ItemPlacement == null) return;
-            Rewards = RewardPlacement.Generate(Model, Layout, ItemPlacement, HiddenCurrency, library);
+            Rewards = RewardPlacement.Generate(Model, Layout, ItemPlacement, HiddenCurrency, library, null, Dice);
             foreach (RewardSpot spot in Rewards.Spots)
             {
                 Roadblock where = spot.Where;
@@ -574,6 +603,7 @@ namespace Game.Cube
             var chest = go.AddComponent<RewardChest>();
             chest.Spot = spot;
             chest.Theme = theme;
+            chest.FragmentCount = Dice != null ? Dice.Of(spot.Face) : 0;
             SpriteRenderer icon = null;
             ArtKey iconKey = RewardChest.IconOf(spot.What);
             if (iconKey != ArtKey.None)
@@ -581,6 +611,19 @@ namespace Game.Cube
                 Color tint = spot.What.Kind == RewardKind.FragmentSlot ? ThemeColor(theme) : Color.white;
                 icon = ArtCatalog.AddSprite(go.transform, "Icon", iconKey, new Vector2(0f, 0.55f * ScreenMath.ContentScale),
                     Vector2.one * RewardChest.IconSize, tint, 6, material);
+            }
+            if (spot.What.Kind == RewardKind.FragmentSlot)
+            {
+                // The fragment's number as die pips (4.8), on a badge beside its shard.
+                var badge = new GameObject("Die Badge");
+                badge.transform.SetParent(go.transform, false);
+                badge.transform.localPosition = RewardChest.BadgeOffset;
+                badge.transform.localScale = Vector3.one * RewardChest.BadgeScale;
+                var badgeRenderer = badge.AddComponent<SpriteRenderer>();
+                badgeRenderer.sprite = TownArt.DieFace(spot.What.Ordinal);
+                if (material != null) badgeRenderer.sharedMaterial = material;
+                badgeRenderer.sortingOrder = 7;
+                chest.Badge = badgeRenderer;
             }
             chest.SetArt(go.transform.Find("Visual").GetComponent<SpriteRenderer>(), icon);
             if (guard != null)

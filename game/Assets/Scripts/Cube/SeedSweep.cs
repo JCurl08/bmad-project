@@ -529,8 +529,8 @@ namespace Game.Cube
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";
             if (rewardsChecked)
-                what += ", every roadblock hiding a reward (no loose pickups, every required reward reachable, every face's " +
-                        "fragment slots, key and boost) and no empty screen";
+                what += ", every roadblock hiding a reward (no loose pickups, every required reward reachable, Town numbered 1 " +
+                        "and the other faces 2-6, every face numbered k holding fragments 1..k, its key and boost) and no empty screen";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

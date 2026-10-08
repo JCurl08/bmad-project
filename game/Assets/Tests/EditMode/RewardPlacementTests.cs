@@ -75,7 +75,7 @@ namespace Game.Cube.Tests
             {
                 Assert.IsEmpty(r.RewardProblems, $"seed {r.Seed}");
                 foreach (RewardSpot s in r.Rewards.Spots) kinds.Add(s.What.Kind);
-                // Every seed hides every kind, required: the fragment slots, a key, a boost, items and Jumbles*.
+                // Every seed hides every kind, required: the fragments, a key, a boost, items and Jumbles*.
                 foreach (RewardKind kind in new[] { RewardKind.Jumbles, RewardKind.Equipment, RewardKind.Upgrade, RewardKind.Key,
                              RewardKind.FragmentSlot })
                     Assert.Greater(r.Rewards.Count(kind, true), 0, $"seed {r.Seed}: no required {kind}");
@@ -118,17 +118,18 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void EveryFace_HasFragmentSlots1To6_AKey_AndABoost()
+        public void EveryFace_NumberedK_HoldsFragments1ToK_AKey_AndABoost()
         {
             for (int seed = 1; seed <= 50; seed++)
             {
                 Run run = Make(seed);
+                DieNumbers dice = DieNumbers.Roll(run.Model);
                 foreach (FaceId face in run.Layout.Faces.Keys)
                 {
                     List<RewardSpot> slots = run.Rewards.FragmentSlots(face);
-                    CollectionAssert.AreEqual(Enumerable.Range(1, RewardPlacement.FragmentSlotsPerFace), slots.Select(s => s.What.Ordinal),
+                    CollectionAssert.AreEqual(Enumerable.Range(1, dice.Of(face)), slots.Select(s => s.What.Ordinal),
                         $"seed {seed} {face}");
-                    Assert.IsTrue(slots.All(s => s.Required && s.What.Amount == RewardPlacement.ChestJumbles), "Required, with a fallback");
+                    Assert.IsTrue(slots.All(s => s.Required), "Required");
                     Assert.AreEqual(RewardPlacement.KeysPerFace, run.Rewards.Spots.Count(s => s.Face == face && s.What.Kind == RewardKind.Key));
                     Assert.AreEqual(RewardPlacement.UpgradesPerFace, run.Rewards.Spots.Count(s => s.Face == face && s.What.Kind == RewardKind.Upgrade));
                     Assert.IsFalse(run.Rewards.Spots.Any(s => TownSquare.IsTown(s.Where.Screen, run.Model.FaceSize)), "Nothing in a town");
@@ -314,7 +315,10 @@ namespace Game.Cube.Tests
                 Assert.IsTrue(rewards.Grant(Reward.Boost(RunUpgrade.Heart), FaceId.Top));
                 Assert.IsTrue(rewards.Grant(Reward.Boost(RunUpgrade.Speed), FaceId.Top));
                 Assert.IsTrue(rewards.Grant(Reward.Boost(RunUpgrade.Power), FaceId.Top));
-                Assert.IsTrue(rewards.Grant(Reward.Fragment(3, 5), FaceId.Back));
+                Assert.IsTrue(rewards.Grant(Reward.Fragment(3), FaceId.Back));
+                Assert.IsFalse(rewards.Grant(Reward.Fragment(3), FaceId.Back), "A fragment is held once");
+                Assert.AreEqual(1, rewards.FragmentsOf(FaceId.Back));
+                Assert.IsTrue(rewards.HasFragment(FaceId.Back, 3));
                 Assert.IsFalse(rewards.Grant(Reward.Jumbles(5), FaceId.Top), "Jumbles* go to the wallet");
                 Assert.AreEqual(2, rewards.Keys);
                 Assert.AreEqual((heart + 1, speed + 1, power + 1), (stats.MaxHealth, stats.Speed, stats.Power));
@@ -376,7 +380,10 @@ namespace Game.Cube.Tests
         {
             foreach (string line in RewardText.All())
                 Assert.IsEmpty(InWorldText.Problems(line), line);
-            Assert.AreEqual("A shard of the Greenwood*", RewardText.FragmentPopup(Theme.Biology));
+            Assert.AreEqual("Fragment 3 of 5 from the Greenwood*", RewardText.FragmentPopup(Theme.Biology, 3, 5));
+            Assert.AreEqual("Fragment 3 of 5 from the Greenwood*", RewardChest.PopupText(Reward.Fragment(3), Theme.Biology, 5));
+            Assert.AreEqual("The Greenwood* is mended!", RewardText.RepairPopup(Theme.Biology));
+            Assert.AreEqual("Town is mended!", RewardText.RepairPopup(Theme.Town));
             foreach (RunUpgrade u in new[] { RunUpgrade.Heart, RunUpgrade.Speed, RunUpgrade.Power })
                 Assert.IsNotNull(RewardChest.PopupText(Reward.Boost(u), Theme.Math));
             Assert.IsNull(RewardChest.PopupText(Reward.Jumbles(5), Theme.Math), "A Jumbles* chest's popup is the wallet's");

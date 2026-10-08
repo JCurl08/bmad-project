@@ -149,7 +149,8 @@ namespace Game.Cube
             if (IsTownSquare(square.Cell))
             {
                 NpcSpec mayor = TownSquare.LeaderSpec(seed, Theme.Town);
-                Leader = TownSquares.SpawnLeader(world, mayor, world.ScreenCenter(square), TownLayout.For(Theme.Town).LeaderStand, target, root);
+                Leader = TownSquares.SpawnLeader(world, mayor, CubeModel.StartFace, world.ScreenCenter(square), TownLayout.For(Theme.Town).LeaderStand,
+                    target, root);
                 Leader.name = $"Town Leader {mayor.DisplayName}";
             }
 

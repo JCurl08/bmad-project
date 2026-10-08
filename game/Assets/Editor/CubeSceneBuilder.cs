@@ -367,10 +367,35 @@ public static class CubeSceneBuilder
                       $"({bonus} bonus behind optional gates, {hiddenJumbles} hidden; {Avg(requiredJumbles)} reachable Jumbles* a run), " +
                       $"{kinds[(int)RewardKind.Equipment]} equipment ({lane} under a lane mound), {kinds[(int)RewardKind.Upgrade]} boosts " +
                       $"({boosts[0]} heart, {boosts[1]} speed, {boosts[2]} power), {kinds[(int)RewardKind.Key]} keys, " +
-                      $"{kinds[(int)RewardKind.FragmentSlot]} fragment slots; every kind on {everyKind}/{seeds} seeds. Roadblocks: " +
+                      $"{kinds[(int)RewardKind.FragmentSlot]} fragments; every kind on {everyKind}/{seeds} seeds. Roadblocks: " +
                       $"{roadblocks[(int)RoadblockKind.Gate]} gates, {roadblocks[(int)RoadblockKind.OptionalGate]} optional gates, " +
                       $"{roadblocks[(int)RoadblockKind.Mound]} mounds, {roadblocks[(int)RoadblockKind.Puzzle]} puzzle goals.\n";
-        text += "Reward mix per face a run (fragment slots/keys/boosts/equipment/Jumbles* chests, of which bonus): " +
+        // 4.8: the die numbers and the fragments they place.
+        int townOnes = 0, fragments = 0, reachableFragments = 0;
+        var numbersByTheme = new Dictionary<Theme, SortedSet<int>>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Rewards == null) continue;
+            var model = new CubeModel(r.Seed);
+            DieNumbers dice = DieNumbers.Roll(model);
+            if (dice.Of(CubeModel.StartFace) == DieNumbers.TownNumber) townOnes++;
+            for (int f = 0; f < CubeSettings.FaceCount; f++)
+            {
+                Theme theme = model.ThemeOf((FaceId)f);
+                if (!numbersByTheme.TryGetValue(theme, out SortedSet<int> set)) numbersByTheme[theme] = set = new SortedSet<int>();
+                set.Add(dice.Of((FaceId)f));
+            }
+            foreach (RewardSpot s in r.Rewards.Spots)
+            {
+                if (s.What.Kind != RewardKind.FragmentSlot) continue;
+                fragments++;
+                if (s.Required && r.RewardsChecked && r.RewardProblems.Count == 0) reachableFragments++; // proven only where the reward check ran
+            }
+        }
+        text += $"Fragments: {fragments} on the science faces over {seeds} seeds ({reachableFragments} proven reachable; " +
+                $"{DieNumbers.FragmentsPerRun - DieNumbers.TownNumber} a run, plus Town's 1 from its leader); Town numbered 1 on {townOnes}/{seeds} seeds; " +
+                "numbers seen per region: " + string.Join(", ", numbersByTheme.OrderBy(e => e.Key).Select(e => $"{e.Key} {{{string.Join(",", e.Value)}}}")) + ".\n";
+        text += "Reward mix per face a run (fragments/keys/boosts/equipment/Jumbles* chests, of which bonus): " +
                 string.Join("; ", CubeModel.ScienceThemes.Where(perTheme.ContainsKey).Select(t =>
                 {
                     int[] m = perTheme[t];

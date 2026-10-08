@@ -168,7 +168,11 @@ namespace Game.Cube
             if (keyboard.f6Key.wasPressedThisFrame) JumpToNextUnsealed();
             if (keyboard.f7Key.wasPressedThisFrame) SpawnEnemy();
             if (keyboard.f8Key.wasPressedThisFrame) LeaveCoreArena();
-            if (keyboard.f9Key.wasPressedThisFrame) Rest();
+            if (keyboard.f9Key.wasPressedThisFrame)
+            {
+                if (keyboard.shiftKey.isPressed) GatherFragments();
+                else Rest();
+            }
             if (keyboard.f10Key.wasPressedThisFrame) StartNewRun();
             if (keyboard.f11Key.wasPressedThisFrame) RevealMap();
         }
@@ -192,6 +196,21 @@ namespace Game.Cube
             if (navigator == null || !navigator.TryGetComponent(out Health health) || health.IsDead) return false;
             health.ResetHealth();
             return true;
+        }
+
+        /// <summary>
+        /// Shift+F9 (4.8): gives the player every fragment of the face they stand on (Town's too), so a talk with its leader
+        /// mends it. Returns the number given (0 in the core, without a run, or when all were held).
+        /// </summary>
+        public int GatherFragments()
+        {
+            if (navigator == null || navigator.InCoreArena || world.Model == null || world.Dice == null ||
+                !navigator.TryGetComponent(out RunRewards rewards)) return 0;
+            FaceId face = navigator.Current.Face;
+            int given = 0;
+            for (int i = 1; i <= world.Dice.Of(face); i++)
+                if (rewards.Grant(Reward.Fragment(i), face)) given++;
+            return given;
         }
 
         /// <summary>
@@ -440,7 +459,7 @@ namespace Game.Cube
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
                               "F1 overlay   F2 slots   F3 NPCs (+Shift leaders)   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
-                              "F8 leave core/room   F9 rest (full health)   F10 new run   F11 light map   M map";
+                              "F8 leave core/room   F9 rest (+Shift fragments)   F10 new run   F11 light map   M map";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;

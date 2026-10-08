@@ -18,6 +18,12 @@ namespace Game.Cube
         public const float Radius = 0.45f * ScreenMath.ContentScale;
         public const float Size = 0.85f * ScreenMath.ContentScale;
         public const float IconSize = 0.6f * ScreenMath.ContentScale;
+
+        /// <summary>Where a fragment's die badge sits (4.8): up and right of the chest, beside its shard.</summary>
+        public static readonly Vector2 BadgeOffset = new Vector2(0.45f, 0.75f) * ScreenMath.ContentScale;
+
+        /// <summary>The die badge's scale: its 11-pixel art (TownArt.DieFace, 8 px a unit) drawn about 1 unit across.</summary>
+        public const float BadgeScale = 0.75f;
         public static readonly Color PopupColor = new Color(0.75f, 0.95f, 1f);
 
         [SerializeField] private SpriteRenderer chest;
@@ -27,6 +33,12 @@ namespace Game.Cube
 
         /// <summary>The face's theme (for the fragment popup's region name).</summary>
         public Theme Theme { get; set; }
+
+        /// <summary>A fragment's face's die number: how many fragments that face holds (for its popup, "3 of 5").</summary>
+        public int FragmentCount { get; set; }
+
+        /// <summary>A fragment's die-pip badge (its number as pips), hidden with the icon once taken.</summary>
+        public SpriteRenderer Badge { get; set; }
 
         /// <summary>The roadblock that must open first when it is not a solid gate (a mound); null when nothing but a wall stands in the way.</summary>
         public IRewardGuard Guard { get; set; }
@@ -79,13 +91,14 @@ namespace Game.Cube
             {
                 RunRewards rewards = collector != null ? collector.GetComponentInParent<RunRewards>() : null;
                 if (rewards != null) rewards.Grant(reward, Spot.Face);
-                string text = PopupText(reward, Theme);
+                string text = PopupText(reward, Theme, FragmentCount);
                 if (text != null)
                     PickupPopup.Show(collector != null ? collector.transform.position : transform.position, text, PopupColor, 1.6f);
             }
             var col = GetComponent<Collider2D>();
             if (col != null) col.enabled = false;
             if (icon != null) icon.enabled = false;
+            if (Badge != null) Badge.enabled = false;
             if (chest != null)
             {
                 ArtCatalog.Apply(chest, ArtKey.ChestOpen, Vector2.one * Size);
@@ -98,13 +111,13 @@ namespace Game.Cube
         }
 
         /// <summary>The popup a reward shows when taken (null for Jumbles*, whose popup is the wallet's).</summary>
-        public static string PopupText(Reward reward, Theme theme)
+        public static string PopupText(Reward reward, Theme theme, int fragmentCount = 0)
         {
             switch (reward.Kind)
             {
                 case RewardKind.Key: return RewardText.KeyPopup;
                 case RewardKind.Upgrade: return RewardText.UpgradePopup(reward.Upgrade);
-                case RewardKind.FragmentSlot: return RewardText.FragmentPopup(theme);
+                case RewardKind.FragmentSlot: return RewardText.FragmentPopup(theme, reward.Ordinal, Mathf.Max(reward.Ordinal, fragmentCount));
                 default: return null;
             }
         }

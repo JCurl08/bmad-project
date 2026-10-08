@@ -67,6 +67,12 @@ its generated placeholder shape, so nothing renders invisible.
     touch of the region colour, the outline kept, on a stepped pedestal.
   - The plaza is a tiled paving of pale flagstones with soft joints, translucent over the region's floor. The marked door
     (story 4.6's way in) has a red woven rug in front and a lantern beside it.
+  - A mended face's town (4.8) lights its statue: the stone tinted gold, a soft three-step gold halo behind it
+    (`TownArt.RepairHalo`), and a pennant on a dark pole at each shoulder in the region's colour with a gold band
+    (`TownArt.RepairBanner`). Art only, no colliders.
+- **Fragments (4.8):** a fragment's chest keeps 4.7's shard icon (Kenney D101, tinted the region colour) and gains a die
+  badge beside it (`TownArt.DieFace`): a cream die face, outlined in plum, showing the fragment's number as plum pips laid
+  out like a real die. The HUD draws the same pip layouts (`TownArt.PipLayouts`) for its row of dice.
 - **Interiors (4.6):** the room behind each town's marked door (`TownInterior`, built by `TownInteriorView`) is drawn in
   code (`InteriorArt`) in the same style: tiled floors and walls in the race's colours (Town planks and plaster, finch
   woven straw and twigs, mushroom lilac moss and a spotted stalk wall, alien metal plates and lit panels, shape

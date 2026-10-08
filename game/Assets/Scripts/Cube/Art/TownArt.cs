@@ -561,6 +561,79 @@ namespace Game.Cube
             return sprite;
         }
 
+        // ------------------------------------------------------------------ fragments and repair (4.8)
+
+        /// <summary>Where each pip sits on a 7x7 die face (figure pixels), for 1..6 pips, like a real die.</summary>
+        public static readonly Vector2Int[][] PipLayouts =
+        {
+            new Vector2Int[0],
+            new[] { new Vector2Int(3, 3) },
+            new[] { new Vector2Int(1, 5), new Vector2Int(5, 1) },
+            new[] { new Vector2Int(1, 5), new Vector2Int(3, 3), new Vector2Int(5, 1) },
+            new[] { new Vector2Int(1, 1), new Vector2Int(1, 5), new Vector2Int(5, 1), new Vector2Int(5, 5) },
+            new[] { new Vector2Int(1, 1), new Vector2Int(1, 5), new Vector2Int(3, 3), new Vector2Int(5, 1), new Vector2Int(5, 5) },
+            new[] { new Vector2Int(1, 1), new Vector2Int(1, 3), new Vector2Int(1, 5), new Vector2Int(5, 1), new Vector2Int(5, 3), new Vector2Int(5, 5) },
+        };
+
+        /// <summary>A fragment's die badge: a cream die face showing its number as plum pips (1-6), outlined.</summary>
+        public static Sprite DieFace(int pips)
+        {
+            pips = Mathf.Clamp(pips, 1, 6);
+            string key = "Die Face " + pips;
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            var c = new Canvas(11, 11);
+            c.Rect(0, 0, 6, 6, Cr);
+            c.Px(0, 0, Pe); c.Px(6, 0, Pe); c.Px(0, 6, Pe); c.Px(6, 6, Pe); // softened corners
+            foreach (Vector2Int p in PipLayouts[pips]) c.Px(p.x, p.y, O);
+            c.Outline();
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>A mended town's banner (4.8): a pennant in the region's colour with a gold band, on a dark pole.</summary>
+        public static Sprite RepairBanner(Theme theme)
+        {
+            string key = "Repair Banner " + theme;
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            Color32 cloth = (Color32)CubeWorld.ThemeColor(theme);
+            cloth.a = 255;
+            var c = new Canvas(12, 26);
+            c.Rect(0, 0, 0, 21, Db);            // the pole
+            c.Px(0, 22, Gd);                    // its gold finial
+            c.Rect(1, 9, 6, 20, cloth);         // the cloth
+            c.Rect(1, 17, 6, 18, Gd);           // a gold band
+            c.Px(3, 8, cloth); c.Px(4, 8, cloth); // a swallowtail notch's sides
+            c.Px(1, 8, cloth); c.Px(6, 8, cloth);
+            c.Px(1, 7, cloth); c.Px(6, 7, cloth);
+            c.Outline();
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>A mended town's statue glow (4.8): a soft gold halo, brightest at its heart, drawn behind the statue.</summary>
+        public static Sprite RepairHalo()
+        {
+            const string key = "Repair Halo";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            const int size = 32;
+            var c = new Canvas(size, size, 0, 0);
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x + 0.5f - size / 2f) / (size / 2f), dy = (y + 0.5f - size / 2f) / (size / 2f);
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+                if (d > 1f) continue;
+                // Three hard steps of gold (pixel style: no smooth gradient), fainter outwards.
+                byte alpha = d < 0.45f ? (byte)150 : d < 0.75f ? (byte)95 : (byte)45;
+                c.Px(x, y, new Color32(Gd.r, Gd.g, Gd.b, alpha));
+            }
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
         /// <summary>A bubble from a vent hut's pipe: a mint ring with a glint.</summary>
         public static Sprite Bubble()
         {

@@ -20,6 +20,10 @@ namespace Game.Cube
     /// (CAP-27) puts the player back on the screen and face of the portal they came in by, and is gone once the fight is
     /// won. A world rebuild (new run) resets everything.
     /// UseFallbackBoss swaps the mixing phase for the simpler FallbackBoss.
+    /// Each fight starts with the run's boss benefits (4.8): every face repaired so far (CubeWorld.Repairs) gives one
+    /// (BossBenefits), and ArenaTuning turns them into the fight's particle count, membrane gaps, pull towards the player,
+    /// the Demon's restore and pulse pace, and extra hearts (given at the start, taken back when the fight ends). With none,
+    /// every value is the 1.11 arena's.
     /// </summary>
     public class CoreArena : MonoBehaviour, IBossArena
     {
@@ -36,7 +40,7 @@ namespace Game.Cube
         public const float MembraneThickness = 0.3f * ScreenMath.ContentScale;
         public const float DoorHalfHeight = 1f * ScreenMath.ContentScale;
 
-        /// <summary>Height of the always-open gap at each end of the membrane.</summary>
+        /// <summary>Height of the always-open gap at each end of the membrane (with no WiderGap benefit).</summary>
         public const float GapHeight = 1.5f * ScreenMath.ContentScale;
 
         public const int DefaultParticlesPerSide = 8;
@@ -65,6 +69,29 @@ namespace Game.Cube
         private BossFight fight;
         private CubeWorld subscribed;
         private int fightIndex;
+        private float gapHeight = GapHeight;
+        private int heartsGranted;
+        private PlayerStats heartsTo;
+        private float healthAtGrant;
+
+        /// <summary>Tests: the benefits every next fight uses instead of the run's repaired faces (null: the run's).</summary>
+        public BossBenefit? BenefitsOverride { get; set; }
+
+        /// <summary>The benefits the next fight would start with: the override, else the run's repaired faces (BossBenefits).</summary>
+        public BossBenefit RunBenefits => BenefitsOverride ??
+            (world != null && world.Model != null && world.Repairs != null ? world.Repairs.Benefits(world.Model) : BossBenefit.None);
+
+        /// <summary>The benefits of the current (or last) fight.</summary>
+        public BossBenefit ActiveBenefits { get; private set; }
+
+        /// <summary>The tuning of the current (or last) fight (ArenaTuning.For its benefits).</summary>
+        public ArenaTuning Tuning { get; private set; } = ArenaTuning.Base();
+
+        /// <summary>The membrane gaps' height now (GapHeight, or wider with the WiderGap benefit).</summary>
+        public float CurrentGapHeight => gapHeight;
+
+        /// <summary>Hearts the current fight added to the player (ExtraHeart), taken back when it ends.</summary>
+        public int HeartsGranted => heartsGranted;
 
         private static readonly Color MembraneColor = new Color(0.85f, 0.8f, 1f);
         private static readonly Color CrackedColor = new Color(0.35f, 0.33f, 0.4f, 0.5f);
@@ -98,7 +125,7 @@ namespace Game.Cube
         public Vector2 DoorCentre => Centre;
 
         /// <summary>The membrane runs this far above and below the centre; the gaps lie beyond it.</summary>
-        public float MembraneHalfSpan => InnerHalf.y - GapHeight;
+        public float MembraneHalfSpan => InnerHalf.y - gapHeight;
 
         /// <summary>The walkable inside of the arena (world).</summary>
         public Rect Inner => new Rect(Centre - InnerHalf, InnerHalf * 2f);
@@ -108,7 +135,7 @@ namespace Game.Cube
         {
             get
             {
-                float y = MembraneHalfSpan + GapHeight / 2f;
+                float y = MembraneHalfSpan + gapHeight / 2f;
                 return new[] { Centre + new Vector2(0f, y), Centre - new Vector2(0f, y) };
             }
         }
@@ -465,17 +492,25 @@ namespace Game.Cube
             ClearFight();
             RestorePartition();
             fightIndex++;
+            ActiveBenefits = RunBenefits;
+            Tuning = ArenaTuning.For(ActiveBenefits, particlesPerSide);
+            LayMembrane(Tuning.GapHeight);
             int seed = world != null ? world.Seed : 0;
             Sprite disc = ArtCatalog.Get(ArtKey.Particle);
             Material material = world != null ? world.Material : null;
-            for (int i = 0; i < particlesPerSide * 2; i++)
+            int perSide = Tuning.ParticlesPerSide;
+            for (int i = 0; i < perSide * 2; i++)
             {
-                ArenaSide home = i < particlesPerSide ? ArenaSide.Warm : ArenaSide.Cool;
-                int k = i % particlesPerSide;
+                ArenaSide home = i < perSide ? ArenaSide.Warm : ArenaSide.Cool;
+                int k = i % perSide;
                 var rng = new SeededRng(DriftSeed(seed, fightIndex, i), RngStream);
-                particles.Add(Particle.Spawn(this, home, OrderedSpot(home, k), rng, particleRoot, disc, material, bounce));
+                Particle particle = Particle.Spawn(this, home, OrderedSpot(home, k), rng, particleRoot, disc, material, bounce);
+                particle.Attraction = Tuning.Attract;
+                particles.Add(particle);
             }
             demon.ResetForFight();
+            demon.ApplyTuning(Tuning);
+            GrantHearts(Tuning.Hearts);
             WatchPlayer();
             Meter = 0f;
             FightSteps = 0;
@@ -588,9 +623,63 @@ namespace Game.Cube
             return pulse;
         }
 
+        /// <summary>The ExtraHeart benefit: hearts added (filled) to the player's max for this fight.</summary>
+        private void GrantHearts(int hearts)
+        {
+            TakeBackHearts();
+            if (hearts <= 0 || navigator == null || !navigator.TryGetComponent(out PlayerStats stats)) return;
+            healthAtGrant = stats.Health != null ? stats.Health.Current : 0f;
+            stats.MaxHealth += hearts; // Health.SetMax adds them filled
+            heartsGranted = hearts;
+            heartsTo = stats;
+        }
+
+        /// <summary>
+        /// Takes the fight's extra hearts back (the fight was won, lost or abandoned, or the run was rebuilt) with no net heal
+        /// (4.8 review): the max drops back, and current health is capped at what it was when the hearts were given (so an
+        /// enter-and-leave never gains health; damage taken in the fight still counts, past what the extra heart absorbed).
+        /// </summary>
+        private void TakeBackHearts()
+        {
+            if (heartsGranted > 0 && heartsTo != null)
+            {
+                heartsTo.MaxHealth -= heartsGranted;
+                if (heartsTo.Health != null) heartsTo.Health.CapCurrent(healthAtGrant);
+            }
+            heartsGranted = 0;
+            heartsTo = null;
+        }
+
+        /// <summary>
+        /// Sets the membrane gaps' height: the two membrane segments are resized and moved so each end leaves a gap that tall
+        /// (nothing changes when the height is already laid, so a fight with no WiderGap builds exactly the 1.11 arena).
+        /// </summary>
+        private void LayMembrane(float height)
+        {
+            if (Mathf.Approximately(height, gapHeight) && membraneLaid) return;
+            gapHeight = height;
+            membraneLaid = true;
+            float span = MembraneHalfSpan - DoorHalfHeight;
+            float segmentY = DoorHalfHeight + span / 2f;
+            for (int i = 0; i < membraneColliders.Count; i++)
+            {
+                Collider2D c = membraneColliders[i];
+                if (c == null) continue;
+                float sign = i == 0 ? 1f : -1f;
+                c.transform.position = Centre + new Vector2(0f, sign * segmentY);
+                if (c is BoxCollider2D box) box.size = new Vector2(MembraneThickness, span);
+                SpriteRenderer r = i < membraneRenderers.Count ? membraneRenderers[i] : null;
+                if (r != null) r.transform.localScale = new Vector3(MembraneThickness, span, 1f);
+            }
+            Physics2D.SyncTransforms();
+        }
+
+        private bool membraneLaid = true; // EnsureBuilt lays the membrane at GapHeight
+
         private void Win()
         {
             FightActive = false;
+            TakeBackHearts();
             Outcome = CoreOutcome.Victory;
             demon.Defeat();
             RefreshExit();
@@ -606,6 +695,7 @@ namespace Game.Cube
         private void Lose()
         {
             FightActive = false;
+            TakeBackHearts();
             Outcome = CoreOutcome.Defeat;
             demon.Stand();
             RefreshExit();
@@ -620,6 +710,7 @@ namespace Game.Cube
         private void AbandonFight()
         {
             FightActive = false;
+            TakeBackHearts();
             if (demon != null) demon.ResetForFight();
             UnwatchPlayer();
             ClearFight();
@@ -633,6 +724,9 @@ namespace Game.Cube
             Meter = 0f;
             fight = null;
             RestorePartition();
+            LayMembrane(GapHeight);
+            ActiveBenefits = BossBenefit.None;
+            Tuning = ArenaTuning.Base(particlesPerSide);
             portals.Clear();
             hasEntry = false;
             Exits = 0;

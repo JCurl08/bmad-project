@@ -284,7 +284,43 @@ namespace Game.Cube.Tests
             Assert.GreaterOrEqual(step, CubeMap.MinLegendStep);
             foreach (string label in CubeMap.LegendLabels)
                 Assert.LessOrEqual(30f + label.Length * 8f, step, label);
-            Assert.AreEqual(2, rows, "Nine labels wrap into two rows at 960 px");
+            Assert.AreEqual(2, rows, "Ten labels (4.8 added \"Mended town\") wrap into two rows at 960 px");
+        }
+
+        [Test]
+        public void FragmentTags_SitBesideTheirFaces_NeverOverAScreen_EachOther_OrTheHeaderAndLegend()
+        {
+            foreach (Vector2 screen in new[] { new Vector2(960f, 600f), new Vector2(1280f, 720f), new Vector2(1920f, 1080f), new Vector2(800f, 600f) })
+            for (int seed = 1; seed <= 5; seed++)
+            {
+                CubeNet net = CubeNet.For(new CubeModel(seed));
+                CubeMap.NetFrame(screen.x, screen.y, net.FaceSize, out float left, out float top, out float cell);
+                var faces = net.Placements.Select(p => CubeMap.SlotRect(p.Slot, net.FaceSize, left, top, cell)).ToList();
+                var tags = new List<Rect>();
+                foreach (NetPlacement p in net.Placements)
+                {
+                    Rect tag = CubeMap.FragmentTagRect(net, p.Face, left, top, cell);
+                    string where = $"{screen} seed {seed} {p.Face} at {p.Slot}";
+                    foreach (Rect face in faces)
+                    {
+                        // The face's frame is drawn 2 px round its screens.
+                        var framed = new Rect(face.x - 2f, face.y - 2f, face.width + 4f, face.height + 4f);
+                        Assert.IsFalse(tag.Overlaps(framed), $"{where}: the tag {tag} covers a face {framed}");
+                    }
+                    foreach (Rect other in tags) Assert.IsFalse(tag.Overlaps(other), $"{where}: two tags overlap");
+                    Assert.GreaterOrEqual(tag.xMin, 0f, where);
+                    Assert.LessOrEqual(tag.xMax, screen.x, where);
+                    Assert.GreaterOrEqual(tag.yMin, CubeMap.HeaderHeight, $"{where}: under the header");
+                    Assert.LessOrEqual(tag.yMax, screen.y - CubeMap.LegendHeight(screen.x), $"{where}: above the legend");
+                    // Beside its own face: within a few pixels of its frame.
+                    Rect own = CubeMap.SlotRect(p.Slot, net.FaceSize, left, top, cell);
+                    var near = new Rect(own.x - 8f - CubeMap.TagWidth, own.y - 8f - CubeMap.TagHeight, own.width + 16f + 2f * CubeMap.TagWidth,
+                        own.height + 16f + 2f * CubeMap.TagHeight);
+                    Assert.IsTrue(near.Contains(tag.min) && near.Contains(tag.max), $"{where}: next to its face");
+                    tags.Add(tag);
+                }
+                Assert.GreaterOrEqual(CubeMap.TagWidth, 6f * 8f, "\"mended\" fits (about 8 px a character)");
+            }
         }
     }
 }

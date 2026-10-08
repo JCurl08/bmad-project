@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -20,7 +21,10 @@ namespace Game.Cube
         /// <summary>A key: held for the run (4.9's locked edges use it up); an unused one is cashed in at the run's end.</summary>
         Key = 3,
 
-        /// <summary>A numbered fragment slot (1-6 per face) that 4.8 fills with the face's fragments.</summary>
+        /// <summary>
+        /// A numbered fragment (4.8): on the face numbered k (DieNumbers), fragments 1..k fill its first k fragment slots; the
+        /// slots above k hold plain Jumbles* chests instead.
+        /// </summary>
         FragmentSlot = 4,
     }
 
@@ -75,7 +79,7 @@ namespace Game.Cube
     {
         public readonly RewardKind Kind;
 
-        /// <summary>Jumbles*: the amount. FragmentSlot: the Jumbles* the slot gives if 4.8 leaves it without a fragment.</summary>
+        /// <summary>Jumbles*: the amount (0 for every other kind).</summary>
         public readonly int Amount;
 
         /// <summary>Equipment: the item's home theme.</summary>
@@ -84,7 +88,7 @@ namespace Game.Cube
         /// <summary>Upgrade: the boost.</summary>
         public readonly RunUpgrade Upgrade;
 
-        /// <summary>FragmentSlot: its number on its face, 1..FragmentSlotsPerFace (4.8 fills 1..k on the face numbered k).</summary>
+        /// <summary>FragmentSlot: the fragment's number on its face, 1..k on the face numbered k (shown as die pips).</summary>
         public readonly int Ordinal;
 
         private Reward(RewardKind kind, int amount = 0, Theme item = Theme.Town, RunUpgrade upgrade = RunUpgrade.Heart, int ordinal = 0)
@@ -100,7 +104,7 @@ namespace Game.Cube
         public static Reward Equipment(Theme item) => new Reward(RewardKind.Equipment, item: item);
         public static Reward Boost(RunUpgrade upgrade) => new Reward(RewardKind.Upgrade, upgrade: upgrade);
         public static Reward Key() => new Reward(RewardKind.Key);
-        public static Reward Fragment(int ordinal, int fallback) => new Reward(RewardKind.FragmentSlot, fallback, ordinal: ordinal);
+        public static Reward Fragment(int ordinal) => new Reward(RewardKind.FragmentSlot, ordinal: ordinal);
 
         public bool Equals(Reward o) => Kind == o.Kind && Amount == o.Amount && Item == o.Item && Upgrade == o.Upgrade && Ordinal == o.Ordinal;
         public override bool Equals(object obj) => obj is Reward o && Equals(o);
@@ -114,7 +118,7 @@ namespace Game.Cube
                 case RewardKind.Equipment: return $"{Item} item";
                 case RewardKind.Upgrade: return $"{Upgrade} boost";
                 case RewardKind.Key: return "key";
-                default: return $"fragment slot {Ordinal}";
+                default: return $"fragment {Ordinal}";
             }
         }
     }
@@ -172,8 +176,9 @@ namespace Game.Cube
     /// <item>Every face's pool: its other required gates' alcoves, its puzzle goals, a filler mound on each of its
     /// screens with no roadblock yet (so every screen holds something), and extra mounds on free hidden-item slots
     /// while the pool is under ReservedPerFace. The pool is shuffled; its first FragmentSlotsPerFace spots are the face's
-    /// fragment slots 1..6 (4.8 fills them), then KeysPerFace keys, UpgradesPerFace boosts, and Jumbles* chests for the
-    /// rest.</item>
+    /// fragment slots 1..6: on the face numbered k (DieNumbers, 4.8) slots 1..k hold fragments 1..k and the slots above k
+    /// plain Jumbles* chests (ChestJumbles). Then KeysPerFace keys, UpgradesPerFace boosts, and Jumbles* chests for the
+    /// rest. (The die numbers decide only what the reserved slots hold, so every draw is as in 4.7.)</item>
     /// </list>
     /// The sweep (FindProblems) proves every required reward reachable, no reward outside a roadblock and no empty screen.
     /// </summary>
@@ -200,7 +205,7 @@ namespace Game.Cube
         /// <summary>The pool a face needs: its fragment slots, keys and boosts.</summary>
         public const int ReservedPerFace = FragmentSlotsPerFace + KeysPerFace + UpgradesPerFace;
 
-        /// <summary>Jumbles* in a chest from a face's pool (and the fallback of a fragment slot 4.8 leaves empty).</summary>
+        /// <summary>Jumbles* in a chest from a face's pool (and in a fragment slot above the face's die number).</summary>
         public const int ChestJumbles = 5;
 
         /// <summary>Jumbles* in an optional gate's bonus chest.</summary>
@@ -220,7 +225,7 @@ namespace Game.Cube
             this.spots = new List<RewardSpot>(spots ?? Array.Empty<RewardSpot>());
         }
 
-        /// <summary>A face's fragment slots in ordinal order (1..FragmentSlotsPerFace): the hook 4.8 fills.</summary>
+        /// <summary>A face's fragments in number order (1..k on the face numbered k).</summary>
         public List<RewardSpot> FragmentSlots(FaceId face)
         {
             var list = new List<RewardSpot>();
@@ -258,13 +263,15 @@ namespace Game.Cube
             : new Roadblock(RoadblockKind.Mound, pickup.Screen, Roadblock.LaneSpot);
 
         /// <summary>The run's rewards, as the game (CubeWorld) and the sweep both make them.</summary>
+        /// <remarks>dice defaults to the run's own (DieNumbers.Roll(model)).</remarks>
         public static RewardPlacement Generate(CubeModel model, CubeLayout layout, ItemPlacement items, HiddenCurrencyPlacement hidden,
-            IHiddenSlotCatalog catalog, IReadOnlyList<PuzzleGoal> puzzles = null)
+            IHiddenSlotCatalog catalog, IReadOnlyList<PuzzleGoal> puzzles = null, DieNumbers dice = null)
         {
             if (model == null) throw new ArgumentNullException(nameof(model));
             if (layout == null) throw new ArgumentNullException(nameof(layout));
             if (items == null) throw new ArgumentNullException(nameof(items));
             if (catalog == null) throw new ArgumentNullException(nameof(catalog));
+            dice = dice ?? DieNumbers.Roll(model);
 
             var rngs = new Dictionary<FaceId, SeededRng>();
             SeededRng Rng(FaceId face)
@@ -360,9 +367,9 @@ namespace Game.Cube
                 if (!pools.TryGetValue((FaceId)f, out List<Roadblock> pool)) continue;
                 SeededRng rng = Rng((FaceId)f);
                 rng.Shuffle(pool);
-                int k = 0;
+                int k = 0, number = dice.Of((FaceId)f);
                 for (int ordinal = 1; ordinal <= FragmentSlotsPerFace && k < pool.Count; ordinal++)
-                    Add(pool[k++], Reward.Fragment(ordinal, ChestJumbles), true);
+                    Add(pool[k++], ordinal <= number ? Reward.Fragment(ordinal) : Reward.Jumbles(ChestJumbles), true);
                 for (int i = 0; i < KeysPerFace && k < pool.Count; i++) Add(pool[k++], Reward.Key(), true);
                 for (int i = 0; i < UpgradesPerFace && k < pool.Count; i++)
                     Add(pool[k++], Reward.Boost((RunUpgrade)rng.NextInt(3)), true);
@@ -394,7 +401,8 @@ namespace Game.Cube
         /// lane spot of a non-town screen, a puzzle goal), one reward per roadblock;</item>
         /// <item>every gate and optional gate hides one, every item pickup and hidden currency spot is a reward (no loose
         /// pickups), and optional gates hide only bonus Jumbles*;</item>
-        /// <item>every science face has its fragment slots 1..FragmentSlotsPerFace, its keys and boosts;</item>
+        /// <item>every science face numbered k (dice, by default the run's) holds exactly fragments 1..k (4.8), required,
+        /// with its keys and boosts;</item>
         /// <item>every non-town screen of a laid-out face holds a roadblock or is an island screen (a puzzle);</item>
         /// <item>every required reward is reachable: collecting items doorway by doorway (DoorwayReach over Math's island
         /// screens), its place is reachable and its gate's item is collectable.</item>
@@ -402,10 +410,17 @@ namespace Game.Cube
         /// </summary>
         public static List<string> FindProblems(CubeModel model, CubeLayout layout, ItemPlacement items, HiddenCurrencyPlacement hidden,
             RewardPlacement rewards, IHiddenSlotCatalog catalog, Func<ScreenAddress, IslandLayout> islandAt = null,
-            IReadOnlyList<PuzzleGoal> puzzles = null)
+            IReadOnlyList<PuzzleGoal> puzzles = null, DieNumbers dice = null)
         {
             var problems = new List<string>();
             int n = model.FaceSize;
+            dice = dice ?? DieNumbers.Roll(model);
+            // The die numbers (4.8): Town 1, the other faces 2-6 once each.
+            if (dice.Of(CubeModel.StartFace) != DieNumbers.TownNumber) problems.Add($"Town is numbered {dice.Of(CubeModel.StartFace)}, not 1");
+            var numbers = new HashSet<int>();
+            for (int f = 0; f < CubeSettings.FaceCount; f++) numbers.Add(dice.Of((FaceId)f));
+            if (numbers.Count != CubeSettings.FaceCount || numbers.Min() != 1 || numbers.Max() != DieNumbers.Highest)
+                problems.Add($"the die numbers are not 1-6 once each: {dice}");
             var seen = new HashSet<Roadblock>();
             foreach (RewardSpot s in rewards.Spots)
             {
@@ -463,10 +478,11 @@ namespace Game.Cube
                 List<RewardSpot> fragments = rewards.FragmentSlots(face);
                 if (n >= TownSquare.MinFaceSize)
                 {
-                    if (fragments.Count != FragmentSlotsPerFace)
-                        problems.Add($"{face} ({fl.Theme}) has {fragments.Count} fragment slots (expected {FragmentSlotsPerFace})");
+                    int number = dice.Of(face);
+                    if (fragments.Count != number)
+                        problems.Add($"{face} ({fl.Theme}) numbered {number} holds {fragments.Count} fragments");
                     for (int i = 0; i < fragments.Count; i++)
-                        if (fragments[i].What.Ordinal != i + 1) problems.Add($"{face}: fragment slot {i + 1} is numbered {fragments[i].What.Ordinal}");
+                        if (fragments[i].What.Ordinal != i + 1) problems.Add($"{face}: fragment {i + 1} is numbered {fragments[i].What.Ordinal}");
                     int keys = 0, boosts = 0;
                     foreach (RewardSpot s in rewards.Spots)
                     {
@@ -478,7 +494,7 @@ namespace Game.Cube
                     if (boosts != UpgradesPerFace) problems.Add($"{face} ({fl.Theme}) hides {boosts} boosts (expected {UpgradesPerFace})");
                 }
                 foreach (RewardSpot s in fragments)
-                    if (!s.Required) problems.Add($"{s}: a fragment slot must be required");
+                    if (!s.Required) problems.Add($"{s}: a fragment must be required");
 
                 // Every screen holds something.
                 var held = new HashSet<ScreenAddress>();

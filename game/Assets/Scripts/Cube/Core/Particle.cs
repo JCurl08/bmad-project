@@ -7,7 +7,7 @@ namespace Game.Cube
     /// One particle of the core arena: warm or cool, with a home side. A player swing (bare or any item) knocks it away in
     /// the swing's facing direction; otherwise it drifts gently, steering away from the outer walls, and bounces off
     /// walls, the membrane and other particles (a knocked particle coasts on damping until it is back at drifting pace). The Demon can take hold of it (Nudge) to steer it home; a knock breaks
-    /// that hold.
+    /// that hold. With the Attraction benefit (4.8) its drift also pulls it gently towards the player (Pull).
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class Particle : MonoBehaviour, IAttackReceiver
@@ -39,6 +39,22 @@ namespace Game.Cube
         private float nudgeSpeed;
 
         public ArenaSide Home { get; private set; }
+
+        /// <summary>How fast its drift draws it towards the player (0: not at all; ArenaTuning.AttractSpeed with Attraction).</summary>
+        public float Attraction { get; set; }
+
+        /// <summary>
+        /// The pull added to a drifting particle's target velocity: towards the player at attraction, within
+        /// ArenaTuning.AttractRange (zero beyond it, on top of the player, or without attraction).
+        /// </summary>
+        public static Vector2 Pull(Vector2 position, Vector2 player, float attraction)
+        {
+            if (attraction <= 0f) return Vector2.zero;
+            Vector2 to = player - position;
+            float d = to.magnitude;
+            if (d < 1e-3f || d > ArenaTuning.AttractRange) return Vector2.zero;
+            return to / d * attraction;
+        }
 
         public Rigidbody2D Body => body != null ? body : body = GetComponent<Rigidbody2D>();
 
@@ -124,7 +140,10 @@ namespace Game.Cube
             if (--driftStepsLeft <= 0) PickDrift();
             Vector2 drift = driftDirection;
             if (arena != null) drift = arena.AwayFromWalls(Position, drift, WallShy);
-            Body.linearVelocity = Vector2.MoveTowards(velocity, drift * DriftSpeed, DriftAcceleration * dt);
+            Vector2 target = drift * DriftSpeed;
+            if (Attraction > 0f && arena != null && arena.PlayerTransform != null)
+                target += Pull(Position, arena.PlayerTransform.position, Attraction);
+            Body.linearVelocity = Vector2.MoveTowards(velocity, target, DriftAcceleration * dt);
         }
 
         private void PickDrift()

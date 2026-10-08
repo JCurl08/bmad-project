@@ -19,7 +19,8 @@ namespace Game.Cube.Tests
     /// player loses ground as the Demon brings strays home; order pulses are telegraphed, avoidable and deal damage under
     /// the combat rules; winning and dying each raise RunState's event once (later events ignored); the fallback boss
     /// wins and loses the same way; a replayed seed drifts identically; the debug overlay and spawns know the arena; and a
-    /// scripted keyboard player (8 directions, starting kit, pulses on) wins in 60–120 s.
+    /// scripted keyboard player (8 directions, starting kit, pulses on, no boss benefits) wins in 60–120 s; and each boss
+    /// benefit (4.8) measurably changes its arena parameter.
     /// Long waits run at TimeScale (physics steps are unchanged, so behaviour is the same in game time). The player is
     /// turned and (for the bot) moved with the WASD keys through the real PlayerMover, so facing is one of 8 directions.
     /// </summary>
@@ -1117,6 +1118,342 @@ namespace Game.Cube.Tests
             Assert.LessOrEqual(took, SkillMaxSeconds, "but wins in time");
             Assert.IsFalse(health.IsDead);
             CollectionAssert.AreEqual(new[] { true }, runEvents);
+        }
+            // ---------------------------------------------------------------- boss benefits (4.8)
+
+        private static IEnumerable<BossBenefit> EveryBenefit() => BossBenefits.All;
+
+        /// <summary>What a test can measure of the arena in a fight: the built arena's own values, not the tuning.</summary>
+        private struct ArenaReading
+        {
+            public int Particles;
+            public float GapTop, GapBottom;
+            public float Attraction;
+            public float RestoreScale, NudgeSpeed;
+            public float MaxHealth, Health;
+            public float PulseInterval, PulseSpeed;
+        }
+
+        private ArenaReading Read()
+        {
+            Transform built = arena.transform.Find("Core Arena (built)");
+            Bounds north = built.Find("Membrane North").GetComponent<BoxCollider2D>().bounds;
+            Bounds south = built.Find("Membrane South").GetComponent<BoxCollider2D>().bounds;
+            // A pulse fired now (destroyed before any physics step): its real speed.
+            OrderPulse probe = arena.Demon.FirePulse(Vector2.left);
+            float speed = probe.Velocity.magnitude;
+            UnityEngine.Object.DestroyImmediate(probe.gameObject);
+            List<Particle> live = arena.Particles.Where(p => p != null).ToList();
+            return new ArenaReading
+            {
+                Particles = live.Count,
+                GapTop = arena.Inner.yMax - north.max.y,
+                GapBottom = south.min.y - arena.Inner.yMin,
+                Attraction = live.Max(p => p.Attraction),
+                RestoreScale = arena.Demon.RestoreScale,
+                NudgeSpeed = arena.Demon.NudgeSpeedNow,
+                MaxHealth = health.Max,
+                Health = health.Current,
+                PulseInterval = arena.Demon.PulseIntervalNow,
+                PulseSpeed = speed,
+            };
+        }
+
+        /// <summary>Game seconds from one order pulse to the next in the current fight (its telegraph included), run fast.</summary>
+        private IEnumerator MeasurePulseGap(Action<float> result)
+        {
+            health.InvulnerableSeconds = 1000f; // the measurement must not end the fight
+            Time.timeScale = 4f;
+            int start = arena.Demon.PulsesFired, steps = 0, firstAt = -1;
+            while (arena.FightActive && steps < 1200)
+            {
+                yield return new WaitForFixedUpdate();
+                steps++;
+                int fired = arena.Demon.PulsesFired - start;
+                if (fired == 1 && firstAt < 0) firstAt = steps;
+                if (fired >= 2) break;
+            }
+            Time.timeScale = 1f;
+            result(firstAt >= 0 ? (steps - firstAt) * Time.fixedDeltaTime : -1f);
+        }
+
+        /// <summary>
+        /// 4.8: each boss benefit measurably changes its parameter in a real fight, and only it: the particles spawned, the
+        /// membrane gaps' height (from the built colliders), the particles' pull, the Demon's restore pace, the player's
+        /// hearts (given at the start, taken back on leaving) and the pulses (speed of a fired pulse; for SlowerShots, the
+        /// measured time between two pulses). A fight with no benefit first, on the same seed, is the baseline.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EachBenefit_MeasurablyChangesItsArenaParameter_AndOnlyIt([ValueSource(nameof(EveryBenefit))] BossBenefit benefit)
+        {
+            yield return Load();
+            arena.BenefitsOverride = BossBenefit.None;
+            yield return StartFightFromTown(1234);
+            yield return new WaitForFixedUpdate();
+            ArenaReading before = Read();
+            Assert.AreEqual(2 * CoreArena.DefaultParticlesPerSide, before.Particles, "Baseline: the 1.11 arena");
+            Assert.AreEqual(CoreArena.GapHeight, before.GapTop, 1e-3f);
+            Assert.AreEqual(PlayerStats.DefaultMaxHealth, before.MaxHealth);
+            float gapBefore = -1f;
+            if (benefit == BossBenefit.SlowerShots) yield return MeasurePulseGap(g => gapBefore = g);
+
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            yield return PhysicsSteps(2);
+            Assert.IsFalse(arena.FightActive, "Leaving abandons the fight");
+            health.InvulnerableSeconds = 0f;
+            health.ResetHealth();
+
+            arena.BenefitsOverride = benefit;
+            Assert.IsTrue(arena.Enter(navigator));
+            yield return new WaitForFixedUpdate();
+            Assert.AreEqual(benefit, arena.ActiveBenefits);
+            ArenaReading after = Read();
+            StringAssert.Contains(BossBenefits.Label(benefit), hud.BenefitsText,
+                "The core HUD names the help");
+
+            bool particles = after.Particles != before.Particles;
+            bool gap = Mathf.Abs(after.GapTop - before.GapTop) > 1e-3f;
+            bool pull = after.Attraction != before.Attraction;
+            bool restore = after.RestoreScale != before.RestoreScale || after.NudgeSpeed != before.NudgeSpeed;
+            bool hearts = after.MaxHealth != before.MaxHealth;
+            bool pulses = after.PulseInterval != before.PulseInterval || Mathf.Abs(after.PulseSpeed - before.PulseSpeed) > 1e-3f;
+            var changed = new List<string>();
+            if (particles) changed.Add("particles");
+            if (gap) changed.Add("gap");
+            if (pull) changed.Add("pull");
+            if (restore) changed.Add("restore");
+            if (hearts) changed.Add("hearts");
+            if (pulses) changed.Add("pulses");
+            Debug.Log($"Benefit {benefit}: changed {string.Join(", ", changed)}; particles {before.Particles}->{after.Particles}, " +
+                      $"gap {before.GapTop:0.###}->{after.GapTop:0.###}, pull {before.Attraction:0.###}->{after.Attraction:0.###}, " +
+                      $"restore x{before.RestoreScale}->x{after.RestoreScale} nudge {before.NudgeSpeed:0.###}->{after.NudgeSpeed:0.###}, " +
+                      $"hearts {before.MaxHealth}->{after.MaxHealth}, pulses every {before.PulseInterval}->{after.PulseInterval} s at " +
+                      $"{before.PulseSpeed:0.###}->{after.PulseSpeed:0.###}");
+            switch (benefit)
+            {
+                case BossBenefit.FewerParticles:
+                    CollectionAssert.AreEqual(new[] { "particles" }, changed);
+                    Assert.AreEqual(2 * (CoreArena.DefaultParticlesPerSide - ArenaTuning.FewerParticlesBy), after.Particles, "12, not 16");
+                    Assert.AreEqual(after.Particles / 2, arena.Particles.Count(p => p.Home == ArenaSide.Warm), "Half a side each");
+                    break;
+                case BossBenefit.WiderGap:
+                    CollectionAssert.AreEqual(new[] { "gap" }, changed);
+                    Assert.AreEqual(ArenaTuning.WideGapHeight, after.GapTop, 1e-3f, "The north gap, from the membrane's collider");
+                    Assert.AreEqual(ArenaTuning.WideGapHeight, after.GapBottom, 1e-3f, "and the south gap");
+                    Assert.AreEqual(arena.CurrentGapHeight, after.GapTop, 1e-3f);
+                    break;
+                case BossBenefit.Attraction:
+                    CollectionAssert.AreEqual(new[] { "pull" }, changed);
+                    Assert.IsTrue(arena.Particles.All(p => p.Attraction == ArenaTuning.AttractSpeed), "Every particle is drawn to the player");
+                    break;
+                case BossBenefit.SlowerRestore:
+                    CollectionAssert.AreEqual(new[] { "restore" }, changed);
+                    Assert.Greater(after.RestoreScale, before.RestoreScale);
+                    Assert.Less(after.NudgeSpeed, before.NudgeSpeed);
+                    break;
+                case BossBenefit.ExtraHeart:
+                    CollectionAssert.AreEqual(new[] { "hearts" }, changed);
+                    Assert.AreEqual(before.MaxHealth + 1f, after.MaxHealth, "One more heart");
+                    Assert.AreEqual(after.MaxHealth, after.Health, "and it is filled");
+                    break;
+                case BossBenefit.SlowerShots:
+                    CollectionAssert.AreEqual(new[] { "pulses" }, changed);
+                    Assert.Less(after.PulseSpeed, before.PulseSpeed, "A fired pulse is slower");
+                    float gapAfter = -1f;
+                    yield return MeasurePulseGap(g => gapAfter = g);
+                    Debug.Log($"Pulse gap: {gapBefore:0.00} s -> {gapAfter:0.00} s");
+                    Assert.Greater(gapBefore, 0f);
+                    Assert.Greater(gapAfter, gapBefore + 1.5f, "Pulses come about 2 s further apart");
+                    break;
+            }
+
+            // Leaving takes the fight's extra heart back.
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            yield return PhysicsSteps(2);
+            Assert.IsFalse(arena.FightActive);
+            Assert.AreEqual(PlayerStats.DefaultMaxHealth, health.Max, "The extra heart was for the fight only");
+            Assert.AreEqual(0, arena.HeartsGranted);
+            arena.BenefitsOverride = null;
+        }
+
+        // ---------------------------------------------------------------- 4.8 review: behaviour, and the extra heart's takeback
+
+        /// <summary>
+        /// A fight on seed 1234 with a benefit (a rebuild first, so each fight replays the same drift), the Demon idle: the mean
+        /// speed of the warm particles within the pull's range towards the player over 3 s.
+        /// </summary>
+        private IEnumerator MeanSpeedTowardsThePlayer(BossBenefit benefit, Action<float> result)
+        {
+            arena.BenefitsOverride = benefit;
+            yield return StartFightFromTown(1234);
+            arena.SetDemonDuties(false, false);
+            float sum = 0f;
+            int samples = 0;
+            for (int step = 0; step < 150; step++)
+            {
+                yield return new WaitForFixedUpdate();
+                Vector2 player = body.position;
+                foreach (Particle p in arena.Particles)
+                {
+                    if (p == null || p.Home != ArenaSide.Warm) continue;
+                    Vector2 to = player - p.Position;
+                    if (to.magnitude > ArenaTuning.AttractRange || to.magnitude < 1e-3f) continue;
+                    sum += Vector2.Dot(p.Body.linearVelocity, to.normalized);
+                    samples++;
+                }
+            }
+            result(samples > 0 ? sum / samples : 0f);
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            yield return PhysicsSteps(2);
+        }
+
+        /// <summary>4.8 review: Attraction measured on the particles' motion: their velocity towards the player rises.</summary>
+        [UnityTest]
+        public IEnumerator Attraction_RaisesTheParticlesVelocityTowardsThePlayer()
+        {
+            yield return Load();
+            float without = 0f, with = 0f;
+            yield return MeanSpeedTowardsThePlayer(BossBenefit.None, v => without = v);
+            yield return MeanSpeedTowardsThePlayer(BossBenefit.Attraction, v => with = v);
+            arena.BenefitsOverride = null;
+            Debug.Log($"Attraction: mean speed towards the player {without:0.###} -> {with:0.###} (pull {ArenaTuning.AttractSpeed:0.###})");
+            Assert.Greater(with, without + 0.5f * ArenaTuning.AttractSpeed, "Particles drift towards the player");
+        }
+
+        /// <summary>
+        /// A fight on seed 1234 with a benefit, five warm particles moved across, the Demon restoring (no pulses): the mean game
+        /// time between its restorations (fetch and pause), over the first four.
+        /// </summary>
+        private IEnumerator TimeBetweenFetches(BossBenefit benefit, Action<float> result)
+        {
+            arena.BenefitsOverride = benefit;
+            yield return StartFightFromTown(1234);
+            arena.SetDemonDuties(true, false);
+            List<Particle> warm = Of(ArenaSide.Warm);
+            Vector2 c = arena.Centre;
+            for (int i = 0; i < 5; i++) warm[i].Teleport(c + new Vector2(2f + (i % 3) * 1.5f, -3.6f + 0.9f * (i / 3)) * K);
+            var times = new List<int>();
+            int last = arena.Demon.Restored, steps = 0;
+            Time.timeScale = 4f;
+            while (times.Count < 4 && steps < 2000 && arena.FightActive)
+            {
+                yield return new WaitForFixedUpdate();
+                steps++;
+                if (arena.Demon.Restored > last)
+                {
+                    last = arena.Demon.Restored;
+                    times.Add(steps);
+                }
+            }
+            Time.timeScale = 1f;
+            result(times.Count >= 2 ? (times[times.Count - 1] - times[0]) * Time.fixedDeltaTime / (times.Count - 1) : -1f);
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            yield return PhysicsSteps(2);
+        }
+
+        /// <summary>4.8 review: SlowerRestore measured on the Demon's work: the time between its fetches rises.</summary>
+        [UnityTest]
+        public IEnumerator SlowerRestore_SpacesOutTheDemonsFetches()
+        {
+            yield return Load();
+            float without = 0f, with = 0f;
+            yield return TimeBetweenFetches(BossBenefit.None, v => without = v);
+            yield return TimeBetweenFetches(BossBenefit.SlowerRestore, v => with = v);
+            arena.BenefitsOverride = null;
+            Debug.Log($"Slower restore: time between fetches {without:0.00} s -> {with:0.00} s");
+            Assert.Greater(without, 0f, "The Demon fetched four strays");
+            Assert.Greater(with, without * 1.3f, "and is clearly slower with the benefit");
+        }
+
+        /// <summary>A new run on a seed, ExtraHeart on, the player hurt by damage first; then into the fight.</summary>
+        private IEnumerator EnterWithAnExtraHeart(int seed, float damage)
+        {
+            arena.BenefitsOverride = BossBenefit.ExtraHeart;
+            world.Rebuild(seed);
+            yield return null;
+            NoFaceEnemies();
+            arena.UseFallbackBoss = false;
+            health.InvulnerableSeconds = 0f;
+            if (damage > 0f) health.TakeDamage(damage, null);
+            yield return new WaitForFixedUpdate();
+        }
+
+        /// <summary>4.8 review (medium): entering and leaving again and again, hurt, never heals: the extra heart is the fight's only.</summary>
+        [UnityTest]
+        public IEnumerator ExtraHeart_EnteringAndLeavingTwice_WhileHurt_GivesNoNetHeal()
+        {
+            yield return Load();
+            yield return EnterWithAnExtraHeart(1234, 2f);
+            float before = health.Current;
+            Assert.AreEqual(PlayerStats.DefaultMaxHealth - 2f, before, 1e-4f);
+            for (int round = 0; round < 2; round++)
+            {
+                Assert.IsTrue(arena.Enter(navigator));
+                yield return new WaitForFixedUpdate();
+                Assert.IsTrue(arena.FightActive);
+                Assert.AreEqual(PlayerStats.DefaultMaxHealth + 1f, health.Max, $"round {round}: one more heart");
+                Assert.AreEqual(before + 1f, health.Current, 1e-4f, $"round {round}: added filled");
+                navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+                yield return PhysicsSteps(2);
+                Assert.IsFalse(arena.FightActive, $"round {round}: abandoned");
+                Assert.AreEqual(PlayerStats.DefaultMaxHealth, health.Max, $"round {round}: the heart is taken back");
+                Assert.AreEqual(before, health.Current, 1e-4f, $"round {round}: and no health was gained");
+            }
+            arena.BenefitsOverride = null;
+        }
+
+        /// <summary>4.8 review: the extra heart is taken back however the fight ends: a win, a loss, the exit door, F8, a rebuild.</summary>
+        [UnityTest]
+        public IEnumerator ExtraHeart_IsTakenBack_WithNoNetHeal_HoweverTheFightEnds([Values("win", "loss", "exit", "f8", "rebuild")] string ending)
+        {
+            yield return Load();
+            yield return EnterWithAnExtraHeart(1234, ending == "loss" ? 0f : 1f);
+            if (ending == "loss")
+            {
+                stats.MaxHealth = 1;
+                Assert.AreEqual(1f, health.Current, 1e-4f);
+            }
+            int maxBefore = stats.MaxHealth;
+            float before = health.Current;
+            Assert.IsTrue(arena.Enter(navigator));
+            yield return new WaitForFixedUpdate();
+            Assert.AreEqual(maxBefore + 1, stats.MaxHealth, "One more heart for the fight");
+            Assert.AreEqual(1, arena.HeartsGranted);
+            switch (ending)
+            {
+                case "win":
+                    List<Particle> warm = Of(ArenaSide.Warm);
+                    Vector2 c = arena.Centre;
+                    for (int i = 0; i < 7; i++) warm[i].Teleport(c + new Vector2(2f + (i % 3) * 1.5f, -3.6f + 0.9f * (i / 3)) * K);
+                    yield return WaitUntilOrGameTimeout(() => !arena.FightActive, 1f);
+                    Assert.AreEqual(CoreOutcome.Victory, arena.Outcome);
+                    break;
+                case "loss":
+                    health.TakeDamage(1000f, null);
+                    yield return null;
+                    Assert.AreEqual(CoreOutcome.Defeat, arena.Outcome);
+                    break;
+                case "exit":
+                    Assert.IsTrue(arena.LeaveThroughExit(), "Out through the exit door");
+                    yield return new WaitForFixedUpdate();
+                    break;
+                case "f8":
+                    Assert.IsTrue(UnityEngine.Object.FindAnyObjectByType<CubeDebug>().LeaveCoreArena(), "F8 leaves the arena");
+                    yield return PhysicsSteps(2);
+                    break;
+                default:
+                    world.Rebuild(4321);
+                    yield return null;
+                    break;
+            }
+            Assert.IsFalse(arena.FightActive, ending);
+            Assert.AreEqual(0, arena.HeartsGranted, $"{ending}: taken back");
+            Assert.AreEqual(maxBefore, stats.MaxHealth, $"{ending}: the max is back");
+            Assert.AreEqual((float)maxBefore, health.Max, 1e-4f, ending);
+            Assert.LessOrEqual(health.Current, before + 1e-4f, $"{ending}: no net heal");
+            if (ending == "exit" || ending == "f8" || ending == "win" || ending == "rebuild")
+                Assert.AreEqual(before, health.Current, 1e-4f, $"{ending}: untouched, the health it came in with");
+            arena.BenefitsOverride = null;
         }
     }
 }

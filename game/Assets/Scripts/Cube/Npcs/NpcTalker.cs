@@ -62,6 +62,19 @@ namespace Game.Cube
         /// <summary>Raised when a talk attempt is refused because the race is hostile.</summary>
         public event Action<NpcTalker> Refused;
 
+        /// <summary>
+        /// Raised when a talk is about to open (every check passed), before the box reads the lines: a listener may act and
+        /// change what is said (SetLines). A leader's quest (LeaderQuest, 4.8) hands in fragments here.
+        /// </summary>
+        public event Action<NpcTalker> Talking;
+
+        /// <summary>Replaces what this NPC says from the next talk on (an open conversation keeps its lines).</summary>
+        public void SetLines(IReadOnlyList<string> newLines)
+        {
+            lines.Clear();
+            if (newLines != null) lines.AddRange(newLines);
+        }
+
         public void Configure(NpcSpec spec, IReadOnlyList<string> newLines, RaceRelations raceRelations,
             Transform playerTransform, SpriteRenderer[] partRenderers)
         {
@@ -141,6 +154,8 @@ namespace Game.Cube
                 Refused?.Invoke(this);
                 return false;
             }
+            Talking?.Invoke(this);
+            if (lines.Count == 0) return false;
             return target.Open(Spec.DisplayName, lines, this);
         }
 

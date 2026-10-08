@@ -24,6 +24,7 @@ namespace Game.Cube.Tests
             }
             yield return Dialogue.LeaderLine(race);
             yield return Dialogue.QuestLine(race);
+            foreach (string line in Dialogue.LeaderQuestLines(race)) yield return line;
         }
 
         /// <summary>The names of a race's body parts (head, torso and legs), which name the NPCs.</summary>

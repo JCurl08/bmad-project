@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Game.Cube
@@ -5,7 +6,8 @@ namespace Game.Cube
     /// <summary>
     /// The player's combat HUD (OnGUI placeholder): a row of hearts at the bottom left (one per health point, partly filled for
     /// a fraction, e.g. quarter hearts after defence) with the exact health as a number, the equipped item's name, and a plain
-    /// message once the player has died.
+    /// message once the player has died. Under them (4.8) a row of dice, one per face whose region is known (Town from the
+    /// start, the rest once revealed), in die-number order: a pip per fragment, lit once found, and a gold frame once mended.
     /// </summary>
     public class CombatHud : MonoBehaviour
     {
@@ -41,6 +43,58 @@ namespace Game.Cube
         /// <summary>The rewards line as shown ("Keys: 1 | Run boosts: +speed"), or null when nothing is held.</summary>
         public string RewardsText => rewards != null ? rewards.HudText : null;
 
+        /// <summary>One die of the fragments row: a face, its region, the fragments found of its count, and whether it is mended.</summary>
+        public readonly struct FaceDie
+        {
+            public readonly FaceId Face;
+            public readonly Theme Theme;
+            public readonly int Found;
+            public readonly int Count;
+            public readonly bool Mended;
+
+            public FaceDie(FaceId face, Theme theme, int found, int count, bool mended)
+            {
+                Face = face;
+                Theme = theme;
+                Found = found;
+                Count = count;
+                Mended = mended;
+            }
+        }
+
+        /// <summary>
+        /// The fragments row (4.8), in die-number order: Town always, the science faces once revealed (their regions are
+        /// unknown before). Empty without a world.
+        /// </summary>
+        public List<FaceDie> FragmentDice
+        {
+            get
+            {
+                var dice = new List<FaceDie>();
+                CubeWorld world = rewards != null ? rewards.World : null;
+                if (world == null || world.Model == null || world.Dice == null) return dice;
+                for (int number = 1; number <= DieNumbers.Highest; number++)
+                {
+                    FaceId face = world.Dice.FaceNumbered(number);
+                    if (face != CubeModel.StartFace && (!world.ScienceRevealed || !CubeLayout.IsLaidOut(world.Model, face))) continue;
+                    dice.Add(new FaceDie(face, world.Model.ThemeOf(face), rewards.FragmentsOf(face), number,
+                        world.Repairs != null && world.Repairs.IsRepaired(face)));
+                }
+                return dice;
+            }
+        }
+
+        /// <summary>The fragments row as text ("Fragments: Town mended, the Greenwood* 2/4"), or null with no world.</summary>
+        public string FragmentsText
+        {
+            get
+            {
+                var parts = new List<(Theme, int, int, bool)>();
+                foreach (FaceDie d in FragmentDice) parts.Add((d.Theme, d.Found, d.Count, d.Mended));
+                return RewardText.FragmentsLine(parts);
+            }
+        }
+
         /// <summary>The equipped item line as shown.</summary>
         public string EquippedText =>
             "Equipped: " + (equipment != null && equipment.Equipped != null ? equipment.Equipped.ToString() : BareHandsLabel);
@@ -69,7 +123,8 @@ namespace Game.Cube
             float width = hearts * (size + gap) - gap;
             float x = margin + 8f;
             string rewardsLine = RewardsText;
-            float extra = rewardsLine != null ? 24f : 0f;
+            List<FaceDie> dice = FragmentDice;
+            float extra = (rewardsLine != null ? 24f : 0f) + (dice.Count > 0 ? DieRow : 0f);
             float y = Screen.height - dialogueBand - margin - (size + 40f + extra) + 6f;
             var back = new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, rewardsLine != null ? 420f : 300f) + 16f, size + 40f + extra);
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
@@ -91,6 +146,7 @@ namespace Game.Cube
             GUI.Label(new Rect(x, y + size + 4f, Mathf.Max(width, 300f), 26f), EquippedText, textStyle);
             if (rewardsLine != null)
                 GUI.Label(new Rect(x, y + size + 28f, Mathf.Max(width + 130f, 420f), 26f), rewardsLine, textStyle);
+            if (dice.Count > 0) DrawDice(dice, x, y + size + 28f + (rewardsLine != null ? 24f : 0f));
 
             string message = MessageText;
             if (message == null) return;
@@ -99,6 +155,47 @@ namespace Game.Cube
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(panel, message, deathStyle);
+        }
+
+        /// <summary>Height of the fragments row (4.8).</summary>
+        public const float DieRow = 30f;
+
+        /// <summary>A die's size in the fragments row (pixels).</summary>
+        public const float DieSize = 24f;
+
+        private static readonly Color MendedGold = new Color(1f, 0.82f, 0.25f);
+
+        /// <summary>The fragments row: its label, then a die per face (region-coloured frame, a pip per fragment).</summary>
+        private void DrawDice(List<FaceDie> dice, float x, float y)
+        {
+            GUI.Label(new Rect(x, y + 1f, 100f, 26f), RewardText.FragmentsLabel, textStyle);
+            float left = x + 100f;
+            for (int i = 0; i < dice.Count; i++)
+            {
+                FaceDie d = dice[i];
+                var box = new Rect(left + i * (DieSize + 8f), y + 3f, DieSize, DieSize);
+                Color frame = d.Mended ? MendedGold : CubeWorld.ThemeColor(d.Theme);
+                Fill(new Rect(box.x - 3f, box.y - 3f, box.width + 6f, box.height + 6f), Color.black);
+                Fill(new Rect(box.x - 2f, box.y - 2f, box.width + 4f, box.height + 4f), frame);
+                Fill(box, new Color(0.12f, 0.1f, 0.14f));
+                Vector2Int[] pips = TownArt.PipLayouts[Mathf.Clamp(d.Count, 1, 6)];
+                float cell = DieSize / 7f;
+                for (int p = 0; p < pips.Length; p++)
+                {
+                    bool found = rewards != null && rewards.HasFragment(d.Face, p + 1);
+                    Color pip = d.Mended ? MendedGold : found ? Color.white : new Color(0.4f, 0.38f, 0.45f);
+                    // Pip (x, y) on the 7x7 face, y up; GUI y runs down.
+                    var r = new Rect(box.x + pips[p].x * cell - cell * 0.25f, box.y + (6 - pips[p].y) * cell - cell * 0.25f, cell * 1.5f, cell * 1.5f);
+                    Fill(r, pip);
+                }
+            }
+        }
+
+        private static void Fill(Rect r, Color c)
+        {
+            GUI.color = c;
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = Color.white;
         }
     }
 }

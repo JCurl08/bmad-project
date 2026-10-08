@@ -241,7 +241,9 @@ namespace Game.Cube.Tests
                     Assert.AreEqual(TownSquare.RaceOf(model.ThemeOf(face)), leader.Spec.Race, context);
                     Assert.IsTrue(world.TryScreenAt(leader.transform.position, out ScreenAddress leaderAt) && leaderAt == townScreen, $"{context}: the leader is in the town");
                     Assert.Less(Vector2.Distance(leader.transform.position, view.Statue.transform.position), TownLayout.LeaderReach + 1f, $"{context}: near the statue");
-                    CollectionAssert.AreEqual(Dialogue.LeaderConversation(leader.Spec.Race), leader.Lines, context);
+                    // Its quest names its face's fragments (4.8): the die number, none found yet.
+                    CollectionAssert.AreEqual(Dialogue.QuestConversation(leader.Spec.Race, world.Dice.Of(face), 0), leader.Lines, context);
+                    Assert.IsNotNull(leader.GetComponent<LeaderQuest>(), $"{context}: the leader carries the quest");
 
                     // The busiest screen of its face, and no enemy.
                     int inTown = npcsPerScreen.TryGetValue(townScreen, out int n) ? n : 0;

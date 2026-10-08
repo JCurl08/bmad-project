@@ -11,7 +11,7 @@ namespace Game.Cube.Tests
 {
     /// <summary>
     /// Run determinism across refactors: for seeds 1-50 the cube model, science layout, item placement, each face plan,
-    /// the hidden currency, the roadblock rewards (4.7), the pure prefix of each face's population stream (trial spots and screen order), the face
+    /// the hidden currency, the die numbers and the roadblock rewards (4.7, 4.8), the pure prefix of each face's population stream (trial spots and screen order), the face
     /// populations' NPC parts, Town's NPC parts and the first draws of every named RNG stream must match the signatures
     /// recorded in DeterminismSignatures.txt. A difference means a seed no longer gives the same run.
     /// The fixture is only re-recorded on purpose (an intended content change), with
@@ -75,6 +75,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("earthPopulation", EarthFace.PopulationRngStream),
             new KeyValuePair<string, ulong>("islandScreens", CubeLayout.IslandRngStream),
             new KeyValuePair<string, ulong>("rewards", RewardPlacement.RngStream),
+            new KeyValuePair<string, ulong>("dice", DieNumbers.RngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -115,7 +116,9 @@ namespace Game.Cube.Tests
             Add("earthPlan", earth?.Signature());
             HiddenCurrencyPlacement hidden = HiddenCurrencyPlacement.Generate(model, layout, library);
             Add("hidden", hidden.Signature());
-            Add("rewards", RewardPlacement.Generate(model, layout, placement, hidden, library).Signature());
+            DieNumbers dice = DieNumbers.Roll(model);
+            Add("dice", dice.Signature());
+            Add("rewards", RewardPlacement.Generate(model, layout, placement, hidden, library, null, dice).Signature());
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
             if (biology != null)

@@ -25,13 +25,18 @@ namespace Game.Cube
             yield return ExitHint;
             yield return new MixingPhase().Name;
             yield return new FallbackBoss().Name;
+            foreach (string line in BossBenefits.AllText()) yield return line;
         }
+
+        /// <summary>The help line over the meter (4.8: the fight's benefits from mended faces), or null with none.</summary>
+        public string BenefitsText => arena != null ? BossBenefits.HudLine(arena.ActiveBenefits) : null;
 
         [SerializeField] private CoreArena arena;
 
         private GUIStyle labelStyle;
         private GUIStyle bannerStyle;
         private GUIStyle hintStyle;
+        private GUIStyle helpStyle;
 
         /// <summary>True while the exit hint shows: the player is in a fight they can still walk out of.</summary>
         public bool ExitHintVisible => arena != null && arena.PlayerInArena && arena.FightActive && arena.ExitAvailable;
@@ -99,6 +104,12 @@ namespace Game.Cube
             GUI.Label(panel, message, bannerStyle);
         }
 
+        private void MakeHintStyle()
+        {
+            hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Italic };
+            hintStyle.normal.textColor = Color.white; // tinted by GUI.color where drawn
+        }
+
         private void DrawMeter()
         {
             // Bottom right, above the dialogue band (bottom 150 px); the hearts sit bottom left.
@@ -125,14 +136,27 @@ namespace Game.Cube
                 GUI.DrawTexture(new Rect(bar.x + bar.width * goal - 1f, bar.y - 4f, 3f, bar.height + 8f), Texture2D.whiteTexture);
             }
             GUI.color = Color.white;
+            string help = BenefitsText;
+            if (help != null)
+            {
+                // Just above the meter's panel, in gold: what the mended faces do for this fight.
+                if (hintStyle == null) MakeHintStyle();
+                if (helpStyle == null) helpStyle = new GUIStyle(hintStyle) { wordWrap = true };
+                float helpHeight = Mathf.Ceil(helpStyle.CalcHeight(new GUIContent(help), width)) + 4f;
+                var helpBack = new Rect(x - 8f, y - 8f - helpHeight, width + 16f, helpHeight);
+                GUI.color = new Color(0f, 0f, 0f, 0.55f);
+                GUI.DrawTexture(helpBack, Texture2D.whiteTexture);
+                GUI.color = new Color(1f, 0.88f, 0.45f);
+                GUI.Label(new Rect(x, y - 6f - helpHeight, width, helpHeight), help, helpStyle);
+                GUI.color = Color.white;
+            }
             if (ExitHintVisible)
             {
-                if (hintStyle == null)
-                {
-                    hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Italic };
-                    hintStyle.normal.textColor = new Color(0.85f, 0.85f, 0.95f);
-                }
+                if (hintStyle == null) MakeHintStyle();
+                Color before = GUI.color;
+                GUI.color = new Color(0.85f, 0.85f, 0.95f);
                 GUI.Label(new Rect(x, y + 48f, width, 20f), ExitHint, hintStyle);
+                GUI.color = before;
             }
         }
     }
