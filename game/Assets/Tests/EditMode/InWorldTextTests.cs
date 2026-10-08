@@ -168,6 +168,14 @@ namespace Game.Cube.Tests
                 }
                 foreach (string line in PhysicsPopulation.NewtonLines()) yield return ("Apple sage", line);
                 yield return ("Speaker", PhysicsPopulation.NewtonSpec(seed).DisplayName);
+                // The science faces' town residents (4.5).
+                foreach (Theme theme in CubeModel.ScienceThemes)
+                    for (int i = 0; i < TownSquare.ResidentCount; i++)
+                    {
+                        NpcSpec resident = TownSquare.ResidentSpec(seed, theme, i);
+                        yield return ("Speaker", resident.DisplayName);
+                        foreach (string line in Dialogue.For(resident, facts, HintDensity.Full)) yield return ($"Town resident (seed {seed})", line);
+                    }
                 // Leaders (4.3, spawned by 4.5): a few per race, so both dinosaur kinds turn up.
                 foreach (Race race in RaceExtensions.All)
                     for (int i = 0; i < 4; i++)

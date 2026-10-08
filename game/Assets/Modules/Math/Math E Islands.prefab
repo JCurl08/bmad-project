@@ -92,6 +92,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Cube::Game.Cube.ScreenModule
   theme: 4
   islandScreen: 1
+  townScreen: 0
 --- !u!1 &4227250983299886459
 GameObject:
   m_ObjectHideFlags: 0

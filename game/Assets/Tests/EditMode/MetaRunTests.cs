@@ -33,6 +33,7 @@ namespace Game.Cube.Tests
             public int CoreSlotCount(Theme theme, int moduleIndex) => library.CoreSlotCount(theme, moduleIndex);
             public int HiddenSlotCount(Theme theme, int moduleIndex) => library.HiddenSlotCount(theme, moduleIndex);
             public int IslandModuleIndex(Theme theme) => library.IslandModuleIndex(theme);
+            public int TownModuleIndex(Theme theme) => library.TownModuleIndex(theme);
         }
 
         // ---------- Save ----------
@@ -438,7 +439,7 @@ namespace Game.Cube.Tests
             ModuleLibrary library = Library();
             foreach (ModuleLibrary.ThemePool pool in library.SciencePools)
             {
-                foreach (ScreenModule module in pool.Modules.Where(m => !m.IsIslandScreen)) // an island screen has no slots (1.25)
+                foreach (ScreenModule module in pool.Modules.Where(m => !m.IsIslandScreen && !m.IsTownScreen)) // island and town screens have no slots (1.25, 4.5)
                 {
                     Assert.Greater(module.HiddenItems.Length, 0, module.name);
                     for (int i = 0; i < module.HiddenItems.Length; i++)

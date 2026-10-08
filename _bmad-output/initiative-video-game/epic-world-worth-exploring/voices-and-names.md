@@ -39,6 +39,8 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 - A dinosaur speaks by its kind: avian dinosaurs use Sky, the others Ground.
 - Townsfolk, the greeter and Sage Conkwell speak in the Town voice.
 
+**Leaders (4.5):** a leader greets the player (`Dialogue.LeaderLines`), then gives the region's quest hook in their voice (`Dialogue.QuestLines`): the region is coming apart, so bring back what was lost and help mend it. Story 4.8 fills the hook in with the face's fragments. Chief Rockjaw's hook suits both dinosaur voices.
+
 ## Names
 
 - **Make them punny but subtle.** A name may hint at its culture (a corner, a hedgerow, a fizz, a musing, a trail, a breeze), never at a real scientist.

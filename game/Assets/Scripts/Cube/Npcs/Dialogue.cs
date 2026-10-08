@@ -388,6 +388,27 @@ namespace Game.Cube
         /// <summary>A leader's line (LeaderLines).</summary>
         public static string LeaderLine(Race race) => LeaderLines[race];
 
+        /// <summary>
+        /// Each race's leader's quest hook (4.5), in their voice: their region is coming apart, and they ask the player to help
+        /// mend it by bringing back what was lost. Story 4.8 fills it in (the face's fragments) through QuestLine. The dinosaur
+        /// leader's suits both dinosaur voices.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<Race, string> QuestLines = new Dictionary<Race, string>
+        {
+            [Race.Townsfolk] = "Here's the job, friend: every face out there is coming apart at the seams. Bring back whatever bits you find, and we'll mend the lot together!",
+            [Race.Finch] = "Hark: the " + InWorldText.Greenwood + " doth fray at every seam. Prithee, find what was lost and bring it hither, that we may mend it together.",
+            [Race.Mushroom] = "Ugh, the " + InWorldText.EmberVale + " is falling to *pieces* and I'm furious! And sad! Find what was lost and help me mend it? Oh, I'd love you forever!",
+            [Race.Alien] = "The " + InWorldText.Weightlands + " is coming apart, I think. Perhaps it always was? Bring me what was lost, and together we may mend it... or ponder it.",
+            [Race.Shape] = "The " + InWorldText.Bridgelands + " is broken into parts. If you find the lost parts, then bring them here. Given all of them, we mend it. Therefore, search.",
+            [Race.Dinosaur] = "The " + InWorldText.Wildlands + " is cracking from ridge to sky. Scout the trails, haul back what was lost, and we'll mend this ground together.",
+        };
+
+        /// <summary>A leader's quest hook (QuestLines; 4.8 adds the face's fragments).</summary>
+        public static string QuestLine(Race race) => QuestLines[race];
+
+        /// <summary>A leader's whole conversation (4.5): their greeting, then their region's quest hook (two lines, MaxLines).</summary>
+        public static List<string> LeaderConversation(Race race) => new List<string>(MaxLines) { LeaderLine(race), QuestLine(race) };
+
         /// <summary>Lines the finches of the Greenwood* say about their patron, Grandsire Beakwell (one per finch, picked by salt).</summary>
         public static readonly string[] DarwinLines =
         {
@@ -550,15 +571,22 @@ namespace Game.Cube
 
         public static string BeakLine(bool thin) => BeakLines[thin ? 0 : 1];
 
-        /// <summary>The whole conversation for an NPC in a run: its flavour line, then its first hint (in its voice).</summary>
+        /// <summary>
+        /// The whole conversation for an NPC in a run: its flavour line, then its first hint (in its voice). A leader (4.5)
+        /// gives its greeting and its region's quest hook instead (LeaderConversation).
+        /// </summary>
         public static List<string> For(NpcSpec spec, RunFacts facts, HintDensity density) =>
-            Lines(spec, HintGenerator.For(spec, facts, density));
+            Lines(spec, spec != null && spec.IsLeader ? null : HintGenerator.For(spec, facts, density));
 
-        /// <summary>The conversation from given hints: the flavour line (a leader's line, or the role line), then the first hint.</summary>
-        public static List<string> Lines(NpcSpec spec, IReadOnlyList<Hint> hints) => Conversation(FlavourLine(spec), hints);
+        /// <summary>
+        /// The conversation from given hints: the flavour line (the role line), then the first hint. A leader (4.5) always gives
+        /// LeaderConversation (its greeting, then its quest hook), whatever the hints: the one source of a leader's lines.
+        /// </summary>
+        public static List<string> Lines(NpcSpec spec, IReadOnlyList<Hint> hints) =>
+            spec.IsLeader ? LeaderConversation(spec.Race) : Conversation(FlavourLine(spec), hints);
 
-        /// <summary>A generic NPC's flavour line: its leader line for a leader, else its role line.</summary>
-        public static string FlavourLine(NpcSpec spec) => spec.IsLeader ? LeaderLine(spec.Race) : RoleLine(spec);
+        /// <summary>A generic NPC's flavour line (its first line): a leader's greeting (LeaderConversation's first), else its role line.</summary>
+        public static string FlavourLine(NpcSpec spec) => spec.IsLeader ? LeaderConversation(spec.Race)[0] : RoleLine(spec);
 
         /// <summary>A conversation: the flavour line, then the first hint (if any). Never more than MaxLines.</summary>
         public static List<string> Conversation(string flavour, IReadOnlyList<Hint> hints)
@@ -630,6 +658,7 @@ namespace Game.Cube
             foreach (Voice voice in Voices.All)
                 foreach (string line in SpokenLines(voice)) yield return line;
             foreach (string line in LeaderLines.Values) yield return line;
+            foreach (string line in QuestLines.Values) yield return line;
             foreach (string line in DarwinLines) yield return line;
             foreach (string line in BeakLines) yield return line;
             foreach (string line in CurieLines) yield return line;

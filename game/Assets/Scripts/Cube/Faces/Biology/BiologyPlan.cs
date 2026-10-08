@@ -70,7 +70,8 @@ namespace Game.Cube
     /// pot. For the thin beak the first home-face Biology gate is a flower-vine gate whose flower sits on an
     /// adjacent Biology screen, and every other one is a distant-button door. The other beak's optional gates
     /// (ItemPlacement.OptionalGates) get that beak's mechanic (rock/pot, or button). Each gate's difficulty is
-    /// the number of beak gates on its face. Uses its own SeededRng stream.
+    /// the number of beak gates on its face. Uses its own SeededRng stream. Neither the trial nor a flower is ever on a town
+    /// screen (4.5).
     /// </summary>
     public sealed class BiologyPlan
     {
@@ -167,6 +168,7 @@ namespace Game.Cube
                     // Each flower on its own adjacent screen (a flower sits at the fixed FlowerLocal spot).
                     List<ScreenAddress> adjacent = Adjacent(g.Screen, n);
                     adjacent.RemoveAll(flowerScreens.Contains);
+                    TownSquare.WithoutTown(adjacent, n); // a flower never grows in a town (4.5)
                     if (adjacent.Count > 0)
                     {
                         kind = BeakGateKind.FlowerVine;
@@ -198,7 +200,7 @@ namespace Game.Cube
                 specs[i] = specs[i].WithDifficulty(count);
             }
 
-            int trialCell = rng.NextInt(n * n);
+            int trialCell = TownSquare.PickCellIndex(rng, n); // never the town (4.5)
             var trial = new ScreenAddress(face, trialCell % n, trialCell / n);
             return new BiologyPlan(model.Seed, beak, face, n, specs, trial);
         }
@@ -305,6 +307,7 @@ namespace Game.Cube
                     if (!flowerScreens.Add(s.FlowerScreen)) problems.Add($"{s}: shares its flower screen with another vine");
                     if (s.FlowerScreen.Face != s.Screen.Face || !Adjacent(s.Screen, plan.FaceSize).Contains(s.FlowerScreen))
                         problems.Add($"{s}: the flower is not on an adjacent screen of the same face");
+                    if (TownSquare.IsTown(s.FlowerScreen, plan.FaceSize)) problems.Add($"{s}: the flower grows in the town");
                 }
                 if (s.Difficulty != plan.DifficultyOn(s.Screen.Face)) problems.Add($"{s}: wrong difficulty");
             }
@@ -314,6 +317,7 @@ namespace Game.Cube
                 problems.Add($"thin-beak run has {flowers} flower-vine gates (want {wantFlowers})");
             if (plan.Beak == BeakKind.Thick && flowers != 0) problems.Add("thick-beak run has a flower-vine gate");
             if (plan.TrialScreen.Face != plan.Face) problems.Add($"the trial is on {plan.TrialScreen}, not on Biology");
+            if (TownSquare.IsTown(plan.TrialScreen, plan.FaceSize)) problems.Add($"the trial is on the town {plan.TrialScreen}");
             return problems;
         }
     }

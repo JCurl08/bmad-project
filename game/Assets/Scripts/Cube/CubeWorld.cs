@@ -23,6 +23,8 @@ namespace Game.Cube
     /// Revealed is also where the CoreArena puts a portal to
     /// the cube's core on each built face's active core-entrance slot. The reveal also scatters the run's hidden
     /// meta-currency items (HiddenCurrencyPlacement) into hidden-item slots on the built science faces.
+    /// Every face's centre screen holds its town module (4.5): placing it builds the town on it (TownSquareView), Town's with
+    /// the run and each science face's on its reveal; its people come from TownPopulation (Town) and TownSquares (the rest).
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -544,6 +546,8 @@ namespace Game.Cube
             module.name = $"{prefab.name} @ {address.Cell.x},{address.Cell.y}";
             module.transform.position = ScreenCenter(address);
             module.SetActiveCoreEntrance(activeCoreSlot);
+            // A town module (4.5) gets its race's town: buildings, plaza and statue (TownSquareView).
+            if (module.IsTownScreen) TownSquareView.Build(module, material);
             // Exits whose edge leads into a sealed face are closed (that edge is a wall).
             foreach (ExitSlot exit in module.Exits)
                 exit.gameObject.SetActive(Model.TryStep(address, exit.Facing, out _, out _));

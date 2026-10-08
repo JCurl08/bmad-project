@@ -37,7 +37,7 @@ namespace Game.Cube.Tests
         /// <summary>Every NPC of a seed's run, by population (Town, each face, the cameo, the leaders).</summary>
         private static Dictionary<string, List<NpcSpec>> Populations(int seed, int n)
         {
-            return new Dictionary<string, List<NpcSpec>>
+            var populations = new Dictionary<string, List<NpcSpec>>
             {
                 ["Town"] = TownPlan.Specs(seed, n),
                 ["Finches"] = Enumerable.Range(0, BiologyPopulation.FinchCount(n)).Select(i => BiologyPopulation.FinchSpec(seed, i)).ToList(),
@@ -48,6 +48,10 @@ namespace Game.Cube.Tests
                 ["Cameo"] = new List<NpcSpec> { PhysicsPopulation.NewtonSpec(seed) },
                 ["Leaders"] = RaceExtensions.All.Select(r => NpcFactory.ChooseLeader(seed, r, 0)).ToList(),
             };
+            // The science faces' town residents (4.5), one population per town.
+            foreach (Theme theme in CubeModel.ScienceThemes)
+                populations[$"{theme} town"] = Enumerable.Range(0, TownSquare.ResidentCount).Select(i => TownSquare.ResidentSpec(seed, theme, i)).ToList();
+            return populations;
         }
 
         // ---------- Names ----------
@@ -309,6 +313,12 @@ namespace Game.Cube.Tests
                         List<string> said = Dialogue.For(spec, facts, density);
                         Add(spec, TownPlan.IsGreeter(spec) ? TownSign.GreeterLines(said) : said);
                     }
+                    foreach (Theme theme in CubeModel.ScienceThemes)
+                    for (int i = 0; i < TownSquare.ResidentCount; i++)
+                    {
+                        NpcSpec resident = TownSquare.ResidentSpec(seed, theme, i);
+                        Add(resident, Dialogue.For(resident, facts, density));
+                    }
                     foreach (Race race in RaceExtensions.All)
                     for (int i = 0; i < 3; i++)
                     {
@@ -323,12 +333,12 @@ namespace Game.Cube.Tests
             }
             foreach (Voice voice in Voices.All)
                 foreach (string line in Dialogue.SpokenLines(voice)) lines[voice].Add(line);
-            lines[Voice.Finch].UnionWith(Dialogue.DarwinLines.Concat(Dialogue.BeakLines).Append(Dialogue.LeaderLine(Race.Finch)));
-            lines[Voice.Mushroom].UnionWith(Dialogue.CurieLines.Concat(Dialogue.StoneLines).Append(Dialogue.StoneLoreLine).Append(Dialogue.LeaderLine(Race.Mushroom)));
-            lines[Voice.Alien].UnionWith(Dialogue.EinsteinLines.Append(Dialogue.MassMittLine).Append(Dialogue.LeaderLine(Race.Alien)));
-            lines[Voice.Shape].UnionWith(Dialogue.BridgekeeperLines.Append(Dialogue.IslandLine).Append(Dialogue.GapCrosserLine).Append(Dialogue.LeaderLine(Race.Shape)));
-            lines[Voice.Ground].UnionWith(Dialogue.OldDiggerLines.Concat(Dialogue.WandLines).Append(Dialogue.NeutralWandLine).Append(Dialogue.LeaderLine(Race.Dinosaur)));
-            lines[Voice.Sky].UnionWith(Dialogue.SkyWatcherLines.Append(Dialogue.HazardLine).Append(Dialogue.LeaderLine(Race.Dinosaur)));
+            lines[Voice.Finch].UnionWith(Dialogue.DarwinLines.Concat(Dialogue.BeakLines).Append(Dialogue.LeaderLine(Race.Finch)).Append(Dialogue.QuestLine(Race.Finch)));
+            lines[Voice.Mushroom].UnionWith(Dialogue.CurieLines.Concat(Dialogue.StoneLines).Append(Dialogue.StoneLoreLine).Append(Dialogue.LeaderLine(Race.Mushroom)).Append(Dialogue.QuestLine(Race.Mushroom)));
+            lines[Voice.Alien].UnionWith(Dialogue.EinsteinLines.Append(Dialogue.MassMittLine).Append(Dialogue.LeaderLine(Race.Alien)).Append(Dialogue.QuestLine(Race.Alien)));
+            lines[Voice.Shape].UnionWith(Dialogue.BridgekeeperLines.Append(Dialogue.IslandLine).Append(Dialogue.GapCrosserLine).Append(Dialogue.LeaderLine(Race.Shape)).Append(Dialogue.QuestLine(Race.Shape)));
+            lines[Voice.Ground].UnionWith(Dialogue.OldDiggerLines.Concat(Dialogue.WandLines).Append(Dialogue.NeutralWandLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
+            lines[Voice.Sky].UnionWith(Dialogue.SkyWatcherLines.Append(Dialogue.HazardLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
             return lines;
         }
 

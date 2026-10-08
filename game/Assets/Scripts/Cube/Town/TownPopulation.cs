@@ -13,6 +13,8 @@ namespace Game.Cube
     /// ones spawn on the next frame (when everything the rebuild destroyed is really gone). The reveal
     /// rebuilds the population at once (same seed: same NPCs on the same spots) with post-reveal lines.
     /// No draft or shop logic: Epic 2 reads Npcs.
+    /// On a face with a town (4.5) the start screen is Town's town: its first NPCs stand on the town's stands and Mayor
+    /// Muddleton (Leader) by its statue, so it is the Town face's busiest screen.
     /// </summary>
     public class TownPopulation : MonoBehaviour, IHintDensityTarget
     {
@@ -54,6 +56,12 @@ namespace Game.Cube
 
         /// <summary>The spec each NPC in Npcs was spawned from (same order); TownPlan.IsGreeter finds the greeter.</summary>
         public IReadOnlyList<NpcSpec> Specs => specs;
+
+        /// <summary>
+        /// The Town's leader, Mayor Muddleton (4.5), by the statue of Town's town on the start screen, greeting the player with
+        /// the quest hook; null on a Town face without a town, or before the first population. Not in Npcs.
+        /// </summary>
+        public NpcTalker Leader { get; private set; }
 
         /// <summary>The seed the current population was built for, or null before the first population.</summary>
         public int? PopulatedSeed { get; private set; }
@@ -111,6 +119,12 @@ namespace Game.Cube
             npcs.Clear();
             spots.Clear();
             specs.Clear();
+            if (Leader != null)
+            {
+                Leader.gameObject.SetActive(false);
+                Destroy(Leader.gameObject);
+            }
+            Leader = null;
             PopulatedSeed = null;
         }
 
@@ -126,9 +140,18 @@ namespace Game.Cube
             int faceSize = world.FaceSize;
             List<NpcSpec> planSpecs = TownPlan.Specs(seed, faceSize);
             List<TownSpot> planned = TownPlan.Spots(seed, faceSize, planSpecs.Count, BlockedFor,
-                (screen, local) => NpcFactory.IsClear(world.ScreenCenter(screen) + local, TownPlan.Margin));
+                (screen, local) => NpcFactory.IsClear(world.ScreenCenter(screen) + local, TownPlan.Margin), IsTownSquare);
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
+
+            // Mayor Muddleton stands by the statue of Town's town (4.5), on the start screen.
+            var square = new ScreenAddress(CubeModel.StartFace, CubeModel.StartCell(faceSize));
+            if (IsTownSquare(square.Cell))
+            {
+                NpcSpec mayor = TownSquare.LeaderSpec(seed, Theme.Town);
+                Leader = TownSquares.SpawnLeader(world, mayor, world.ScreenCenter(square), TownLayout.For(Theme.Town).LeaderStand, target, root);
+                Leader.name = $"Town Leader {mayor.DisplayName}";
+            }
 
             for (int i = 0; i < planSpecs.Count; i++)
             {
@@ -157,6 +180,13 @@ namespace Game.Cube
         {
             List<string> lines = Dialogue.For(spec, facts, hintDensity);
             return TownPlan.IsGreeter(spec) ? TownSign.GreeterLines(lines) : lines;
+        }
+
+        /// <summary>True when the Town module placed on a cell is a town square (the start screen's, 4.5), so its stands and Mayor apply.</summary>
+        private bool IsTownSquare(Vector2Int cell)
+        {
+            ScreenModule module = world.ModuleAt(new ScreenAddress(CubeModel.StartFace, cell));
+            return module != null && module.IsTownScreen;
         }
 
         private IReadOnlyList<Rect> BlockedFor(Vector2Int cell)

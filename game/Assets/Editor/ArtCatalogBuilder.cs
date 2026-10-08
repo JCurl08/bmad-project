@@ -123,6 +123,16 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.RuinStone, Dungeon, 65, "standing stone"),
         new Pick(ArtKey.RuinTile, Town, 122, "speckled flagstone slab (not the framed crate, which read as a pickup)"),
         new Pick(ArtKey.RuinBroken, Dungeon, 59, "broken column stub (not the mallet-shaped post, which read as a tool)"),
+
+        new Pick(ArtKey.HouseRoofRedLeft, Town, 52, "red roof, left end: a Town cottage's roof (4.5)"),
+        new Pick(ArtKey.HouseRoofRedRight, Town, 54, "red roof, right end"),
+        new Pick(ArtKey.HouseWallWoodDoor, Town, 85, "wooden wall with a door at its left end: the cottage's door"),
+        new Pick(ArtKey.HouseWallWoodRight, Town, 75, "wooden wall, right end"),
+        new Pick(ArtKey.HouseRoofGreyLeft, Town, 48, "grey slate roof, left end: a Town stone cottage's roof"),
+        new Pick(ArtKey.HouseRoofGreyRight, Town, 50, "grey slate roof, right end"),
+        new Pick(ArtKey.HouseWallStoneDoor, Town, 90, "stone wall with a door at its left end: the stone cottage's door"),
+        new Pick(ArtKey.HouseWallStoneRight, Town, 79, "stone wall, right end"),
+        new Pick(ArtKey.MarketCart, Town, 57, "a cart of goods: parked by the Town market stall"),
     };
 
     [MenuItem("Cube/Build Art Catalog")]

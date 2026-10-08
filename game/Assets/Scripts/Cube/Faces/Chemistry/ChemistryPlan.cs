@@ -155,7 +155,7 @@ namespace Game.Cube
                 specs[i] = specs[i].WithDifficulty(count);
             }
 
-            int trialCell = rng.NextInt(n * n);
+            int trialCell = TownSquare.PickCellIndex(rng, n); // never the town (4.5)
             var trial = new ScreenAddress(face, trialCell % n, trialCell / n);
             return new ChemistryPlan(model.Seed, stage, face, n, specs, trial);
         }
@@ -280,6 +280,7 @@ namespace Game.Cube
                 foreach (IsotopeStage other in Stages)
                     if (other != plan.Stage && !HasOptional(plan, other)) problems.Add($"no optional {other} gate (the other stones' gates are extras)");
             if (plan.TrialScreen.Face != plan.Face) problems.Add($"the trial is on {plan.TrialScreen}, not on Chemistry");
+            if (TownSquare.IsTown(plan.TrialScreen, plan.FaceSize)) problems.Add($"the trial is on the town {plan.TrialScreen}");
             if (moduleAt != null)
             {
                 ScreenModule module = moduleAt(plan.TrialScreen);

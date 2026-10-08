@@ -48,7 +48,7 @@ namespace Game.Cube
 
         /// <summary>The legend's labels, in drawing order (one per marker style).</summary>
         public static readonly string[] LegendLabels =
-            { "You", "Start", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal" };
+            { "You", "Start", "Town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal" };
 
         /// <summary>Every piece of text the map can show (for the voice-rule tests).</summary>
         public static IEnumerable<string> AllTexts()
@@ -67,6 +67,7 @@ namespace Game.Cube
         private static readonly Color TrialColor = new Color(0.45f, 0.9f, 1f);
         private static readonly Color PortalColor = new Color(1f, 0.4f, 0.8f);
         private static readonly Color StartColor = Color.white;
+        private static readonly Color TownColor = new Color(1f, 0.62f, 0.3f);
         private static readonly Color PlayerColor = new Color(1f, 0.35f, 0.3f);
 
         [SerializeField] private CubeWorld world;
@@ -270,10 +271,36 @@ namespace Game.Cube
         /// <summary>Gap between faces in the net (pixels).</summary>
         private const float FaceGap = 6f;
 
+        /// <summary>The legend's narrowest column (pixels): a marker glyph and the longest label at the map's font size.</summary>
+        public const float MinLegendStep = 150f;
+
+        /// <summary>Height of one legend row (pixels).</summary>
+        public const float LegendRowHeight = 24f;
+
+        /// <summary>Labels per legend row on a screen this wide: as many as fit MinLegendStep apart, the rows evened out.</summary>
+        public static int LegendColumns(float screenWidth)
+        {
+            int n = LegendLabels.Length;
+            int fit = Mathf.Clamp(Mathf.FloorToInt((screenWidth - 32f) / MinLegendStep), 1, n);
+            int rows = (n + fit - 1) / fit;
+            return (n + rows - 1) / rows;
+        }
+
+        /// <summary>Legend rows on a screen this wide (two at 960 px, since 4.5 added "Town").</summary>
+        public static int LegendRows(float screenWidth)
+        {
+            int columns = LegendColumns(screenWidth);
+            return (LegendLabels.Length + columns - 1) / columns;
+        }
+
+        /// <summary>The space kept under the net for the legend: 52 px for one row, LegendRowHeight more per extra row.</summary>
+        public static float LegendHeight(float screenWidth) => 52f + (LegendRows(screenWidth) - 1) * LegendRowHeight;
+
         /// <summary>The cell size (pixels) the net is drawn with on a screen of the given size: as big as fits, 8..64.</summary>
         public static float CellSize(float screenWidth, float screenHeight, int faceSize)
         {
-            const float margin = 16f, header = 56f, legend = 52f;
+            const float margin = 16f, header = 56f;
+            float legend = LegendHeight(screenWidth);
             float availW = screenWidth - 2f * margin - (CubeNet.Columns - 1) * FaceGap;
             float availH = screenHeight - header - legend - margin - (CubeNet.Rows - 1) * FaceGap;
             float cell = Mathf.Floor(Mathf.Min(availW / (CubeNet.Columns * faceSize), availH / (CubeNet.Rows * faceSize)));
@@ -301,7 +328,7 @@ namespace Game.Cube
             float netW = CubeNet.Columns * faceSpan + (CubeNet.Columns - 1) * FaceGap;
             float netH = CubeNet.Rows * faceSpan + (CubeNet.Rows - 1) * FaceGap;
             float left = Mathf.Floor((w - netW) / 2f);
-            float top = 56f + Mathf.Floor(Mathf.Max(0f, (h - 56f - 52f - netH) / 2f));
+            float top = 56f + Mathf.Floor(Mathf.Max(0f, (h - 56f - LegendHeight(w) - netH) / 2f));
 
             Rect CellRect(Vector2Int netCell)
             {
@@ -381,6 +408,7 @@ namespace Game.Cube
             yield return new KeyValuePair<string, Color>("Item", ItemColor);
             yield return new KeyValuePair<string, Color>("Trial", TrialColor);
             yield return new KeyValuePair<string, Color>("Portal", PortalColor);
+            yield return new KeyValuePair<string, Color>("Town", TownColor);
         }
 
         private static Rect Grow(Rect r, float by) => new Rect(r.x - by, r.y - by, r.width + 2f * by, r.height + 2f * by);
@@ -418,6 +446,19 @@ namespace Game.Cube
                     Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), PortalColor);
                     Tex(Disc, new Rect(at.x - s * 0.3f, at.y - s * 0.3f, s * 0.6f, s * 0.6f), PortalColor);
                     break;
+                case MapMarkerKind.Town:
+                    // A little house: a square under a stepped roof, on a dark backing.
+                    var wall = new Rect(at.x - s * 0.55f, at.y - s * 0.15f, s * 1.1f, s * 0.7f);
+                    var roof = new Rect(at.x - s * 0.75f, at.y - s * 0.45f, s * 1.5f, s * 0.3f);
+                    var peak = new Rect(at.x - s * 0.35f, at.y - s * 0.7f, s * 0.7f, s * 0.25f);
+                    Fill(Grow(wall, o), dark);
+                    Fill(Grow(roof, o), dark);
+                    Fill(Grow(peak, o), dark);
+                    Fill(wall, TownColor);
+                    Fill(roof, TownColor);
+                    Fill(peak, TownColor);
+                    Fill(new Rect(at.x - s * 0.12f, at.y + s * 0.2f, s * 0.24f, s * 0.35f), dark);
+                    break;
             }
         }
 
@@ -438,25 +479,26 @@ namespace Game.Cube
 
         private void DrawLegend(float w, float h, float s)
         {
-            float y = h - 40f;
-            float x = 16f;
-            float step = Mathf.Max(100f, (w - 32f) / LegendLabels.Length);
+            int columns = LegendColumns(w), rows = LegendRows(w);
+            float step = (w - 32f) / columns;
             for (int i = 0; i < LegendLabels.Length; i++)
             {
+                float x = 16f + (i % columns) * step;
+                float y = h - 40f - (rows - 1 - i / columns) * LegendRowHeight;
                 var at = new Vector2(x + s, y + 11f);
                 switch (i)
                 {
                     case 0: DrawPlayer(at, Vector2.right, s * 1.4f); break;
                     case 1: DrawMarker(MapMarkerKind.Start, false, at, s); break;
-                    case 2: DrawMarker(MapMarkerKind.Gate, false, at, s); break;
-                    case 3: DrawMarker(MapMarkerKind.Gate, true, at, s); break;
-                    case 4: DrawMarker(MapMarkerKind.Item, false, at, s); break;
-                    case 5: DrawMarker(MapMarkerKind.Trial, false, at, s); break;
-                    case 6: DrawMarker(MapMarkerKind.Trial, true, at, s); break;
+                    case 2: DrawMarker(MapMarkerKind.Town, false, at, s); break;
+                    case 3: DrawMarker(MapMarkerKind.Gate, false, at, s); break;
+                    case 4: DrawMarker(MapMarkerKind.Gate, true, at, s); break;
+                    case 5: DrawMarker(MapMarkerKind.Item, false, at, s); break;
+                    case 6: DrawMarker(MapMarkerKind.Trial, false, at, s); break;
+                    case 7: DrawMarker(MapMarkerKind.Trial, true, at, s); break;
                     default: DrawMarker(MapMarkerKind.Portal, false, at, s); break;
                 }
                 GUI.Label(new Rect(x + s * 2f + 6f, y, step - s * 2f - 6f, 24f), LegendLabels[i], textStyle);
-                x += step;
             }
         }
 

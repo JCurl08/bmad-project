@@ -36,6 +36,9 @@ namespace Game.Cube
         /// <summary>The calm eye's soft ring (decor only).</summary>
         public static readonly Color EyeColor = new Color(1f, 1f, 0.85f, 0.18f);
 
+        /// <summary>The ring's sorting order: over the floor, under the Earth town's plaza (TownSquareView.PlazaOrder, 4.5).</summary>
+        public const int EyeOrder = -9;
+
         [SerializeField] private Transform player;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
         [SerializeField] private bool spawnEnemies = true;
@@ -190,7 +193,7 @@ namespace Game.Cube
             var eye = new GameObject("Calm Eye").transform;
             eye.SetParent(root, false);
             eye.position = world.ScreenCenter(Plan.Eye);
-            ArtCatalog.AddShape(eye, "Ring", PartShape.Circle, Vector2.zero, new Vector2(7f, 7f) * ScreenMath.ContentScale, EyeColor, -9, world.Material);
+            ArtCatalog.AddShape(eye, "Ring", PartShape.Circle, Vector2.zero, new Vector2(7f, 7f) * ScreenMath.ContentScale, EyeColor, EyeOrder, world.Material);
             decor.Add(eye);
         }
 

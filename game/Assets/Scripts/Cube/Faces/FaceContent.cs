@@ -74,7 +74,10 @@ namespace Game.Cube
             mover.SetKeepOut(circles);
         }
 
-        /// <summary>The face's screens row by row, then shuffled on rng (one draw sequence per call).</summary>
+        /// <summary>
+        /// The face's screens row by row, then shuffled on rng (one draw sequence per call), less the town (4.5: a face's
+        /// population and enemies never stand in its town; the town is dropped after the shuffle, so the draws are unchanged).
+        /// </summary>
         public static List<ScreenAddress> ShuffledScreens(FaceId face, int faceSize, SeededRng rng)
         {
             var screens = new List<ScreenAddress>();
@@ -82,7 +85,7 @@ namespace Game.Cube
                 for (int x = 0; x < faceSize; x++)
                     screens.Add(new ScreenAddress(face, x, y));
             rng.Shuffle(screens);
-            return screens;
+            return TownSquare.WithoutTown(screens, faceSize);
         }
 
         /// <summary>A spot on screens[start], else on the next screens round the face.</summary>

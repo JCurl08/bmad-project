@@ -86,7 +86,8 @@ namespace Game.Cube
     /// The Earth face of a run as pure data, from the run seed, the item placement and (for positions) the screen modules:
     /// the rolled phenomenon (the placement's rolled Earth variant, its kind read from the item ids); every Earth gate (all
     /// required ones the rolled phenomenon's, so it opens at least one gate on another face; the other phenomena's optional
-    /// gates their own, guarding nothing required); the calm eye (the face's centre screen, no hazards); the hazards (one
+    /// gates their own, guarding nothing required); the calm eye (the face's centre screen, no hazards: since 4.5 it hosts the
+    /// Earth town, so no trial is ever there either); the hazards (one
     /// per other screen, the four kinds dealt round a seeded order); the difficulty (the hazard level, from the number of
     /// hazard screens per screen of the face, setting every hazard's strength); and the trial screen with its pieces.
     /// Screens that hold another face's timed door (Physics) stay calm too, so a door's timing is never thrown off.
@@ -359,7 +360,8 @@ namespace Game.Cube
             // The trial: on the first hazard screen (in a seeded order) where its pieces fit, else on any Earth screen.
             var trialOrder = new List<ScreenAddress>(hazardScreens);
             rng.Shuffle(trialOrder);
-            foreach (ScreenAddress s in calm) trialOrder.Add(s);
+            foreach (ScreenAddress s in calm)
+                if (!TownSquare.IsTown(s, n)) trialOrder.Add(s); // the calm eye is the town (4.5): no trial there
             ScreenAddress trialScreen = trialOrder[0];
             List<Vector2> trialSpots = null;
             Dictionary<ScreenAddress, List<ScreenMark>> others = null;
@@ -936,6 +938,7 @@ namespace Game.Cube
 
             // Trial.
             if (TrialScreen.Face != Face) problems.Add($"the trial is on {TrialScreen}, not on Earth");
+            if (TownSquare.IsTown(TrialScreen, FaceSize)) problems.Add($"the trial is on the town {TrialScreen} (the calm eye)");
             if (HasLayout)
             {
                 if (TrialSpots == null || TrialSpots.Count < EarthTrial.PieceCount) problems.Add("the trial fits on no Earth screen");

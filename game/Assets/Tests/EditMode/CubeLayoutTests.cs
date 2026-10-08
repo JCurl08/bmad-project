@@ -178,7 +178,7 @@ namespace Game.Cube.Tests
         // ---------- Library invariants ----------
 
         private static IEnumerable<ScreenModule> AllLibraryModules(ModuleLibrary library) =>
-            library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsIslandScreen);
+            library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsIslandScreen && !m.IsTownScreen);
 
         private static float RectDistance(Rect r, Vector2 p)
         {

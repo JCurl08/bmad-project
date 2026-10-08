@@ -104,6 +104,10 @@ public static class CubeSceneBuilder
         worldObject.AddComponent<MathFace>().Player = player.transform;
         // The Wildlands* (Stormcaller* gates, hazards, trial, dinosaurs and enemies) plugs in the same way.
         worldObject.AddComponent<EarthFace>().Player = player.transform;
+        // Towns (4.5): every science face's town gets its leader and residents on the reveal (Town's are TownPopulation's).
+        var squares = worldObject.AddComponent<TownSquares>();
+        squares.World = world;
+        squares.Player = player.transform;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -302,6 +306,9 @@ public static class CubeSceneBuilder
                   $"{earthGates} gates ({offHomeEarth} off-home, {optionalEarth} optional); hazards {hazardCounts[0]} wind, " +
                   $"{hazardCounts[1]} snow, {hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
                   $"{string.Join(", ", levels.Select(e => $"{e.Key}x{e.Value}"))}; the Earth trial fits on {earthTrials} seeds.\n";
+        int towns = results.Sum(r => r.TownsChecked);
+        report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
+                  "module, slot-free, with a sound layout; no gate, pickup, core portal, island screen, trial, flower or hidden spot on it).\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

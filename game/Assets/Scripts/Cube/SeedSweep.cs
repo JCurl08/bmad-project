@@ -56,6 +56,9 @@ namespace Game.Cube
             /// <summary>The item placement that was checked; null when items were not checked.</summary>
             public ItemPlacement Placement;
 
+            /// <summary>Towns checked this seed (FindTownProblems: every laid-out face's, and the Town face's with its module).</summary>
+            public int TownsChecked;
+
             /// <summary>The hidden meta-currency placement that was checked; null when it was not checked.</summary>
             public HiddenCurrencyPlacement HiddenCurrency;
 
@@ -331,6 +334,11 @@ namespace Game.Cube
                         foreach (string problem in EarthPlan.FindProblems(model, placement, earthVariantKinds, moduleAt, biologyVariantKinds,
                             chemistryVariantKinds))
                             result.ItemProblems.Add("earth: " + problem);
+                        ScreenModule townFaceCentre = catalog is ModuleLibrary townLibrary
+                            ? townLibrary.TownModule(TownSquare.Cell(faceSize), faceSize) : null;
+                        foreach (string problem in FindTownProblems(model, layout, catalog, placement, biologyVariantKinds,
+                            chemistryVariantKinds, earthVariantKinds, moduleAt, townFaceCentre, out result.TownsChecked))
+                            result.ItemProblems.Add("town: " + problem);
                     }
                     if (catalog is IHiddenSlotCatalog hiddenCatalog)
                     {
@@ -338,11 +346,107 @@ namespace Game.Cube
                         result.HiddenCurrency = hidden;
                         Func<ScreenAddress, ScreenModule> hiddenModuleAt = catalog is ModuleLibrary hiddenLibrary ? ModuleLookup(layout, hiddenLibrary) : null;
                         result.HiddenProblems = HiddenCurrencyPlacement.FindProblems(model, layout, hidden, hiddenCatalog, hiddenModuleAt);
+                        foreach (HiddenCurrencySpot spot in hidden.Spots)
+                            if (TownSquare.IsTown(spot.Screen, model.FaceSize)) result.HiddenProblems.Add($"{spot} is in a town");
                     }
                 }
                 results.Add(result);
             }
             return results;
+        }
+
+        /// <summary>
+        /// Problems with the towns of a run (4.5; empty when all is well): given townFaceCentre (the Town face's centre module),
+        /// it is Town's slot-free town module with a sound layout; on every laid-out face with a town, the centre holds
+        /// the theme's town module (when the catalog has one) and is neither the core screen nor an island screen; no gate,
+        /// optional gate or pickup stands on a town screen; no face plan puts its trial (Biology, Chemistry, Physics, Math,
+        /// Earth) or a flower there; and the Earth calm eye is the Earth town. Given the module prefabs, the town module has
+        /// no slots and its town (TownLayout) is sound: buildings, a statue, a leader's stand and stands for every resident,
+        /// all clear of the lanes, so its four doorways stay open.
+        /// </summary>
+        public static List<string> FindTownProblems(CubeModel model, CubeLayout layout, IModuleCatalog catalog, ItemPlacement placement,
+            IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null,
+            IReadOnlyList<Phenomenon> earthVariantKinds = null, Func<ScreenAddress, ScreenModule> moduleAt = null,
+            ScreenModule townFaceCentre = null) =>
+            FindTownProblems(model, layout, catalog, placement, biologyVariantKinds, chemistryVariantKinds, earthVariantKinds, moduleAt,
+                townFaceCentre, out _);
+
+        /// <summary>FindTownProblems, also counting the towns it checked (each laid-out face's, plus the Town face's when given).</summary>
+        public static List<string> FindTownProblems(CubeModel model, CubeLayout layout, IModuleCatalog catalog, ItemPlacement placement,
+            IReadOnlyList<BeakKind> biologyVariantKinds, IReadOnlyList<IsotopeStage> chemistryVariantKinds,
+            IReadOnlyList<Phenomenon> earthVariantKinds, Func<ScreenAddress, ScreenModule> moduleAt, ScreenModule townFaceCentre,
+            out int townsChecked)
+        {
+            var problems = new List<string>();
+            int n = model.FaceSize;
+            townsChecked = 0;
+            if (!TownSquare.HasTown(n)) return problems;
+            // The Town face's centre (its start screen): Town's own town module, slot-free, with a sound layout.
+            if (townFaceCentre != null)
+            {
+                townsChecked++;
+                if (!townFaceCentre.IsTownScreen || townFaceCentre.Theme != Theme.Town)
+                    problems.Add($"Town's centre module {townFaceCentre.name} is not Town's town");
+                if (townFaceCentre.Gates.Length > 0 || townFaceCentre.HiddenItems.Length > 0 || townFaceCentre.CoreEntranceCount > 0)
+                    problems.Add($"Town's town module {townFaceCentre.name} has slots");
+                foreach (string p in TownLayout.For(Theme.Town).Problems()) problems.Add($"Town: {p}");
+            }
+            bool IsTown(ScreenAddress s) => TownSquare.IsTown(s, n);
+            for (int f = 0; f < CubeSettings.FaceCount; f++)
+            {
+                var face = (FaceId)f;
+                if (!layout.TryGetFace(face, out FaceLayout fl)) continue;
+                townsChecked++;
+                Vector2Int cell = TownSquare.Cell(n);
+                int town = catalog != null ? catalog.TownModuleIndex(fl.Theme) : -1;
+                if (town >= 0 && fl.ModuleAt(cell) != town) problems.Add($"{face} ({fl.Theme}): the centre is not its town");
+                if (fl.CoreCell == cell) problems.Add($"{face} ({fl.Theme}): the core portal is in the town");
+                foreach (Vector2Int island in fl.IslandCells)
+                    if (island == cell) problems.Add($"{face} ({fl.Theme}): an island screen is the town");
+                ScreenModule module = moduleAt?.Invoke(new ScreenAddress(face, cell));
+                if (module != null)
+                {
+                    if (!module.IsTownScreen) problems.Add($"{face}: the centre module {module.name} is not a town module");
+                    if (module.Gates.Length > 0 || module.HiddenItems.Length > 0 || module.CoreEntranceCount > 0)
+                        problems.Add($"{face}: the town module {module.name} has slots");
+                    foreach (string p in TownLayout.For(fl.Theme).Problems()) problems.Add($"{face}: {p}");
+                }
+            }
+            if (placement != null)
+            {
+                foreach (GatePlacement g in placement.Gates) if (IsTown(g.Screen)) problems.Add($"{g} is in a town");
+                foreach (OptionalGatePlacement g in placement.OptionalGates) if (IsTown(g.Screen)) problems.Add($"{g} is in a town");
+                foreach (PickupPlacement p in placement.Pickups) if (IsTown(p.Screen)) problems.Add($"{p} is in a town");
+                BiologyPlan biology = BiologyPlan.Create(model, placement, biologyVariantKinds);
+                if (biology != null)
+                {
+                    if (IsTown(biology.TrialScreen)) problems.Add($"the Biology trial is in the town {biology.TrialScreen}");
+                    foreach (BeakGateSpec g in biology.Gates)
+                        if (g.Kind == BeakGateKind.FlowerVine && IsTown(g.FlowerScreen)) problems.Add($"{g}: its flower is in a town");
+                }
+                ChemistryPlan chemistry = ChemistryPlan.Create(model, placement, chemistryVariantKinds);
+                if (chemistry != null && IsTown(chemistry.TrialScreen)) problems.Add($"the Chemistry trial is in the town {chemistry.TrialScreen}");
+                PhysicsPlan physics = PhysicsPlan.Create(model, placement, moduleAt, biologyVariantKinds, PhysicsPlan.DefaultMaxRequired,
+                    chemistryVariantKinds);
+                if (physics != null && IsTown(physics.TrialScreen)) problems.Add($"the Physics trial is in the town {physics.TrialScreen}");
+                if (moduleAt != null)
+                {
+                    MathPlan math = MathPlan.Create(model, placement, moduleAt, biologyVariantKinds, chemistryVariantKinds);
+                    if (math != null)
+                    {
+                        if (math.IslandScreens.Count > 0 && IsTown(math.TrialScreen)) problems.Add($"the Math trial is in the town {math.TrialScreen}");
+                        foreach (IslandScreenSpec spec in math.IslandScreens)
+                            if (IsTown(spec.Screen)) problems.Add($"{spec} is a town");
+                    }
+                }
+                EarthPlan earth = EarthPlan.Create(model, placement, moduleAt, earthVariantKinds, biologyVariantKinds, chemistryVariantKinds);
+                if (earth != null)
+                {
+                    if (IsTown(earth.TrialScreen)) problems.Add($"the Earth trial is in the town {earth.TrialScreen}");
+                    if (!IsTown(earth.Eye)) problems.Add($"the calm eye {earth.Eye} is not the Earth town");
+                }
+            }
+            return problems;
         }
 
         /// <summary>The module prefab of each screen of a layout (null off the laid-out faces).</summary>
@@ -387,7 +491,8 @@ namespace Game.Cube
                         "every timed door with enough reachable boulders on its screen, the Physics trial fitting, " +
                         "the gap-crosser* opening a gate on another face, Math's island screens never fully joined yet never " +
                         "stranding the player, every item collected doorway by doorway, the Math trial island reachable, the rolled Stormcaller* opening a gate on another face, hazards that never " +
-                        "block a way or trap the player, the calm eye at the centre, the Earth trial fitting";
+                        "block a way or trap the player, the calm eye at the centre, the Earth trial fitting, every face's centre its " +
+                        "town with no gate, pickup, core portal, island screen, trial, flower or hidden spot on it";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";

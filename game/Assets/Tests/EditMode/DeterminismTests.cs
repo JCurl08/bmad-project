@@ -156,6 +156,10 @@ namespace Game.Cube.Tests
                     .Concat(Enumerable.Range(0, PhysicsPopulation.AlienCount(model.FaceSize)).Select(i => PhysicsPopulation.AlienSpec(seed, i).Signature()))
                     .Append(PhysicsPopulation.NewtonSpec(seed).Signature())));
             Add("town", string.Join(" ", TownPlan.Specs(seed, model.FaceSize).Select(s => s.Signature())));
+            // The towns' people (4.5): each science face's residents, then every leader.
+            Add("townNpcs", string.Join(" ", CubeModel.ScienceThemes
+                .SelectMany(t => Enumerable.Range(0, TownSquare.ResidentCount).Select(i => TownSquare.ResidentSpec(seed, t, i).Signature()))
+                .Concat(new[] { Theme.Town }.Concat(CubeModel.ScienceThemes).Select(t => TownSquare.LeaderSpec(seed, t).Signature()))));
 
             Add("streams", string.Join(" ", NamedStreams().Select(s =>
             {
@@ -167,7 +171,10 @@ namespace Game.Cube.Tests
 
         private static string Spots(IEnumerable<Vector2> spots) => "[" + string.Join(" ", spots.Select(v => v.ToString("0.000"))) + "]";
 
-        /// <summary>A face's screens shuffled the way the faces' population code shuffles them.</summary>
+        /// <summary>
+        /// A face's screens shuffled the way the faces' population code shuffles them (an independent copy of
+        /// FaceContent.ShuffledScreens): row by row, shuffled, then the town (the centre, 4.5) dropped.
+        /// </summary>
         private static string Screens(FaceId face, int faceSize, SeededRng rng)
         {
             var screens = new List<ScreenAddress>();
@@ -175,6 +182,7 @@ namespace Game.Cube.Tests
                 for (int x = 0; x < faceSize; x++)
                     screens.Add(new ScreenAddress(face, x, y));
             rng.Shuffle(screens);
+            if (faceSize >= 3) screens.Remove(new ScreenAddress(face, (faceSize - 1) / 2, (faceSize - 1) / 2));
             return "[" + string.Join(" ", screens) + "]";
         }
 

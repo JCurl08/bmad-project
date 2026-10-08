@@ -39,6 +39,9 @@ namespace Game.Cube
         [Tooltip("An island screen's module (1.25, Math): open floor with only its exits; MathFace fills it with water and islands.")]
         [SerializeField] private bool islandScreen;
 
+        [Tooltip("A town screen's module (4.5, every face's centre): open floor with only its exits; TownSquareView builds the town on it.")]
+        [SerializeField] private bool townScreen;
+
         public Theme Theme
         {
             get => theme;
@@ -50,6 +53,17 @@ namespace Game.Cube
         {
             get => islandScreen;
             set => islandScreen = value;
+        }
+
+        /// <summary>
+        /// True for a town screen's module (4.5): no gates, hidden items or core entrances, only its four exits; the town
+        /// (TownLayout: buildings, statue, plaza) is built on it when it is placed (TownSquareView), and TownPlan.BlockedRects
+        /// counts its solids.
+        /// </summary>
+        public bool IsTownScreen
+        {
+            get => townScreen;
+            set => townScreen = value;
         }
 
         public ExitSlot[] Exits => GetComponentsInChildren<ExitSlot>(true);

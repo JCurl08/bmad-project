@@ -338,7 +338,7 @@ namespace Game.Cube.Tests
         public void Library_EveryGateSlotHasAnAlcove_ClearOfLanes()
         {
             ModuleLibrary library = LoadLibrary();
-            foreach (ScreenModule module in library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsIslandScreen))
+            foreach (ScreenModule module in library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsIslandScreen && !m.IsTownScreen))
             {
                 GateSlot[] slots = module.Gates;
                 Transform alcoves = module.transform.Find("Alcoves");

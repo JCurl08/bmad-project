@@ -15,7 +15,8 @@ namespace Game.Cube.Tests
     /// The Town hub in the real Cube scene: a run starts with one NPC of each face race plus a per-screen share of Townsfolk
     /// on the Town face, on the seed's spots (clear of colliders, lanes and the centre); the same seed gives
     /// the same town; every Town NPC talks (sparse, run-true hints; the greeter adds the welcome); F5 replaces
-    /// the population without leftovers; and walking off a Town edge still lands on the shuffled cube.
+    /// the population without leftovers; walking off a Town edge still lands on the shuffled cube; and (4.5) every face's
+    /// centre is its town, the busiest screen of its face, with its leader by the statue and no enemies, over seeds 1-50.
     /// </summary>
     public class TownSceneTests : InputTestFixture
     {
@@ -184,8 +185,85 @@ namespace Game.Cube.Tests
             CollectionAssert.AreEqual(TownPlan.Specs(world.Seed, world.FaceSize).Select(s => s.Signature()), town.Npcs.Select(n => n.Spec.Signature()));
             CollectionAssert.AreEqual(ExpectedSpots(world.Seed), town.Spots);
             NpcTalker[] all = Object.FindObjectsByType<NpcTalker>(FindObjectsSortMode.None);
-            Assert.AreEqual(town.Npcs.Count, all.Length, "No duplicates or leftovers in the scene");
-            CollectionAssert.AreEquivalent(town.Npcs, all);
+            Assert.IsNotNull(town.Leader, "Mayor Muddleton stands in Town's town (4.5)");
+            Assert.AreEqual(town.Npcs.Count + 1, all.Length, "No duplicates or leftovers in the scene");
+            CollectionAssert.AreEquivalent(town.Npcs.Append(town.Leader), all);
+        }
+
+        [UnityTest]
+        public IEnumerator EveryFacesCentre_IsItsTown_TheBusiestScreen_WithItsLeader_AndNoEnemies_OverSeeds1To50()
+        {
+            yield return Load();
+            var squares = Object.FindAnyObjectByType<TownSquares>();
+            Assert.IsNotNull(squares, "The Cube scene has TownSquares");
+            Vector2Int centre = TownSquare.Cell(world.FaceSize);
+            for (int seed = 1; seed <= 50; seed++)
+            {
+                world.Rebuild(seed);
+                yield return WaitForPopulation();
+                Assert.IsTrue(world.RevealScience());
+                yield return null;
+                CubeModel model = world.Model;
+
+                var npcsPerScreen = new Dictionary<ScreenAddress, int>();
+                foreach (NpcTalker npc in Object.FindObjectsByType<NpcTalker>(FindObjectsSortMode.None))
+                    if (world.TryScreenAt(npc.transform.position, out ScreenAddress at))
+                        npcsPerScreen[at] = npcsPerScreen.TryGetValue(at, out int c) ? c + 1 : 1;
+                var enemyScreens = new List<ScreenAddress>();
+                foreach (Enemy enemy in Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None))
+                {
+                    // Every NPC carries dormant enemy parts (HostileNpc): only real enemies count.
+                    if (enemy.GetComponent<NpcTalker>() != null) continue;
+                    if (world.TryScreenAt(enemy.transform.position, out ScreenAddress at)) enemyScreens.Add(at);
+                }
+                Assert.Greater(enemyScreens.Count, 0, $"seed {seed}: the faces still have their enemies");
+
+                for (int f = 0; f < CubeSettings.FaceCount; f++)
+                {
+                    var face = (FaceId)f;
+                    var townScreen = new ScreenAddress(face, centre);
+                    string context = $"seed {seed} {face} ({model.ThemeOf(face)})";
+                    ScreenModule module = world.ModuleAt(townScreen);
+                    Assert.IsNotNull(module, context);
+                    Assert.IsTrue(module.IsTownScreen, $"{context}: the centre is a town");
+                    TownSquareView view = module.GetComponentInChildren<TownSquareView>();
+                    Assert.IsNotNull(view, $"{context}: the town is built");
+                    Assert.AreEqual(model.ThemeOf(face), view.Theme, $"{context}: in its race's style");
+                    Assert.GreaterOrEqual(view.Buildings.Count, 3, $"{context}: buildings");
+                    Assert.IsTrue(view.Buildings.All(b => b != null && b.enabled && !b.isTrigger), $"{context}: the buildings are solid");
+                    Assert.IsNotNull(view.Statue, $"{context}: a statue");
+                    Assert.IsNotNull(view.MarkedDoor, $"{context}: a door marked for 4.6");
+
+                    // The leader stands near the statue and gives the quest hook.
+                    NpcTalker leader = face == CubeModel.StartFace ? town.Leader : squares.LeaderOf(face);
+                    Assert.IsNotNull(leader, $"{context}: a leader");
+                    Assert.IsTrue(leader.Spec.IsLeader, context);
+                    Assert.AreEqual(TownSquare.RaceOf(model.ThemeOf(face)), leader.Spec.Race, context);
+                    Assert.IsTrue(world.TryScreenAt(leader.transform.position, out ScreenAddress leaderAt) && leaderAt == townScreen, $"{context}: the leader is in the town");
+                    Assert.Less(Vector2.Distance(leader.transform.position, view.Statue.transform.position), TownLayout.LeaderReach + 1f, $"{context}: near the statue");
+                    CollectionAssert.AreEqual(Dialogue.LeaderConversation(leader.Spec.Race), leader.Lines, context);
+
+                    // The busiest screen of its face, and no enemy.
+                    int inTown = npcsPerScreen.TryGetValue(townScreen, out int n) ? n : 0;
+                    for (int y = 0; y < world.FaceSize; y++)
+                        for (int x = 0; x < world.FaceSize; x++)
+                        {
+                            var other = new ScreenAddress(face, x, y);
+                            if (other == townScreen) continue;
+                            int there = npcsPerScreen.TryGetValue(other, out int m) ? m : 0;
+                            Assert.Greater(inTown, there, $"{context}: {other} has {there} people, the town {inTown}");
+                        }
+                    Assert.IsFalse(enemyScreens.Contains(townScreen), $"{context}: an enemy in the town");
+
+                    // Its doorways and lanes are clear of the town's solids.
+                    Vector2 c0 = world.ScreenCenter(townScreen);
+                    float lane = ScreenModule.ExitLaneHalfWidth - 0.05f;
+                    Vector2 half = CubeWorld.ScreenSize / 2f;
+                    foreach (Rect laneRect in new[] { Rect.MinMaxRect(-lane, -half.y, lane, half.y), Rect.MinMaxRect(-half.x, -lane, half.x, lane) })
+                        foreach (Collider2D hit in Physics2D.OverlapBoxAll(c0 + laneRect.center, laneRect.size, 0f))
+                            Assert.IsNull(hit.GetComponentInParent<TownSquareView>(), $"{context}: {hit.name} is on a lane");
+                }
+            }
         }
 
         [UnityTest]

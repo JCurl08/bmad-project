@@ -209,6 +209,7 @@ namespace Game.Cube
                 for (int x = 0; x < n; x++)
                     trialOrder.Add(new ScreenAddress(face, x, y));
             rng.Shuffle(trialOrder);
+            TownSquare.WithoutTown(trialOrder, n); // never the town (4.5): after the shuffle, so the draws stay the same
 
             if (moduleAt == null)
                 return new PhysicsPlan(model.Seed, face, n, maxRequired, specs, trialOrder[0], null, null);
@@ -259,6 +260,7 @@ namespace Game.Cube
             }
             if (offHome < 1 && builtFaces > 1) problems.Add("the Mass Mitt opens no gate on another face");
             if (plan.TrialScreen.Face != plan.Face) problems.Add($"the trial is on {plan.TrialScreen}, not on Physics");
+            if (TownSquare.IsTown(plan.TrialScreen, plan.FaceSize)) problems.Add($"the trial is on the town {plan.TrialScreen}");
             if (plan.HasLayout) problems.AddRange(plan.LayoutProblems());
             return problems;
         }

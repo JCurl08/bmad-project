@@ -95,12 +95,24 @@ namespace Game.Cube
         ItemWandSnow = 112,
         ItemWandTornado = 113,
         EnemyRumbler = 114,
+
+        // Town cottages (4.5): Kenney Tiny Town roof, wall and door tiles, laid two by two.
+        HouseRoofRedLeft = 120,
+        HouseRoofRedRight = 121,
+        HouseWallWoodDoor = 122,
+        HouseWallWoodRight = 123,
+        HouseRoofGreyLeft = 124,
+        HouseRoofGreyRight = 125,
+        HouseWallStoneDoor = 126,
+        HouseWallStoneRight = 127,
+        MarketCart = 128,
     }
 
     /// <summary>What kind of thing a key draws. Two keys of different categories must never share a sprite.</summary>
     public enum ArtCategory
     {
         None, Player, Wall, Floor, Gate, Item, Currency, Enemy, Boulder, Switch, Plant, Prop, Portal, Demon, Particle, Ruin, Hazard,
+        Building,
     }
 
     /// <summary>Pure facts about the art keys: category, fallback shape, tiling and the key for a theme, item or enemy.</summary>
@@ -150,6 +162,7 @@ namespace Game.Cube
                 case ArtKey.Demon: return ArtCategory.Demon;
                 case ArtKey.Particle: return ArtCategory.Particle;
             }
+            if (v >= 120 && v < 130) return ArtCategory.Building;
             return v >= 90 && v < 100 ? ArtCategory.Ruin : ArtCategory.None;
         }
 

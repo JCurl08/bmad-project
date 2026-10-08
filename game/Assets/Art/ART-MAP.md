@@ -50,6 +50,23 @@ its generated placeholder shape, so nothing renders invisible.
     plumes for the avian dinosaurs) and royal purple trim with a gold hem, which no ordinary NPC wears; most also carry
     a staff (the Town's, the Chemistry folk's flask staff, the shape people's ruler, a bone club for the ground dinosaurs)
     or a ruff (finches).
+- **Towns (4.5):** every face's centre screen is its race's town (`TownLayout`, built by `TownSquareView`): four buildings
+  in a row along the north half, their doors on the lane, a paved plaza over the crossroads and the south half, and the
+  statue by the crossroads.
+  - The Town's cottages are Kenney Tiny Town tiles, two by two, each tile two units (the people's pixel size): a red roof
+    (T 52, 54) over a wooden wall with its door (T 85, 75), or a grey slate roof (T 48, 50) over a stone wall with its door
+    (T 90, 79). The market's cart is T 57. These keys are the Building category: decor, never pickup-looking.
+  - Every other building is drawn in code (`TownArt`) in the NPC designs' style: Kenney's palette, the two-pixel plum
+    outline added round the figure, point filtering, 8 pixels a unit (the people's). Finches: a treehouse (a plank hut on a
+    trunk under a leafy crown) and a woven nest with a leafy dome. Chemistry folk: giant spotted mushroom huts, the lilac
+    ones with a vent pipe whose bubbles rise and fade (`TownBubbles`). Physics folk: a slit-domed observatory with a telescope
+    and a low banded dome with an antenna. Shape people: a tall square tower with a pointed roof and a slanted cube with a
+    ball on top. Dinosaurs: a log lodge with a bone over the door under a steep green roof and a cabin with a stone
+    chimney. The Town's market stall: a counter of goods under a red-and-white striped awning.
+  - The statue is the race's leader design (`NpcDesignArt`) carved in stone: its brightness mapped onto a grey ramp with a
+    touch of the region colour, the outline kept, on a stepped pedestal.
+  - The plaza is a tiled paving of pale flagstones with soft joints, translucent over the region's floor. The marked door
+    (story 4.6's way in) has a red woven rug in front and a lantern beside it.
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`, drawn only with
   `NpcFactory.PartArt` on, kept for epic-varied-runs; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches
@@ -133,5 +150,14 @@ its generated placeholder shape, so nothing renders invisible.
 | RuinStone | D 65 | standing stone |
 | RuinTile | T 122 | speckled flagstone slab (1.24: was a framed crate) |
 | RuinBroken | D 59 | broken column stub (1.24: was a mallet-shaped post) |
+| HouseRoofRedLeft | T 52 | red roof, left end: a Town cottage's roof (4.5) |
+| HouseRoofRedRight | T 54 | red roof, right end |
+| HouseWallWoodDoor | T 85 | wooden wall with a door at its left end: the cottage's door |
+| HouseWallWoodRight | T 75 | wooden wall, right end |
+| HouseRoofGreyLeft | T 48 | grey slate roof, left end: a Town stone cottage's roof |
+| HouseRoofGreyRight | T 50 | grey slate roof, right end |
+| HouseWallStoneDoor | T 90 | stone wall with a door at its left end: the stone cottage's door |
+| HouseWallStoneRight | T 79 | stone wall, right end |
+| MarketCart | T 57 | a cart of goods: parked by the Town market stall |
 
 Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per row in `Tilemap/tilemap_packed.png`).

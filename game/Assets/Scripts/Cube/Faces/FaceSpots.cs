@@ -9,7 +9,7 @@ namespace Game.Cube
     /// pieces). A spot uses Town's rules (TownPlan.Candidates over the module's blocked rects: off both centre
     /// lanes, inside the edge band, clear of walls and alcoves), keeps MinSpacing from every spot already taken
     /// on that screen, and must pass NpcFactory.IsClear (no solid collider there right now). Spots are in feet
-    /// coordinates (an NPC's feet); things smaller than an NPC fit too.
+    /// coordinates (an NPC's feet); things smaller than an NPC fit too. A town screen (4.5) gives no spot at all.
     /// </summary>
     public sealed class FaceSpots
     {
@@ -33,6 +33,12 @@ namespace Game.Cube
         /// <summary>Picks a free spot (feet, local to the screen centre) on a screen. False when none is left.</summary>
         public bool TryPick(ScreenAddress screen, out Vector2 local)
         {
+            // A town (4.5) has its own fixed stands (TownLayout): nothing a face adds after the reveal stands there.
+            if (TownSquare.IsTown(screen, world.FaceSize))
+            {
+                local = default;
+                return false;
+            }
             if (!candidates.TryGetValue(screen, out List<Vector2> list))
             {
                 list = TownPlan.Candidates(TownPlan.BlockedRects(world.ModuleAt(screen)));

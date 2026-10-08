@@ -105,6 +105,8 @@ namespace Game.Cube
     /// on another built face. Each pickup sits on its home face, in the open or inside another item's
     /// gated alcove when that keeps the item dependencies acyclic (never behind its own gate). Unused gate
     /// slots get no gate. Uses its own SeededRng stream, so the same seed gives the same placement.
+    /// Nothing is placed on a town screen (4.5): its module has no gate slots, and an open pickup's cell is drawn again
+    /// while it lands on the town (TownSquare.PickCellIndex).
     /// </summary>
     public sealed class ItemPlacement
     {
@@ -319,7 +321,7 @@ namespace Game.Cube
                 else
                 {
                     int n = model.FaceSize;
-                    int cell = rng.NextInt(n * n);
+                    int cell = TownSquare.PickCellIndex(rng, n); // never the town (4.5)
                     pickups.Add(new PickupPlacement(item, new ScreenAddress(face, cell % n, cell / n)));
                 }
             }

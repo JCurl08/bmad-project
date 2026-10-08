@@ -7,7 +7,7 @@ namespace Game.Cube.Tests
     {
         /// <summary>
         /// Every flavour string of a race's people in each of its voices (the dinosaurs have two): wares, metal, errand,
-        /// rumours, greetings, the role lines as said, and its leader's line.
+        /// rumours, greetings, the role lines as said, and its leader's line and quest hook (4.5).
         /// </summary>
         public static IEnumerable<string> Flavour(Race race)
         {
@@ -23,6 +23,7 @@ namespace Game.Cube.Tests
                 foreach (string line in Dialogue.SpokenLines(voice)) yield return line;
             }
             yield return Dialogue.LeaderLine(race);
+            yield return Dialogue.QuestLine(race);
         }
 
         /// <summary>The names of a race's body parts (head, torso and legs), which name the NPCs.</summary>

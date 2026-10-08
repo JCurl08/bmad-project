@@ -22,6 +22,9 @@ using UnityEngine;
 /// with the face's Rubik's region colour (CubeWorld.ThemeColor), a coloured trim per region; each ruin piece is its shape's ruin art (see Assets/Art/ART-MAP.md).
 /// Math's pool also ends with its island module (1.25, "Math E Islands"): only its four exits, no obstacles, gates, hidden
 /// items or core entrances; CubeLayout gives it to Math's island screens and MathFace fills it with water and islands.
+/// Every science pool ends with its town module (4.5, "<Theme> Town Square", before Math's island module), and the Town face
+/// has its own ("Town Town Square", the library's TownSquareModule, its centre): exits only; CubeLayout gives it to the
+/// face's centre and CubeWorld builds the race's town on it (TownSquareView).
 /// Also works from the command line via -executeMethod ModuleLibraryBuilder.Build.
 /// </summary>
 public static class ModuleLibraryBuilder
@@ -226,6 +229,7 @@ public static class ModuleLibraryBuilder
             for (int i = 0; i < Designs.Length; i++)
                 pool.Modules.Add(SaveModule(theme, $"{theme} {Designs[i].Name}", Designs[i], MirrorFor(theme, i), true,
                     sprite, material));
+            pool.Modules.Add(SaveTownSquareModule(theme)); // 4.5: the centre's town, after the regular modules
             if (theme == Theme.Math) pool.Modules.Add(SaveIslandModule(theme));
             pools.Add(pool);
         }
@@ -236,10 +240,10 @@ public static class ModuleLibraryBuilder
             library = ScriptableObject.CreateInstance<ModuleLibrary>();
             AssetDatabase.CreateAsset(library, LibraryPath);
         }
-        library.Set(town, pools);
+        library.Set(town, pools, SaveTownSquareModule(Theme.Town));
         EditorUtility.SetDirty(library);
         AssetDatabase.SaveAssets();
-        Debug.Log($"Cube: built module library at {LibraryPath} ({town.Count} Town modules, {pools.Count} science pools of {Designs.Length}).");
+        Debug.Log($"Cube: built module library at {LibraryPath} ({town.Count} Town modules and a town square, {pools.Count} science pools of {Designs.Length} and a town square).");
     }
 
     /// <summary>Loads the library asset, building it first if it does not exist.</summary>
@@ -364,16 +368,30 @@ public static class ModuleLibraryBuilder
         }
     }
 
-    /// <summary>An island screen's module: only its four exits (the water, islands and planks come from MathFace at the reveal).</summary>
-    private static ScreenModule SaveIslandModule(Theme theme)
+    /// <summary>
+    /// A town screen's module (4.5): only its four exits. The town (TownLayout: buildings, plaza, statue) is built on it when
+    /// CubeWorld places it (TownSquareView), and TownPlan.BlockedRects counts its solids, so it needs no colliders of its own.
+    /// </summary>
+    private static ScreenModule SaveTownSquareModule(Theme theme)
     {
-        string name = $"{theme} E Islands";
+        List<string> problems = TownLayout.For(theme).Problems();
+        if (problems.Count > 0) throw new InvalidOperationException(string.Join("; ", problems));
+        return SaveExitsOnlyModule(theme, $"{theme} Town Square", module => module.IsTownScreen = true);
+    }
+
+    /// <summary>An island screen's module: only its four exits (the water, islands and planks come from MathFace at the reveal).</summary>
+    private static ScreenModule SaveIslandModule(Theme theme) =>
+        SaveExitsOnlyModule(theme, $"{theme} E Islands", module => module.IsIslandScreen = true);
+
+    /// <summary>A module with only its four exits, marked by mark (an island or a town screen).</summary>
+    private static ScreenModule SaveExitsOnlyModule(Theme theme, string name, Action<ScreenModule> mark)
+    {
         var root = new GameObject(name);
         try
         {
             ScreenModule module = root.AddComponent<ScreenModule>();
             module.Theme = theme;
-            module.IsIslandScreen = true;
+            mark(module);
             Transform slots = Child("Slots", root.transform, Vector2.zero);
             Vector2 half = CubeWorld.ScreenSize / 2f;
             foreach (Facing facing in new[] { Facing.North, Facing.East, Facing.South, Facing.West })

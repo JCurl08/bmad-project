@@ -263,17 +263,22 @@ namespace Game.Cube.Tests
             Vector2 half = CubeWorld.ScreenSize / 2f;
             // Inside the edge band (clear of every module obstacle), off the doorway, then in it.
             float bandX = half.x - ScreenModule.EdgeClearance + 0.05f, bandY = half.y - ScreenModule.EdgeClearance + 0.05f;
-            var cases = new List<(ScreenAddress screen, Facing side)>
+            // How far along the edge the probe stands, off the doorway: 2.6 tiles (scaled) up a side wall; on the town (4.5),
+            // whose buildings stand by its side walls from 2 to 4.8 up, the clear strip above them (5.6 up).
+            const float townAlong = 5.6f;
+            var cases = new List<(ScreenAddress screen, Facing side, float along)>
             {
-                (new ScreenAddress(CubeModel.StartFace, 1, n - 1), Facing.North), // a face edge
-                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.North), // within the face
-                (new ScreenAddress(CubeModel.StartFace, n - 1, 1), Facing.East), // a face edge
-                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.West), // within the face
+                (new ScreenAddress(CubeModel.StartFace, 1, n - 1), Facing.North, 4.5f * K), // a face edge
+                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.North, 4.5f * K), // within the face (the town)
+                (new ScreenAddress(CubeModel.StartFace, n - 1, 1), Facing.East, 2.6f * K), // a face edge
+                (new ScreenAddress(CubeModel.StartFace, n - 1, 1), Facing.West, 2.6f * K), // within the face
+                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.West, townAlong), // within the face: the town's west wall
+                (new ScreenAddress(CubeModel.StartFace, 1, 1), Facing.East, townAlong), // within the face: the town's east wall
             };
-            foreach (var (screen, side) in cases)
+            foreach (var (screen, side, along) in cases)
             {
                 bool faceEdge = ScreenEdges.IsFaceEdge(n, screen.Cell, side);
-                Vector2 off = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, 2.6f * K) : new Vector2(4.5f * K, side.ToVector().y * bandY);
+                Vector2 off = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, along) : new Vector2(along, side.ToVector().y * bandY);
                 yield return PlaceOn(screen, off, side);
                 int crossings = navigator.Crossings;
                 yield return this.HoldUntil(KeyFor(keyboard, side), () => false, 0.8f);
@@ -395,18 +400,30 @@ namespace Game.Cube.Tests
             yield return this.Tap(keyboard.f2Key, holdFrames: 2);
             Assert.IsTrue(debug.SlotMarkersVisible, "F2 did not turn slot markers on");
 
-            ScreenModule here = world.ModuleAt(navigator.Current);
-            Assert.IsNotNull(here);
-            var active = here.AllSlots.Where(s => s.gameObject.activeInHierarchy).ToList();
-            int openSides = Enum.GetValues(typeof(Facing)).Cast<Facing>()
-                .Count(f => world.Model.TryStep(navigator.Current, f, out _, out _));
-            Assert.AreEqual(openSides, active.OfType<ExitSlot>().Count(), "One active exit per open side");
-            Assert.GreaterOrEqual(active.OfType<GateSlot>().Count(), 1);
-            Assert.AreEqual(1, active.OfType<HiddenItemSlot>().Count());
-            foreach (ModuleSlot slot in active)
+            // The run starts in Town's town (4.5), which has only its exits; the ruin screen west of it has every kind of slot.
+            ScreenModule start = world.ModuleAt(navigator.Current);
+            Assert.IsNotNull(start);
+            Assert.IsTrue(start.IsTownScreen, "The start screen is Town's town");
+            Assert.IsEmpty(start.Gates, "A town has no gate slot");
+            Assert.IsEmpty(start.HiddenItems, "A town has no hidden spot");
+            var beside = new ScreenAddress(CubeModel.StartFace, 0, 1);
+            foreach (ScreenAddress screen in new[] { navigator.Current, beside })
             {
-                Assert.IsTrue(slot.MarkerVisible, $"{slot.Label} on {here.name} has no visible marker");
-                Assert.IsNotEmpty(slot.Label);
+                ScreenModule here = world.ModuleAt(screen);
+                var active = here.AllSlots.Where(s => s.gameObject.activeInHierarchy).ToList();
+                int openSides = Enum.GetValues(typeof(Facing)).Cast<Facing>()
+                    .Count(f => world.Model.TryStep(screen, f, out _, out _));
+                Assert.AreEqual(openSides, active.OfType<ExitSlot>().Count(), $"{screen}: one active exit per open side");
+                if (!here.IsTownScreen)
+                {
+                    Assert.GreaterOrEqual(active.OfType<GateSlot>().Count(), 1);
+                    Assert.AreEqual(1, active.OfType<HiddenItemSlot>().Count());
+                }
+                foreach (ModuleSlot slot in active)
+                {
+                    Assert.IsTrue(slot.MarkerVisible, $"{slot.Label} on {here.name} has no visible marker");
+                    Assert.IsNotEmpty(slot.Label);
+                }
             }
 
             // Modules created later (the science reveal) get markers too, including the active core entrance.

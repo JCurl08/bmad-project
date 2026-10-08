@@ -218,8 +218,12 @@ namespace Game.Cube
         /// <summary>
         /// Spawns one NPC of each race in a ring around the player, inside the player's screen. Parts come from
         /// the run seed (each press uses the next index per race); lines carry true hints for the run. With leaders,
-        /// each is its race's leader (NpcFactory.ChooseLeader), drawn with the leader design.
+        /// each is its race's leader (NpcFactory.ChooseLeader), drawn with the leader design, from the debug leader indices
+        /// (DebugLeaderIndexBase up), so a debug leader is never a town's own leader (TownSquare.LeaderIndex).
         /// </summary>
+        /// <summary>The first leader index Shift+F3 spawns from (each press the next): far above TownSquare.LeaderIndex.</summary>
+        public const int DebugLeaderIndexBase = 0x1000;
+
         public List<NpcTalker> SpawnNpcs(bool leaders = false)
         {
             var spawned = new List<NpcTalker>();
@@ -238,7 +242,9 @@ namespace Game.Cube
             for (int i = 0; i < races.Length; i++)
             {
                 Vector2 at = ClearSpawnSpot(centre, i, races.Length, bounds);
-                NpcSpec spec = leaders ? NpcFactory.ChooseLeader(world.Seed, races[i], npcBatch) : NpcFactory.ChooseParts(world.Seed, races[i], npcBatch);
+                NpcSpec spec = leaders
+                    ? NpcFactory.ChooseLeader(world.Seed, races[i], DebugLeaderIndexBase + npcBatch)
+                    : NpcFactory.ChooseParts(world.Seed, races[i], npcBatch);
                 List<string> lines = Dialogue.For(spec, facts, hintDensity);
                 NpcTalker npc = NpcFactory.Spawn(spec, lines, at, bounds, world.Relations, player, npcRoot, world.Material);
                 spawned.Add(npc);

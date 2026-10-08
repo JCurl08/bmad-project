@@ -274,7 +274,17 @@ namespace Game.Cube.Tests
             float netW = CubeNet.Columns * CubeSettings.DefaultFaceSize * cell + 3 * 6f;
             float netH = CubeNet.Rows * CubeSettings.DefaultFaceSize * cell + 2 * 6f;
             Assert.That(netW, Is.LessThanOrEqualTo(960f - 32f));
-            Assert.That(netH, Is.LessThanOrEqualTo(600f - 56f - 52f));
+            Assert.That(netH, Is.LessThanOrEqualTo(600f - 56f - CubeMap.LegendHeight(960f)));
+
+            // The legend (4.5 added "Town") fits the 960 px canvas: rows of columns at least MinLegendStep wide, every label
+            // (about 8 px a character at the map's font, after a marker glyph) inside its column.
+            int columns = CubeMap.LegendColumns(960f), rows = CubeMap.LegendRows(960f);
+            Assert.GreaterOrEqual(columns * rows, CubeMap.LegendLabels.Length);
+            float step = (960f - 32f) / columns;
+            Assert.GreaterOrEqual(step, CubeMap.MinLegendStep);
+            foreach (string label in CubeMap.LegendLabels)
+                Assert.LessOrEqual(30f + label.Length * 8f, step, label);
+            Assert.AreEqual(2, rows, "Nine labels wrap into two rows at 960 px");
         }
     }
 }

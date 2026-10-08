@@ -483,6 +483,12 @@ namespace Game.Cube.Tests
                     expected.Add(Key(MapMarkerKind.Trial, ScreenAtWorld(t.transform.position), t.IsComplete));
                 foreach (CorePortal c in Object.FindObjectsByType<CorePortal>(FindObjectsSortMode.None))
                     expected.Add(Key(MapMarkerKind.Portal, ScreenAtWorld(c.transform.position), false));
+                // Every face's town (4.5), on its centre screen.
+                foreach (TownSquareView t in Object.FindObjectsByType<TownSquareView>(FindObjectsSortMode.None))
+                    expected.Add(Key(MapMarkerKind.Town, ScreenAtWorld(t.transform.position), false));
+                Assert.AreEqual(CubeSettings.FaceCount, expected.Count(e => e.StartsWith("Town")), $"seed {seed}: a town on every face");
+                foreach (string e in expected.Where(e => e.StartsWith("Town")))
+                    StringAssert.Contains($"({TownSquare.Cell(model.FaceSize).x},{TownSquare.Cell(model.FaceSize).y})", e, "towns are face centres");
                 Assert.Greater(expected.Count(e => e.StartsWith("Gate")), 0, $"seed {seed} has gates");
                 Assert.Greater(expected.Count(e => e.StartsWith("Item")), 0, $"seed {seed} has items");
                 Assert.Greater(expected.Count(e => e.StartsWith("Trial")), 0, $"seed {seed} has trials");

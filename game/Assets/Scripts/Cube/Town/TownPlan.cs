@@ -186,15 +186,28 @@ namespace Game.Cube
         public const int StartScreenNpcs = 4;
 
         /// <summary>
-        /// Spots for count NPCs on the Town face (the first StartScreenNpcs, the greeter first, prefer the start screen
-        /// (the Town centre), round the player; the rest go round the other screens in a seeded order). Each pick is a seeded choice among the screen's valid,
+        /// How many Town NPCs (the greeter first) stand on the start screen of a Town face of this size: StartScreenNpcs, or
+        /// on a face with a town (4.5) one per resident stand of Town's town (TownLayout.Stands), so the town is the face's
+        /// busiest screen. Mayor Muddleton, the Town's leader, stands by the statue besides (TownPopulation.Leader).
+        /// </summary>
+        public static int StartScreenNpcsFor(int faceSize) =>
+            TownSquare.HasTown(faceSize) ? TownLayout.For(Theme.Town).Stands.Count : StartScreenNpcs;
+
+        /// <summary>
+        /// Spots for count NPCs on the Town face (the first StartScreenNpcsFor, the greeter first, prefer the start screen
+        /// (the Town centre), round the player; the rest go round the other screens in a seeded order). On a face with a town
+        /// (4.5) the start screen is Town's town, and its NPCs stand on the town's resident stands (TownLayout.Stands; the
+        /// leader's stand is the Mayor's), in a seeded order; isTown (default: the TownSquare rule) says whether the start cell
+        /// really holds a town square (TownPopulation asks its placed module). Each pick is a seeded choice among the screen's valid,
         /// still-free candidates; accept (optional, e.g. a physics check) can veto a pick, and the next one is
         /// tried. When a screen has nothing left the next screen is tried; an NPC that fits nowhere gets an
         /// unfound spot, never an invalid one.
         /// </summary>
         public static List<TownSpot> Spots(int seed, int faceSize, int count, Func<Vector2Int, IReadOnlyList<Rect>> blockedFor,
-            Func<ScreenAddress, Vector2, bool> accept = null)
+            Func<ScreenAddress, Vector2, bool> accept = null, Func<Vector2Int, bool> isTown = null)
         {
+            // Which cell is Town's town: the caller's modules say (the module there is a town square); without them, the rule.
+            if (isTown == null) isTown = cell => TownSquare.IsTownCell(cell, faceSize);
             var rng = new SeededRng(((ulong)(uint)seed << 32) | 0x5350u, RngStream);
 
             var others = new List<ScreenAddress>();
@@ -210,16 +223,19 @@ namespace Game.Cube
             var taken = new Dictionary<ScreenAddress, List<Rect>>();
             foreach (ScreenAddress screen in screens)
             {
-                candidates[screen] = Candidates(blockedFor != null ? blockedFor(screen.Cell) : null);
+                candidates[screen] = screen == start && isTown(screen.Cell)
+                    ? new List<Vector2>(TownLayout.For(Theme.Town).Stands)
+                    : Candidates(blockedFor != null ? blockedFor(screen.Cell) : null);
                 taken[screen] = new List<Rect>();
             }
 
+            int startNpcs = isTown(start.Cell) ? TownLayout.For(Theme.Town).Stands.Count : StartScreenNpcs;
             var spots = new List<TownSpot>(count);
             for (int i = 0; i < count; i++)
             {
                 TownSpot spot = default;
-                // The first StartScreenNpcs stand round the start; the rest go round the other screens.
-                int first = i < StartScreenNpcs || others.Count == 0 ? 0 : 1 + (i - StartScreenNpcs) % others.Count;
+                // The first StartScreenNpcsFor stand round the start; the rest go round the other screens.
+                int first = i < startNpcs || others.Count == 0 ? 0 : 1 + (i - startNpcs) % others.Count;
                 for (int k = 0; k < screens.Count && !spot.Found; k++)
                 {
                     ScreenAddress screen = screens[(first + k) % screens.Count];
@@ -252,13 +268,17 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// The rects NPCs must keep off in a module, local to its centre: every solid collider, and every gate
-        /// alcove (walls, opening and pocket). Works on prefab assets and on placed instances alike.
+        /// The rects NPCs must keep off in a module, local to its centre: every solid collider, every gate alcove (walls,
+        /// opening and pocket), and on a town module (4.5) its town's buildings and statue (TownLayout.Solids). Works on
+        /// prefab assets and on placed instances alike.
         /// </summary>
         public static List<Rect> BlockedRects(ScreenModule module)
         {
             var rects = new List<Rect>();
             if (module == null) return rects;
+            // A town module (4.5) is open floor until its town is built on it: its buildings and statue count either way.
+            if (module.IsTownScreen)
+                foreach (Rect solid in TownLayout.For(module.Theme).Solids) rects.Add(Snapped(solid));
             Transform root = module.transform;
             foreach (BoxCollider2D box in module.GetComponentsInChildren<BoxCollider2D>(true))
             {

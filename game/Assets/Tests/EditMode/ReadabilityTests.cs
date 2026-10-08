@@ -106,12 +106,13 @@ namespace Game.Cube.Tests
                 ArtCategory c = ArtKeys.CategoryOf(k);
                 // Decor, and every non-pickup object that stays put in the world: gates, switches, lamps, portals, particles.
                 return c == ArtCategory.Ruin || c == ArtCategory.Floor || c == ArtCategory.Hazard || c == ArtCategory.Wall ||
-                       c == ArtCategory.Gate || k == ArtKey.Fossil || k == ArtKey.GoalPad ||
+                       c == ArtCategory.Gate || c == ArtCategory.Building || k == ArtKey.Fossil || k == ArtKey.GoalPad ||
                        k == ArtKey.TrialLamp || k == ArtKey.Particle || k == ArtKey.DoorSwitch || k == ArtKey.Portal;
             }).ToList();
             Assert.That(decor, Has.Member(ArtKey.Fossil).And.Member(ArtKey.RuinTile).And.Member(ArtKey.RuinBroken)
                 .And.Member(ArtKey.TrialLamp).And.Member(ArtKey.Particle).And.Member(ArtKey.DoorSwitch).And.Member(ArtKey.Portal)
-                .And.Member(ArtKey.GateGeneric).And.Member(ArtKey.PlankBridge).And.Member(ArtKey.GateDebris));
+                .And.Member(ArtKey.GateGeneric).And.Member(ArtKey.PlankBridge).And.Member(ArtKey.GateDebris)
+                .And.Member(ArtKey.MarketCart).And.Member(ArtKey.HouseWallWoodDoor));
             foreach (ArtKey key in decor)
                 Assert.IsFalse(ItemLookingTiles.Contains(tiles[key]), $"{key} uses an item-looking tile ({tiles[key]})");
             // And the real pickups do use them (the list is about what reads as collectible).
