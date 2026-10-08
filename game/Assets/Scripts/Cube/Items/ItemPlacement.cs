@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 
 namespace Game.Cube
 {
@@ -106,7 +107,7 @@ namespace Game.Cube
     /// gated alcove when that keeps the item dependencies acyclic (never behind its own gate). Unused gate
     /// slots get no gate. Uses its own SeededRng stream, so the same seed gives the same placement.
     /// Nothing is placed on a town screen (4.5): its module has no gate slots, and an open pickup's cell is drawn again
-    /// while it lands on the town (TownSquare.PickCellIndex).
+    /// while it lands on the town (TownSquare.PickCellIndex), or (4.10) on an Earth ice screen, whose lane spot is ice.
     /// </summary>
     public sealed class ItemPlacement
     {
@@ -322,6 +323,9 @@ namespace Game.Cube
                 {
                     int n = model.FaceSize;
                     int cell = TownSquare.PickCellIndex(rng, n); // never the town (4.5)
+                    // 4.10: never an Earth ice screen either (its lane spot is ice, nowhere to stand still): drawn again.
+                    for (int tries = 0; tries < 32 && IsIceCell(layout, face, cell % n, cell / n); tries++)
+                        cell = TownSquare.PickCellIndex(rng, n);
                     pickups.Add(new PickupPlacement(item, new ScreenAddress(face, cell % n, cell / n)));
                 }
             }
@@ -360,6 +364,15 @@ namespace Game.Cube
         }
 
         /// <summary>True if 'from' (transitively) needs 'target' to be collected first.</summary>
+        /// <summary>True for a cell holding Earth's whole-screen puzzle module (an ice screen, 4.10).</summary>
+        private static bool IsIceCell(CubeLayout layout, FaceId face, int x, int y)
+        {
+            if (layout == null || !layout.TryGetFace(face, out FaceLayout fl) || fl.Theme != Theme.EarthAtmosphere) return false;
+            foreach (Vector2Int c in fl.IslandCells)
+                if (c.x == x && c.y == y) return true;
+            return false;
+        }
+
         private static bool DependsOn(Dictionary<Theme, Theme> dependsOn, Theme from, Theme target)
         {
             Theme current = from;

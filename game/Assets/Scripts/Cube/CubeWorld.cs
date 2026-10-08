@@ -158,6 +158,12 @@ namespace Game.Cube
         /// <summary>The science layout of this run; null until the science faces are revealed.</summary>
         public CubeLayout Layout { get; private set; }
 
+        /// <summary>The run's Earth ice screens (4.10, IcePlan); null until the reveal (or without a layout).</summary>
+        public IcePlan Ice { get; private set; }
+
+        /// <summary>The run's puzzle goals (4.10: the ice screens' goal pads), as RewardPlacement got them; empty until the reveal.</summary>
+        public List<PuzzleGoal> PuzzleGoals { get; private set; } = new List<PuzzleGoal>();
+
         /// <summary>Per-run hostility flags per race (NPCs of a hostile race refuse to talk). Reset on every rebuild.</summary>
         public RaceRelations Relations { get; } = new RaceRelations();
 
@@ -231,6 +237,8 @@ namespace Game.Cube
             Locks.Opened += OnEdgeOpened;
             Repairs = new FaceRepairs();
             Layout = null;
+            Ice = null;
+            PuzzleGoals = new List<PuzzleGoal>();
             ItemPlacement = null;
             PlannedGateLooks = null;
             HiddenCurrency = null;
@@ -266,6 +274,14 @@ namespace Game.Cube
             ScienceRevealed = true;
             if (library != null) Layout = CubeLayout.Generate(Model, library);
             else Debug.LogWarning("CubeWorld: no ModuleLibrary assigned; science faces revealed without modules.");
+            Ice = IcePlan.Create(Model, Layout, Dice);
+            PuzzleGoals = PuzzleScreens.Goals(Ice);
+            if (Ice != null)
+            {
+                List<string> iceProblems = Ice.Problems(Model, library != null && library.IslandModuleIndex(Theme.EarthAtmosphere) >= 0);
+                if (iceProblems.Count > 0)
+                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s ice screens miss their targets: {string.Join("; ", iceProblems)}");
+            }
 
             for (int f = 0; f < CubeSettings.FaceCount; f++)
             {
@@ -315,6 +331,14 @@ namespace Game.Cube
         public Vector2 LandingPoint(ScreenAddress address, Facing facing)
         {
             Vector2 centre = ScreenCenter(address);
+            IceLayout ice = Ice?.At(address);
+            if (ice != null)
+            {
+                // 4.10: on an ice screen, the landing of the doorway behind the arrival facing (else any landing).
+                int mouth = ice.Mouth(facing.Opposite());
+                for (int f = 0; f < 4 && mouth < 0; f++) mouth = ice.Mouth((Facing)f);
+                return mouth >= 0 ? centre + IceLayout.CellLocal(mouth) : centre;
+            }
             MathFace math = GetComponent<MathFace>();
             IslandLayout islands = math != null && math.Plan != null ? math.Plan.IslandAt(address) : null;
             if (islands == null) return centre;
@@ -561,7 +585,7 @@ namespace Game.Cube
         private void PlaceRewards()
         {
             if (Layout == null || library == null || ItemPlacement == null) return;
-            Rewards = RewardPlacement.Generate(Model, Layout, ItemPlacement, HiddenCurrency, library, null, Dice);
+            Rewards = RewardPlacement.Generate(Model, Layout, ItemPlacement, HiddenCurrency, library, PuzzleGoals, Dice);
             foreach (RewardSpot spot in Rewards.Spots)
             {
                 Roadblock where = spot.Where;
@@ -590,7 +614,20 @@ namespace Game.Cube
                     coin.Guard = over;
                     continue;
                 }
-                if (where.Kind == RoadblockKind.Puzzle) continue;
+                if (where.Kind == RoadblockKind.Puzzle)
+                {
+                    // 4.10: a puzzle's chest stands on its goal; the puzzle (its IPuzzleRewardHost) keeps it shut until solved.
+                    if (where.Slot < 0 || where.Slot >= PuzzleGoals.Count)
+                    {
+                        Debug.LogError($"CubeWorld: cannot place {spot}");
+                        continue;
+                    }
+                    RewardChest prize = BuildRewardChest(spot, module.transform, ScreenCenter(where.Screen) + PuzzleGoals[where.Slot].Local);
+                    IPuzzleRewardHost host = module.GetComponentInChildren<IPuzzleRewardHost>(true);
+                    if (host != null) host.AttachReward(prize);
+                    else Debug.LogWarning($"CubeWorld: no puzzle on {where.Screen} holds {spot}");
+                    continue;
+                }
 
                 Vector2 at;
                 GateSlot alcove = null;

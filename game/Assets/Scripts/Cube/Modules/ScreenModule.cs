@@ -41,6 +41,7 @@ namespace Game.Cube
 
         [Tooltip("A town screen's module (4.5, every face's centre): open floor with only its exits; TownSquareView builds the town on it.")]
         [SerializeField] private bool townScreen;
+        [Tooltip("An ice screen's module (4.10, Earth): open floor with only its exits; EarthFace lays its sliding ice puzzle on it.")]        [SerializeField] private bool iceScreen;
 
         public Theme Theme
         {
@@ -65,6 +66,20 @@ namespace Game.Cube
             get => townScreen;
             set => townScreen = value;
         }
+
+        /// <summary>
+        /// True for an ice screen's module (4.10, Earth): no obstacles, gates, hidden items or core entrances, only its four
+        /// exits; the sliding ice puzzle (IceLayout) is laid on it at the reveal. Like Math's island module it ends its pool and
+        /// CubeLayout gives it to IslandScreensPerFace chosen screens (ModuleLibrary.IslandModuleIndex).
+        /// </summary>
+        public bool IsIceScreen
+        {
+            get => iceScreen;
+            set => iceScreen = value;
+        }
+
+        /// <summary>True for a whole-screen puzzle's module: Math's islands or Earth's ice.</summary>
+        public bool IsPuzzleScreen => islandScreen || iceScreen;
 
         public ExitSlot[] Exits => GetComponentsInChildren<ExitSlot>(true);
         public GateSlot[] Gates => GetComponentsInChildren<GateSlot>(true);

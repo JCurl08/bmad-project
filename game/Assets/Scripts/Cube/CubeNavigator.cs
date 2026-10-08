@@ -117,6 +117,7 @@ namespace Game.Cube
         /// </summary>
         public void TeleportTo(ScreenAddress address, Facing facing)
         {
+            RevealIfArriving(address.Face); // 4.10: first, so the landing point knows the puzzle screens (an ice screen's lane)
             PlaceOn(address, world.LandingPoint(address, facing), facing);
         }
 
@@ -259,6 +260,8 @@ namespace Game.Cube
         /// </summary>
         private void SetPosition(Vector2 position)
         {
+            // 4.10: any placement (a teleport, a crossing) ends an ice move under way; the slider settles afresh.
+            if (TryGetComponent(out IceSlider ice)) ice.Clear();
             if (body != null)
             {
                 body.interpolation = RigidbodyInterpolation2D.None;

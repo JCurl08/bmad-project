@@ -29,9 +29,11 @@ namespace Game.Cube.Tests
             CubeLayout layout = CubeLayout.Generate(model, library);
             ItemPlacement items = ItemPlacement.ForRun(model, layout, library, catalog.Themes(), catalog.VariantCounts());
             HiddenCurrencyPlacement hidden = HiddenCurrencyPlacement.Generate(model, layout, library);
-            RewardPlacement rewards = RewardPlacement.Generate(model, layout, items, hidden, library);
+            IcePlan ice = IcePlan.Create(model, layout); // 4.10: the ice goals, as ForRun makes them
+            List<PuzzleGoal> goals = PuzzleScreens.Goals(ice);
+            RewardPlacement rewards = RewardPlacement.Generate(model, layout, items, hidden, library, goals);
             MathPlan math = MathPlan.Create(model, items, SeedSweep.ModuleLookup(layout, library));
-            return new LockWorld(model, layout, items, rewards, math != null ? math.IslandAt : (System.Func<ScreenAddress, IslandLayout>)null);
+            return new LockWorld(model, layout, items, rewards, PuzzleScreens.RegionsAt(math, ice), goals);
         }
 
         [Test]

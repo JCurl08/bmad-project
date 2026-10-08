@@ -41,6 +41,7 @@ namespace Game.Cube.Tests
             public DieNumbers Dice;
             public RewardPlacement Rewards;
             public MathPlan Math;
+            public IcePlan Ice;
         }
 
         private static Run Make(int seed, DieNumbers dice = null)
@@ -52,14 +53,15 @@ namespace Game.Cube.Tests
             run.Items = ItemPlacement.ForRun(run.Model, run.Layout, library, catalog.Themes(), catalog.VariantCounts());
             run.Hidden = HiddenCurrencyPlacement.Generate(run.Model, run.Layout, library);
             run.Dice = dice ?? DieNumbers.Roll(run.Model);
-            run.Rewards = RewardPlacement.Generate(run.Model, run.Layout, run.Items, run.Hidden, library, null, run.Dice);
+            run.Ice = IcePlan.Create(run.Model, run.Layout, run.Dice);
+            run.Rewards = RewardPlacement.Generate(run.Model, run.Layout, run.Items, run.Hidden, library, PuzzleScreens.Goals(run.Ice), run.Dice);
             run.Math = MathPlan.Create(run.Model, run.Items, SeedSweep.ModuleLookup(run.Layout, library));
             return run;
         }
 
         private static List<string> Problems(Run run, RewardPlacement rewards = null) =>
             RewardPlacement.FindProblems(run.Model, run.Layout, run.Items, run.Hidden, rewards ?? run.Rewards, Library(),
-                run.Math != null ? run.Math.IslandAt : (System.Func<ScreenAddress, IslandLayout>)null, null, run.Dice);
+                PuzzleScreens.RegionsAt(run.Math, run.Ice), PuzzleScreens.Goals(run.Ice), run.Dice);
 
         // ---------- Die numbers ----------
 

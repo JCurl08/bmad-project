@@ -46,6 +46,17 @@ namespace Game.Tracer
     }
 
     /// <summary>
+    /// A component on the player that can take movement over entirely (the Cube's sliding ice screens, 4.10): asked every
+    /// physics step, before any modifier; when it drives, the velocity it gives is the body's, as is. Facing still follows the
+    /// input (or what the driver sets).
+    /// </summary>
+    public interface IMoveDriver
+    {
+        /// <summary>True (with the velocity to use) when the driver moves the player this step; false leaves walking as it is.</summary>
+        bool Drive(Vector2 input, float speed, float deltaTime, out Vector2 velocity);
+    }
+
+    /// <summary>
     /// The stop on a face crossing (1.25): once held, the player stands still, whatever keys are down, until every
     /// direction has been let go and a key is pressed again. Pure: PlayerMover feeds it the raw input every physics step.
     /// </summary>
@@ -175,12 +186,17 @@ namespace Game.Tracer
             }
         }
 
-        /// <summary>Looks the player's IMoveModifier up again on the next step (call after adding or replacing one).</summary>
+        /// <summary>Looks the player's IMoveModifier (and IMoveDriver) up again on the next step (call after adding or replacing one).</summary>
         public void RefreshModifier()
         {
             modifier = null;
             modifierResolved = false;
+            driver = null;
+            driverResolved = false;
         }
+
+        private IMoveDriver driver;
+        private bool driverResolved;
 
         /// <summary>A modifier within the mover's bounds: slows to no less than MinSpeedMultiplier, pushes by at most MaxPushFraction, grips at least MinGrip.</summary>
         public static MoveModifier Clamp(MoveModifier m) => new MoveModifier
@@ -274,6 +290,17 @@ namespace Game.Tracer
             }
             MoveInput = input;
             if (input.sqrMagnitude > 1e-4f) Facing = input.normalized;
+            if (!driverResolved)
+            {
+                driver = GetComponent<IMoveDriver>();
+                driverResolved = true;
+            }
+            if (driver is Object d && d == null) driver = null;
+            if (driver != null && driver.Drive(input, EffectiveSpeed, Time.fixedDeltaTime, out Vector2 driven))
+            {
+                body.linearVelocity = driven;
+                return;
+            }
             MoveModifier m = Modifier;
             if (m.IsNone)
             {

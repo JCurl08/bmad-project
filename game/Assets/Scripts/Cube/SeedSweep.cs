@@ -82,17 +82,25 @@ namespace Game.Cube
             /// <summary>Lock problems (EdgeLocks.Check); null when they were not checked.</summary>
             public List<string> LockProblems;
 
+            /// <summary>The ice screens that were checked (4.10); null when there was no layout.</summary>
+            public IcePlan Ice;
+
+            /// <summary>Ice screen problems (IcePlan.Problems: solvable from every doorway inside its tier's targets); null when not checked.</summary>
+            public List<string> IceProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
             public bool RewardsChecked => RewardProblems != null;
             public bool LocksChecked => LockProblems != null;
+            public bool IceChecked => IceProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
                                   (ItemProblems == null || ItemProblems.Count == 0) &&
                                   (HiddenProblems == null || HiddenProblems.Count == 0) &&
                                   (RewardProblems == null || RewardProblems.Count == 0) &&
-                                  (LockProblems == null || LockProblems.Count == 0);
+                                  (LockProblems == null || LockProblems.Count == 0) &&
+                                  (IceProblems == null || IceProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -180,7 +188,7 @@ namespace Game.Cube
         /// whose item is itself stuck) is reported as a softlock naming the item. Empty when all is well.
         /// </summary>
         public static List<string> FindItemProblems(CubeModel model, ItemPlacement placement, IEnumerable<Theme> items,
-            Func<ScreenAddress, IslandLayout> islandAt = null)
+            Func<ScreenAddress, IScreenRegions> islandAt = null)
         {
             var problems = new List<string>();
             var itemList = new List<Theme>(items);
@@ -247,7 +255,7 @@ namespace Game.Cube
         /// doorway (DoorwayReach over Math's island screens, islandAt; the gap-crosser* once held) and whose guarding gate,
         /// if any, is opened by an item already held. Shared by the item and the reward checks (RewardPlacement).
         /// </summary>
-        public static HashSet<Theme> CollectableItems(CubeModel model, ItemPlacement placement, Func<ScreenAddress, IslandLayout> islandAt = null)
+        public static HashSet<Theme> CollectableItems(CubeModel model, ItemPlacement placement, Func<ScreenAddress, IScreenRegions> islandAt = null)
         {
             var reach = new DoorwayReach(model, islandAt);
             var held = new HashSet<Theme>();
@@ -347,6 +355,12 @@ namespace Game.Cube
                     CubeLayout layout = CubeLayout.Generate(model, catalog);
                     result.CoreProblems = FindCoreProblems(model, layout, catalog);
                     MathPlan islands = null;
+                    // 4.10: Earth's ice screens, solved from every doorway against their tier's targets.
+                    IcePlan ice = IcePlan.Create(model, layout);
+                    result.Ice = ice;
+                    result.IceProblems = ice != null ? ice.Problems(model, catalog.IslandModuleIndex(Theme.EarthAtmosphere) >= 0) : new List<string>();
+                    List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice);
+                    Func<ScreenAddress, IScreenRegions> regionsAt = PuzzleScreens.RegionsAt(null, ice);
                     if (catalog is IGateSlotCatalog gateCatalog)
                     {
                         List<Theme> items = ItemPlacement.RunItems(layout, itemThemes);
@@ -354,7 +368,8 @@ namespace Game.Cube
                         result.Placement = placement;
                         Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
                         islands = moduleAt != null ? MathPlan.Create(model, placement, moduleAt) : null;
-                        result.ItemProblems = FindItemProblems(model, placement, items, islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
+                        regionsAt = PuzzleScreens.RegionsAt(islands, ice);
+                        result.ItemProblems = FindItemProblems(model, placement, items, regionsAt);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
                         foreach (string problem in ChemistryPlan.FindProblems(model, placement, chemistryVariantKinds, moduleAt))
@@ -384,15 +399,15 @@ namespace Game.Cube
                         if (result.Placement != null)
                         {
                             // 4.7: every roadblock hides a reward, required ones reachable, no empty screen.
-                            result.Rewards = RewardPlacement.Generate(model, layout, result.Placement, hidden, hiddenCatalog);
+                            result.Rewards = RewardPlacement.Generate(model, layout, result.Placement, hidden, hiddenCatalog, puzzles);
                             result.RewardProblems = RewardPlacement.FindProblems(model, layout, result.Placement, hidden, result.Rewards,
-                                hiddenCatalog, islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
+                                hiddenCatalog, regionsAt, puzzles);
                             // 4.9: the face-edge locks, over every order of spending the keys (the game's 3x3 faces only: the
                             // N = 2 tests keep the unlocked cube, as they keep no towns).
                             if (TownSquare.HasTown(faceSize))
                             {
                                 var lockWorld = new LockWorld(model, layout, result.Placement, result.Rewards,
-                                    islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
+                                    regionsAt, puzzles);
                                 result.Locks = EdgeLocks.Generate(lockWorld, out result.LockReport);
                                 result.LockProblems = result.LockReport.Problems;
                             }
@@ -509,7 +524,7 @@ namespace Game.Cube
         {
             var failures = new StringBuilder();
             int total = 0, failed = 0;
-            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false;
+            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -518,6 +533,7 @@ namespace Game.Cube
                 hiddenChecked |= r.HiddenChecked;
                 rewardsChecked |= r.RewardsChecked;
                 locksChecked |= r.LocksChecked;
+                iceChecked |= r.IceChecked && r.Ice != null && r.Ice.Screens.Count > 0;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -538,6 +554,9 @@ namespace Game.Cube
                 if (r.LockProblems != null && r.LockProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": locks ")
                         .AppendLine(string.Join("; ", r.LockProblems));
+                if (r.IceProblems != null && r.IceProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": ice ")
+                        .AppendLine(string.Join("; ", r.IceProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -555,6 +574,8 @@ namespace Game.Cube
             if (rewardsChecked)
                 what += ", every roadblock hiding a reward (no loose pickups, every required reward reachable, Town numbered 1 " +
                         "and the other faces 2-6, every face numbered k holding fragments 1..k, its key and boost) and no empty screen";
+            if (iceChecked)
+                what += ", every Earth ice screen solvable from each of its doorways inside its tier's targets with no hard traps";
             if (locksChecked)
                 what += ", every face-edge arch locked (a key or an item) with no order of spending keys soft-locking a screen, " +
                         "island, item, fragment, key or core portal, and at least two edges able to be opened first";

@@ -688,8 +688,8 @@ namespace Game.Cube
 
         /// <summary>How the hazards of the Wildlands* work, as the dinosaurs tell it (true for every run: the mechanics).</summary>
         public const string HazardLine =
-            "Out in the " + InWorldText.Wildlands + " the wind shoves you, snow sends you sliding and freezing rain slows you down. " +
-            "Go round the crevices. The middle's calm, though.";
+            "Wind shoves you, freezing rain slows you. On the ice you slide till a rock, a rough patch or a hole stops you; " +
+            "fall in and you climb out where you came in. Go round the crevices. The middle's calm.";
 
         public static string OldDiggerLine(uint salt) => OldDiggerLines[(int)(salt / 3u % (uint)OldDiggerLines.Length)];
 

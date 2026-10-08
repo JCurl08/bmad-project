@@ -65,12 +65,12 @@ namespace Game.Cube
 
         public int CoreSlotCount(Theme theme, int moduleIndex) => Pool(theme)[moduleIndex].CoreEntranceCount;
 
-        /// <summary>The pool index of a theme's island module (the last of Math's pool), or -1 when it has none.</summary>
+        /// <summary>The pool index of a theme's whole-screen puzzle module (the last of its pool: Math's islands, 4.10 Earth's ice), or -1 when it has none.</summary>
         public int IslandModuleIndex(Theme theme)
         {
             IReadOnlyList<ScreenModule> pool = Pool(theme);
             for (int i = 0; i < pool.Count; i++)
-                if (pool[i] != null && pool[i].IsIslandScreen) return i;
+                if (pool[i] != null && pool[i].IsPuzzleScreen) return i;
             return -1;
         }
 

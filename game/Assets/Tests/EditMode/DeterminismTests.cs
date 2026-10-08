@@ -77,6 +77,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("rewards", RewardPlacement.RngStream),
             new KeyValuePair<string, ulong>("dice", DieNumbers.RngStream),
             new KeyValuePair<string, ulong>("edgeLocks", EdgeLocks.RngStream),
+            new KeyValuePair<string, ulong>("iceScreens", IcePlan.RngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -119,7 +120,10 @@ namespace Game.Cube.Tests
             Add("hidden", hidden.Signature());
             DieNumbers dice = DieNumbers.Roll(model);
             Add("dice", dice.Signature());
-            RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, null, dice);
+            // 4.10: Earth's ice screens (each grid, row by row) and their goals in the rewards.
+            IcePlan ice = IcePlan.Create(model, layout, dice);
+            Add("ice", ice?.Signature());
+            RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, PuzzleScreens.Goals(ice), dice);
             Add("rewards", rewards.Signature());
             // 4.9: the face-edge locks (and which draw the soft-lock check kept).
             Add("locks", EdgeLocks.ForRun(model, library, catalog.Themes(), catalog.VariantCounts()).Signature());

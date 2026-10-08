@@ -93,6 +93,7 @@ MonoBehaviour:
   theme: 5
   islandScreen: 0
   townScreen: 1
+  iceScreen: 0
 --- !u!1 &402285668838087115
 GameObject:
   m_ObjectHideFlags: 0

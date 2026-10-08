@@ -91,6 +91,7 @@ public static class CubeSceneBuilder
         player.AddComponent<MassMitt>();
         // The Earth hazards' way into movement (PlayerMover's one modifier hook); nothing off the Earth face.
         player.AddComponent<HazardReceiver>();
+        player.AddComponent<IceSlider>(); // 4.10: tile-by-tile sliding on the Earth ice screens
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
         // Roadblock rewards (4.7): the keys, run boosts and fragment slots the player takes this run.
@@ -313,8 +314,29 @@ public static class CubeSceneBuilder
         }
         report += $"Earth: Stormcallers* {rolledWands[0]} quake, {rolledWands[1]} rain, {rolledWands[2]} snow, {rolledWands[3]} tornado; " +
                   $"{earthGates} gates ({offHomeEarth} off-home, {optionalEarth} optional); hazards {hazardCounts[0]} wind, " +
-                  $"{hazardCounts[1]} snow, {hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
+                  $"{hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
                   $"{string.Join(", ", levels.Select(e => $"{e.Key}x{e.Value}"))}; the Earth trial fits on {earthTrials} seeds.\n";
+        // 4.10: the ice screens, solver-checked from every doorway, with their difficulty per tier.
+        var iceStats = new IceStats();
+        var iceTiers = new int[3];
+        int iceSeeds = 0, iceFailing = 0, iceTemplates = 0;
+        long iceSteps = 0;
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Ice == null) continue;
+            iceSeeds++;
+            if (r.IceProblems != null && r.IceProblems.Count > 0) iceFailing++;
+            foreach (IceScreenSpec s in r.Ice.Screens)
+            {
+                iceStats.Add(s);
+                iceTiers[(int)s.Tier]++;
+                if (s.Layout != null) iceSteps += s.Layout.SearchSteps;
+                if (s.Layout != null && s.Layout.FromTemplate) iceTemplates++;
+            }
+        }
+        report += $"Ice: {iceStats.Screens} ice screens on {iceSeeds} seeds ({iceTiers[0]} early, {iceTiers[1]} mid, {iceTiers[2]} late), " +
+                  $"{iceStats.Missing} without a layout, {iceTemplates} from the fallback template, {iceFailing} seeds failing; every doorway solver-checked; " +
+                  $"{(iceStats.Screens > 0 ? iceSteps / iceStats.Screens : 0)} search steps a screen on average.\n" + iceStats.Describe();
         report += RewardReport(results, library);
         report += LockReportLine(results);
         int towns = results.Sum(r => r.TownsChecked);

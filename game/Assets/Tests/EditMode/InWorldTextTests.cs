@@ -53,6 +53,8 @@ namespace Game.Cube.Tests
             foreach (string line in CubeMap.AllTexts()) yield return ("CubeMap", line);
             yield return ("IslandScreen", IslandScreen.MendedText);
             yield return ("IslandScreen", IslandScreen.LoneText);
+            yield return ("IceScreen", IceScreen.GoalText);
+            yield return ("IceSlider", IceSlider.FallText);
             foreach (string line in MassMitt.AllHudText) yield return ("MassMitt HUD", line);
             foreach (string line in ChemistryIsotope.AllText()) yield return ("ChemistryIsotope", line);
             foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)

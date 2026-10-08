@@ -231,6 +231,7 @@ public static class ModuleLibraryBuilder
                     sprite, material));
             pool.Modules.Add(SaveTownSquareModule(theme)); // 4.5: the centre's town, after the regular modules
             if (theme == Theme.Math) pool.Modules.Add(SaveIslandModule(theme));
+            if (theme == Theme.EarthAtmosphere) pool.Modules.Add(SaveIceModule(theme)); // 4.10: Earth's ice screens
             pools.Add(pool);
         }
 
@@ -383,7 +384,11 @@ public static class ModuleLibraryBuilder
     private static ScreenModule SaveIslandModule(Theme theme) =>
         SaveExitsOnlyModule(theme, $"{theme} E Islands", module => module.IsIslandScreen = true);
 
-    /// <summary>A module with only its four exits, marked by mark (an island or a town screen).</summary>
+    /// <summary>An ice screen's module (4.10): only its four exits (the ice, rocks, pits and camp come from EarthFace at the reveal).</summary>
+    private static ScreenModule SaveIceModule(Theme theme) =>
+        SaveExitsOnlyModule(theme, $"{theme} E Ice", module => module.IsIceScreen = true);
+
+    /// <summary>A module with only its four exits, marked by mark (an island, ice or a town screen).</summary>
     private static ScreenModule SaveExitsOnlyModule(Theme theme, string name, Action<ScreenModule> mark)
     {
         var root = new GameObject(name);

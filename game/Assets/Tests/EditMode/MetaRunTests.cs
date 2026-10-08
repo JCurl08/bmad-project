@@ -439,7 +439,7 @@ namespace Game.Cube.Tests
             ModuleLibrary library = Library();
             foreach (ModuleLibrary.ThemePool pool in library.SciencePools)
             {
-                foreach (ScreenModule module in pool.Modules.Where(m => !m.IsIslandScreen && !m.IsTownScreen)) // island and town screens have no slots (1.25, 4.5)
+                foreach (ScreenModule module in pool.Modules.Where(m => !m.IsPuzzleScreen && !m.IsTownScreen)) // island and town screens have no slots (1.25, 4.5)
                 {
                     Assert.Greater(module.HiddenItems.Length, 0, module.name);
                     for (int i = 0; i < module.HiddenItems.Length; i++)

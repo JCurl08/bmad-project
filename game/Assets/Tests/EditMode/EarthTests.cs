@@ -218,12 +218,12 @@ namespace Game.Cube.Tests
                     {
                         var s = new ScreenAddress(face, x, y);
                         int count = plan.Hazards.Count(h => h.Screen == s);
-                        Assert.AreEqual(plan.IsCalm(s) ? 0 : 1, count, $"seed {seed}: {s}");
-                        if (!plan.IsCalm(s)) hazardScreens++;
+                        Assert.AreEqual(plan.IsCalm(s) || plan.IsIce(s) ? 0 : 1, count, $"seed {seed}: {s}");
+                        if (!plan.IsCalm(s) && !plan.IsIce(s)) hazardScreens++;
                     }
                 Assert.AreEqual(EarthPlan.LevelFor(hazardScreens, model.FaceSize), plan.Level, "The level is the difficulty parameter");
                 Assert.IsTrue(plan.Hazards.All(h => h.Screen.Face == face), "Hazards only on Earth (never Town, never the core)");
-                if (hazardScreens >= 4)
+                if (hazardScreens >= EarthPlan.Kinds.Length)
                     foreach (HazardKind k in Enum.GetValues(typeof(HazardKind)))
                         Assert.IsTrue(plan.Hazards.Any(h => h.Kind == k), $"seed {seed}: some {k}");
                 foreach (HazardSpec h in plan.Hazards)
@@ -250,11 +250,28 @@ namespace Game.Cube.Tests
             {
                 Assert.Greater(EarthPlan.WindPush(level + 1), EarthPlan.WindPush(level), "Stronger wind");
                 Assert.Less(EarthPlan.RainSpeed(level + 1), EarthPlan.RainSpeed(level), "Slower rain");
-                Assert.Less(EarthPlan.SnowGrip(level + 1), EarthPlan.SnowGrip(level), "Slipperier snow");
             }
             Assert.Less(EarthPlan.WindPush(EarthPlan.MaxLevel), PlayerMover.MaxPushFraction);
             Assert.Greater(EarthPlan.RainSpeed(EarthPlan.MaxLevel), PlayerMover.MinSpeedMultiplier);
-            Assert.Greater(EarthPlan.SnowGrip(EarthPlan.MaxLevel), PlayerMover.MinGrip);
+        }
+
+        /// <summary>
+        /// PlayerMover's grip path (kept since 4.10 removed the snow patches, its only user, as part of the generic modifier
+        /// hook): a grip below 1 eases the velocity toward the wanted one, and even the least grip gets there.
+        /// </summary>
+        [Test]
+        public void MoveModifierGrip_EasesTowardTheTarget_AndEvenTheLeastGripGetsThere()
+        {
+            var full = MoveModifier.None;
+            Assert.AreEqual(Vector2.right * 6f, PlayerMover.NextVelocity(Vector2.zero, Vector2.right * 6f, full), "full grip: at once");
+            var slippery = new MoveModifier { SpeedMultiplier = 1f, Push = Vector2.zero, Grip = 0.1f };
+            Vector2 one = PlayerMover.NextVelocity(Vector2.zero, Vector2.right * 6f, slippery);
+            Assert.AreEqual(0.6f, one.x, 1e-4f, "a tenth of the way a step");
+            var least = new MoveModifier { SpeedMultiplier = 1f, Push = Vector2.zero, Grip = 0f };
+            Assert.AreEqual(PlayerMover.MinGrip, PlayerMover.Clamp(least).Grip, 1e-6f, "never below MinGrip");
+            Vector2 v = Vector2.zero;
+            for (int i = 0; i < 400; i++) v = PlayerMover.NextVelocity(v, Vector2.right * 6f, least);
+            Assert.AreEqual(6f, v.x, 0.01f, "even the least grip gets there");
         }
 
         private static MoveModifier Modifier(HazardSpec h)
@@ -262,7 +279,6 @@ namespace Game.Cube.Tests
             switch (h.Kind)
             {
                 case HazardKind.Wind: return new MoveModifier { SpeedMultiplier = 1f, Push = h.Direction * h.Strength, Grip = 1f };
-                case HazardKind.Snow: return new MoveModifier { SpeedMultiplier = 1f, Push = Vector2.zero, Grip = h.Strength };
                 case HazardKind.FreezingRain: return new MoveModifier { SpeedMultiplier = h.Strength, Push = Vector2.zero, Grip = 1f };
                 default: return MoveModifier.None;
             }
@@ -482,7 +498,7 @@ namespace Game.Cube.Tests
             {
                 StringAssert.DoesNotContain(StormcallerItem.Word(kind), Dialogue.NeutralWandLine.ToLowerInvariant());
             }
-            foreach (string word in new[] { "wind", "snow", "rain", "crevice", "calm" })
+            foreach (string word in new[] { "wind", "ice", "slide", "rain", "crevice", "calm" })
                 StringAssert.Contains(word, Dialogue.HazardLine.ToLowerInvariant());
         }
 

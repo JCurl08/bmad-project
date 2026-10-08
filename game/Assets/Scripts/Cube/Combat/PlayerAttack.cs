@@ -137,6 +137,7 @@ namespace Game.Cube
         {
             if (!isActiveAndEnabled || !Ready) return -1;
             if (Stats != null && Stats.IsDead) return -1;
+            if (TryGetComponent(out IceSlider ice) && ice.Busy) return -1; // 4.10: no swinging mid-slide or mid-fall
             readyAt = Time.time + cooldown;
             SwingCount++;
 

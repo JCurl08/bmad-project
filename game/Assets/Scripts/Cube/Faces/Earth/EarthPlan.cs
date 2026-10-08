@@ -7,8 +7,11 @@ using UnityEngine;
 
 namespace Game.Cube
 {
-    /// <summary>The hazards of the Earth face: wind bands push, snow patches slide, freezing rain slows, crevices block.</summary>
-    public enum HazardKind { Wind = 0, Snow = 1, FreezingRain = 2, Crevice = 3 }
+    /// <summary>
+    /// The hazards of the Earth face: wind bands push, freezing rain slows, crevices block. (4.10: the snow patches are gone;
+    /// sliding is the ice screens' whole-screen puzzles now, IcePlan. 1 was Snow and is never reused.)
+    /// </summary>
+    public enum HazardKind { Wind = 0, FreezingRain = 2, Crevice = 3 }
 
     /// <summary>One Earth gate of the run: where it is, which phenomenon opens it, and whether it is an optional extra.</summary>
     public readonly struct EarthGateSpec : IEquatable<EarthGateSpec>
@@ -43,10 +46,10 @@ namespace Game.Cube
     }
 
     /// <summary>
-    /// One hazard on an Earth screen (local to the screen centre). Wind, snow and freezing rain are areas the player walks
+    /// One hazard on an Earth screen (local to the screen centre). Wind and freezing rain are areas the player walks
     /// through (they only change how the player moves, through PlayerMover's modifier hook); a crevice is a solid strip the
-    /// player goes round. Strength: the wind's push (a fraction of the player's speed), the rain's speed multiplier, the
-    /// snow's grip; 0 for a crevice.
+    /// player goes round. Strength: the wind's push (a fraction of the player's speed), the rain's speed multiplier;
+    /// 0 for a crevice.
     /// </summary>
     public sealed class HazardSpec
     {
@@ -88,7 +91,8 @@ namespace Game.Cube
     /// required ones the rolled phenomenon's, so it opens at least one gate on another face; the other phenomena's optional
     /// gates their own, guarding nothing required); the calm eye (the face's centre screen, no hazards: since 4.5 it hosts the
     /// Earth town, so no trial is ever there either); the hazards (one
-    /// per other screen, the four kinds dealt round a seeded order); the difficulty (the hazard level, from the number of
+    /// per other screen, the three kinds dealt round a seeded order; 4.10: never on an ice screen, Earth's whole-screen puzzle
+    /// module, which IcePlan lays out); the difficulty (the hazard level, from the number of
     /// hazard screens per screen of the face, setting every hazard's strength); and the trial screen with its pieces.
     /// Screens that hold another face's timed door (Physics) stay calm too, so a door's timing is never thrown off.
     /// Hazards keep every way open: the areas only slow or deflect (PlayerMover bounds them), and a crevice keeps off both
@@ -125,8 +129,8 @@ namespace Game.Cube
         /// <summary>Freezing rain's speed multiplier at a level (well over PlayerMover.MinSpeedMultiplier).</summary>
         public static float RainSpeed(int level) => 0.75f - 0.06f * (Mathf.Clamp(level, 1, MaxLevel) - 1);
 
-        /// <summary>A snow patch's grip at a level (how fast the player's velocity follows the stick; lower slides more).</summary>
-        public static float SnowGrip(int level) => 0.09f - 0.02f * (Mathf.Clamp(level, 1, MaxLevel) - 1);
+        /// <summary>The hazard kinds dealt round the hazard screens (4.10: snow is gone, the ice screens slide instead).</summary>
+        public static readonly HazardKind[] Kinds = { HazardKind.Wind, HazardKind.FreezingRain, HazardKind.Crevice };
 
         /// <summary>The strength of a hazard kind at a level (0 for a crevice).</summary>
         public static float StrengthOf(HazardKind kind, int level)
@@ -134,7 +138,6 @@ namespace Game.Cube
             switch (kind)
             {
                 case HazardKind.Wind: return WindPush(level);
-                case HazardKind.Snow: return SnowGrip(level);
                 case HazardKind.FreezingRain: return RainSpeed(level);
                 default: return 0f;
             }
@@ -148,7 +151,6 @@ namespace Game.Cube
         public static readonly Vector2 AreaHalf = new Vector2(7f, 4.4f) * ScreenMath.ContentScale;
 
         public const float WindBandWidth = 2.4f * ScreenMath.ContentScale;
-        public static readonly Vector2 SnowSize = new Vector2(5f, 3.4f) * ScreenMath.ContentScale;
         public static readonly Vector2 RainSize = new Vector2(6f, 4f) * ScreenMath.ContentScale;
 
         /// <summary>A crevice strip's lengths, longest first (a shorter one is tried where a longer one fits nowhere), and its thickness.</summary>
@@ -182,6 +184,7 @@ namespace Game.Cube
         private readonly List<EarthGateSpec> gates;
         private readonly List<HazardSpec> hazards;
         private readonly List<ScreenAddress> calm;
+        private readonly List<ScreenAddress> ice;
         private readonly Func<ScreenAddress, ScreenModule> moduleAt;
         private readonly Dictionary<ScreenAddress, List<ScreenMark>> others;
         private readonly ItemPlacement placement;
@@ -215,7 +218,7 @@ namespace Game.Cube
         public bool HasLayout => moduleAt != null;
 
         private EarthPlan(int seed, FaceId face, int faceSize, Phenomenon rolled, List<EarthGateSpec> gates,
-            List<HazardSpec> hazards, List<ScreenAddress> calm, ScreenAddress eye, int level, ScreenAddress trialScreen,
+            List<HazardSpec> hazards, List<ScreenAddress> calm, List<ScreenAddress> ice, ScreenAddress eye, int level, ScreenAddress trialScreen,
             IReadOnlyList<Vector2> trialSpots, Func<ScreenAddress, ScreenModule> moduleAt, Dictionary<ScreenAddress, List<ScreenMark>> others,
             ItemPlacement placement)
         {
@@ -227,6 +230,7 @@ namespace Game.Cube
             this.gates = gates;
             this.hazards = hazards;
             this.calm = calm;
+            this.ice = ice ?? new List<ScreenAddress>();
             Eye = eye;
             Level = level;
             TrialScreen = trialScreen;
@@ -239,14 +243,14 @@ namespace Game.Cube
         public EarthPlan WithHazard(int index, HazardSpec hazard)
         {
             var list = new List<HazardSpec>(hazards) { [index] = hazard };
-            return new EarthPlan(Seed, Face, FaceSize, Rolled, gates, list, calm, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement);
+            return new EarthPlan(Seed, Face, FaceSize, Rolled, gates, list, calm, ice, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement);
         }
 
         /// <summary>A copy with one gate replaced (tests of the sweep rules).</summary>
         public EarthPlan WithGate(int index, EarthGateSpec gate)
         {
             var list = new List<EarthGateSpec>(gates) { [index] = gate };
-            return new EarthPlan(Seed, Face, FaceSize, Rolled, list, hazards, calm, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement);
+            return new EarthPlan(Seed, Face, FaceSize, Rolled, list, hazards, calm, ice, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement);
         }
 
         public bool TryGetGate(ScreenAddress screen, int slot, bool optional, out EarthGateSpec spec)
@@ -287,6 +291,11 @@ namespace Game.Cube
 
         public bool IsCalm(ScreenAddress screen) => calm.Contains(screen);
 
+        /// <summary>The ice screens (4.10, IcePlan's puzzles: no hazard and no trial there); empty without modules.</summary>
+        public IReadOnlyList<ScreenAddress> IceScreens => ice;
+
+        public bool IsIce(ScreenAddress screen) => ice.Contains(screen);
+
         public string Signature()
         {
             var sb = new StringBuilder();
@@ -301,6 +310,11 @@ namespace Game.Cube
             }
             sb.Append("; calm");
             foreach (ScreenAddress s in calm) sb.Append(' ').Append(s);
+            if (ice.Count > 0)
+            {
+                sb.Append("; ice");
+                foreach (ScreenAddress s in ice) sb.Append(' ').Append(s);
+            }
             sb.Append("; ");
             foreach (EarthGateSpec g in gates) sb.Append(g).Append("; ");
             foreach (HazardSpec h in hazards) sb.Append(h).Append("; ");
@@ -345,15 +359,19 @@ namespace Game.Cube
             var calm = new List<ScreenAddress> { eye };
             foreach (GatePlacement g in placement.Gates)
                 if (g.Item == Theme.Physics && g.Screen.Face == face && !calm.Contains(g.Screen)) calm.Add(g.Screen);
+            // 4.10: the ice screens (Earth's whole-screen puzzle module) are puzzles, not hazard screens: no hazard, no trial.
+            var ice = new List<ScreenAddress>();
             var hazardScreens = new List<ScreenAddress>();
             for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++)
                 {
                     var s = new ScreenAddress(face, x, y);
-                    if (!calm.Contains(s)) hazardScreens.Add(s);
+                    ScreenModule module = moduleAt?.Invoke(s);
+                    if (module != null && module.IsIceScreen && !calm.Contains(s)) ice.Add(s);
+                    else if (!calm.Contains(s)) hazardScreens.Add(s);
                 }
             rng.Shuffle(hazardScreens);
-            var kinds = new List<HazardKind> { HazardKind.Wind, HazardKind.Snow, HazardKind.FreezingRain, HazardKind.Crevice };
+            var kinds = new List<HazardKind>(Kinds);
             rng.Shuffle(kinds);
             int level = LevelFor(hazardScreens.Count, n);
 
@@ -405,7 +423,7 @@ namespace Game.Cube
                 }
                 hazards.Add(AreaHazard(s, kind, level, screenRng));
             }
-            return new EarthPlan(model.Seed, face, n, rolled, specs, hazards, calm, eye, level, trialScreen, trialSpots, moduleAt, others, placement);
+            return new EarthPlan(model.Seed, face, n, rolled, specs, hazards, calm, ice, eye, level, trialScreen, trialSpots, moduleAt, others, placement);
         }
 
         /// <summary>The phenomenon of a variant index from the id-derived kinds; None when unknown.</summary>
@@ -454,7 +472,7 @@ namespace Game.Cube
             return solids;
         }
 
-        /// <summary>A wind band, snow patch or rain area on a screen, its place drawn from the screen's stream.</summary>
+        /// <summary>A wind band or rain area on a screen, its place drawn from the screen's stream.</summary>
         private static HazardSpec AreaHazard(ScreenAddress s, HazardKind kind, int level, SeededRng rng)
         {
             float strength = StrengthOf(kind, level);
@@ -482,8 +500,6 @@ namespace Game.Cube
                     }
                     return new HazardSpec(s, kind, Clip(area), dir, strength);
                 }
-                case HazardKind.Snow:
-                    return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3.6f * ScreenMath.ContentScale, 2.2f * ScreenMath.ContentScale), SnowSize)), Vector2.zero, strength);
                 default:
                     return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale), RainSize)), Vector2.zero, strength);
             }
@@ -889,11 +905,12 @@ namespace Game.Cube
                     int count = 0;
                     foreach (HazardSpec h in hazards)
                         if (h.Screen == s) count++;
-                    if (IsCalm(s))
+                    if (IsCalm(s) || IsIce(s))
                     {
-                        if (count != 0) problems.Add($"calm {s} has {count} hazards");
+                        if (count != 0) problems.Add($"{(IsIce(s) ? "the ice screen" : "calm")} {s} has {count} hazards");
                         continue;
                     }
+                    if (HasLayout && moduleAt(s) != null && moduleAt(s).IsIceScreen) problems.Add($"{s} is an ice screen the plan missed");
                     hazardScreens++;
                     if (count != 1) problems.Add($"{s} has {count} hazards (want one)");
                 }
@@ -915,9 +932,6 @@ namespace Game.Cube
                         if (h.Strength < Game.Tracer.PlayerMover.MinSpeedMultiplier || h.Strength >= 1f)
                             problems.Add($"{h}: slows below the minimum speed (or not at all)");
                         break;
-                    case HazardKind.Snow:
-                        if (h.Strength < Game.Tracer.PlayerMover.MinGrip || h.Strength >= 1f) problems.Add($"{h}: no slide, or one that never ends");
-                        break;
                 }
                 if (h.Kind != HazardKind.Crevice || HasLayout)
                 {
@@ -932,12 +946,13 @@ namespace Game.Cube
                     if (why != null) problems.Add($"{h}: {why}");
                 }
             }
-            if (hazardScreens >= 4)
-                foreach (HazardKind k in new[] { HazardKind.Wind, HazardKind.Snow, HazardKind.FreezingRain, HazardKind.Crevice })
+            if (hazardScreens >= Kinds.Length)
+                foreach (HazardKind k in Kinds)
                     if (!seenKinds.Contains(k)) problems.Add($"no {k} on the face");
 
             // Trial.
             if (TrialScreen.Face != Face) problems.Add($"the trial is on {TrialScreen}, not on Earth");
+            if (IsIce(TrialScreen)) problems.Add($"the trial is on the ice screen {TrialScreen}");
             if (TownSquare.IsTown(TrialScreen, FaceSize)) problems.Add($"the trial is on the town {TrialScreen} (the calm eye)");
             if (HasLayout)
             {

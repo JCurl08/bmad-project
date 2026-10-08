@@ -178,7 +178,7 @@ namespace Game.Cube.Tests
         // ---------- Library invariants ----------
 
         private static IEnumerable<ScreenModule> AllLibraryModules(ModuleLibrary library) =>
-            library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsIslandScreen && !m.IsTownScreen);
+            library.TownModules.Concat(library.SciencePools.SelectMany(p => p.Modules)).Where(m => !m.IsPuzzleScreen && !m.IsTownScreen);
 
         private static float RectDistance(Rect r, Vector2 p)
         {
@@ -252,7 +252,16 @@ namespace Game.Cube.Tests
             Assert.IsEmpty(island.HiddenItems);
             Assert.IsEmpty(island.CoreEntrances);
             Assert.IsEmpty(island.GetComponentsInChildren<BoxCollider2D>(true), "No obstacles: MathFace fills it");
-            foreach (Theme theme in BuiltSciences.Where(t => t != Theme.Math))
+            // 4.10: Earth ends its pool with its ice module the same way (only exits).
+            IReadOnlyList<ScreenModule> earth = library.Pool(Theme.EarthAtmosphere);
+            Assert.AreEqual(earth.Count - 1, library.IslandModuleIndex(Theme.EarthAtmosphere), "Earth's ice module ends its pool");
+            ScreenModule ice = earth[earth.Count - 1];
+            Assert.IsTrue(ice.IsIceScreen && !ice.IsIslandScreen);
+            Assert.AreEqual(4, ice.Exits.Length);
+            Assert.IsEmpty(ice.Gates);
+            Assert.IsEmpty(ice.HiddenItems);
+            Assert.IsEmpty(ice.CoreEntrances);
+            foreach (Theme theme in BuiltSciences.Where(t => t != Theme.Math && t != Theme.EarthAtmosphere))
                 Assert.AreEqual(-1, library.IslandModuleIndex(theme), $"{theme} has no island screens");
             foreach (int n in FaceSizes)
                 for (int seed = 1; seed <= 50; seed++)
@@ -266,7 +275,7 @@ namespace Game.Cube.Tests
                             for (int x = 0; x < n; x++)
                                 if (fl.ModuleAt(new Vector2Int(x, y)) == library.IslandModuleIndex(fl.Theme)) cells.Add(new Vector2Int(x, y));
                         CollectionAssert.AreEqual(fl.IslandCells, cells, $"seed {seed} {fl.Face}");
-                        Assert.AreEqual(fl.Theme == Theme.Math ? CubeLayout.IslandScreensPerFace(n) : 0, cells.Count, $"seed {seed} {fl.Face}");
+                        Assert.AreEqual(fl.Theme == Theme.Math || fl.Theme == Theme.EarthAtmosphere ? CubeLayout.IslandScreensPerFace(n) : 0, cells.Count, $"seed {seed} {fl.Face}");
                         CollectionAssert.DoesNotContain(cells, fl.CoreCell);
                         foreach (Vector2Int a in cells)
                             foreach (Vector2Int b in cells)

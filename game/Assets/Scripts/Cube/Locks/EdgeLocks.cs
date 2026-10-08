@@ -259,15 +259,19 @@ namespace Game.Cube
             CubeLayout layout = CubeLayout.Generate(model, library);
             ItemPlacement placement = ItemPlacement.ForRun(model, layout, library, itemThemes, variantCounts);
             HiddenCurrencyPlacement hidden = HiddenCurrencyPlacement.Generate(model, layout, library);
-            RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, null, DieNumbers.Roll(model));
+            DieNumbers dice = DieNumbers.Roll(model);
+            IcePlan ice = IcePlan.Create(model, layout, dice);
+            List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice);
+            RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, puzzles, dice);
             MathPlan math = MathPlan.Create(model, placement, SeedSweep.ModuleLookup(layout, library));
-            return Generate(new LockWorld(model, layout, placement, rewards, math != null ? math.IslandAt : (Func<ScreenAddress, IslandLayout>)null));
+            return Generate(new LockWorld(model, layout, placement, rewards, PuzzleScreens.RegionsAt(math, ice), puzzles));
         }
     }
 
     /// <summary>
     /// A run's content as the lock check sees it (4.9, pure): the places (DoorwayReach: screens, and islands on Math's island
-    /// screens), the item pickups, the keys and every required reward, each with the item gate (if any) in front of it.
+    /// screens, the regions of Earth's ice screens, 4.10), the item pickups, the keys and every required reward (a puzzle
+    /// goal's in its goal region: puzzles), each with the item gate (if any) in front of it.
     /// Explore walks every state the player can get into by spending keys in any order, collecting everything it can reach
     /// at each (more never hurts, and item locks open for free).
     /// </summary>
@@ -291,7 +295,7 @@ namespace Game.Cube
             }
         }
 
-        private readonly Func<ScreenAddress, IslandLayout> islandAt;
+        private readonly Func<ScreenAddress, IScreenRegions> islandAt;
         private readonly List<Thing> pickups = new List<Thing>();
         private readonly List<Thing> keys = new List<Thing>();
         private readonly List<Thing> required = new List<Thing>();
@@ -304,7 +308,7 @@ namespace Game.Cube
         public List<Theme> Items { get; }
 
         public LockWorld(CubeModel model, CubeLayout layout, ItemPlacement items, RewardPlacement rewards,
-            Func<ScreenAddress, IslandLayout> islandAt = null)
+            Func<ScreenAddress, IScreenRegions> islandAt = null, IReadOnlyList<PuzzleGoal> puzzles = null)
         {
             Model = model ?? throw new ArgumentNullException(nameof(model));
             this.islandAt = islandAt;
@@ -327,7 +331,7 @@ namespace Game.Cube
                                    items.TryGetGate(s.Where.Screen, s.Where.Slot, out _);
                     GatePlacement g = default;
                     if (guarded) items.TryGetGate(s.Where.Screen, s.Where.Slot, out g);
-                    var thing = new Thing(PlaceOf(s.Where.Screen, RewardPlacement.LocalOf(s.Where)), guarded, g.Item, Theme.Town, s.ToString());
+                    var thing = new Thing(PlaceOf(s.Where.Screen, RewardPlacement.LocalOf(s.Where, puzzles)), guarded, g.Item, Theme.Town, s.ToString());
                     required.Add(thing);
                     if (s.What.Kind == RewardKind.Key) keys.Add(thing);
                 }

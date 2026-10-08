@@ -104,7 +104,7 @@ namespace Game.Cube.Tests
                 RewardPlacement plan = world.Rewards;
                 Assert.IsNotNull(plan, $"seed {seed}");
                 Assert.IsEmpty(RewardPlacement.FindProblems(world.Model, world.Layout, world.ItemPlacement, world.HiddenCurrency, plan,
-                    world.Library, world.GetComponent<MathFace>().Plan.IslandAt));
+                    world.Library, PuzzleScreens.RegionsAt(world.GetComponent<MathFace>().Plan, world.Ice), world.PuzzleGoals));
                 int chests = 0;
                 foreach (RewardSpot spot in plan.Spots)
                 {
@@ -144,6 +144,14 @@ namespace Game.Cube.Tests
                         Assert.IsFalse(Shown(chest), $"{where}: hidden under its mound");
                         Vector2 slot = module.HiddenItems[spot.Where.Slot].transform.position;
                         Assert.Less(Vector2.Distance(slot, chest.transform.position), 0.01f, where);
+                    }
+                    else if (spot.Where.Kind == RoadblockKind.Puzzle)
+                    {
+                        // 4.10: an ice screen's chest stands on its goal pad, shut until the pad is reached.
+                        Assert.IsInstanceOf<IceScreen>(chest.Guard, where);
+                        Assert.IsFalse(chest.Guard.IsOpen, where);
+                        Vector2 goal = world.ScreenCenter(spot.Where.Screen) + world.PuzzleGoals[spot.Where.Slot].Local;
+                        Assert.Less(Vector2.Distance(goal, chest.transform.position), 0.01f, where);
                     }
                     else
                     {

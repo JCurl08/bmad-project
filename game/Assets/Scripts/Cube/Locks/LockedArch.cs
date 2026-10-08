@@ -203,16 +203,21 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// True when a world point stands where this doorway's region is (4.9 review): anywhere on an ordinary screen; on a Math
+        /// True when a world point stands where this doorway's region is (4.9 review): anywhere on an ordinary screen; on an ice
+        /// screen (4.10), its landing's region or its mouth; on a Math
         /// island screen, only on the island the doorway lands on (DoorwayReach.RegionOfDoor), so the runtime matches the model.
         /// </summary>
         public bool SameRegion(Vector2 worldPosition)
         {
             MathFace math = World != null ? World.GetComponent<MathFace>() : null;
-            IslandLayout islands = math != null && math.Plan != null ? math.Plan.IslandAt(Screen) : null;
-            if (islands == null) return true;
-            int door = islands.DoorIsland(Side);
-            return door >= 0 && islands.IslandAt(worldPosition - World.ScreenCenter(Screen)) == door;
+            IScreenRegions regions = math != null && math.Plan != null ? math.Plan.IslandAt(Screen) : null;
+            if (regions == null && World != null && World.Ice != null) regions = World.Ice.At(Screen); // 4.10: an ice screen
+            if (regions == null) return true;
+            Vector2 local = worldPosition - World.ScreenCenter(Screen);
+            int door = regions.DoorRegion(Side);
+            // On an ice screen the doorway's mouth (the strip off the grid, between the arch and its landing) is its landing's.
+            if (regions is IceLayout && IceLayout.CellAt(local) < 0) return door >= 0;
+            return door >= 0 && regions.RegionAt(local) == door;
         }
 
         private void Refuse(GameObject who, LockOpenResult result)

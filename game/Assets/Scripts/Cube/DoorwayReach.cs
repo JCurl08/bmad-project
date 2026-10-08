@@ -5,19 +5,41 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
+    /// A whole-screen puzzle as DoorwayReach sees it (1.25 islands, 4.10 ice, and 4.11's wind to come): the screen splits into
+    /// regions, each doorway lands in one (or none), and regions join one another (some joins only with the gap-crosser*).
+    /// Every join must have its way back (DoorwayReach.Problems checks it), so the player is never stranded.
+    /// </summary>
+    public interface IScreenRegions
+    {
+        /// <summary>How many regions the screen has (0..RegionCount-1).</summary>
+        int RegionCount { get; }
+
+        /// <summary>The region a doorway lands in (-1 for a side with no doorway).</summary>
+        int DoorRegion(Facing side);
+
+        /// <summary>The region a point (local to the screen's centre) stands in, or -1 (water, a rock, off the puzzle).</summary>
+        int RegionAt(Vector2 local);
+
+        /// <summary>The regions one step from a region (with or without the gap-crosser*).</summary>
+        IEnumerable<int> Joins(int region, bool gapCrosser);
+    }
+
+    /// <summary>
     /// Where the player can walk, doorway by doorway (1.25), as pure data: the cube's screens joined through their
-    /// doorways (CubeModel.TryStep), where an island screen (islandAt: Math's, from MathPlan) splits into its islands. A
-    /// place is a (screen, region): region 0 is the whole of an ordinary screen (all four doorways and everything in it
-    /// join), and on an island screen each island is its own region, joined to others only by its planks (broken spans only
-    /// with the gap-crosser*). A doorway leads from the island it lands on to the place behind it on the next screen. Every
-    /// join works both ways (doorways, planks, mended spans), so the player is never stranded: wherever it can get to, it
-    /// can walk back the way it came, out of the doorway it came in by. The seed sweep (SeedSweep, MathPlan) collects every
-    /// item with it.
+    /// doorways (CubeModel.TryStep), where a puzzle screen (regionsAt: Math's island screens from MathPlan, Earth's ice screens
+    /// from IcePlan) splits into its regions. A place is a (screen, region): region 0 is the whole of an ordinary screen (all
+    /// four doorways and everything in it join); on an island screen each island is its own region, joined to others only by
+    /// its planks (broken spans only with the gap-crosser*); on an ice screen every doorway lands in region 0 (they join
+    /// through the camp) and the goal pad is region 1, joined when the solver reaches it. A doorway leads from the region it
+    /// lands on to the place behind it on the next screen. Every join works both ways (doorways, planks, mended spans, the
+    /// ice route and its way back), so the player is never stranded: wherever it can get to, it can walk back the way it
+    /// came, out of the doorway it came in by. The seed sweep (SeedSweep, MathPlan, RewardPlacement, LockWorld) collects
+    /// every item and reward with it.
     /// </summary>
     public sealed class DoorwayReach
     {
         private readonly CubeModel model;
-        private readonly Func<ScreenAddress, IslandLayout> islandAt;
+        private readonly Func<ScreenAddress, IScreenRegions> regionsAt;
         private readonly Func<ScreenAddress, Facing, bool> doorOpen;
         private readonly Dictionary<bool, HashSet<(ScreenAddress, int)>> cache = new Dictionary<bool, HashSet<(ScreenAddress, int)>>();
 
@@ -26,28 +48,31 @@ namespace Game.Cube
         /// nowhere (a locked face-edge arch, EdgeLocks). It answers the same for both sides of a doorway, so every join stays
         /// two-way.
         /// </summary>
-        public DoorwayReach(CubeModel model, Func<ScreenAddress, IslandLayout> islandAt = null, Func<ScreenAddress, Facing, bool> doorOpen = null)
+        public DoorwayReach(CubeModel model, Func<ScreenAddress, IScreenRegions> regionsAt = null, Func<ScreenAddress, Facing, bool> doorOpen = null)
         {
             this.model = model ?? throw new ArgumentNullException(nameof(model));
-            this.islandAt = islandAt;
+            this.regionsAt = regionsAt;
             this.doorOpen = doorOpen;
         }
 
-        /// <summary>The island layout of a screen, or null for an ordinary screen.</summary>
-        public IslandLayout IslandsOn(ScreenAddress screen) => islandAt?.Invoke(screen);
+        /// <summary>The regions of a screen, or null for an ordinary screen.</summary>
+        public IScreenRegions RegionsOn(ScreenAddress screen) => regionsAt?.Invoke(screen);
+
+        /// <summary>The island layout of a screen, or null (an ordinary screen, or another kind of puzzle).</summary>
+        public IslandLayout IslandsOn(ScreenAddress screen) => RegionsOn(screen) as IslandLayout;
 
         /// <summary>The region a doorway of a screen lands on (0 on an ordinary screen; -1 for a side with no doorway).</summary>
         public int RegionOfDoor(ScreenAddress screen, Facing side)
         {
-            IslandLayout islands = IslandsOn(screen);
-            return islands == null ? 0 : islands.DoorIsland(side);
+            IScreenRegions regions = RegionsOn(screen);
+            return regions == null ? 0 : regions.DoorRegion(side);
         }
 
-        /// <summary>The region a point (local to its screen's centre) stands in: 0 on an ordinary screen, its island (or -1 in the water) on an island screen.</summary>
+        /// <summary>The region a point (local to its screen's centre) stands in: 0 on an ordinary screen, its region (or -1) on a puzzle screen.</summary>
         public int RegionAt(ScreenAddress screen, Vector2 local)
         {
-            IslandLayout islands = IslandsOn(screen);
-            return islands == null ? 0 : islands.IslandAt(local);
+            IScreenRegions regions = RegionsOn(screen);
+            return regions == null ? 0 : regions.RegionAt(local);
         }
 
         /// <summary>Every place (screen, region) the player can walk to from the start, with or without the gap-crosser*.</summary>
@@ -69,13 +94,13 @@ namespace Game.Cube
             return seen;
         }
 
-        /// <summary>The places one step from a place: over a plank (an island screen) or through a doorway onto the next screen.</summary>
+        /// <summary>The places one step from a place: a join within a puzzle screen, or through a doorway onto the next screen.</summary>
         public IEnumerable<(ScreenAddress Screen, int Region)> Neighbours(ScreenAddress screen, int region, bool gapCrosser)
         {
-            IslandLayout islands = IslandsOn(screen);
-            if (islands != null)
-                foreach (IslandBridge b in islands.Bridges)
-                    if (b.Joins(region) && (!b.Broken || gapCrosser)) yield return (screen, b.Other(region));
+            IScreenRegions regions = RegionsOn(screen);
+            if (regions != null)
+                foreach (int other in regions.Joins(region, gapCrosser))
+                    yield return (screen, other);
             for (int f = 0; f < 4; f++)
             {
                 var side = (Facing)f;
@@ -96,9 +121,9 @@ namespace Game.Cube
 
         /// <summary>
         /// Problems with the walk (empty when all is well): every ordinary screen reachable without any item (so the core
-        /// portals, the gates and the pickups on them never wait on an island route), every island of every island screen
-        /// reachable with the gap-crosser*, and every join two-way (from every place the player can get to, it can walk
-        /// back to the start).
+        /// portals, the gates and the pickups on them never wait on an island route), every region of every puzzle screen
+        /// reachable with the gap-crosser* (an island, an ice screen's goal pad), and every join two-way (from every place the
+        /// player can get to, it can walk back to the start).
         /// </summary>
         public List<string> Problems()
         {
@@ -107,14 +132,15 @@ namespace Game.Cube
             foreach (ScreenAddress screen in model.AllScreens())
             {
                 if (model.IsSealed(screen.Face)) continue;
-                IslandLayout islands = IslandsOn(screen);
-                if (islands == null)
+                IScreenRegions regions = RegionsOn(screen);
+                if (regions == null)
                 {
                     if (!bare.Contains((screen, 0))) problems.Add($"{screen} cannot be reached without the gap-crosser*");
                     continue;
                 }
-                for (int i = 0; i < islands.Islands.Count; i++)
-                    if (!all.Contains((screen, i))) problems.Add($"island {i} of {screen} can never be reached");
+                string what = regions is IslandLayout ? "island" : "region";
+                for (int i = 0; i < regions.RegionCount; i++)
+                    if (!all.Contains((screen, i))) problems.Add($"{what} {i} of {screen} can never be reached");
             }
             // Two-way: every step has its way back.
             foreach (bool gap in new[] { false, true })

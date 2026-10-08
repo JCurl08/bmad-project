@@ -11,7 +11,9 @@ namespace Game.Cube
     /// gate behaviours: every Earth gate (home or off-home) becomes the rolled phenomenon's gate (rock pillars for the quake,
     /// a fire wall for rain, water for snow, a debris pile for the tornado), and every optional gate of another wand that
     /// wand's gate; each opens to one swing of its wand;
-    /// the hazards: a wind band, snow patch, freezing rain or quake crevice on every Earth screen but the calm eye (the
+    /// the ice screens (4.10): each of the world's IcePlan screens becomes an IceScreen (sliding ice, rocks, pits, grip, the
+    /// camp and the goal pad with its chest), and the player gets its IceSlider;
+    /// the hazards: a wind band, freezing rain or quake crevice on every other Earth screen but the calm eye (the
     /// centre) and any screen holding a timed door; the player's HazardReceiver (added when missing) reads them through
     /// PlayerMover's modifier hook;
     /// the trial: an EarthTrial of the rolled phenomenon's targets on the plan's trial screen;
@@ -49,6 +51,7 @@ namespace Game.Cube
         private readonly List<NpcTalker> dinosaurs = new List<NpcTalker>();
         private readonly List<Enemy> enemies = new List<Enemy>();
         private readonly List<Transform> decor = new List<Transform>();
+        private readonly List<IceScreen> iceScreens = new List<IceScreen>();
         private Transform root;
 
         public Theme Theme => Theme.EarthAtmosphere;
@@ -64,10 +67,13 @@ namespace Game.Cube
         /// <summary>Every Earth gate built this run (required and optional, on any face).</summary>
         public IReadOnlyList<PhenomenonGate> PhenomenonGates => phenomenonGates;
 
-        /// <summary>The wind bands, snow patches and freezing rain of this run.</summary>
+        /// <summary>The wind bands and freezing rain of this run.</summary>
         public IReadOnlyList<HazardZone> Zones => zones;
 
         public IReadOnlyList<QuakeCrevice> Crevices => crevices;
+
+        /// <summary>The ice screens built on the reveal (4.10), in IcePlan order.</summary>
+        public IReadOnlyList<IceScreen> IceScreens => iceScreens;
         public IReadOnlyList<NpcTalker> Dinosaurs => dinosaurs;
         public IReadOnlyList<Enemy> Enemies => enemies;
 
@@ -116,6 +122,7 @@ namespace Game.Cube
 
         public void EndReveal(CubeWorld world)
         {
+            BuildIceScreens(world); // 4.10: before the plan check, so the ice never waits on the wand
             if (Plan == null) return;
             if (root == null) root = new GameObject("Earth Face Content").transform;
             BuildHazards(world);
@@ -125,6 +132,7 @@ namespace Game.Cube
             var marks = new Dictionary<ScreenAddress, List<ScreenMark>>();
             bool Allowed(ScreenAddress screen, Vector2 feet)
             {
+                if (plan.IsIce(screen) || (world.Ice != null && world.Ice.IsIceScreen(screen))) return false; // nobody stands on the ice
                 if (plan.NearCrevice(screen, feet, KeepOut) || plan.NearCrevice(screen, feet + new Vector2(0f, NpcFactory.MaxBodyHeight), KeepOut))
                     return false;
                 if (!marks.TryGetValue(screen, out List<ScreenMark> list))
@@ -154,6 +162,7 @@ namespace Game.Cube
             FaceContent.DestroyAll(decor);
             // Gates and the trial live under their modules, which the rebuild destroys.
             phenomenonGates.Clear();
+            iceScreens.Clear(); // they live under their modules too
             Trial = null;
             Plan = null;
             Wand = null;
@@ -179,9 +188,6 @@ namespace Game.Cube
                     case HazardKind.Wind:
                         zones.Add(WindBand.Create(root, h.Screen, area, h.Direction, h.Strength, world.Material));
                         break;
-                    case HazardKind.Snow:
-                        zones.Add(SnowPatch.Create(root, h.Screen, area, h.Strength, world.Material));
-                        break;
                     case HazardKind.FreezingRain:
                         zones.Add(FreezingRain.Create(root, h.Screen, area, h.Strength, world.Material));
                         break;
@@ -195,6 +201,34 @@ namespace Game.Cube
             eye.position = world.ScreenCenter(Plan.Eye);
             ArtCatalog.AddShape(eye, "Ring", PartShape.Circle, Vector2.zero, new Vector2(7f, 7f) * ScreenMath.ContentScale, EyeColor, EyeOrder, world.Material);
             decor.Add(eye);
+        }
+
+        /// <summary>
+        /// The run's ice screens (4.10, the world's IcePlan): each IceScreen under its module, and the player's IceSlider (added
+        /// when missing, like the hazard receiver) so PlayerMover hands it the movement on the grid.
+        /// </summary>
+        private void BuildIceScreens(CubeWorld world)
+        {
+            iceScreens.Clear();
+            if (world.Ice == null || world.Ice.Screens.Count == 0) return;
+            Transform target = ResolvePlayer();
+            if (target != null && target.GetComponent<IceSlider>() == null)
+            {
+                target.gameObject.AddComponent<IceSlider>();
+                Game.Tracer.PlayerMover mover = target.GetComponent<Game.Tracer.PlayerMover>();
+                if (mover != null) mover.RefreshModifier();
+            }
+            foreach (IceScreenSpec spec in world.Ice.Screens)
+            {
+                ScreenModule module = world.ModuleAt(spec.Screen);
+                if (module == null || spec.Layout == null)
+                {
+                    Debug.LogWarning($"EarthFace: no ice layout for {spec} (seed {world.Seed}).");
+                    continue;
+                }
+                iceScreens.Add(IceScreen.Create($"Ice ({spec.Screen})", module.transform, spec.Screen, spec.Layout,
+                    world.ScreenCenter(spec.Screen), world.Material));
+            }
         }
 
         private void BuildTrial(CubeWorld world)

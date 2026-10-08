@@ -181,3 +181,7 @@ its generated placeholder shape, so nothing renders invisible.
 | Mound | D 66 | a heap of brown dirt: a hidden spot any swing digs away |
 
 Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per row in `Tilemap/tilemap_packed.png`).
+
+## Drawn in code (4.10): the ice screens
+
+`IceArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: ice (pale blue, a glint and a seam at each tile edge), rock (a grey boulder on ice), pit (a dark hole with a pale jagged rim), grip (crunchy off-white snow with grit; also the landing lanes and the camp, whose centre has a small fire), goal pad (grip ringed in gold, under the reward chest) and snowbank (drifts with a blue shadow, round the grid). The `SnowPatch` key stays in the catalog unused since the snow hazard is gone.

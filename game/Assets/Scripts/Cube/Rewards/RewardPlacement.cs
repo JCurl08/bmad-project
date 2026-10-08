@@ -439,7 +439,7 @@ namespace Game.Cube
         /// </list>
         /// </summary>
         public static List<string> FindProblems(CubeModel model, CubeLayout layout, ItemPlacement items, HiddenCurrencyPlacement hidden,
-            RewardPlacement rewards, IHiddenSlotCatalog catalog, Func<ScreenAddress, IslandLayout> islandAt = null,
+            RewardPlacement rewards, IHiddenSlotCatalog catalog, Func<ScreenAddress, IScreenRegions> islandAt = null,
             IReadOnlyList<PuzzleGoal> puzzles = null, DieNumbers dice = null)
         {
             var problems = new List<string>();

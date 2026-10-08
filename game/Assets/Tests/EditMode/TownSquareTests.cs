@@ -89,14 +89,14 @@ namespace Game.Cube.Tests
                 IReadOnlyList<ScreenModule> pool = library.Pool(theme);
                 int town = library.TownModuleIndex(theme);
                 Assert.GreaterOrEqual(town, 0, $"{theme} has a town module");
-                Assert.AreEqual(pool.Count - (theme == Theme.Math ? 2 : 1), town, $"{theme}: the town module ends the regular modules");
+                Assert.AreEqual(pool.Count - (theme == Theme.Math || theme == Theme.EarthAtmosphere ? 2 : 1), town, $"{theme}: the town module ends the regular modules");
                 Assert.AreEqual(theme, pool[town].Theme);
                 modules.Add(pool[town]);
             }
             foreach (ScreenModule module in modules)
             {
                 Assert.IsTrue(module.IsTownScreen, module.name);
-                Assert.IsFalse(module.IsIslandScreen, module.name);
+                Assert.IsFalse(module.IsPuzzleScreen, module.name);
                 Assert.AreEqual(4, module.Exits.Length, module.name);
                 Assert.IsEmpty(module.Gates, $"{module.name}: no gate slot");
                 Assert.IsEmpty(module.HiddenItems, $"{module.name}: no hidden spot");

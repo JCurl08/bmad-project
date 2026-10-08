@@ -67,7 +67,7 @@ namespace Game.Cube
     /// must come round through another screen). The trial screen's trial island hangs off the joined islands by a broken
     /// span. Problems checks all of it; Components gives what joins with or without the gap-crosser*.
     /// </summary>
-    public sealed class IslandLayout
+    public sealed class IslandLayout : IScreenRegions
     {
         /// <summary>
         /// The lattice: island spots' x (five columns) and y (three rows), local to the screen centre (4.1). The columns
@@ -170,6 +170,17 @@ namespace Game.Cube
 
         /// <summary>The island a doorway lands on (-1 for a side with no doorway).</summary>
         public int DoorIsland(Facing side) => doorIslands[(int)side];
+
+        // IScreenRegions (DoorwayReach): each island is a region, joined by its planks (broken spans only with the gap-crosser*).
+        public int RegionCount => islands.Length;
+        public int DoorRegion(Facing side) => DoorIsland(side);
+        public int RegionAt(Vector2 local) => IslandAt(local);
+
+        public IEnumerable<int> Joins(int region, bool gapCrosser)
+        {
+            foreach (IslandBridge b in bridges)
+                if (b.Joins(region) && (!b.Broken || gapCrosser)) yield return b.Other(region);
+        }
 
         /// <summary>The doorway side of an island, or null for an inner island.</summary>
         public Facing? DoorOf(int island)

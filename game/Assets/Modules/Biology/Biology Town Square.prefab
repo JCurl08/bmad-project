@@ -263,3 +263,4 @@ MonoBehaviour:
   theme: 1
   islandScreen: 0
   townScreen: 1
+  iceScreen: 0

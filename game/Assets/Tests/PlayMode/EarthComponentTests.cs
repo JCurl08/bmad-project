@@ -14,8 +14,8 @@ namespace Game.Cube.Tests
     /// The Earth mechanics on objects built in the test (far from anything a scene may hold), one test per I/O row: each
     /// phenomenon's gate opens to one swing of its Stormcaller* (with the gate-open effect and its own picture: pillars
     /// fall, fire is doused, water freezes into a walkable crossing, debris blows away) and to nothing else; a wind band
-    /// pushes the player at a bounded speed, never through a wall, and walking against it still makes headway; snow makes
-    /// the player slide but it can always leave; freezing rain slows it, never below the minimum; a crevice is solid; the
+    /// pushes the player at a bounded speed, never through a wall, and walking against it still makes headway;
+    /// freezing rain slows it, never below the minimum; a crevice is solid; the
     /// hazards only reach movement through PlayerMover's modifier hook, so EffectiveSpeed (speed upgrades, the Physics doors)
     /// is untouched; the trial fires once and resets on a wrong target; Earth enemies take markedly more damage from their
     /// weakness.
@@ -228,43 +228,6 @@ namespace Game.Cube.Tests
                     Assert.Greater(PlayerMover.TargetVelocity(Vector2.right, speed, wind).x, 0.4f * speed, $"level {level}");
                 }
             }
-        }
-
-        [UnityTest]
-        public IEnumerator Snow_MakesThePlayerSlide_ButItCanAlwaysLeave()
-        {
-            Vector2 at = Origin + new Vector2(500f, 0f);
-            GameObject player = Player(at);
-            var body = player.GetComponent<Rigidbody2D>();
-            var mover = player.GetComponent<PlayerMover>();
-            Track(SnowPatch.Create(null, default, new Rect(at - new Vector2(3f * K, 3f * K), new Vector2(6f * K, 6f * K)), EarthPlan.SnowGrip(EarthPlan.MaxLevel),
-                null).gameObject);
-            yield return Steps(2);
-            Assert.Less(mover.Modifier.Grip, 1f, "On snow");
-
-            // Momentum: a velocity with no input only eases away.
-            body.linearVelocity = Vector2.right * 6f * K;
-            yield return Steps(5);
-            Assert.Greater(body.linearVelocity.x, 2f * K, "Still sliding a few steps after letting go");
-
-            // Steering off the patch gets the player out (and at full speed off it).
-            yield return null; // never press right after a physics step
-            Press(keyboard.aKey, queueEventOnly: true);
-            yield return null;
-            float end = Time.time + 6f;
-            while (Time.time < end && body.position.x > at.x - 3.6f * K) yield return new WaitForFixedUpdate();
-            yield return Steps(20);
-            yield return null; // input state is only valid in the dynamic update
-            Release(keyboard.aKey, queueEventOnly: true);
-            yield return null;
-            Assert.Less(body.position.x, at.x - 3.4f * K, "The player can always leave the patch");
-            Assert.IsTrue(mover.Modifier.IsNone, "Off the patch nothing slides");
-
-            // Pure: with any grip a hazard may give, the velocity reaches the wanted one.
-            var m = new MoveModifier { SpeedMultiplier = 1f, Push = Vector2.zero, Grip = 0f };
-            Vector2 v = Vector2.zero;
-            for (int i = 0; i < 400; i++) v = PlayerMover.NextVelocity(v, Vector2.right * 6f, m);
-            Assert.AreEqual(6f, v.x, 0.01f, "Even the least grip gets there");
         }
 
         [UnityTest]
