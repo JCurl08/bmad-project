@@ -80,6 +80,12 @@ its generated placeholder shape, so nothing renders invisible.
   of wares, a throne on a dais with banners, pillars and a carpet, a bed (a nest bed for the finches), a hearth, a table
   and stools, rugs, and each race's keepsake (a barrel and crate, a seed perch, a bubbling pot, a telescope, a stack of
   shapes, a campfire). The exit has the marked door's rug and a pale arrow pointing out.
+- **Lair rooms (4.13):** the room under each wrong core portal (`LairRoom`, built by `LairRoomView`) is drawn in code
+  (`LairArt`) in the same style, as the Demon's: dark slate flagstones with a violet seam, dark brick walls, four barred
+  cells along the back wall with straw on their floors, stone pillars with a violet capital, wall torches over the cell
+  walls, and a pink swirl in the vestibule (the way back up) under the pale exit arrow. The bars are iron uprights with a
+  pale highlight and their own plum edge (not a whole-figure outline, so the gaps between them stay see-through), drawn
+  over the prisoners' bodies with their heads above.
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`, drawn only with
   `NpcFactory.PartArt` on, kept for epic-varied-runs; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches

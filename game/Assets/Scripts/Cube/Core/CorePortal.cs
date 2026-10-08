@@ -8,6 +8,9 @@ namespace Game.Cube
     /// moves them into the core arena (CoreArena.Enter, which suspends cube navigation). Open from run 1, nothing required.
     /// CoreArena attaches one to every active core-entrance slot on each reveal. The arena remembers the portal's screen, so
     /// its exit door brings the player back here.
+    /// Only the run's real portal (4.13, CubeWorld.Lair) leads to the arena; every other leads down into its face's lair room
+    /// (LairRooms, the arena's Lair), whose exit brings the player back beside it. Without a lair (no LairRooms in the scene)
+    /// every portal leads to the arena, as before.
     /// </summary>
     public class CorePortal : MonoBehaviour
     {
@@ -39,13 +42,41 @@ namespace Game.Cube
             if (navigator != null) TryEnter(navigator);
         }
 
-        /// <summary>Sends the player into the arena. Returns false without an arena.</summary>
+        /// <summary>The screen this portal stands on, if it stands on a face.</summary>
+        public bool TryScreen(out ScreenAddress screen)
+        {
+            screen = default;
+            return arena != null && arena.World != null && arena.World.TryScreenAt(transform.position, out screen);
+        }
+
+        /// <summary>True when this portal leads to the arena (the run's real one, or any portal without a lair); false when it leads down into a lair room.</summary>
+        public bool LeadsToArena
+        {
+            get
+            {
+                LairRooms lair = arena != null ? arena.Lair : null;
+                return lair == null || !TryScreen(out ScreenAddress here) || !lair.LeadsToLair(here.Face);
+            }
+        }
+
+        /// <summary>
+        /// Sends the player through: into the arena (the real portal, which the player now knows: LairProgress), or down into
+        /// its face's lair room (4.13). Returns false without an arena.
+        /// </summary>
         public bool TryEnter(CubeNavigator navigator)
         {
             if (arena == null || navigator == null || !isActiveAndEnabled) return false;
             ScreenAddress? screen = null;
-            if (arena.World != null && arena.World.TryScreenAt(transform.position, out ScreenAddress here)) screen = here;
+            if (TryScreen(out ScreenAddress here)) screen = here;
+            LairRooms lair = arena.Lair;
+            if (screen.HasValue && lair != null && lair.LeadsToLair(here.Face))
+            {
+                if (!lair.Enter(transform.position, here, navigator)) return false;
+                Entries++;
+                return true;
+            }
             if (!arena.Enter(navigator, screen)) return false;
+            if (screen.HasValue && lair != null && arena.World.Lair != null) arena.World.LairProgress.LearnRealPortal();
             Entries++;
             return true;
         }

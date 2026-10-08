@@ -18,7 +18,9 @@ namespace Game.Cube
     /// F3/F7 spawn inside the arena's screen. F11 lights the whole cube-net map for the run (debug "visit all"); the
     /// overlay also reminds that M opens the map. While the map pauses the game (GamePause) only F1 works.
     /// Inside a town building (4.6) the overlay names the room, F3/F7 spawn inside it and F8 walks the player back out of
-    /// its door; F5, F6 and F10 take the player out like any teleport.
+    /// its door; F5, F6 and F10 take the player out like any teleport. Down in a lair room (4.13) the same holds: the overlay
+    /// says so, F3/F7 spawn on its walkway (never in a cell), F4 does nothing (prisoners are never hostile, and F4 never
+    /// picks one anywhere), F8 walks the player back out by their portal.
     /// </summary>
     public class CubeDebug : MonoBehaviour, IHintDensityTarget
     {
@@ -82,8 +84,24 @@ namespace Game.Cube
 
         [SerializeField] private TownInteriors interiors;
 
-        /// <summary>True while the player is inside a town building.</summary>
+        /// <summary>The boss lair's rooms (4.13; found in the scene when not set).</summary>
+        public LairRooms Lair
+        {
+            get
+            {
+                if (lair == null) lair = FindAnyObjectByType<LairRooms>();
+                return lair;
+            }
+            set => lair = value;
+        }
+
+        [SerializeField] private LairRooms lair;
+
+        /// <summary>True while the player is inside a town building (or down in a lair room, which is a kind of interior).</summary>
         public bool PlayerInInterior => navigator != null && navigator.InInterior;
+
+        /// <summary>True while the player is down in a lair room (4.13).</summary>
+        public bool PlayerInLair => navigator != null && navigator.InLair;
 
         /// <summary>What the overlay shows in place of the cell while the player is inside a town building.</summary>
         public const string InteriorLabel = "Inside the town's";
@@ -92,6 +110,7 @@ namespace Game.Cube
         public Vector2 PlayerScreenCentre()
         {
             if (PlayerInCoreArena && CoreArena != null) return CoreArena.Centre;
+            if (PlayerInLair && Lair != null && Lair.Current != null) return Lair.Current.Centre;
             if (PlayerInInterior && Interiors != null && Interiors.Current != null) return Interiors.Current.Centre;
             ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
             return world.ScreenCenter(here);
@@ -188,10 +207,28 @@ namespace Game.Cube
         /// </summary>
         public bool LeaveCoreArena()
         {
+            if (PlayerInLair) return Lair != null && Lair.Leave();
             if (PlayerInInterior) return Interiors != null && Interiors.Leave();
             if (!PlayerInCoreArena || world.Model == null) return false;
             navigator.TeleportTo(world.Model.StartScreen, Facing.East);
             return true;
+        }
+
+        /// <summary>
+        /// Where F3 and F7 may spawn around the player: the player's screen, inset by a margin; down in a lair room (4.13)
+        /// only the walkway below the bars, so nobody lands in a cell.
+        /// </summary>
+        public Rect SpawnBounds()
+        {
+            const float margin = 1f * ScreenMath.ContentScale;
+            if (PlayerInLair && Lair != null && Lair.Current != null)
+            {
+                Rect walk = Lair.Current.Walkway;
+                return Rect.MinMaxRect(walk.xMin + 0.6f, walk.yMin + 0.6f, walk.xMax - 0.6f, walk.yMax - 1.6f);
+            }
+            Vector2 screenCentre = PlayerScreenCentre();
+            Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
+            return new Rect(screenCentre - half, half * 2f);
         }
 
         /// <summary>F9: back to full health. Only while alive; after a death use the between-runs screen or F10.</summary>
@@ -286,9 +323,7 @@ namespace Game.Cube
             Transform player = navigator != null ? navigator.transform : null;
             Vector2 screenCentre = PlayerScreenCentre();
             Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
-            const float margin = 1f * ScreenMath.ContentScale;
-            Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
-            var bounds = new Rect(screenCentre - half, half * 2f);
+            Rect bounds = SpawnBounds();
             RunFacts facts = RunFacts.Of(world);
 
             Race[] races = RaceExtensions.All;
@@ -357,9 +392,7 @@ namespace Game.Cube
             Transform player = navigator != null ? navigator.transform : null;
             Vector2 screenCentre = PlayerScreenCentre();
             Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
-            const float margin = 1f * ScreenMath.ContentScale;
-            Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
-            var bounds = new Rect(screenCentre - half, half * 2f);
+            Rect bounds = SpawnBounds();
 
             ItemDefinition weakness = null;
             var inventory = player != null ? player.GetComponent<Inventory>() : null;
@@ -401,12 +434,15 @@ namespace Game.Cube
         public Race? ToggleNearestHostility()
         {
             if (world == null) return null;
+            // 4.13 review: down in a lair room the nearest NPC is a prisoner, who is never hostile; F4 does nothing there
+            // (and a prisoner is never the one whose race it turns, wherever the player stands).
+            if (PlayerInLair) return null;
             Vector2 from = navigator != null ? (Vector2)navigator.transform.position : Vector2.zero;
             NpcTalker nearest = null;
             float best = float.MaxValue;
             foreach (NpcTalker npc in FindObjectsByType<NpcTalker>(FindObjectsSortMode.None))
             {
-                if (npc.Spec == null) continue;
+                if (npc.Spec == null || npc.GetComponentInParent<LairRoomView>() != null) continue;
                 float d = ((Vector2)npc.transform.position - from).sqrMagnitude;
                 if (d >= best) continue;
                 best = d;
@@ -473,6 +509,9 @@ namespace Game.Cube
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
+                if (PlayerInLair)
+                    return head + $"{LairText.OverlayLabel} Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}\n" +
+                           $"Portal cell ({here.Cell.x},{here.Cell.y})   (off the cube net)\n\n" + tail;
                 if (PlayerInInterior)
                 {
                     string room = Interiors != null && Interiors.Current != null ? Interiors.Current.Interior.Name : "building";

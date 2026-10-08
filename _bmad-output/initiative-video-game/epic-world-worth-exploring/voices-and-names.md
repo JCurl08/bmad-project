@@ -45,6 +45,8 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 
 **Shop keepers (4.6):** a shop's keeper (`Dialogue.KeeperLines`, one pair per voice) welcomes the player to a bare counter, then says Jumbles* (`InWorldText.Currency`) are spent between trips (spending stays on the between-runs screen). Their label reads "Name the <race> shopkeeper". Everyone else inside a building talks like the town's residents.
 
+**Lair prisoners (4.13):** each lair room under a wrong core portal holds four prisoners of four races, each in their own voice (`LairText`). A prisoner says a captive line (`LairText.CaptiveLines`, two a voice: they took a wrong portal, and the way out is the way in), then one true hint: the voice's full-density hint opener, a plain fact worded the same in every voice, and the opener's end. The facts are how Primsworth the Demon's fight works (`FightFacts`: the warm and cool motes and mixing them, the always-open gaps at both ends of its wall, its tiring, its glow and line before a shot, a knock breaking its grip, the door out in the west wall), what mending a face gives (`BenefitFact`, the leaders' repair mapping), or the region whose portal is the real way down (`PortalFact`). Their label reads "Name the <race> captive". Every line is in `Dialogue.SpokenLines`, so the voice, length and text scans read them.
+
 ## Names
 
 - **Make them punny but subtle.** A name may hint at its culture (a corner, a hedgerow, a fizz, a musing, a trail, a breeze), never at a real scientist.

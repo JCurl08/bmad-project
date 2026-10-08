@@ -117,6 +117,10 @@ public static class CubeSceneBuilder
         var interiors = worldObject.AddComponent<TownInteriors>();
         interiors.World = world;
         interiors.Navigator = navigator;
+        // The boss lair (4.13): every core portal but the run's real one leads down into its face's lair room, off the net.
+        var lairRooms = worldObject.AddComponent<LairRooms>();
+        lairRooms.World = world;
+        lairRooms.Navigator = navigator;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -160,7 +164,9 @@ public static class CubeSceneBuilder
         runState.World = world;
         var arena = new GameObject("Core Arena").AddComponent<CoreArena>();
         arena.Configure(world, navigator, runState);
+        arena.Lair = lairRooms;
         debug.CoreArena = arena;
+        debug.Lair = lairRooms;
         new GameObject("Core HUD").AddComponent<CoreHud>().Arena = arena;
 
         // The roguelite loop: this run's earnings, the meta save and upgrades, and the between-runs screen.
@@ -380,11 +386,40 @@ public static class CubeSceneBuilder
                   $"{(windStats.Screens > 0 ? windSteps / windStats.Screens : 0)} search steps a screen on average.\n" + windStats.Describe();
         report += RewardReport(results, library);
         report += LockReportLine(results);
+        report += LairReportLine(results);
         int towns = results.Sum(r => r.TownsChecked);
         report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
                   "module, slot-free, with a sound layout; no gate, pickup, core portal, puzzle screen, trial, flower or hidden spot on it).\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
+    }
+
+    /// <summary>
+    /// The sweep's lair line (4.13): the real portal's face theme per seed, the lair rooms and prisoners, and whether the real
+    /// portal is proven reachable (its screen from Town, and under every key-spending order: only on seeds where the lock check ran).
+    /// </summary>
+    private static string LairReportLine(List<SeedSweep.SeedResult> results)
+    {
+        int seeds = 0, passed = 0, rooms = 0, prisoners = 0, realReachable = 0;
+        var realThemes = new SortedDictionary<Theme, int>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Lair == null || r.LairProblems == null) continue;
+            seeds++;
+            if (r.LairProblems.Count == 0) passed++;
+            var model = new CubeModel(r.Seed);
+            Theme real = model.ThemeOf(r.Lair.RealFace);
+            realThemes.TryGetValue(real, out int c);
+            realThemes[real] = c + 1;
+            rooms += r.Lair.LairFaces.Count;
+            foreach (FaceId face in r.Lair.LairFaces) prisoners += r.Lair.PrisonersOf(face).Count;
+            // 4.13 review: proven only where the lock check actually ran (and passed), not merely where it was skipped.
+            if (r.LairProblems.Count == 0 && r.LockProblems != null && r.LockProblems.Count == 0) realReachable++;
+        }
+        if (seeds == 0) return "Lair: not checked.\n";
+        return $"Lair: exactly one portal to the arena on {passed}/{seeds} seeds (the real portal by region: " +
+               string.Join(", ", realThemes.Select(e => $"{e.Key} {e.Value}")) + $"); {rooms} lair rooms with {prisoners} prisoners, " +
+               $"every room with a fight, benefit and real-portal hint; the real portal proven reachable on {realReachable}/{seeds} seeds.\n";
     }
 
     /// <summary>The sweep's lock line (4.9): the lock kinds, the first edges and their variety, and the spending states explored.</summary>

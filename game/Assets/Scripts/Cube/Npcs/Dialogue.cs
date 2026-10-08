@@ -782,6 +782,7 @@ namespace Game.Cube
                         yield return Fill(template, f, (uint)(r * 13));
             foreach (string line in f.Greetings) yield return line;
             foreach (string line in KeeperLineTable[voice]) yield return line;
+            foreach (string line in LairText.SpokenLines(voice)) yield return line; // 4.13: the lair's prisoners
         }
 
         /// <summary>Every fixed line and filler, for the tone check.</summary>
@@ -821,6 +822,7 @@ namespace Game.Cube
             yield return NeutralWandLine;
             yield return HazardLine;
             yield return GripLine;
+            foreach (string line in LairText.AllFixedText()) yield return line;
         }
     }
 }

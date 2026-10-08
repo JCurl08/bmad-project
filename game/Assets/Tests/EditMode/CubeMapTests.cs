@@ -284,7 +284,7 @@ namespace Game.Cube.Tests
             Assert.GreaterOrEqual(step, CubeMap.MinLegendStep);
             foreach (string label in CubeMap.LegendLabels)
                 Assert.LessOrEqual(30f + label.Length * 8f, step, label);
-            Assert.AreEqual(2, rows, "Ten labels (4.8 added \"Mended town\") wrap into two rows at 960 px");
+            Assert.AreEqual(2, rows, "Thirteen labels (4.13 added \"Portal\" and \"Lair\") still wrap into two rows at 960 px");
         }
 
         [Test]

@@ -24,6 +24,7 @@ namespace Game.Cube
     /// (BossBenefits), and ArenaTuning turns them into the fight's particle count, membrane gaps, pull towards the player,
     /// the Demon's restore and pulse pace, and extra hearts (given at the start, taken back when the fight ends). With none,
     /// every value is the 1.11 arena's.
+    /// Only the run's real portal leads here (4.13, RealPortal); the others lead down into the lair (Lair, LairRooms).
     /// </summary>
     public class CoreArena : MonoBehaviour, IBossArena
     {
@@ -169,6 +170,30 @@ namespace Game.Cube
             {
                 portals.RemoveAll(p => p == null);
                 return portals;
+            }
+        }
+
+        [SerializeField] private LairRooms lair;
+
+        /// <summary>The boss lair (4.13) that every portal but the real one leads into (found in the scene when not set; null without one).</summary>
+        public LairRooms Lair
+        {
+            get
+            {
+                if (lair == null) lair = FindAnyObjectByType<LairRooms>();
+                return lair;
+            }
+            set => lair = value;
+        }
+
+        /// <summary>The run's real portal (4.13): the one that leads here (null before the reveal).</summary>
+        public CorePortal RealPortal
+        {
+            get
+            {
+                foreach (CorePortal p in Portals)
+                    if (p.LeadsToArena) return p;
+                return null;
             }
         }
 

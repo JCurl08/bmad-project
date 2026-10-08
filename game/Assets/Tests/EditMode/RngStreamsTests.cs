@@ -41,6 +41,7 @@ namespace Game.Cube.Tests
             { nameof(RngStreams.IceScreens), 26 },
             { nameof(RngStreams.WindScreens), 27 },
             { nameof(RngStreams.IslandPuzzles), 28 },
+            { nameof(RngStreams.Lair), 29 },
         };
 
         private static Dictionary<string, ulong> Registry() =>
@@ -101,6 +102,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(RngStreams.IceScreens, IcePlan.RngStream);
             Assert.AreEqual(RngStreams.WindScreens, WindPlan.RngStream);
             Assert.AreEqual(RngStreams.IslandPuzzles, IslandPlan.RngStream);
+            Assert.AreEqual(RngStreams.Lair, LairPlan.RngStream);
         }
     }
 }

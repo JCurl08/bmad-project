@@ -14,6 +14,7 @@ namespace Game.Cube
     /// screen (a new run, a debug jump) turns it back on.
     /// Inside a town building (4.6, TownInteriors: EnterInterior) edge crossing is off too, and Current is the town's screen
     /// (the room is not on the cube net); walking out (ReturnTo) or any teleport puts the player back on the net.
+    /// A lair room (4.13, LairRooms) is entered the same way (InLair as well as InInterior), its portal's screen as Current.
     /// A face crossing stops the player (1.25): it arrives facing into the new face, just inside the doorway it came
     /// through, and stands still until every direction is let go and a key is pressed again (PlayerMover.StopUntilFreshPress),
     /// so a held key never carries it on (or, over an edge the flat world draws turned, straight back out). Pressing toward
@@ -48,6 +49,12 @@ namespace Game.Cube
 
         /// <summary>True while the player is inside a town building (4.6): edges are not checked and Current is the town's screen.</summary>
         public bool InInterior { get; private set; }
+
+        /// <summary>
+        /// True while the player is down in a lair room (4.13, LairRooms): a kind of interior (InInterior is true too), with
+        /// Current the screen of the portal they came down by and InteriorDoor that portal.
+        /// </summary>
+        public bool InLair { get; private set; }
 
         /// <summary>The marked door the player went in by (world, its sill), while InInterior: where the map shows them.</summary>
         public Vector2 InteriorDoor { get; private set; }
@@ -131,6 +138,7 @@ namespace Game.Cube
             RevealIfArriving(address.Face);
             InCoreArena = false;
             InInterior = false;
+            InLair = false;
             Face = address.Face;
             Facing = facing;
             if (TryGetComponent(out PlayerMover mover))
@@ -144,12 +152,14 @@ namespace Game.Cube
         /// <summary>
         /// Goes into a town building (4.6, TownInteriors): snaps the player into its room (off the cube net) facing the given
         /// way, suspends edge crossing and keeps Current on the town's screen (door: the marked door's sill, for the map)
-        /// until the player walks out (PlaceOn) or any teleport.
+        /// until the player walks out (PlaceOn) or any teleport. A lair room (4.13) goes in the same way, with lair true
+        /// (town: the portal's screen, door: the portal).
         /// </summary>
-        public void EnterInterior(ScreenAddress town, Vector2 door, Vector2 position, Facing facing)
+        public void EnterInterior(ScreenAddress town, Vector2 door, Vector2 position, Facing facing, bool lair = false)
         {
             InCoreArena = false;
             InInterior = true;
+            InLair = lair;
             interiorTown = town;
             InteriorDoor = door;
             Face = town.Face;
@@ -171,6 +181,7 @@ namespace Game.Cube
         {
             InCoreArena = true;
             InInterior = false;
+            InLair = false;
             if (TryGetComponent(out PlayerMover mover)) mover.ClearFreshPressWait();
             SetPosition(position);
         }

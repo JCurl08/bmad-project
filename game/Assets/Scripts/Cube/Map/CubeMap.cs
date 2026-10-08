@@ -35,7 +35,9 @@ namespace Game.Cube
     /// (MapMarkers) show the player and which way they face, the Town start screen, gates (opened ones hollow), item
     /// pickups, trials (solved ones filled) and core portals, on visited screens only. In the core arena a "core" banner
     /// replaces the player marker. Inside a town building (4.6) the player stands on their town's screen, the marker at
-    /// the building's door, with an "Inside the shop" (hall, home) badge in the header. While open, gameplay pauses (GamePause: time stopped, player, attack and dialogue input
+    /// the building's door, with an "Inside the shop" (hall, home) badge in the header. Down in a lair room (4.13) it is the same, at the portal
+    /// they came down by, with an "In the Demon's lair" badge. A portal whose lair room has been visited shows barred ("Lair"),
+    /// and the real portal, once known, gold ("Core portal"); the rest show as plain portals. While open, gameplay pauses (GamePause: time stopped, player, attack and dialogue input
     /// ignored); pressing the key again (or Escape) closes it and resumes. It cannot open while the between-runs screen is
     /// up and closes if that screen opens. Drawn with OnGUI, like the other HUDs, and readable on the 960x600 canvas.
     /// </summary>
@@ -49,7 +51,7 @@ namespace Game.Cube
 
         /// <summary>The legend's labels, in drawing order (one per marker style).</summary>
         public static readonly string[] LegendLabels =
-            { "You", "Start", "Town", "Mended town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal", "Locked arch" };
+            { "You", "Start", "Town", "Mended town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Portal", "Lair", "Core portal", "Locked arch" };
 
         /// <summary>Every piece of text the map can show (for the voice-rule tests).</summary>
         public static IEnumerable<string> AllTexts()
@@ -60,6 +62,7 @@ namespace Game.Cube
             foreach (string label in LegendLabels) yield return label;
             foreach (InteriorKind kind in new[] { InteriorKind.Shop, InteriorKind.LeadersHall, InteriorKind.Home })
                 yield return InsideText(kind);
+            yield return LairText.MapBadge;
             yield return RewardText.FragmentCount(2, 4, false);
             yield return RewardText.FragmentCount(1, 1, true);
         }
@@ -90,6 +93,9 @@ namespace Game.Cube
         private static readonly Color ItemColor = new Color(1f, 0.82f, 0.25f);
         private static readonly Color TrialColor = new Color(0.45f, 0.9f, 1f);
         private static readonly Color PortalColor = new Color(1f, 0.4f, 0.8f);
+
+        /// <summary>A lair portal once its room has been visited (4.13): dim, barred.</summary>
+        private static readonly Color LairColor = new Color(0.66f, 0.6f, 0.74f);
         private static readonly Color StartColor = Color.white;
 
         /// <summary>A key-locked arch's padlock (4.9); an item lock's padlock takes the item's region colour.</summary>
@@ -180,6 +186,7 @@ namespace Game.Cube
             get
             {
                 if (!PlayerInside || world == null || world.Model == null) return null;
+                if (navigator.InLair) return LairText.MapBadge;
                 return InsideText(TownInterior.KindFor(world.Model.ThemeOf(navigator.Face)));
             }
         }
@@ -385,7 +392,7 @@ namespace Game.Cube
         }
 
         /// <summary>The legend's narrowest column (pixels): a marker glyph and the longest label at the map's font size.</summary>
-        public const float MinLegendStep = 150f;
+        public const float MinLegendStep = 130f;
 
         /// <summary>Height of one legend row (pixels).</summary>
         public const float LegendRowHeight = 24f;
@@ -542,6 +549,8 @@ namespace Game.Cube
             yield return new KeyValuePair<string, Color>("Item", ItemColor);
             yield return new KeyValuePair<string, Color>("Trial", TrialColor);
             yield return new KeyValuePair<string, Color>("Portal", PortalColor);
+            yield return new KeyValuePair<string, Color>("Lair", LairColor);
+            yield return new KeyValuePair<string, Color>("Core portal", MendedColor);
             yield return new KeyValuePair<string, Color>("Town", TownColor);
             yield return new KeyValuePair<string, Color>("Mended town", MendedColor);
             yield return new KeyValuePair<string, Color>("Locked arch", LockColor);
@@ -579,8 +588,27 @@ namespace Game.Cube
                     break;
                 case MapMarkerKind.Portal:
                     Tex(Disc, new Rect(at.x - s * 0.75f - o, at.y - s * 0.75f - o, s * 1.5f + 2f * o, s * 1.5f + 2f * o), dark);
-                    Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), PortalColor);
-                    Tex(Disc, new Rect(at.x - s * 0.3f, at.y - s * 0.3f, s * 0.6f, s * 0.6f), PortalColor);
+                    if (detail == MapMarkers.PortalLair)
+                    {
+                        // A lair portal (4.13): a dim ring round a dim disc, barred.
+                        Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), LairColor);
+                        Tex(Disc, new Rect(at.x - s * 0.45f, at.y - s * 0.45f, s * 0.9f, s * 0.9f), LairColor);
+                        float stripe = Mathf.Max(1f, Mathf.Round(s * 0.12f));
+                        foreach (float dx in new[] { -0.25f, 0f, 0.25f })
+                            Fill(new Rect(at.x + dx * s - stripe / 2f, at.y - s * 0.45f, stripe, s * 0.9f), dark);
+                    }
+                    else if (detail == MapMarkers.PortalReal)
+                    {
+                        // The real portal, once known (4.13): a gold ring round the pink core.
+                        Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), MendedColor);
+                        Tex(Disc, new Rect(at.x - s * 0.4f, at.y - s * 0.4f, s * 0.8f, s * 0.8f), PortalColor);
+                        Tex(Disc, new Rect(at.x - s * 0.15f, at.y - s * 0.15f, s * 0.3f, s * 0.3f), MendedColor);
+                    }
+                    else
+                    {
+                        Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), PortalColor);
+                        Tex(Disc, new Rect(at.x - s * 0.3f, at.y - s * 0.3f, s * 0.6f, s * 0.6f), PortalColor);
+                    }
                     break;
                 case MapMarkerKind.Lock:
                 {
@@ -661,6 +689,8 @@ namespace Game.Cube
                     case 7: DrawMarker(MapMarkerKind.Trial, false, at, s); break;
                     case 8: DrawMarker(MapMarkerKind.Trial, true, at, s); break;
                     case 9: DrawMarker(MapMarkerKind.Portal, false, at, s); break;
+                    case 10: DrawMarker(MapMarkerKind.Portal, false, at, s, MapMarkers.PortalLair); break;
+                    case 11: DrawMarker(MapMarkerKind.Portal, true, at, s, MapMarkers.PortalReal); break;
                     default: DrawMarker(MapMarkerKind.Lock, false, at, s); break;
                 }
                 GUI.Label(new Rect(x + s * 2f + 6f, y, step - s * 2f - 6f, 24f), LegendLabels[i], textStyle);

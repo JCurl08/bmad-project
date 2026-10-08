@@ -237,7 +237,7 @@ namespace Game.Cube.Tests
             yield return Reveal(seed);
             arena.UseFallbackBoss = true;
             Assert.IsNotEmpty(arena.Portals);
-            Assert.IsTrue(arena.Portals[0].TryEnter(navigator));
+            Assert.IsTrue(arena.RealPortal.TryEnter(navigator));
             yield return new WaitForFixedUpdate();
             yield return null;
             Assert.IsTrue(arena.FightActive);

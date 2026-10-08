@@ -123,7 +123,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(world.ScienceRevealed);
             yield return new WaitForFixedUpdate();
             Assert.IsNotEmpty(arena.Portals, "Portals on the core slots");
-            Assert.IsTrue(arena.Portals[0].TryEnter(navigator));
+            Assert.IsTrue(arena.RealPortal.TryEnter(navigator));
             yield return new WaitForFixedUpdate();
             yield return null;
             Assert.IsTrue(arena.FightActive, "Entering starts the fight");
@@ -245,7 +245,7 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator Enter_WalkingIntoThePortalOnEveryBuiltFace_Run1_StartsAnOrderedFight()
+        public IEnumerator Enter_WalkingIntoTheRealPortal_Run1_StartsAnOrderedFight_AndEveryOtherLeadsIntoTheLair()
         {
             yield return Load();
             foreach (int seed in new[] { 1234, 7 })
@@ -282,6 +282,19 @@ namespace Game.Cube.Tests
                     yield return new WaitForFixedUpdate();
                     int crossings = navigator.Crossings;
                     FaceId before = navigator.Face;
+                    if (world.Lair.IsLair(face))
+                    {
+                        // 4.13: every portal but the run's real one leads down into its lair room, not the arena.
+                        Assert.IsFalse(portal.LeadsToArena, $"seed {seed} {face}: a lair portal");
+                        yield return MoveTo(at, TimeField.BasePlayerSpeed, () => navigator.InLair);
+                        Assert.IsTrue(navigator.InLair, $"seed {seed} {face}: stepping into a lair portal goes down into the lair");
+                        Assert.IsFalse(navigator.InCoreArena);
+                        Assert.IsFalse(arena.FightActive, "No fight down in the lair");
+                        Assert.AreEqual(1, portal.Entries);
+                        continue;
+                    }
+                    Assert.AreEqual(world.Lair.RealFace, face);
+                    Assert.AreSame(portal, arena.RealPortal);
                     yield return MoveTo(at, TimeField.BasePlayerSpeed, () => navigator.InCoreArena);
                     Assert.IsTrue(navigator.InCoreArena, $"seed {seed} {face}: stepping into the portal leaves the cube");
                     Assert.AreEqual(1, portal.Entries);
@@ -459,7 +472,7 @@ namespace Game.Cube.Tests
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(health.IsDead);
             Assert.IsFalse(runState.EndRun(false));
-            Assert.IsTrue(arena.Portals[0].TryEnter(navigator));
+            Assert.IsTrue(arena.RealPortal.TryEnter(navigator));
             yield return new WaitForFixedUpdate();
             Assert.IsFalse(arena.FightActive, "No second fight in a finished run");
             CollectionAssert.AreEqual(new[] { true }, runEvents);
@@ -482,7 +495,7 @@ namespace Game.Cube.Tests
             yield return Load();
             yield return EnterThroughAPortal();
             stats.MaxHealth = 999;
-            CorePortal portal = arena.Portals[0];
+            CorePortal portal = arena.RealPortal;
             Assert.IsTrue(world.TryScreenAt(portal.transform.position, out ScreenAddress portalScreen), "The portal sits on a face");
             Assert.AreEqual(portalScreen, arena.ExitScreen, "The arena remembers the portal's screen");
             int fights = arena.FightIndex;

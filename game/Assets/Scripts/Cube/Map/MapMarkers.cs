@@ -14,7 +14,10 @@ namespace Game.Cube
         Item = 2,
         /// <summary>A trial room; Done = completed.</summary>
         Trial = 3,
-        /// <summary>A portal to the cube's core.</summary>
+        /// <summary>
+        /// A core portal. Detail (4.13): MapMarkers.PortalUnknown, PortalLair (its lair room visited) or PortalReal (the real
+        /// one, once known; Done too).
+        /// </summary>
         Portal = 4,
         /// <summary>A face's town (4.5), on its centre screen; Done = the face is mended (4.8).</summary>
         Town = 5,
@@ -84,10 +87,31 @@ namespace Game.Cube
                 foreach (TrialRoom trial in module.GetComponentsInChildren<TrialRoom>())
                     markers.Add(At(world, MapMarkerKind.Trial, screen, trial.transform.position, trial.IsComplete));
                 foreach (CorePortal portal in module.GetComponentsInChildren<CorePortal>())
-                    markers.Add(At(world, MapMarkerKind.Portal, screen, portal.transform.position, false));
+                {
+                    int detail = PortalDetail(world, screen.Face);
+                    MapMarker at = At(world, MapMarkerKind.Portal, screen, portal.transform.position, detail == PortalReal);
+                    markers.Add(new MapMarker(at.Kind, at.Screen, at.Local, at.Done, detail));
+                }
             }
             markers.AddRange(Locks(world));
             return markers;
+        }
+
+        /// <summary>A portal marker's Detail (4.13): not yet known where it leads.</summary>
+        public const int PortalUnknown = 0;
+
+        /// <summary>A portal marker's Detail: it leads into a lair room the player has been down into.</summary>
+        public const int PortalLair = 1;
+
+        /// <summary>A portal marker's Detail: the real portal, once the player knows it (a prisoner named it, or they used it).</summary>
+        public const int PortalReal = 2;
+
+        /// <summary>What the map shows of the portal on a face (4.13): a visited lair, the known real one, or unknown.</summary>
+        public static int PortalDetail(CubeWorld world, FaceId face)
+        {
+            if (world == null || world.Lair == null || world.LairProgress == null) return PortalUnknown;
+            if (world.Lair.IsLair(face)) return world.LairProgress.IsVisited(face) ? PortalLair : PortalUnknown;
+            return world.Lair.IsReal(face) && world.LairProgress.RealPortalKnown ? PortalReal : PortalUnknown;
         }
 
         /// <summary>How far in from its edge a lock marker sits on its screen (0..1 of the screen).</summary>
@@ -130,14 +154,20 @@ namespace Game.Cube
             return new Vector2(Mathf.Clamp01(local.x / size.x), Mathf.Clamp01(local.y / size.y));
         }
 
-        /// <summary>The markers on visited screens only (the fog hides the rest).</summary>
+        /// <summary>
+        /// The markers on visited screens only (the fog hides the rest), and the real portal once it is known (4.13 review):
+        /// a prisoner told the player where it is, so its marker shows even on an unvisited screen (the screen stays fogged).
+        /// </summary>
         public static List<MapMarker> Visible(IEnumerable<MapMarker> all, VisitSet visits)
         {
             var shown = new List<MapMarker>();
             if (all == null || visits == null) return shown;
             foreach (MapMarker marker in all)
-                if (visits.IsVisited(marker.Screen)) shown.Add(marker);
+                if (visits.IsVisited(marker.Screen) || IsKnownRealPortal(marker)) shown.Add(marker);
             return shown;
         }
+
+        /// <summary>True for the real portal's marker once the player knows it (PortalDetail: PortalReal).</summary>
+        public static bool IsKnownRealPortal(MapMarker marker) => marker.Kind == MapMarkerKind.Portal && marker.Detail == PortalReal;
     }
 }

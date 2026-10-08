@@ -100,6 +100,12 @@ namespace Game.Cube
             /// <summary>Island screen problems (IslandPlan.Problems: lit from every doorway inside its tier's targets); null when not checked.</summary>
             public List<string> IslandProblems;
 
+            /// <summary>The boss lair that was checked (4.13); null without a catalog.</summary>
+            public LairPlan Lair;
+
+            /// <summary>Lair problems (LairPlan.FindProblems: one portal to the arena, on a reachable screen, every other into a lair room with its hint-givers); null when not checked.</summary>
+            public List<string> LairProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
@@ -108,6 +114,7 @@ namespace Game.Cube
             public bool IceChecked => IceProblems != null;
             public bool WindChecked => WindProblems != null;
             public bool IslandsChecked => IslandProblems != null;
+            public bool LairChecked => LairProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
                                   (ItemProblems == null || ItemProblems.Count == 0) &&
@@ -116,7 +123,8 @@ namespace Game.Cube
                                   (LockProblems == null || LockProblems.Count == 0) &&
                                   (IceProblems == null || IceProblems.Count == 0) &&
                                   (WindProblems == null || WindProblems.Count == 0) &&
-                                  (IslandProblems == null || IslandProblems.Count == 0);
+                                  (IslandProblems == null || IslandProblems.Count == 0) &&
+                                  (LairProblems == null || LairProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -370,6 +378,9 @@ namespace Game.Cube
                 {
                     CubeLayout layout = CubeLayout.Generate(model, catalog);
                     result.CoreProblems = FindCoreProblems(model, layout, catalog);
+                    // 4.13: one portal to the arena, the rest into the lair, each room with its hint-givers.
+                    result.Lair = LairPlan.ForRun(model);
+                    result.LairProblems = LairPlan.FindProblems(model, layout, result.Lair, FindReachable(model));
                     MathPlan islands = null;
                     // 4.10: Earth's ice screens, solved from every doorway against their tier's targets.
                     IcePlan ice = IcePlan.Create(model, layout);
@@ -548,6 +559,7 @@ namespace Game.Cube
             var failures = new StringBuilder();
             int total = 0, failed = 0;
             bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false, windChecked = false, islandsChecked = false;
+            bool lairChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -559,6 +571,7 @@ namespace Game.Cube
                 iceChecked |= r.IceChecked && r.Ice != null && r.Ice.Screens.Count > 0;
                 windChecked |= r.WindChecked && r.Wind != null && r.Wind.Screens.Count > 0;
                 islandsChecked |= r.IslandsChecked && r.Islands != null && r.Islands.Screens.Count > 0;
+                lairChecked |= r.LairChecked;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -588,6 +601,9 @@ namespace Game.Cube
                 if (r.IslandProblems != null && r.IslandProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": islands ")
                         .AppendLine(string.Join("; ", r.IslandProblems));
+                if (r.LairProblems != null && r.LairProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": lair ")
+                        .AppendLine(string.Join("; ", r.LairProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -615,6 +631,9 @@ namespace Game.Cube
             if (locksChecked)
                 what += ", every face-edge arch locked (a key or an item) with no order of spending keys soft-locking a screen, " +
                         "island, item, fragment, key or core portal, and at least two edges able to be opened first";
+            if (lairChecked)
+                what += ", exactly one core portal (the real one, on a reachable screen) leading to the arena and every other into a lair " +
+                        "room whose prisoners give a fight hint, benefit hints and the real portal's region, all in the text rule";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

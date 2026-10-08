@@ -11,7 +11,7 @@ namespace Game.Cube.Tests
 {
     /// <summary>
     /// Run determinism across refactors: for seeds 1-50 the cube model, science layout, item placement, each face plan,
-    /// the hidden currency, the die numbers and the roadblock rewards (4.7, 4.8), the pure prefix of each face's population stream (trial spots and screen order), the face
+    /// the hidden currency, the die numbers and the roadblock rewards (4.7, 4.8), the locks (4.9), the boss lair (4.13), the pure prefix of each face's population stream (trial spots and screen order), the face
     /// populations' NPC parts, Town's NPC parts and the first draws of every named RNG stream must match the signatures
     /// recorded in DeterminismSignatures.txt. A difference means a seed no longer gives the same run.
     /// The fixture is only re-recorded on purpose (an intended content change), with
@@ -80,6 +80,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("iceScreens", IcePlan.RngStream),
             new KeyValuePair<string, ulong>("windScreens", WindPlan.RngStream),
             new KeyValuePair<string, ulong>("islandPuzzles", IslandPlan.RngStream),
+            new KeyValuePair<string, ulong>("lair", LairPlan.RngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -135,6 +136,8 @@ namespace Game.Cube.Tests
             Add("rewards", rewards.Signature());
             // 4.9: the face-edge locks (and which draw the soft-lock check kept).
             Add("locks", EdgeLocks.ForRun(model, library, catalog.Themes(), catalog.VariantCounts()).Signature());
+            // 4.13: the boss lair (the real portal, each lair room's prisoners and their hints).
+            Add("lair", LairPlan.ForRun(model)?.Signature());
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
             if (biology != null)

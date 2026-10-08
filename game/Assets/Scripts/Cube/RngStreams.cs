@@ -4,7 +4,7 @@ namespace Game.Cube
     /// Every named PCG32 stream (SeededRng's stream argument) in one place. Each seeded system draws from its own
     /// stream so that adding draws to one never shifts another's results. Changing a value changes what a seed
     /// produces, so never renumber or reuse one. A new system takes the
-    /// next free value (29) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
+    /// next free value (30) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
     /// uses SeededRng's default stream. The owners' RngStream constants are aliases of these.
     /// </summary>
     public static class RngStreams
@@ -89,5 +89,8 @@ namespace Game.Cube
 
         /// <summary>Math's island screens (IslandPlan, 4.12): each screen's lit network, gap span, lookouts and reward island, searched for its tier.</summary>
         public const ulong IslandPuzzles = 28;
+
+        /// <summary>The boss lair (LairPlan, 4.13): which core portal is the real way down, and each lair room's prisoners and hints.</summary>
+        public const ulong Lair = 29;
     }
 }

@@ -106,6 +106,12 @@ namespace Game.Cube
         /// <summary>The run's die numbers (4.8): Town 1, the other faces 2-6; rolled on every rebuild.</summary>
         public DieNumbers Dice { get; private set; }
 
+        /// <summary>The run's boss lair (4.13): which core portal is the real way down, and the lair rooms' prisoners; rolled on every rebuild.</summary>
+        public LairPlan Lair { get; private set; }
+
+        /// <summary>What the player has learned of the lair this run (4.13; a fresh record on every rebuild): rooms visited, the real portal known.</summary>
+        public LairProgress LairProgress { get; private set; } = new LairProgress();
+
         /// <summary>The faces repaired this run (4.8; a fresh record on every rebuild). Repairing a face lights its town (TownViewOf).</summary>
         public FaceRepairs Repairs { get; private set; } = new FaceRepairs();
 
@@ -234,6 +240,8 @@ namespace Game.Cube
             seed = newSeed;
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize, sealedThemes);
             Dice = DieNumbers.Roll(Model);
+            Lair = LairPlan.ForRun(Model);
+            LairProgress = new LairProgress();
             lockedArches.Clear();
             alcoveLocks.Clear();
             if (Locks != null) Locks.Opened -= OnEdgeOpened;
