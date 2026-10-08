@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// A whole-screen puzzle as DoorwayReach sees it (1.25 islands, 4.10 ice, and 4.11's wind to come): the screen splits into
+    /// A whole-screen puzzle as DoorwayReach sees it (1.25 islands, 4.10 ice, 4.11 wind): the screen splits into
     /// regions, each doorway lands in one (or none), and regions join one another (some joins only with the gap-crosser*).
     /// Every join must have its way back (DoorwayReach.Problems checks it), so the player is never stranded.
     /// </summary>
@@ -27,7 +27,7 @@ namespace Game.Cube
     /// <summary>
     /// Where the player can walk, doorway by doorway (1.25), as pure data: the cube's screens joined through their
     /// doorways (CubeModel.TryStep), where a puzzle screen (regionsAt: Math's island screens from MathPlan, Earth's ice screens
-    /// from IcePlan) splits into its regions. A place is a (screen, region): region 0 is the whole of an ordinary screen (all
+    /// from IcePlan, 4.11 wind screens from WindPlan) splits into its regions. A place is a (screen, region): region 0 is the whole of an ordinary screen (all
     /// four doorways and everything in it join); on an island screen each island is its own region, joined to others only by
     /// its planks (broken spans only with the gap-crosser*); on an ice screen every doorway lands in region 0 (they join
     /// through the camp) and the goal pad is region 1, joined when the solver reaches it. A doorway leads from the region it

@@ -59,5 +59,6 @@ MonoBehaviour:
     - {fileID: 4243245622382851748, guid: 15a0976fe1410e0499a59da82d9c2eef, type: 3}
     - {fileID: 7007914730419771452, guid: b425bd74bbd72dd49bced6d5f8aedace, type: 3}
     - {fileID: 3669648217467538885, guid: 8b7f6e666742d474b93ad6da259c0612, type: 3}
+    - {fileID: 1239457236702020549, guid: c6ac93c6cb8506c429f4bd7de2f4510d, type: 3}
     - {fileID: 5633481006174525895, guid: e4731460d88578649b5166c50b979b6d, type: 3}
   townSquare: {fileID: 4279924537744630447, guid: 2adfebd1b3af0e24e850340f57844ed3, type: 3}

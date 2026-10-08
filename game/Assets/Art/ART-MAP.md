@@ -185,3 +185,7 @@ Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per
 ## Drawn in code (4.10): the ice screens
 
 `IceArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: ice (pale blue, a glint and a seam at each tile edge), rock (a grey boulder on ice), pit (a dark hole with a pale jagged rim), grip (crunchy off-white snow with grit; also the landing lanes and the camp, whose centre has a small fire), goal pad (grip ringed in gold, under the reward chest) and snowbank (drifts with a blue shadow, round the grid). The `SnowPatch` key stays in the catalog unused since the snow hazard is gone.
+
+## Drawn in code (4.11): the wind screens
+
+`WindArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: sky (deep blue, some tiles with a soft cloud wisp; the tile under land shows the island's rocky underside, so islands float), the ring path (pale flagstones round the screen, where every doorway opens), island grass, a wall (a grey rock on grass, splitting twin islands), a stream (a lighter blue lane with a white chevron, turned to the stream's way per tile), a grip anchor (a small floating rock on the stream), the goal pad (grass ringed in gold, under the reward chest) and the cliffs (dark stone, round the grid). `WindScreen` animates white streaks flowing along every stream. The `WindBand` key stays in the catalog unused since the wind hazard is gone.

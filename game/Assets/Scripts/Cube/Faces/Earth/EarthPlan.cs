@@ -8,10 +8,11 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The hazards of the Earth face: wind bands push, freezing rain slows, crevices block. (4.10: the snow patches are gone;
-    /// sliding is the ice screens' whole-screen puzzles now, IcePlan. 1 was Snow and is never reused.)
+    /// The hazards of the Earth face: freezing rain slows, crevices block. (4.10: the snow patches are gone, sliding is the ice
+    /// screens' whole-screen puzzles now, IcePlan; 4.11: the wind bands are gone too, wind is the wind-stream screens' puzzles,
+    /// WindPlan. 0 was Wind and 1 was Snow; neither is ever reused.)
     /// </summary>
-    public enum HazardKind { Wind = 0, FreezingRain = 2, Crevice = 3 }
+    public enum HazardKind { FreezingRain = 2, Crevice = 3 }
 
     /// <summary>One Earth gate of the run: where it is, which phenomenon opens it, and whether it is an optional extra.</summary>
     public readonly struct EarthGateSpec : IEquatable<EarthGateSpec>
@@ -46,10 +47,10 @@ namespace Game.Cube
     }
 
     /// <summary>
-    /// One hazard on an Earth screen (local to the screen centre). Wind and freezing rain are areas the player walks
-    /// through (they only change how the player moves, through PlayerMover's modifier hook); a crevice is a solid strip the
-    /// player goes round. Strength: the wind's push (a fraction of the player's speed), the rain's speed multiplier;
-    /// 0 for a crevice.
+    /// One hazard on an Earth screen (local to the screen centre). Freezing rain is an area the player walks through (it only
+    /// changes how the player moves, through PlayerMover's modifier hook); a crevice is a solid strip the player goes round.
+    /// Strength: the rain's speed multiplier; 0 for a crevice. Direction is kept for the hazard data (zero since 4.11's wind
+    /// bands went).
     /// </summary>
     public sealed class HazardSpec
     {
@@ -59,7 +60,7 @@ namespace Game.Cube
         /// <summary>The hazard's area (or the crevice's strip), local to the screen centre; empty for an unplaced crevice.</summary>
         public Rect Area { get; }
 
-        /// <summary>The wind's direction (unit length); zero for the other kinds.</summary>
+        /// <summary>A direction (zero for every kind since 4.11: only the old wind bands had one).</summary>
         public Vector2 Direction { get; }
 
         public float Strength { get; }
@@ -80,8 +81,7 @@ namespace Game.Cube
         {
             string F(float v) => v.ToString("0.##", CultureInfo.InvariantCulture);
             string where = IsPlaced ? $" [{F(Area.xMin)},{F(Area.yMin)} {F(Area.width)}x{F(Area.height)}]" : " (unplaced)";
-            string dir = Kind == HazardKind.Wind ? $" toward ({F(Direction.x)},{F(Direction.y)})" : "";
-            return $"{Kind} at {Screen}{where}{dir} strength {F(Strength)}";
+            return $"{Kind} at {Screen}{where} strength {F(Strength)}";
         }
     }
 
@@ -91,11 +91,11 @@ namespace Game.Cube
     /// required ones the rolled phenomenon's, so it opens at least one gate on another face; the other phenomena's optional
     /// gates their own, guarding nothing required); the calm eye (the face's centre screen, no hazards: since 4.5 it hosts the
     /// Earth town, so no trial is ever there either); the hazards (one
-    /// per other screen, the three kinds dealt round a seeded order; 4.10: never on an ice screen, Earth's whole-screen puzzle
-    /// module, which IcePlan lays out); the difficulty (the hazard level, from the number of
+    /// per other screen, the two kinds dealt round a seeded order; 4.10, 4.11: never on an ice or wind screen, Earth's
+    /// whole-screen puzzle modules, which IcePlan and WindPlan lay out); the difficulty (the hazard level, from the number of
     /// hazard screens per screen of the face, setting every hazard's strength); and the trial screen with its pieces.
     /// Screens that hold another face's timed door (Physics) stay calm too, so a door's timing is never thrown off.
-    /// Hazards keep every way open: the areas only slow or deflect (PlayerMover bounds them), and a crevice keeps off both
+    /// Hazards keep every way open: the areas only slow (PlayerMover bounds them), and a crevice keeps off both
     /// exit lanes and the edge band, clear of walls, alcoves, gate fronts and every other spot something stands on, and
     /// never cuts off any part of its screen (a flood fill over the screen checks it). FindProblems checks it all for the
     /// sweep. Uses its own SeededRng stream; each screen's hazard draws from that stream with the screen in the seed.
@@ -123,21 +123,18 @@ namespace Game.Cube
         public static int LevelFor(int hazardScreens, int faceSize) =>
             hazardScreens <= 0 ? 0 : Mathf.Clamp(1 + (hazardScreens - 1) / HazardScreensPerLevel(faceSize), 1, MaxLevel);
 
-        /// <summary>A wind band's push at a level, as a fraction of the player's speed (well under PlayerMover.MaxPushFraction).</summary>
-        public static float WindPush(int level) => 0.22f + 0.06f * (Mathf.Clamp(level, 1, MaxLevel) - 1);
-
         /// <summary>Freezing rain's speed multiplier at a level (well over PlayerMover.MinSpeedMultiplier).</summary>
         public static float RainSpeed(int level) => 0.75f - 0.06f * (Mathf.Clamp(level, 1, MaxLevel) - 1);
 
-        /// <summary>The hazard kinds dealt round the hazard screens (4.10: snow is gone, the ice screens slide instead).</summary>
-        public static readonly HazardKind[] Kinds = { HazardKind.Wind, HazardKind.FreezingRain, HazardKind.Crevice };
+        /// <summary>The hazard kinds dealt round the hazard screens (4.10: snow is gone, the ice screens slide instead; 4.11: wind
+        /// is gone, the wind screens carry the player instead).</summary>
+        public static readonly HazardKind[] Kinds = { HazardKind.FreezingRain, HazardKind.Crevice };
 
         /// <summary>The strength of a hazard kind at a level (0 for a crevice).</summary>
         public static float StrengthOf(HazardKind kind, int level)
         {
             switch (kind)
             {
-                case HazardKind.Wind: return WindPush(level);
                 case HazardKind.FreezingRain: return RainSpeed(level);
                 default: return 0f;
             }
@@ -150,7 +147,6 @@ namespace Game.Cube
         /// <summary>Hazard areas stay inside this half-extent (inside the screen, clear of its very edge).</summary>
         public static readonly Vector2 AreaHalf = new Vector2(7f, 4.4f) * ScreenMath.ContentScale;
 
-        public const float WindBandWidth = 2.4f * ScreenMath.ContentScale;
         public static readonly Vector2 RainSize = new Vector2(6f, 4f) * ScreenMath.ContentScale;
 
         /// <summary>A crevice strip's lengths, longest first (a shorter one is tried where a longer one fits nowhere), and its thickness.</summary>
@@ -185,6 +181,13 @@ namespace Game.Cube
         private readonly List<HazardSpec> hazards;
         private readonly List<ScreenAddress> calm;
         private readonly List<ScreenAddress> ice;
+        private readonly List<ScreenAddress> wind;
+
+        /// <summary>True when a crevice was dealt but no hazard screen had room for one (the face is then crevice-free).</summary>
+        private bool creviceRoomless;
+
+        /// <summary>True when no hazard screen had room for a crevice, so the face has none (the sweep allows it then).</summary>
+        public bool CreviceRoomless => creviceRoomless;
         private readonly Func<ScreenAddress, ScreenModule> moduleAt;
         private readonly Dictionary<ScreenAddress, List<ScreenMark>> others;
         private readonly ItemPlacement placement;
@@ -218,7 +221,7 @@ namespace Game.Cube
         public bool HasLayout => moduleAt != null;
 
         private EarthPlan(int seed, FaceId face, int faceSize, Phenomenon rolled, List<EarthGateSpec> gates,
-            List<HazardSpec> hazards, List<ScreenAddress> calm, List<ScreenAddress> ice, ScreenAddress eye, int level, ScreenAddress trialScreen,
+            List<HazardSpec> hazards, List<ScreenAddress> calm, List<ScreenAddress> ice, List<ScreenAddress> wind, ScreenAddress eye, int level, ScreenAddress trialScreen,
             IReadOnlyList<Vector2> trialSpots, Func<ScreenAddress, ScreenModule> moduleAt, Dictionary<ScreenAddress, List<ScreenMark>> others,
             ItemPlacement placement)
         {
@@ -231,6 +234,7 @@ namespace Game.Cube
             this.hazards = hazards;
             this.calm = calm;
             this.ice = ice ?? new List<ScreenAddress>();
+            this.wind = wind ?? new List<ScreenAddress>();
             Eye = eye;
             Level = level;
             TrialScreen = trialScreen;
@@ -243,14 +247,14 @@ namespace Game.Cube
         public EarthPlan WithHazard(int index, HazardSpec hazard)
         {
             var list = new List<HazardSpec>(hazards) { [index] = hazard };
-            return new EarthPlan(Seed, Face, FaceSize, Rolled, gates, list, calm, ice, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement);
+            return new EarthPlan(Seed, Face, FaceSize, Rolled, gates, list, calm, ice, wind, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement) { creviceRoomless = creviceRoomless };
         }
 
         /// <summary>A copy with one gate replaced (tests of the sweep rules).</summary>
         public EarthPlan WithGate(int index, EarthGateSpec gate)
         {
             var list = new List<EarthGateSpec>(gates) { [index] = gate };
-            return new EarthPlan(Seed, Face, FaceSize, Rolled, list, hazards, calm, ice, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement);
+            return new EarthPlan(Seed, Face, FaceSize, Rolled, list, hazards, calm, ice, wind, Eye, Level, TrialScreen, TrialSpots, moduleAt, others, placement) { creviceRoomless = creviceRoomless };
         }
 
         public bool TryGetGate(ScreenAddress screen, int slot, bool optional, out EarthGateSpec spec)
@@ -296,6 +300,11 @@ namespace Game.Cube
 
         public bool IsIce(ScreenAddress screen) => ice.Contains(screen);
 
+        /// <summary>The wind screens (4.11, WindPlan's puzzles: no hazard and no trial there); empty without modules.</summary>
+        public IReadOnlyList<ScreenAddress> WindScreens => wind;
+
+        public bool IsWind(ScreenAddress screen) => wind.Contains(screen);
+
         public string Signature()
         {
             var sb = new StringBuilder();
@@ -314,6 +323,11 @@ namespace Game.Cube
             {
                 sb.Append("; ice");
                 foreach (ScreenAddress s in ice) sb.Append(' ').Append(s);
+            }
+            if (wind.Count > 0)
+            {
+                sb.Append("; wind");
+                foreach (ScreenAddress s in wind) sb.Append(' ').Append(s);
             }
             sb.Append("; ");
             foreach (EarthGateSpec g in gates) sb.Append(g).Append("; ");
@@ -361,6 +375,7 @@ namespace Game.Cube
                 if (g.Item == Theme.Physics && g.Screen.Face == face && !calm.Contains(g.Screen)) calm.Add(g.Screen);
             // 4.10: the ice screens (Earth's whole-screen puzzle module) are puzzles, not hazard screens: no hazard, no trial.
             var ice = new List<ScreenAddress>();
+            var wind = new List<ScreenAddress>(); // 4.11: likewise the wind screens
             var hazardScreens = new List<ScreenAddress>();
             for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++)
@@ -368,6 +383,7 @@ namespace Game.Cube
                     var s = new ScreenAddress(face, x, y);
                     ScreenModule module = moduleAt?.Invoke(s);
                     if (module != null && module.IsIceScreen && !calm.Contains(s)) ice.Add(s);
+                    else if (module != null && module.IsWindScreen && !calm.Contains(s)) wind.Add(s);
                     else if (!calm.Contains(s)) hazardScreens.Add(s);
                 }
             rng.Shuffle(hazardScreens);
@@ -399,31 +415,42 @@ namespace Game.Cube
             }
 
             var hazards = new List<HazardSpec>();
+            // A crevice with no room on its screen becomes freezing rain, and is owed: the next rain screen with room takes it
+            // (4.11 review), so the face keeps a crevice whenever any screen has room for one.
+            int owed = 0;
             for (int i = 0; i < hazardScreens.Count; i++)
             {
                 ScreenAddress s = hazardScreens[i];
                 HazardKind kind = kinds[i % kinds.Count];
                 var screenRng = new SeededRng(ScreenSeed(model.Seed, s), RngStream);
-                if (kind == HazardKind.Crevice)
+                bool dealt = kind == HazardKind.Crevice;
+                if (dealt || (owed > 0 && moduleAt != null))
                 {
                     Rect strip = default;
                     if (moduleAt != null)
                     {
                         ScreenModule module = moduleAt(s);
                         List<ScreenMark> marks = MarksFor(s, module, specs, others, s == trialScreen ? trialSpots : null);
-                        strip = module != null ? PlaceCrevice(Solids(module, s == trialScreen ? trialSpots : null), marks, screenRng) : default;
-                        // No room for a crevice on this screen: a wind band there instead (it never blocks anything).
-                        if (strip.width <= 0f) kind = HazardKind.Wind;
+                        // A rain screen trying an owed crevice draws from its own copy, so its rain is unchanged if it fails.
+                        SeededRng creviceRng = dealt ? screenRng : new SeededRng(ScreenSeed(model.Seed, s), RngStream);
+                        strip = module != null ? PlaceCrevice(Solids(module, s == trialScreen ? trialSpots : null), marks, creviceRng) : default;
                     }
-                    if (kind == HazardKind.Crevice)
+                    if (moduleAt == null || strip.width > 0f)
                     {
+                        if (!dealt) owed--;
                         hazards.Add(new HazardSpec(s, HazardKind.Crevice, strip, Vector2.zero, 0f));
                         continue;
                     }
+                    // No room for a crevice on this screen: freezing rain there instead (it never blocks anything).
+                    if (dealt) owed++;
+                    kind = HazardKind.FreezingRain;
                 }
                 hazards.Add(AreaHazard(s, kind, level, screenRng));
             }
-            return new EarthPlan(model.Seed, face, n, rolled, specs, hazards, calm, ice, eye, level, trialScreen, trialSpots, moduleAt, others, placement);
+            return new EarthPlan(model.Seed, face, n, rolled, specs, hazards, calm, ice, wind, eye, level, trialScreen, trialSpots, moduleAt, others, placement)
+            {
+                creviceRoomless = owed > 0,
+            };
         }
 
         /// <summary>The phenomenon of a variant index from the id-derived kinds; None when unknown.</summary>
@@ -472,37 +499,12 @@ namespace Game.Cube
             return solids;
         }
 
-        /// <summary>A wind band or rain area on a screen, its place drawn from the screen's stream.</summary>
+        /// <summary>A rain area on a screen, its place drawn from the screen's stream.</summary>
         private static HazardSpec AreaHazard(ScreenAddress s, HazardKind kind, int level, SeededRng rng)
         {
             float strength = StrengthOf(kind, level);
-            switch (kind)
-            {
-                case HazardKind.Wind:
-                {
-                    // A band across the screen, off-centre, pushing along itself: it deflects a walk through it.
-                    bool horizontal = rng.NextInt(2) == 0;
-                    float side = rng.NextInt(2) == 0 ? 1f : -1f;
-                    float along = rng.NextInt(2) == 0 ? 1f : -1f;
-                    Rect area;
-                    Vector2 dir;
-                    if (horizontal)
-                    {
-                        float cy = side * 2.6f * ScreenMath.ContentScale;
-                        area = Rect.MinMaxRect(-AreaHalf.x, cy - WindBandWidth / 2f, AreaHalf.x, cy + WindBandWidth / 2f);
-                        dir = new Vector2(along, 0f);
-                    }
-                    else
-                    {
-                        float cx = side * 4.2f * ScreenMath.ContentScale;
-                        area = Rect.MinMaxRect(cx - WindBandWidth / 2f, -AreaHalf.y, cx + WindBandWidth / 2f, AreaHalf.y);
-                        dir = new Vector2(0f, along);
-                    }
-                    return new HazardSpec(s, kind, Clip(area), dir, strength);
-                }
-                default:
-                    return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale), RainSize)), Vector2.zero, strength);
-            }
+            Vector2 centre = LanePatchCentre(rng, 3f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale);
+            return new HazardSpec(s, kind, Clip(CentredOn(centre, RainSize)), Vector2.zero, strength);
         }
 
         /// <summary>A patch centre on one of the four half-lanes (so the patch lies across a way through the screen).</summary>
@@ -905,12 +907,13 @@ namespace Game.Cube
                     int count = 0;
                     foreach (HazardSpec h in hazards)
                         if (h.Screen == s) count++;
-                    if (IsCalm(s) || IsIce(s))
+                    if (IsCalm(s) || IsIce(s) || IsWind(s))
                     {
-                        if (count != 0) problems.Add($"{(IsIce(s) ? "the ice screen" : "calm")} {s} has {count} hazards");
+                        if (count != 0) problems.Add($"{(IsIce(s) ? "the ice screen" : IsWind(s) ? "the wind screen" : "calm")} {s} has {count} hazards");
                         continue;
                     }
                     if (HasLayout && moduleAt(s) != null && moduleAt(s).IsIceScreen) problems.Add($"{s} is an ice screen the plan missed");
+                    if (HasLayout && moduleAt(s) != null && moduleAt(s).IsWindScreen) problems.Add($"{s} is a wind screen the plan missed");
                     hazardScreens++;
                     if (count != 1) problems.Add($"{s} has {count} hazards (want one)");
                 }
@@ -923,11 +926,6 @@ namespace Game.Cube
                 if (Mathf.Abs(h.Strength - StrengthOf(h.Kind, Level)) > 1e-4f) problems.Add($"{h}: wrong strength for level {Level}");
                 switch (h.Kind)
                 {
-                    case HazardKind.Wind:
-                        if (h.Strength <= 0f || h.Strength >= Game.Tracer.PlayerMover.MaxPushFraction)
-                            problems.Add($"{h}: a push that strong could stop the player");
-                        if (Mathf.Abs(h.Direction.magnitude - 1f) > 1e-3f) problems.Add($"{h}: no direction");
-                        break;
                     case HazardKind.FreezingRain:
                         if (h.Strength < Game.Tracer.PlayerMover.MinSpeedMultiplier || h.Strength >= 1f)
                             problems.Add($"{h}: slows below the minimum speed (or not at all)");
@@ -948,11 +946,12 @@ namespace Game.Cube
             }
             if (hazardScreens >= Kinds.Length)
                 foreach (HazardKind k in Kinds)
-                    if (!seenKinds.Contains(k)) problems.Add($"no {k} on the face");
+                    if (!seenKinds.Contains(k) && !(k == HazardKind.Crevice && creviceRoomless)) problems.Add($"no {k} on the face");
 
             // Trial.
             if (TrialScreen.Face != Face) problems.Add($"the trial is on {TrialScreen}, not on Earth");
             if (IsIce(TrialScreen)) problems.Add($"the trial is on the ice screen {TrialScreen}");
+            if (IsWind(TrialScreen)) problems.Add($"the trial is on the wind screen {TrialScreen}");
             if (TownSquare.IsTown(TrialScreen, FaceSize)) problems.Add($"the trial is on the town {TrialScreen} (the calm eye)");
             if (HasLayout)
             {

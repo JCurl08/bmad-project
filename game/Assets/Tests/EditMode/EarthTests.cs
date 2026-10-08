@@ -218,14 +218,15 @@ namespace Game.Cube.Tests
                     {
                         var s = new ScreenAddress(face, x, y);
                         int count = plan.Hazards.Count(h => h.Screen == s);
-                        Assert.AreEqual(plan.IsCalm(s) || plan.IsIce(s) ? 0 : 1, count, $"seed {seed}: {s}");
-                        if (!plan.IsCalm(s) && !plan.IsIce(s)) hazardScreens++;
+                        bool puzzle = plan.IsIce(s) || plan.IsWind(s);
+                        Assert.AreEqual(plan.IsCalm(s) || puzzle ? 0 : 1, count, $"seed {seed}: {s}");
+                        if (!plan.IsCalm(s) && !puzzle) hazardScreens++;
                     }
                 Assert.AreEqual(EarthPlan.LevelFor(hazardScreens, model.FaceSize), plan.Level, "The level is the difficulty parameter");
                 Assert.IsTrue(plan.Hazards.All(h => h.Screen.Face == face), "Hazards only on Earth (never Town, never the core)");
                 if (hazardScreens >= EarthPlan.Kinds.Length)
                     foreach (HazardKind k in Enum.GetValues(typeof(HazardKind)))
-                        Assert.IsTrue(plan.Hazards.Any(h => h.Kind == k), $"seed {seed}: some {k}");
+                        Assert.IsTrue(plan.Hazards.Any(h => h.Kind == k) || (k == HazardKind.Crevice && plan.CreviceRoomless), $"seed {seed}: some {k}");
                 foreach (HazardSpec h in plan.Hazards)
                 {
                     Assert.IsTrue(h.IsPlaced, $"seed {seed}: {h}");
@@ -248,10 +249,8 @@ namespace Game.Cube.Tests
             Assert.AreEqual(EarthPlan.MaxLevel, EarthPlan.LevelFor(100, 3));
             for (int level = 1; level < EarthPlan.MaxLevel; level++)
             {
-                Assert.Greater(EarthPlan.WindPush(level + 1), EarthPlan.WindPush(level), "Stronger wind");
                 Assert.Less(EarthPlan.RainSpeed(level + 1), EarthPlan.RainSpeed(level), "Slower rain");
             }
-            Assert.Less(EarthPlan.WindPush(EarthPlan.MaxLevel), PlayerMover.MaxPushFraction);
             Assert.Greater(EarthPlan.RainSpeed(EarthPlan.MaxLevel), PlayerMover.MinSpeedMultiplier);
         }
 
@@ -278,7 +277,6 @@ namespace Game.Cube.Tests
         {
             switch (h.Kind)
             {
-                case HazardKind.Wind: return new MoveModifier { SpeedMultiplier = 1f, Push = h.Direction * h.Strength, Grip = 1f };
                 case HazardKind.FreezingRain: return new MoveModifier { SpeedMultiplier = h.Strength, Push = Vector2.zero, Grip = 1f };
                 default: return MoveModifier.None;
             }
@@ -402,12 +400,12 @@ namespace Game.Cube.Tests
 
             EarthPlan plan = Plan(1, library, catalog, out CubeModel model, out ItemPlacement placement, out Func<ScreenAddress, ScreenModule> moduleAt);
             Assert.IsEmpty(plan.Problems(model, placement));
-            int wind = plan.Hazards.ToList().FindIndex(h => h.Kind == HazardKind.Wind);
-            HazardSpec w = plan.Hazards[wind];
-            var onEye = new HazardSpec(plan.Eye, HazardKind.Wind, w.Area, w.Direction, w.Strength);
-            Assert.IsTrue(plan.WithHazard(wind, onEye).Problems(model, placement).Any(p => p.Contains("calm eye")), "A hazard on the eye");
-            var gale = new HazardSpec(w.Screen, HazardKind.Wind, w.Area, w.Direction, 0.9f);
-            Assert.IsTrue(plan.WithHazard(wind, gale).Problems(model, placement).Any(p => p.Contains("could stop the player")), "A push too strong");
+            int rain = plan.Hazards.ToList().FindIndex(h => h.Kind == HazardKind.FreezingRain);
+            HazardSpec w = plan.Hazards[rain];
+            var onEye = new HazardSpec(plan.Eye, HazardKind.FreezingRain, w.Area, w.Direction, w.Strength);
+            Assert.IsTrue(plan.WithHazard(rain, onEye).Problems(model, placement).Any(p => p.Contains("calm eye")), "A hazard on the eye");
+            var standstill = new HazardSpec(w.Screen, HazardKind.FreezingRain, w.Area, w.Direction, 0.01f);
+            Assert.IsTrue(plan.WithHazard(rain, standstill).Problems(model, placement).Any(p => p.Contains("minimum speed")), "Rain too slow");
             int crevice = plan.Hazards.ToList().FindIndex(h => h.Kind == HazardKind.Crevice);
             if (crevice >= 0)
             {
@@ -480,6 +478,7 @@ namespace Game.Cube.Tests
                     Assert.AreEqual(Dialogue.MaxLines, lines.Count);
                     if (i == EarthPopulation.WandTeller) Assert.AreEqual(Dialogue.WandLine(plan.Rolled), lines[0]);
                     else if (i == EarthPopulation.HazardTeller) Assert.AreEqual(Dialogue.HazardLine, lines[0]);
+                    else if (i == EarthPopulation.GripTeller) Assert.AreEqual(Dialogue.GripLine, lines[0]);
                     else if (spec.Variant == DinoVariant.Avian) CollectionAssert.Contains(Dialogue.SkyWatcherLines, lines[0]);
                     else CollectionAssert.Contains(Dialogue.OldDiggerLines, lines[0]);
                     Assert.AreEqual(HintGenerator.For(spec, facts, HintDensity.Full)[0].Text, lines[1]);
@@ -498,8 +497,12 @@ namespace Game.Cube.Tests
             {
                 StringAssert.DoesNotContain(StormcallerItem.Word(kind), Dialogue.NeutralWandLine.ToLowerInvariant());
             }
-            foreach (string word in new[] { "wind", "ice", "slide", "rain", "crevice", "calm" })
+            foreach (string word in new[] { "gusts", "ice", "slide", "rain", "crevice", "calm" })
                 StringAssert.Contains(word, Dialogue.HazardLine.ToLowerInvariant());
+            Assert.LessOrEqual(Dialogue.HazardLine.Length, 180, "the hazard line stays short");
+            foreach (string word in new[] { "grip", "stop", "gust" })
+                StringAssert.Contains(word, Dialogue.GripLine.ToLowerInvariant());
+            Assert.AreEqual(DinoVariant.Terrestrial, EarthPopulation.VariantOf(EarthPopulation.GripTeller), "a ground dinosaur tells it");
         }
 
         // ---------- Text ----------
@@ -512,6 +515,7 @@ namespace Game.Cube.Tests
             strings.AddRange(Dialogue.WandLines);
             strings.Add(Dialogue.NeutralWandLine);
             strings.Add(Dialogue.HazardLine);
+            strings.Add(Dialogue.GripLine);
             strings.AddRange(StormcallerItem.AllText());
             strings.Add(HintGenerator.ItemNickname(Theme.EarthAtmosphere));
             strings.Add(HintGenerator.ThemeName(Theme.EarthAtmosphere));

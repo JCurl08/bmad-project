@@ -25,6 +25,12 @@ namespace Game.Cube
         /// island module, or -1 when the theme has none. The layout never draws it at random; it gives it to the town cell.
         /// </summary>
         int TownModuleIndex(Theme theme) => -1;
+
+        /// <summary>
+        /// The pool index of a theme's wind module (4.11: Earth's wind-stream screens), just before its island module, or -1
+        /// when the theme has none. The layout never draws it at random; it gives it to WindScreensPerFace chosen screens.
+        /// </summary>
+        int WindModuleIndex(Theme theme) => -1;
     }
 
     /// <summary>The module per screen and the chosen core-entrance slot of one built science face.</summary>
@@ -43,7 +49,7 @@ namespace Game.Cube
         public int CoreSlot { get; }
 
         public FaceLayout(FaceId face, Theme theme, int faceSize, int[] modules, Vector2Int coreCell, int coreSlot,
-            IReadOnlyList<Vector2Int> islandCells = null)
+            IReadOnlyList<Vector2Int> islandCells = null, IReadOnlyList<Vector2Int> windCells = null)
         {
             Face = face;
             Theme = theme;
@@ -52,6 +58,7 @@ namespace Game.Cube
             CoreCell = coreCell;
             CoreSlot = coreSlot;
             IslandCells = islandCells ?? Array.Empty<Vector2Int>();
+            WindCells = windCells ?? Array.Empty<Vector2Int>();
         }
 
         /// <summary>The town cell (the face's centre, 4.5), or null on a face too small for a town.</summary>
@@ -59,6 +66,19 @@ namespace Game.Cube
 
         /// <summary>The cells that hold the theme's island module (Math's island screens), row by row; empty for other themes.</summary>
         public IReadOnlyList<Vector2Int> IslandCells { get; }
+
+        /// <summary>The cells that hold the theme's wind module (4.11: Earth's wind-stream screens), row by row; empty for other themes.</summary>
+        public IReadOnlyList<Vector2Int> WindCells { get; }
+
+        /// <summary>True for a whole-screen puzzle's cell (an island, ice or wind screen): no slots, pickups or roadblocks but its goal.</summary>
+        public bool IsPuzzleCell(Vector2Int cell)
+        {
+            foreach (Vector2Int c in IslandCells)
+                if (c == cell) return true;
+            foreach (Vector2Int c in WindCells)
+                if (c == cell) return true;
+            return false;
+        }
 
         /// <summary>Pool index of the module on a cell.</summary>
         public int ModuleAt(Vector2Int cell) => modules[cell.y * FaceSize + cell.x];
@@ -71,7 +91,8 @@ namespace Game.Cube
     /// placement and is the same whenever the reveal happens. Town (fixed modules) and sealed faces get
     /// no entry. A theme with an island module (Math, 1.25) gets it on IslandScreensPerFace of its screens, never the core
     /// screen and never two side by side, chosen on their own stream (RngStreams.IslandScreens) after the face's other
-    /// draws, so the rest of the layout draws as before.
+    /// draws, so the rest of the layout draws as before. A theme with a wind module too (Earth, 4.11) gets it on
+    /// WindScreensPerFace more screens, from the same shuffle after the island ones, beside none of them (nor the core or the town).
     /// Towns (4.5): on a face with a town (TownSquare.HasTown) the centre cell gets the theme's town module (when the catalog
     /// has one), and neither the core screen nor an island screen is ever the town: the core cell is drawn again while it
     /// lands on the town, and the island shuffle skips it. The centre still draws its module as before (then replaced), so
@@ -100,6 +121,10 @@ namespace Game.Cube
         public static int IslandScreensPerFace(int faceSize) =>
             Math.Min(CubeSettings.PerScreen(1, faceSize), Math.Max(0, faceSize * faceSize - 1));
 
+        /// <summary>Wind screens on a face with a wind module (4.11): one at 3x3 (none on the town-less test faces).</summary>
+        public static int WindScreensPerFace(int faceSize) =>
+            TownSquare.HasTown(faceSize) ? Math.Max(1, IslandScreensPerFace(faceSize) / 2) : 0;
+
         /// <summary>True for faces the layout covers: built, unsealed science faces (not Town).</summary>
         public static bool IsLaidOut(CubeModel model, FaceId face) =>
             face != CubeModel.StartFace && !model.IsSealed(face);
@@ -123,10 +148,13 @@ namespace Game.Cube
                 int poolSize = catalog.PoolSize(theme);
                 int island = catalog.IslandModuleIndex(theme);
                 int town = catalog.TownModuleIndex(theme);
+                int wind = catalog.WindModuleIndex(theme);
                 if (island >= 0 && island != poolSize - 1)
                     throw new InvalidOperationException($"{theme}'s island module must be the last of its pool");
-                // The island and town modules end the pool and are never drawn at random.
-                int regular = poolSize - (island >= 0 ? 1 : 0) - (town >= 0 ? 1 : 0);
+                // The town, wind and island modules end the pool and are never drawn at random.
+                int regular = poolSize - (island >= 0 ? 1 : 0) - (town >= 0 ? 1 : 0) - (wind >= 0 ? 1 : 0);
+                if (wind >= 0 && wind < regular)
+                    throw new InvalidOperationException($"{theme}'s wind module must end its pool (before any island module)");
                 if (town >= 0 && town < regular)
                     throw new InvalidOperationException($"{theme}'s town module must end its pool (before any island module)");
                 if (regular <= 0)
@@ -146,14 +174,16 @@ namespace Game.Cube
                     modules[c] = c == coreIndex ? coreModule : rng.NextInt(regular);
 
                 var coreCell = new Vector2Int(coreIndex % n, coreIndex / n);
-                List<Vector2Int> islandCells = island >= 0 ? IslandCellsFor(model.Seed, face, n, coreCell) : new List<Vector2Int>();
+                List<Vector2Int> islandCells = PuzzleCellsFor(model.Seed, face, n, coreCell, island >= 0 ? IslandScreensPerFace(n) : 0,
+                    wind >= 0 ? WindScreensPerFace(n) : 0, out List<Vector2Int> windCells);
                 foreach (Vector2Int cell in islandCells) modules[cell.y * n + cell.x] = island;
+                foreach (Vector2Int cell in windCells) modules[cell.y * n + cell.x] = wind;
                 if (town >= 0 && TownSquare.HasTown(n))
                 {
                     Vector2Int townCell = TownSquare.Cell(n);
                     modules[townCell.y * n + townCell.x] = town;
                 }
-                layout.faces[face] = new FaceLayout(face, theme, n, modules, coreCell, coreSlot, islandCells);
+                layout.faces[face] = new FaceLayout(face, theme, n, modules, coreCell, coreSlot, islandCells, windCells);
             }
             return layout;
         }
@@ -162,7 +192,16 @@ namespace Game.Cube
         /// The island screens of a face: IslandScreensPerFace cells in a seeded order (their own stream), skipping the core
         /// cell, the town (4.5: after the shuffle, so other cells keep their order) and any cell beside one already taken; row by row.
         /// </summary>
-        public static List<Vector2Int> IslandCellsFor(int seed, FaceId face, int n, Vector2Int coreCell)
+        public static List<Vector2Int> IslandCellsFor(int seed, FaceId face, int n, Vector2Int coreCell) =>
+            PuzzleCellsFor(seed, face, n, coreCell, IslandScreensPerFace(n), 0, out _);
+
+        /// <summary>
+        /// The island (or ice) screens and then the wind screens of a face (4.11): islands as IslandCellsFor; then, going through
+        /// the same shuffled order again, windCount more cells that are not the core, the town, an island cell or beside any
+        /// cell already chosen. Each list row by row.
+        /// </summary>
+        public static List<Vector2Int> PuzzleCellsFor(int seed, FaceId face, int n, Vector2Int coreCell, int islandCount, int windCount,
+            out List<Vector2Int> windCells)
         {
             var rng = new SeededRng(((ulong)(uint)seed << 8) | (uint)face, IslandRngStream);
             var cells = new List<Vector2Int>();
@@ -171,17 +210,30 @@ namespace Game.Cube
                     if (new Vector2Int(x, y) != coreCell) cells.Add(new Vector2Int(x, y));
             rng.Shuffle(cells);
             var chosen = new List<Vector2Int>();
-            int wanted = IslandScreensPerFace(n);
+            bool Fits(Vector2Int c, List<Vector2Int> taken, List<Vector2Int> also)
+            {
+                if (TownSquare.IsTownCell(c, n) || taken.Contains(c) || (also != null && also.Contains(c))) return false;
+                foreach (Vector2Int o in taken)
+                    if (Mathf.Abs(o.x - c.x) + Mathf.Abs(o.y - c.y) == 1) return false;
+                if (also != null)
+                    foreach (Vector2Int o in also)
+                        if (Mathf.Abs(o.x - c.x) + Mathf.Abs(o.y - c.y) == 1) return false;
+                return true;
+            }
             foreach (Vector2Int c in cells)
             {
-                if (chosen.Count >= wanted) break;
-                if (TownSquare.IsTownCell(c, n)) continue;
-                bool beside = false;
-                foreach (Vector2Int o in chosen)
-                    if (Mathf.Abs(o.x - c.x) + Mathf.Abs(o.y - c.y) == 1) beside = true;
-                if (!beside) chosen.Add(c);
+                if (chosen.Count >= islandCount) break;
+                if (Fits(c, chosen, null)) chosen.Add(c);
             }
-            chosen.Sort((a, b) => a.y != b.y ? a.y.CompareTo(b.y) : a.x.CompareTo(b.x));
+            windCells = new List<Vector2Int>();
+            foreach (Vector2Int c in cells)
+            {
+                if (windCells.Count >= windCount) break;
+                if (Fits(c, windCells, chosen)) windCells.Add(c);
+            }
+            Comparison<Vector2Int> rowByRow = (a, b) => a.y != b.y ? a.y.CompareTo(b.y) : a.x.CompareTo(b.x);
+            chosen.Sort(rowByRow);
+            windCells.Sort(rowByRow);
             return chosen;
         }
 

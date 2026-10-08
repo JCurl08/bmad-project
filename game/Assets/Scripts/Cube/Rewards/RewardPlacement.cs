@@ -408,12 +408,8 @@ namespace Game.Cube
             return new RewardPlacement(model.Seed, result);
         }
 
-        private static bool IsIsland(FaceLayout fl, Vector2Int cell)
-        {
-            foreach (Vector2Int c in fl.IslandCells)
-                if (c == cell) return true;
-            return false;
-        }
+        /// <summary>True for a whole-screen puzzle's cell (islands, ice, 4.11 wind): its only roadblock is its goal.</summary>
+        private static bool IsIsland(FaceLayout fl, Vector2Int cell) => fl.IsPuzzleCell(cell);
 
         /// <summary>Where a roadblock's reward stands on its screen (local), for the doorway-by-doorway reach check.</summary>
         public static Vector2 LocalOf(Roadblock where, IReadOnlyList<PuzzleGoal> puzzles = null)

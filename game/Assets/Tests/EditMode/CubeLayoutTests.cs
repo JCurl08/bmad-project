@@ -261,8 +261,18 @@ namespace Game.Cube.Tests
             Assert.IsEmpty(ice.Gates);
             Assert.IsEmpty(ice.HiddenItems);
             Assert.IsEmpty(ice.CoreEntrances);
+            // 4.11: and its wind module just before the ice (only exits too).
+            Assert.AreEqual(earth.Count - 2, library.WindModuleIndex(Theme.EarthAtmosphere), "Earth's wind module comes just before its ice");
+            ScreenModule windModule = earth[earth.Count - 2];
+            Assert.IsTrue(windModule.IsWindScreen && !windModule.IsIceScreen && windModule.IsPuzzleScreen);
+            Assert.AreEqual(4, windModule.Exits.Length);
+            Assert.IsEmpty(windModule.Gates);
+            Assert.IsEmpty(windModule.HiddenItems);
+            Assert.IsEmpty(windModule.CoreEntrances);
             foreach (Theme theme in BuiltSciences.Where(t => t != Theme.Math && t != Theme.EarthAtmosphere))
                 Assert.AreEqual(-1, library.IslandModuleIndex(theme), $"{theme} has no island screens");
+            foreach (Theme theme in BuiltSciences.Where(t => t != Theme.EarthAtmosphere))
+                Assert.AreEqual(-1, library.WindModuleIndex(theme), $"{theme} has no wind screens");
             foreach (int n in FaceSizes)
                 for (int seed = 1; seed <= 50; seed++)
                 {
@@ -277,13 +287,26 @@ namespace Game.Cube.Tests
                         CollectionAssert.AreEqual(fl.IslandCells, cells, $"seed {seed} {fl.Face}");
                         Assert.AreEqual(fl.Theme == Theme.Math || fl.Theme == Theme.EarthAtmosphere ? CubeLayout.IslandScreensPerFace(n) : 0, cells.Count, $"seed {seed} {fl.Face}");
                         CollectionAssert.DoesNotContain(cells, fl.CoreCell);
-                        foreach (Vector2Int a in cells)
-                            foreach (Vector2Int b in cells)
-                                Assert.AreNotEqual(1, Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y), $"seed {seed}: island screens side by side");
+                        // 4.11: the wind cells hold the wind module, never the core or the town.
+                        var winds = new List<Vector2Int>();
+                        for (int y = 0; y < n; y++)
+                            for (int x = 0; x < n; x++)
+                                if (fl.ModuleAt(new Vector2Int(x, y)) == library.WindModuleIndex(fl.Theme)) winds.Add(new Vector2Int(x, y));
+                        CollectionAssert.AreEqual(fl.WindCells, winds, $"seed {seed} {fl.Face}");
+                        Assert.AreEqual(fl.Theme == Theme.EarthAtmosphere ? CubeLayout.WindScreensPerFace(n) : 0, winds.Count, $"seed {seed} {fl.Face}");
+                        CollectionAssert.DoesNotContain(winds, fl.CoreCell);
+                        if (fl.TownCell.HasValue) CollectionAssert.DoesNotContain(winds, fl.TownCell.Value);
+                        // No two puzzle screens (islands, ice, wind) side by side.
+                        var puzzles = cells.Concat(winds).ToList();
+                        foreach (Vector2Int a in puzzles)
+                            foreach (Vector2Int b in puzzles)
+                                Assert.AreNotEqual(1, Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y), $"seed {seed}: puzzle screens side by side");
                     }
                 }
             Assert.AreEqual(2, CubeLayout.IslandScreensPerFace(3));
             Assert.AreEqual(1, CubeLayout.IslandScreensPerFace(2));
+            Assert.AreEqual(1, CubeLayout.WindScreensPerFace(3), "one wind screen at 3x3 (beside two ice screens)");
+            Assert.AreEqual(0, CubeLayout.WindScreensPerFace(2), "none on the town-less test faces");
         }
 
         [Test]

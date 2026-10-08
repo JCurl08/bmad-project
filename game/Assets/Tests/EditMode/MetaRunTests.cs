@@ -34,6 +34,7 @@ namespace Game.Cube.Tests
             public int HiddenSlotCount(Theme theme, int moduleIndex) => library.HiddenSlotCount(theme, moduleIndex);
             public int IslandModuleIndex(Theme theme) => library.IslandModuleIndex(theme);
             public int TownModuleIndex(Theme theme) => library.TownModuleIndex(theme);
+            public int WindModuleIndex(Theme theme) => library.WindModuleIndex(theme);
         }
 
         // ---------- Save ----------

@@ -212,11 +212,13 @@ namespace Game.Cube
             MathFace math = World != null ? World.GetComponent<MathFace>() : null;
             IScreenRegions regions = math != null && math.Plan != null ? math.Plan.IslandAt(Screen) : null;
             if (regions == null && World != null && World.Ice != null) regions = World.Ice.At(Screen); // 4.10: an ice screen
+            if (regions == null && World != null && World.Wind != null) regions = World.Wind.At(Screen); // 4.11: a wind screen
             if (regions == null) return true;
             Vector2 local = worldPosition - World.ScreenCenter(Screen);
             int door = regions.DoorRegion(Side);
             // On an ice screen the doorway's mouth (the strip off the grid, between the arch and its landing) is its landing's.
             if (regions is IceLayout && IceLayout.CellAt(local) < 0) return door >= 0;
+            if (regions is WindLayout && WindLayout.CellAt(local) < 0) return door >= 0;
             return door >= 0 && regions.RegionAt(local) == door;
         }
 

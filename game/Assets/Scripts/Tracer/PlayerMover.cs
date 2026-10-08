@@ -46,9 +46,10 @@ namespace Game.Tracer
     }
 
     /// <summary>
-    /// A component on the player that can take movement over entirely (the Cube's sliding ice screens, 4.10): asked every
-    /// physics step, before any modifier; when it drives, the velocity it gives is the body's, as is. Facing still follows the
-    /// input (or what the driver sets).
+    /// A component on the player that can take movement over entirely (the Cube's sliding ice screens, 4.10, and wind-stream
+    /// screens, 4.11): asked every physics step, before any modifier; when it drives, the velocity it gives is the body's, as is.
+    /// Several may sit on the player: they are asked in component order and the first that drives wins. Facing still follows
+    /// the input (or what the driver sets).
     /// </summary>
     public interface IMoveDriver
     {
@@ -191,11 +192,11 @@ namespace Game.Tracer
         {
             modifier = null;
             modifierResolved = false;
-            driver = null;
+            drivers = System.Array.Empty<IMoveDriver>();
             driverResolved = false;
         }
 
-        private IMoveDriver driver;
+        private IMoveDriver[] drivers = System.Array.Empty<IMoveDriver>();
         private bool driverResolved;
 
         /// <summary>A modifier within the mover's bounds: slows to no less than MinSpeedMultiplier, pushes by at most MaxPushFraction, grips at least MinGrip.</summary>
@@ -292,12 +293,13 @@ namespace Game.Tracer
             if (input.sqrMagnitude > 1e-4f) Facing = input.normalized;
             if (!driverResolved)
             {
-                driver = GetComponent<IMoveDriver>();
+                drivers = GetComponents<IMoveDriver>();
                 driverResolved = true;
             }
-            if (driver is Object d && d == null) driver = null;
-            if (driver != null && driver.Drive(input, EffectiveSpeed, Time.fixedDeltaTime, out Vector2 driven))
+            foreach (IMoveDriver driver in drivers)
             {
+                if (driver == null || (driver is Object d && d == null)) continue;
+                if (!driver.Drive(input, EffectiveSpeed, Time.fixedDeltaTime, out Vector2 driven)) continue;
                 body.linearVelocity = driven;
                 return;
             }

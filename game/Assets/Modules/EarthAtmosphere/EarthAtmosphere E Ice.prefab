@@ -94,6 +94,7 @@ MonoBehaviour:
   islandScreen: 0
   townScreen: 0
   iceScreen: 1
+  windScreen: 0
 --- !u!1 &1738333439597708488
 GameObject:
   m_ObjectHideFlags: 0

@@ -264,3 +264,4 @@ MonoBehaviour:
   islandScreen: 0
   townScreen: 1
   iceScreen: 0
+  windScreen: 0

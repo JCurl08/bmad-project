@@ -89,7 +89,9 @@ namespace Game.Cube.Tests
                 IReadOnlyList<ScreenModule> pool = library.Pool(theme);
                 int town = library.TownModuleIndex(theme);
                 Assert.GreaterOrEqual(town, 0, $"{theme} has a town module");
-                Assert.AreEqual(pool.Count - (theme == Theme.Math || theme == Theme.EarthAtmosphere ? 2 : 1), town, $"{theme}: the town module ends the regular modules");
+                // After it: Math's island module; Earth's wind (4.11) and ice (4.10) modules.
+                int after = theme == Theme.Math ? 1 : theme == Theme.EarthAtmosphere ? 2 : 0;
+                Assert.AreEqual(pool.Count - 1 - after, town, $"{theme}: the town module ends the regular modules");
                 Assert.AreEqual(theme, pool[town].Theme);
                 modules.Add(pool[town]);
             }

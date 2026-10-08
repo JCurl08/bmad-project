@@ -688,8 +688,12 @@ namespace Game.Cube
 
         /// <summary>How the hazards of the Wildlands* work, as the dinosaurs tell it (true for every run: the mechanics).</summary>
         public const string HazardLine =
-            "Wind shoves you, freezing rain slows you. On the ice you slide till a rock, a rough patch or a hole stops you; " +
-            "fall in and you climb out where you came in. Go round the crevices. The middle's calm.";
+            "Freezing rain slows you. On ice you slide till rock, rough snow or a hole stops you; fall in, start again. " +
+            "Up high, follow the gusts. Mind the crevices. The middle's calm.";
+
+        /// <summary>How a ride on the wind ends (4.11), as a ground dinosaur tells it: a grip rock stops it.</summary>
+        public const string GripLine =
+            "Riding the gusts? Aim for the grip rocks out in the sky. Land on one and you stop dead, boots planted, ready to pick your next gust.";
 
         public static string OldDiggerLine(uint salt) => OldDiggerLines[(int)(salt / 3u % (uint)OldDiggerLines.Length)];
 
@@ -813,6 +817,7 @@ namespace Game.Cube
             foreach (string line in WandLines) yield return line;
             yield return NeutralWandLine;
             yield return HazardLine;
+            yield return GripLine;
         }
     }
 }

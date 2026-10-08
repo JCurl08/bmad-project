@@ -173,60 +173,18 @@ namespace Game.Cube.Tests
 
         // ---------- Hazards ----------
 
-        [UnityTest]
-        public IEnumerator Wind_PushesThePlayerAlongTheBand_AtABoundedSpeed_NeverThroughAWall()
+        /// <summary>
+        /// PlayerMover's bounds (pure): at every speed, against the strongest push a modifier may give (none of 4.11's hazards
+        /// pushes any more, the wind bands became the wind screens), a walk still goes forward.
+        /// </summary>
+        [Test]
+        public void Modifiers_EvenTheWorstClampedPush_StillMakesHeadway()
         {
-            Vector2 at = Origin + new Vector2(300f, 0f);
-            GameObject player = Player(at);
-            var body = player.GetComponent<Rigidbody2D>();
-            var mover = player.GetComponent<PlayerMover>();
-            WindBand band = Track(WindBand.Create(null, default, new Rect(at - new Vector2(6f * K, 1.5f * K), new Vector2(12f * K, 3f * K)), Vector2.right,
-                EarthPlan.WindPush(EarthPlan.MaxLevel), null)).GetComponent<WindBand>();
-            Track(band.gameObject);
-            yield return Steps(10);
-
-            float push = EarthPlan.WindPush(EarthPlan.MaxLevel) * mover.EffectiveSpeed;
-            Assert.AreEqual(push, body.linearVelocity.x, 0.05f, "Pushed along the band at its strength");
-            Assert.AreEqual(0f, body.linearVelocity.y, 0.05f * K);
-            Assert.LessOrEqual(body.linearVelocity.magnitude, PlayerMover.MaxPushFraction * mover.EffectiveSpeed + 1e-3f, "A bounded push");
-            Assert.AreEqual(TimeField.BasePlayerSpeed, mover.EffectiveSpeed, 1e-4f, "The hazard never changes EffectiveSpeed");
-            Assert.Greater(body.position.x, at.x, "It moved with the wind");
-
-            // A wall downwind: the player is pressed against it, never through it.
-            float wallX = body.position.x + 2f * K;
-            Block(new Vector2(wallX + 0.5f * K, at.y), new Vector2(1f * K, 4f * K));
-            yield return Steps(150);
-            Assert.Less(body.position.x, wallX - 0.35f * K, "Never pushed through the wall");
-        }
-
-        [UnityTest]
-        public IEnumerator Wind_WalkingAgainstIt_StillMakesHeadway()
-        {
-            Vector2 at = Origin + new Vector2(400f, 0f);
-            GameObject player = Player(at);
-            var body = player.GetComponent<Rigidbody2D>();
-            Track(WindBand.Create(null, default, new Rect(at - new Vector2(8f * K, 1.5f * K), new Vector2(16f * K, 3f * K)), Vector2.left,
-                EarthPlan.WindPush(EarthPlan.MaxLevel), null).gameObject);
-            yield return null;
-            Press(keyboard.dKey, queueEventOnly: true);
-            yield return null;
-            yield return Steps(30);
-            yield return null; // input state is only valid in the dynamic update
-            Release(keyboard.dKey, queueEventOnly: true);
-            yield return null;
-            Assert.Greater(body.position.x, at.x + 1f * K, "Walking into the wind still gets somewhere");
-
-            // Pure: at every level and speed, against the strongest push a hazard may give, the walk still goes forward.
             foreach (float speed in new[] { 6f, 9f, 12f })
             {
                 var worst = new MoveModifier { SpeedMultiplier = 0f, Push = Vector2.left * 10f, Grip = 1f };
                 Vector2 v = PlayerMover.TargetVelocity(Vector2.right, speed, worst);
                 Assert.Greater(v.x, 0f, $"speed {speed}: the clamped worst case still makes headway");
-                for (int level = 1; level <= EarthPlan.MaxLevel; level++)
-                {
-                    var wind = new MoveModifier { SpeedMultiplier = 1f, Push = Vector2.left * EarthPlan.WindPush(level), Grip = 1f };
-                    Assert.Greater(PlayerMover.TargetVelocity(Vector2.right, speed, wind).x, 0.4f * speed, $"level {level}");
-                }
             }
         }
 
@@ -284,16 +242,17 @@ namespace Game.Cube.Tests
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
             var mover = player.GetComponent<PlayerMover>();
-            Track(WindBand.Create(null, default, new Rect(at - new Vector2(3f * K, 3f * K), new Vector2(6f * K, 6f * K)), Vector2.up, 0.3f, null).gameObject);
+            Track(FreezingRain.Create(null, default, new Rect(at - new Vector2(3f * K, 3f * K), new Vector2(6f * K, 6f * K)),
+                EarthPlan.RainSpeed(EarthPlan.MaxLevel), null).gameObject);
             yield return Steps(5);
-            Assert.Greater(body.linearVelocity.y, 1f * K, "With the receiver the wind pushes");
+            Assert.Less(mover.Modifier.SpeedMultiplier, 1f, "With the receiver the rain slows");
 
             Object.Destroy(player.GetComponent<HazardReceiver>());
             yield return null;
             body.position = at;
             yield return Steps(5);
             Assert.IsTrue(mover.Modifier.IsNone, "Without the receiver nothing reaches the mover");
-            Assert.AreEqual(Vector2.zero, body.linearVelocity, "No push without the hook");
+            Assert.AreEqual(Vector2.zero, body.linearVelocity, "Nothing moves the player without the hook");
         }
 
         // ---------- Trial ----------

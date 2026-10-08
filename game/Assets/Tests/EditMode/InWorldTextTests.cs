@@ -55,6 +55,7 @@ namespace Game.Cube.Tests
             yield return ("IslandScreen", IslandScreen.LoneText);
             yield return ("IceScreen", IceScreen.GoalText);
             yield return ("IceSlider", IceSlider.FallText);
+            yield return ("WindScreen", WindScreen.GoalText);
             foreach (string line in MassMitt.AllHudText) yield return ("MassMitt HUD", line);
             foreach (string line in ChemistryIsotope.AllText()) yield return ("ChemistryIsotope", line);
             foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)

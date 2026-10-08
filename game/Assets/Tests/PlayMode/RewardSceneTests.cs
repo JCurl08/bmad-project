@@ -104,7 +104,7 @@ namespace Game.Cube.Tests
                 RewardPlacement plan = world.Rewards;
                 Assert.IsNotNull(plan, $"seed {seed}");
                 Assert.IsEmpty(RewardPlacement.FindProblems(world.Model, world.Layout, world.ItemPlacement, world.HiddenCurrency, plan,
-                    world.Library, PuzzleScreens.RegionsAt(world.GetComponent<MathFace>().Plan, world.Ice), world.PuzzleGoals));
+                    world.Library, PuzzleScreens.RegionsAt(world.GetComponent<MathFace>().Plan, world.Ice, world.Wind), world.PuzzleGoals));
                 int chests = 0;
                 foreach (RewardSpot spot in plan.Spots)
                 {
@@ -147,8 +147,8 @@ namespace Game.Cube.Tests
                     }
                     else if (spot.Where.Kind == RoadblockKind.Puzzle)
                     {
-                        // 4.10: an ice screen's chest stands on its goal pad, shut until the pad is reached.
-                        Assert.IsInstanceOf<IceScreen>(chest.Guard, where);
+                        // 4.10, 4.11: an ice or wind screen's chest stands on its goal pad, shut until the pad is reached.
+                        Assert.IsTrue(chest.Guard is IceScreen || chest.Guard is WindScreen, $"{where}: guarded by its puzzle");
                         Assert.IsFalse(chest.Guard.IsOpen, where);
                         Vector2 goal = world.ScreenCenter(spot.Where.Screen) + world.PuzzleGoals[spot.Where.Slot].Local;
                         Assert.Less(Vector2.Distance(goal, chest.transform.position), 0.01f, where);
@@ -179,7 +179,7 @@ namespace Game.Cube.Tests
             {
                 yield return Reveal(seed);
                 bool OnLand(RewardSpot s) => s.What.Kind == RewardKind.Equipment && s.Where.IsLaneSpot &&
-                                             !world.Layout.Faces[s.Face].IslandCells.Contains(s.Where.Screen.Cell);
+                                             !world.Layout.Faces[s.Face].IsPuzzleCell(s.Where.Screen.Cell);
                 if (world.Rewards.Spots.Any(OnLand))
                 {
                     spot = world.Rewards.Spots.First(OnLand);

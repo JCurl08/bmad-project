@@ -230,6 +230,7 @@ public static class ModuleLibraryBuilder
                 pool.Modules.Add(SaveModule(theme, $"{theme} {Designs[i].Name}", Designs[i], MirrorFor(theme, i), true,
                     sprite, material));
             pool.Modules.Add(SaveTownSquareModule(theme)); // 4.5: the centre's town, after the regular modules
+            if (theme == Theme.EarthAtmosphere) pool.Modules.Add(SaveWindModule(theme)); // 4.11: Earth's wind screens, before the ice
             if (theme == Theme.Math) pool.Modules.Add(SaveIslandModule(theme));
             if (theme == Theme.EarthAtmosphere) pool.Modules.Add(SaveIceModule(theme)); // 4.10: Earth's ice screens
             pools.Add(pool);
@@ -387,6 +388,10 @@ public static class ModuleLibraryBuilder
     /// <summary>An ice screen's module (4.10): only its four exits (the ice, rocks, pits and camp come from EarthFace at the reveal).</summary>
     private static ScreenModule SaveIceModule(Theme theme) =>
         SaveExitsOnlyModule(theme, $"{theme} E Ice", module => module.IsIceScreen = true);
+
+    /// <summary>A wind screen's module (4.11): only its four exits (the sky, islands and streams come from EarthFace at the reveal).</summary>
+    private static ScreenModule SaveWindModule(Theme theme) =>
+        SaveExitsOnlyModule(theme, $"{theme} E Wind", module => module.IsWindScreen = true);
 
     /// <summary>A module with only its four exits, marked by mark (an island, ice or a town screen).</summary>
     private static ScreenModule SaveExitsOnlyModule(Theme theme, string name, Action<ScreenModule> mark)

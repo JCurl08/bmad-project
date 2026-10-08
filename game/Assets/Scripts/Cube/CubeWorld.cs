@@ -161,6 +161,9 @@ namespace Game.Cube
         /// <summary>The run's Earth ice screens (4.10, IcePlan); null until the reveal (or without a layout).</summary>
         public IcePlan Ice { get; private set; }
 
+        /// <summary>The run's Earth wind-stream screens (4.11, WindPlan); null until the reveal (or without a layout).</summary>
+        public WindPlan Wind { get; private set; }
+
         /// <summary>The run's puzzle goals (4.10: the ice screens' goal pads), as RewardPlacement got them; empty until the reveal.</summary>
         public List<PuzzleGoal> PuzzleGoals { get; private set; } = new List<PuzzleGoal>();
 
@@ -238,6 +241,7 @@ namespace Game.Cube
             Repairs = new FaceRepairs();
             Layout = null;
             Ice = null;
+            Wind = null;
             PuzzleGoals = new List<PuzzleGoal>();
             ItemPlacement = null;
             PlannedGateLooks = null;
@@ -275,7 +279,14 @@ namespace Game.Cube
             if (library != null) Layout = CubeLayout.Generate(Model, library);
             else Debug.LogWarning("CubeWorld: no ModuleLibrary assigned; science faces revealed without modules.");
             Ice = IcePlan.Create(Model, Layout, Dice);
-            PuzzleGoals = PuzzleScreens.Goals(Ice);
+            Wind = WindPlan.Create(Model, Layout, Dice);
+            PuzzleGoals = PuzzleScreens.Goals(Ice, Wind);
+            if (Wind != null)
+            {
+                List<string> windProblems = Wind.Problems(Model, library != null && library.WindModuleIndex(Theme.EarthAtmosphere) >= 0);
+                if (windProblems.Count > 0)
+                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s wind screens miss their targets: {string.Join("; ", windProblems)}");
+            }
             if (Ice != null)
             {
                 List<string> iceProblems = Ice.Problems(Model, library != null && library.IslandModuleIndex(Theme.EarthAtmosphere) >= 0);
@@ -338,6 +349,14 @@ namespace Game.Cube
                 int mouth = ice.Mouth(facing.Opposite());
                 for (int f = 0; f < 4 && mouth < 0; f++) mouth = ice.Mouth((Facing)f);
                 return mouth >= 0 ? centre + IceLayout.CellLocal(mouth) : centre;
+            }
+            WindLayout wind = Wind?.At(address);
+            if (wind != null)
+            {
+                // 4.11: on a wind screen, the ring at the doorway behind the arrival facing (else any doorway's).
+                Facing behind = facing.Opposite();
+                for (int f = 0; f < 4 && !wind.HasDoor(behind); f++) behind = (Facing)f;
+                return centre + WindLayout.CellLocal(WindLayout.DoorCell(behind));
             }
             MathFace math = GetComponent<MathFace>();
             IslandLayout islands = math != null && math.Plan != null ? math.Plan.IslandAt(address) : null;

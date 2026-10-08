@@ -92,6 +92,7 @@ public static class CubeSceneBuilder
         // The Earth hazards' way into movement (PlayerMover's one modifier hook); nothing off the Earth face.
         player.AddComponent<HazardReceiver>();
         player.AddComponent<IceSlider>(); // 4.10: tile-by-tile sliding on the Earth ice screens
+        player.AddComponent<WindRider>(); // 4.11: tile-by-tile walking and riding on the Earth wind screens
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
         // Roadblock rewards (4.7): the keys, run boosts and fragment slots the player takes this run.
@@ -313,7 +314,7 @@ public static class CubeSceneBuilder
             if (plan.TrialSpots != null && plan.TrialSpots.Count >= EarthTrial.PieceCount) earthTrials++;
         }
         report += $"Earth: Stormcallers* {rolledWands[0]} quake, {rolledWands[1]} rain, {rolledWands[2]} snow, {rolledWands[3]} tornado; " +
-                  $"{earthGates} gates ({offHomeEarth} off-home, {optionalEarth} optional); hazards {hazardCounts[0]} wind, " +
+                  $"{earthGates} gates ({offHomeEarth} off-home, {optionalEarth} optional); hazards " +
                   $"{hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
                   $"{string.Join(", ", levels.Select(e => $"{e.Key}x{e.Value}"))}; the Earth trial fits on {earthTrials} seeds.\n";
         // 4.10: the ice screens, solver-checked from every doorway, with their difficulty per tier.
@@ -337,11 +338,32 @@ public static class CubeSceneBuilder
         report += $"Ice: {iceStats.Screens} ice screens on {iceSeeds} seeds ({iceTiers[0]} early, {iceTiers[1]} mid, {iceTiers[2]} late), " +
                   $"{iceStats.Missing} without a layout, {iceTemplates} from the fallback template, {iceFailing} seeds failing; every doorway solver-checked; " +
                   $"{(iceStats.Screens > 0 ? iceSteps / iceStats.Screens : 0)} search steps a screen on average.\n" + iceStats.Describe();
+        // 4.11: the wind screens, solver-checked from every doorway, with their difficulty per tier.
+        var windStats = new WindStats();
+        var windTiers = new int[3];
+        int windSeeds = 0, windFailing = 0, windTemplates = 0;
+        long windSteps = 0;
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Wind == null) continue;
+            windSeeds++;
+            if (r.WindProblems != null && r.WindProblems.Count > 0) windFailing++;
+            foreach (WindScreenSpec s in r.Wind.Screens)
+            {
+                windStats.Add(s);
+                windTiers[(int)s.Tier]++;
+                if (s.Layout != null) windSteps += s.Layout.SearchSteps;
+                if (s.Layout != null && s.Layout.FromTemplate) windTemplates++;
+            }
+        }
+        report += $"Wind: {windStats.Screens} wind screens on {windSeeds} seeds ({windTiers[0]} early, {windTiers[1]} mid, {windTiers[2]} late), " +
+                  $"{windStats.Missing} without a layout, {windTemplates} from the fallback template, {windFailing} seeds failing; every doorway solver-checked; " +
+                  $"{(windStats.Screens > 0 ? windSteps / windStats.Screens : 0)} search steps a screen on average.\n" + windStats.Describe();
         report += RewardReport(results, library);
         report += LockReportLine(results);
         int towns = results.Sum(r => r.TownsChecked);
         report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
-                  "module, slot-free, with a sound layout; no gate, pickup, core portal, island screen, trial, flower or hidden spot on it).\n";
+                  "module, slot-free, with a sound layout; no gate, pickup, core portal, puzzle screen, trial, flower or hidden spot on it).\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
     }

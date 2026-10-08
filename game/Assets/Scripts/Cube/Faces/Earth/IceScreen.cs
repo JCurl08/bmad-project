@@ -98,11 +98,13 @@ namespace Game.Cube
         /// The strip between the grid and the edge walls: snowbank, solid, except at each doorway (the mouth, as wide as the
         /// doorway), which is grip leading onto the landing.
         /// </summary>
-        public static List<(Rect Rect, bool Mouth)> StripRects(Func<Facing, bool> hasDoorway)
+        public static List<(Rect Rect, bool Mouth)> StripRects(Func<Facing, bool> hasDoorway) => StripRects(hasDoorway, IceLayout.GridRect);
+
+        /// <summary>The strip round any centred grid (4.11's wind screens share it): solid except each doorway's mouth.</summary>
+        public static List<(Rect Rect, bool Mouth)> StripRects(Func<Facing, bool> hasDoorway, Rect grid)
         {
             Vector2 h = ScreenEdges.Half;
             float t = ScreenEdges.EdgeWallThickness, d = ScreenEdges.DoorwayHalfWidth;
-            Rect grid = IceLayout.GridRect;
             var rects = new List<(Rect, bool)>();
             void Split(Rect r, bool horizontal, bool door)
             {
@@ -138,9 +140,11 @@ namespace Game.Cube
         public const float BankClearance = 0.15f;
 
         /// <summary>The solid part of a strip piece (local): the piece less BankClearance on its side facing the grid.</summary>
-        public static Rect SolidOf(Rect piece)
+        public static Rect SolidOf(Rect piece) => SolidOf(piece, IceLayout.GridRect);
+
+        /// <summary>The solid part of a strip piece round any centred grid.</summary>
+        public static Rect SolidOf(Rect piece, Rect grid)
         {
-            Rect grid = IceLayout.GridRect;
             const float eps = 1e-4f;
             float xMin = piece.xMin, xMax = piece.xMax, yMin = piece.yMin, yMax = piece.yMax;
             if (Mathf.Abs(piece.yMin - grid.yMax) < eps) yMin += BankClearance;

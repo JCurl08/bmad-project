@@ -337,7 +337,7 @@ namespace Game.Cube.Tests
             lines[Voice.Mushroom].UnionWith(Dialogue.CurieLines.Concat(Dialogue.StoneLines).Append(Dialogue.StoneLoreLine).Append(Dialogue.LeaderLine(Race.Mushroom)).Append(Dialogue.QuestLine(Race.Mushroom)));
             lines[Voice.Alien].UnionWith(Dialogue.EinsteinLines.Append(Dialogue.MassMittLine).Append(Dialogue.LeaderLine(Race.Alien)).Append(Dialogue.QuestLine(Race.Alien)));
             lines[Voice.Shape].UnionWith(Dialogue.BridgekeeperLines.Append(Dialogue.IslandLine).Append(Dialogue.GapCrosserLine).Append(Dialogue.LeaderLine(Race.Shape)).Append(Dialogue.QuestLine(Race.Shape)));
-            lines[Voice.Ground].UnionWith(Dialogue.OldDiggerLines.Concat(Dialogue.WandLines).Append(Dialogue.NeutralWandLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
+            lines[Voice.Ground].UnionWith(Dialogue.OldDiggerLines.Concat(Dialogue.WandLines).Append(Dialogue.NeutralWandLine).Append(Dialogue.GripLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
             lines[Voice.Sky].UnionWith(Dialogue.SkyWatcherLines.Append(Dialogue.HazardLine).Append(Dialogue.LeaderLine(Race.Dinosaur)).Append(Dialogue.QuestLine(Race.Dinosaur)));
             // 4.8: every quest (each count and found), repair and mended line, in its leader's voice (the dinosaur's in both).
             lines[Voice.Finch].UnionWith(Dialogue.LeaderQuestLines(Race.Finch));

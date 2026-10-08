@@ -34,6 +34,9 @@ namespace Game.Cube
         /// <summary>The dinosaur that explains the hazards.</summary>
         public const int HazardTeller = 1;
 
+        /// <summary>The dinosaur (a ground one) who tells how a ride on the gusts ends: on a grip rock (4.11).</summary>
+        public const int GripTeller = 2;
+
         /// <summary>The variant dinosaur i is: terrestrial for even i, avian for odd i.</summary>
         public static DinoVariant VariantOf(int i) => i % 2 == 0 ? DinoVariant.Terrestrial : DinoVariant.Avian;
 
@@ -58,6 +61,7 @@ namespace Game.Cube
         {
             if (i == WandTeller) return Dialogue.WandLine(rolled);
             if (i == HazardTeller) return Dialogue.HazardLine;
+            if (i == GripTeller) return Dialogue.GripLine;
             return spec.Variant == DinoVariant.Avian ? Dialogue.SkyWatcherLine(spec.Salt) : Dialogue.OldDiggerLine(spec.Salt);
         }
 

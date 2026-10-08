@@ -41,7 +41,10 @@ namespace Game.Cube
 
         [Tooltip("A town screen's module (4.5, every face's centre): open floor with only its exits; TownSquareView builds the town on it.")]
         [SerializeField] private bool townScreen;
-        [Tooltip("An ice screen's module (4.10, Earth): open floor with only its exits; EarthFace lays its sliding ice puzzle on it.")]        [SerializeField] private bool iceScreen;
+        [Tooltip("An ice screen's module (4.10, Earth): open floor with only its exits; EarthFace lays its sliding ice puzzle on it.")]
+        [SerializeField] private bool iceScreen;
+        [Tooltip("A wind screen's module (4.11, Earth): open floor with only its exits; EarthFace lays its wind-stream puzzle on it.")]
+        [SerializeField] private bool windScreen;
 
         public Theme Theme
         {
@@ -78,8 +81,18 @@ namespace Game.Cube
             set => iceScreen = value;
         }
 
-        /// <summary>True for a whole-screen puzzle's module: Math's islands or Earth's ice.</summary>
-        public bool IsPuzzleScreen => islandScreen || iceScreen;
+        /// <summary>
+        /// True for a wind screen's module (4.11, Earth): only its four exits; the wind-stream puzzle (WindLayout) is laid on it at
+        /// the reveal. It sits just before Earth's ice module and CubeLayout gives it to WindScreensPerFace chosen screens.
+        /// </summary>
+        public bool IsWindScreen
+        {
+            get => windScreen;
+            set => windScreen = value;
+        }
+
+        /// <summary>True for a whole-screen puzzle's module: Math's islands, Earth's ice or wind.</summary>
+        public bool IsPuzzleScreen => islandScreen || iceScreen || windScreen;
 
         public ExitSlot[] Exits => GetComponentsInChildren<ExitSlot>(true);
         public GateSlot[] Gates => GetComponentsInChildren<GateSlot>(true);

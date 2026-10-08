@@ -88,19 +88,27 @@ namespace Game.Cube
             /// <summary>Ice screen problems (IcePlan.Problems: solvable from every doorway inside its tier's targets); null when not checked.</summary>
             public List<string> IceProblems;
 
+            /// <summary>The wind screens that were checked (4.11); null when there was no layout.</summary>
+            public WindPlan Wind;
+
+            /// <summary>Wind screen problems (WindPlan.Problems: solvable from every doorway inside its tier's targets); null when not checked.</summary>
+            public List<string> WindProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
             public bool RewardsChecked => RewardProblems != null;
             public bool LocksChecked => LockProblems != null;
             public bool IceChecked => IceProblems != null;
+            public bool WindChecked => WindProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
                                   (ItemProblems == null || ItemProblems.Count == 0) &&
                                   (HiddenProblems == null || HiddenProblems.Count == 0) &&
                                   (RewardProblems == null || RewardProblems.Count == 0) &&
                                   (LockProblems == null || LockProblems.Count == 0) &&
-                                  (IceProblems == null || IceProblems.Count == 0);
+                                  (IceProblems == null || IceProblems.Count == 0) &&
+                                  (WindProblems == null || WindProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -359,8 +367,12 @@ namespace Game.Cube
                     IcePlan ice = IcePlan.Create(model, layout);
                     result.Ice = ice;
                     result.IceProblems = ice != null ? ice.Problems(model, catalog.IslandModuleIndex(Theme.EarthAtmosphere) >= 0) : new List<string>();
-                    List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice);
-                    Func<ScreenAddress, IScreenRegions> regionsAt = PuzzleScreens.RegionsAt(null, ice);
+                    // 4.11: and its wind screens, the same way.
+                    WindPlan wind = WindPlan.Create(model, layout);
+                    result.Wind = wind;
+                    result.WindProblems = wind != null ? wind.Problems(model, catalog.WindModuleIndex(Theme.EarthAtmosphere) >= 0) : new List<string>();
+                    List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice, wind);
+                    Func<ScreenAddress, IScreenRegions> regionsAt = PuzzleScreens.RegionsAt(null, ice, wind);
                     if (catalog is IGateSlotCatalog gateCatalog)
                     {
                         List<Theme> items = ItemPlacement.RunItems(layout, itemThemes);
@@ -368,7 +380,7 @@ namespace Game.Cube
                         result.Placement = placement;
                         Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
                         islands = moduleAt != null ? MathPlan.Create(model, placement, moduleAt) : null;
-                        regionsAt = PuzzleScreens.RegionsAt(islands, ice);
+                        regionsAt = PuzzleScreens.RegionsAt(islands, ice, wind);
                         result.ItemProblems = FindItemProblems(model, placement, items, regionsAt);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
@@ -465,8 +477,7 @@ namespace Game.Cube
                 int town = catalog != null ? catalog.TownModuleIndex(fl.Theme) : -1;
                 if (town >= 0 && fl.ModuleAt(cell) != town) problems.Add($"{face} ({fl.Theme}): the centre is not its town");
                 if (fl.CoreCell == cell) problems.Add($"{face} ({fl.Theme}): the core portal is in the town");
-                foreach (Vector2Int island in fl.IslandCells)
-                    if (island == cell) problems.Add($"{face} ({fl.Theme}): an island screen is the town");
+                if (fl.IsPuzzleCell(cell)) problems.Add($"{face} ({fl.Theme}): a puzzle screen is the town");
                 ScreenModule module = moduleAt?.Invoke(new ScreenAddress(face, cell));
                 if (module != null)
                 {
@@ -524,7 +535,7 @@ namespace Game.Cube
         {
             var failures = new StringBuilder();
             int total = 0, failed = 0;
-            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false;
+            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false, windChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -534,6 +545,7 @@ namespace Game.Cube
                 rewardsChecked |= r.RewardsChecked;
                 locksChecked |= r.LocksChecked;
                 iceChecked |= r.IceChecked && r.Ice != null && r.Ice.Screens.Count > 0;
+                windChecked |= r.WindChecked && r.Wind != null && r.Wind.Screens.Count > 0;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -557,6 +569,9 @@ namespace Game.Cube
                 if (r.IceProblems != null && r.IceProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": ice ")
                         .AppendLine(string.Join("; ", r.IceProblems));
+                if (r.WindProblems != null && r.WindProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": wind ")
+                        .AppendLine(string.Join("; ", r.WindProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -568,7 +583,7 @@ namespace Game.Cube
                         "the gap-crosser* opening a gate on another face, Math's island screens never fully joined yet never " +
                         "stranding the player, every item collected doorway by doorway, the Math trial island reachable, the rolled Stormcaller* opening a gate on another face, hazards that never " +
                         "block a way or trap the player, the calm eye at the centre, the Earth trial fitting, every face's centre its " +
-                        "town with no gate, pickup, core portal, island screen, trial, flower or hidden spot on it";
+                        "town with no gate, pickup, core portal, puzzle screen, trial, flower or hidden spot on it";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";
             if (rewardsChecked)
@@ -576,6 +591,8 @@ namespace Game.Cube
                         "and the other faces 2-6, every face numbered k holding fragments 1..k, its key and boost) and no empty screen";
             if (iceChecked)
                 what += ", every Earth ice screen solvable from each of its doorways inside its tier's targets with no hard traps";
+            if (windChecked)
+                what += ", every Earth wind screen solvable from each of its doorways inside every built target of its tier (fan switches not built) with no hard traps";
             if (locksChecked)
                 what += ", every face-edge arch locked (a key or an item) with no order of spending keys soft-locking a screen, " +
                         "island, item, fragment, key or core portal, and at least two edges able to be opened first";

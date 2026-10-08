@@ -227,18 +227,18 @@ namespace Game.Cube.Tests
             yield return Load();
             int seed = 4;
             yield return StartRunOntoEarth(seed);
-            while (!earth.Zones.OfType<WindBand>().Any() && seed < 20) yield return StartRunOntoEarth(++seed);
+            while (!earth.Zones.OfType<FreezingRain>().Any() && seed < 20) yield return StartRunOntoEarth(++seed);
             EarthPlan plan = earth.Plan;
             var receiver = navigator.GetComponent<HazardReceiver>();
 
-            // In a wind band on Earth: pushed.
-            WindBand band = earth.Zones.OfType<WindBand>().First();
+            // In freezing rain on Earth: slowed (4.11: the wind bands are gone, wind is the wind screens now).
+            FreezingRain band = earth.Zones.OfType<FreezingRain>().First();
             yield return PutPlayerAt(band.Screen, FreePointIn(band.Area));
             Assert.IsTrue(receiver.Applies, "On Earth the hazards apply");
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
-            Assert.IsFalse(mover.Modifier.IsNone, "In the band the wind reaches the mover");
-            Assert.Greater(Vector2.Dot(body.linearVelocity, band.Direction), 0.5f * K, "Pushed along the band");
+            Assert.IsFalse(mover.Modifier.IsNone, "In the rain the hazard reaches the mover");
+            Assert.Less(mover.Modifier.SpeedMultiplier, 1f, "Slowed by the rain");
             Assert.AreEqual(TimeField.BasePlayerSpeed, mover.EffectiveSpeed, 1e-4f, "EffectiveSpeed (the Physics doors' maths) is untouched");
 
             // The calm eye: nothing.

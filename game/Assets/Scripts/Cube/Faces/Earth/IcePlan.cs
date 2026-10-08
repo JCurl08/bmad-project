@@ -171,23 +171,30 @@ namespace Game.Cube
         }
     }
 
-    /// <summary>The whole-screen puzzles' regions and goals together (Math's islands, Earth's ice; 4.11 adds wind here).</summary>
+    /// <summary>The whole-screen puzzles' regions and goals together (Math's islands, Earth's ice and 4.11 wind).</summary>
     public static class PuzzleScreens
     {
         /// <summary>The regions of every puzzle screen (null for an ordinary screen), for DoorwayReach.</summary>
-        public static Func<ScreenAddress, IScreenRegions> RegionsAt(MathPlan math, IcePlan ice)
+        public static Func<ScreenAddress, IScreenRegions> RegionsAt(MathPlan math, IcePlan ice, WindPlan wind = null)
         {
-            if (math == null && ice == null) return null;
+            if (math == null && ice == null && wind == null) return null;
             return screen =>
             {
                 IScreenRegions islands = math?.IslandAt(screen);
                 if (islands != null) return islands;
-                return ice?.At(screen);
+                IScreenRegions slides = ice?.At(screen);
+                if (slides != null) return slides;
+                return wind?.At(screen);
             };
         }
 
-        /// <summary>Every puzzle screen's reward roadblock (4.7 PuzzleGoals), for RewardPlacement.</summary>
-        public static List<PuzzleGoal> Goals(IcePlan ice) => ice != null ? ice.Goals() : new List<PuzzleGoal>();
+        /// <summary>Every puzzle screen's reward roadblock (4.7 PuzzleGoals), for RewardPlacement: the ice goals, then the wind ones.</summary>
+        public static List<PuzzleGoal> Goals(IcePlan ice, WindPlan wind = null)
+        {
+            var goals = ice != null ? ice.Goals() : new List<PuzzleGoal>();
+            if (wind != null) goals.AddRange(wind.Goals());
+            return goals;
+        }
     }
 
     /// <summary>The difficulty the sweep reports per tier (4.10): each metric's least, mean and most over the ice screens it saw.</summary>

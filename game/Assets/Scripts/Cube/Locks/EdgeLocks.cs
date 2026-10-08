@@ -261,10 +261,11 @@ namespace Game.Cube
             HiddenCurrencyPlacement hidden = HiddenCurrencyPlacement.Generate(model, layout, library);
             DieNumbers dice = DieNumbers.Roll(model);
             IcePlan ice = IcePlan.Create(model, layout, dice);
-            List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice);
+            WindPlan wind = WindPlan.Create(model, layout, dice);
+            List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice, wind);
             RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, puzzles, dice);
             MathPlan math = MathPlan.Create(model, placement, SeedSweep.ModuleLookup(layout, library));
-            return Generate(new LockWorld(model, layout, placement, rewards, PuzzleScreens.RegionsAt(math, ice), puzzles));
+            return Generate(new LockWorld(model, layout, placement, rewards, PuzzleScreens.RegionsAt(math, ice, wind), puzzles));
         }
     }
 
