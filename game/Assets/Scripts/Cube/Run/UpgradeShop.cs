@@ -145,7 +145,7 @@ namespace Game.Cube
             int cost = Cost(level);
             if (save.Balance < cost)
                 return new PurchaseResult(PurchaseOutcome.NotEnough, stat, level, cost,
-                    $"Not enough {InWorldText.Currency} for {Name(stat)} ({save.Balance}/{cost}). The {InWorldText.Demon} calls that \"balanced\".");
+                    $"Not enough {InWorldText.Currency} for {Name(stat)} ({save.Balance}/{cost}). {NpcNames.Demon} calls that \"balanced\".");
             save.Balance -= cost;
             save.SetUpgradeLevel(Id(stat), level + 1);
             return new PurchaseResult(PurchaseOutcome.Bought, stat, level + 1, cost,

@@ -399,7 +399,7 @@ namespace Game.Cube.Tests
                         CollectionAssert.Contains(Dialogue.DarwinLines, lines[0]);
                         CollectionAssert.DoesNotContain(lines, Dialogue.BeakLines[0]);
                     }
-                    Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                    Hint hint = HintGenerator.For(spec, facts, HintDensity.Sparse)[0];
                     Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                     foreach (string line in lines)
                         StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
@@ -407,8 +407,8 @@ namespace Game.Cube.Tests
             }
             StringAssert.Contains("thin", Dialogue.BeakLine(true));
             StringAssert.Contains("thick", Dialogue.BeakLine(false));
-            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains("Find your perch and keep it!")));
-            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains(InWorldText.OldFledgling)), "The patron, by its placeholder name");
+            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains("Find thy perch and keep it!")));
+            Assert.IsTrue(Dialogue.DarwinLines.Any(l => l.Contains(NpcNames.FinchPatron)), "The patron, by its chosen name");
         }
     }
 }

@@ -370,7 +370,7 @@ namespace Game.Cube.Tests
 
                 // The hint line (after the flavour line) must be sparse and true for what the world actually built:
                 // its pickups, gates, core entrances and faces.
-                List<Hint> hints = HintGenerator.Generate(facts, finch.Spec.HintKind, finch.Spec.Salt, HintGenerator.FirstRunDensity);
+                List<Hint> hints = HintGenerator.For(finch.Spec, facts, HintGenerator.FirstRunDensity);
                 Assert.AreEqual(HintGenerator.SparseCount, hints.Count, "First-run hints are sparse");
                 Assert.AreEqual(hints[0].Text, lines[1], $"finch {i}: its hint line");
                 foreach (Hint hint in hints) AssertHintTrueInWorld(hint, $"finch {i}");

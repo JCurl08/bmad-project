@@ -655,7 +655,7 @@ namespace Game.Cube.Tests
                     if (i == MathPopulation.IslandTeller) Assert.AreEqual(Dialogue.IslandLine, lines[0]);
                     else if (i == MathPopulation.GapTeller) Assert.AreEqual(Dialogue.GapCrosserLine, lines[0]);
                     else CollectionAssert.Contains(Dialogue.BridgekeeperLines, lines[0]);
-                    Assert.AreEqual(HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Full)[0].Text, lines[1]);
+                    Assert.AreEqual(HintGenerator.For(spec, facts, HintDensity.Full)[0].Text, lines[1]);
                 }
             }
             StringAssert.Contains("doorway", Dialogue.IslandLine);
@@ -720,30 +720,15 @@ namespace Game.Cube.Tests
                 StringAssert.DoesNotContain(Dialogue.ForbiddenWord, lower, text);
             }
 
-            // Proper names: a capitalised word that does not start a sentence is a name, and names carry a star.
-            var notNames = new HashSet<string> { "I", "I'm", "I'll", "I've", "I'd" };
+            // Proper names: a capitalised word that does not start a sentence is a name, and names carry a star, except the
+            // chosen character names (4.4: NpcNames), by the shared rule.
             foreach (string text in strings)
-            {
-                string[] words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i < words.Length; i++)
-                {
-                    string word = words[i].TrimStart('.', '"', '\'', '(', '+', '*');
-                    if (word.Length == 0 || !char.IsUpper(word[0])) continue;
-                    string prev = i > 0 ? words[i - 1].TrimEnd('\'', '"', '*', ')') : "";
-                    bool sentenceStart = i == 0 || (prev.Length > 0 && ".!?:".IndexOf(prev[prev.Length - 1]) >= 0);
-                    int end = 0;
-                    while (end < word.Length && (char.IsLetter(word[end]) || word[end] == '\'' || word[end] == '-')) end++;
-                    string core = word.Substring(0, end);
-                    bool starred = end < word.Length && word[end] == '*';
-                    if (sentenceStart || notNames.Contains(core)) continue;
-                    Assert.IsTrue(starred, $"\"{core}\" looks like a name without its star in \"{text}\"");
-                }
-            }
+                CollectionAssert.IsEmpty(InWorldText.UnstarredNames(text), $"A name without its star in \"{text}\"");
 
             // Placeholder names carry a trailing star wherever they appear.
             StringAssert.EndsWith("*", GapCrosserItem.Name);
             foreach (string text in strings)
-                foreach (string bare in new[] { "Bridgekeeper", "Gap-Crosser" })
+                foreach (string bare in new[] { "Gap-Crosser" })
                 {
                     int at = text.IndexOf(bare, StringComparison.Ordinal);
                     while (at >= 0)
@@ -753,7 +738,7 @@ namespace Game.Cube.Tests
                         at = text.IndexOf(bare, after, StringComparison.Ordinal);
                     }
                 }
-            StringAssert.Contains("Bridgekeeper*", string.Join(" ", Dialogue.BridgekeeperLines));
+            StringAssert.Contains(NpcNames.ShapePatron, string.Join(" ", Dialogue.BridgekeeperLines));
         }
     }
 }

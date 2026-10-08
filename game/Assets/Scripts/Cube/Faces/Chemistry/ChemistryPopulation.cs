@@ -7,7 +7,7 @@ namespace Game.Cube
     /// come from the run seed (NpcFactory.ChooseParts with IndexBase + i), and each talks with a flavour line, then its
     /// first hint, true for the run (RunFacts): two lines. Mushroom 0 names this visit's stone (the rolled stone and what
     /// it does, so it is true too), mushroom 1 tells the lore of the stones changing between visits, and the rest say a
-    /// Glowmother* line.
+    /// line about their patron, Mother Glimmercap (NpcNames.MushroomPatron), all in the mushroom voice.
     /// </summary>
     public static class ChemistryPopulation
     {
@@ -38,6 +38,6 @@ namespace Game.Cube
 
         /// <summary>The lines mushroom i says: its flavour line (FlavourFor), then its first hint.</summary>
         public static List<string> LinesFor(NpcSpec spec, RunFacts facts, HintDensity density, IsotopeStage stage, int i) =>
-            Dialogue.Conversation(FlavourFor(spec, stage, i), HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density));
+            Dialogue.Conversation(FlavourFor(spec, stage, i), HintGenerator.For(spec, facts, density));
     }
 }

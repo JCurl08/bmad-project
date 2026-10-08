@@ -92,7 +92,7 @@ namespace Game.Cube
         public static List<NpcSpec> Specs(int seed, int faceSize)
         {
             int townsfolk = TownsfolkCount(seed, faceSize);
-            var specs = new List<NpcSpec> { TownsfolkParts(seed, 0) };
+            var specs = new List<NpcSpec> { TownsfolkParts(seed, 0).Named(NpcNames.Greeter, NpcNames.GreeterKind) };
             foreach (Race race in FaceRaces)
                 specs.Add(NpcFactory.ChooseParts(seed, race, IndexBase));
             for (int i = 1; i < townsfolk; i++)

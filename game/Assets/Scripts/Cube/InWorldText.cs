@@ -6,8 +6,9 @@ namespace Game.Cube
     /// <summary>
     /// The one place the subtle-science text rule lives (lore-and-tone.md). Characters never know they stand for a science:
     /// in-world text never names a real scientist and never uses a face theme's science words. Faces go by in-world region
-    /// names, patrons by in-world titles, and every invented name that the naming brainstorm has not chosen yet carries a
-    /// trailing "*" (only Town and the Partition are chosen). The text sources (Dialogue, HintGenerator, the HUDs, the item
+    /// names, and every invented region or item name that the naming brainstorm has not chosen yet carries a trailing "*"
+    /// (Town and the Partition are chosen). Characters (4.4) have chosen names, unstarred (NpcNames): every word of a
+    /// character's name reads as chosen here. The text sources (Dialogue, HintGenerator, the HUDs, the item
     /// names, the between-runs screen) take their names from here, and the shared scan test checks them all with Problems.
     /// Code identifiers and comments may keep the science names; only what the player reads follows the rule.
     /// </summary>
@@ -33,37 +34,19 @@ namespace Game.Cube
         /// <summary>The Earth and Atmosphere face's region (placeholder).</summary>
         public const string Wildlands = "Wildlands*";
 
-        /// <summary>The boss (placeholder; never "Maxwell").</summary>
-        public const string Demon = "Demon*";
+        /// <summary>
+        /// The boss's title: a chosen character name since 4.4, so no star (never "Maxwell"). Its own name is
+        /// NpcNames.Demon; patrons, leaders and every other character are named in NpcNames.
+        /// </summary>
+        public const string Demon = NpcNames.DemonTitle;
 
-        /// <summary>The finches' patron (placeholder; Darwin-inspired, never named).</summary>
-        public const string OldFledgling = "Old Fledgling*";
-
-        /// <summary>The mushroom people's patron (placeholder; Curie-inspired, never named).</summary>
-        public const string Glowmother = "Glowmother*";
-
-        /// <summary>The alien people's patron (placeholder; Einstein-inspired, never named).</summary>
-        public const string Timekeeper = "Timekeeper*";
-
-        /// <summary>The shape people's patron (placeholder; Euler-inspired, never named).</summary>
-        public const string Bridgekeeper = "Bridgekeeper*";
-
-        /// <summary>The terrestrial dinosaurs' patron (placeholder; Anning-inspired, never named).</summary>
-        public const string OldDigger = "Old Digger*";
-
-        /// <summary>The avian dinosaurs' patron (placeholder; Richter- and weather-inspired, never named).</summary>
-        public const string SkyWatcher = "Sky-Watcher*";
-
-        /// <summary>An old mushroom of the Ember Vale*, half a skeleton already (placeholder).</summary>
-        public const string Marcel = "Marcel*";
-
-        /// <summary>The apple cameo on the Weightlands* (placeholder; Newton-inspired, never named).</summary>
-        public const string AppleSage = "apple-bonked sage*";
+        /// <summary>The boss as the text names it: its name and title ("Primsworth the Demon").</summary>
+        public const string DemonFull = NpcNames.DemonFull;
 
         /// <summary>The meta currency (placeholder).</summary>
         public const string Currency = "Jumbles*";
 
-        /// <summary>Proper names that have been chosen (they carry no star).</summary>
+        /// <summary>Proper place and event names that have been chosen (they carry no star). Characters: NpcNames.</summary>
         public static readonly IReadOnlyList<string> ChosenNames = new[] { "Town", "Partition" };
 
         /// <summary>
@@ -90,7 +73,7 @@ namespace Game.Cube
                 yield return Region(theme);
         }
 
-        /// <summary>Every placeholder name, starred (regions, patrons, the Demon*, the currency).</summary>
+        /// <summary>Every placeholder name, starred (the regions and the currency; characters are named in NpcNames, unstarred).</summary>
         public static IEnumerable<string> Placeholders()
         {
             yield return Greenwood;
@@ -98,15 +81,6 @@ namespace Game.Cube
             yield return Weightlands;
             yield return Bridgelands;
             yield return Wildlands;
-            yield return Demon;
-            yield return OldFledgling;
-            yield return Glowmother;
-            yield return Timekeeper;
-            yield return Bridgekeeper;
-            yield return OldDigger;
-            yield return SkyWatcher;
-            yield return AppleSage;
-            yield return Marcel;
             yield return Currency;
         }
 
@@ -148,13 +122,16 @@ namespace Game.Cube
         public const string ForbiddenWord = "sort";
 
         /// <summary>
-        /// Capitalised words that are not names (sentence-style UI labels, shouts, the pronoun I), so the placeholder rule
+        /// Capitalised words that are not names (sentence-style UI labels, a short list of shouted interjections, the
+        /// pronoun I), so the placeholder rule
         /// skips them. Everything else capitalised mid-sentence is read as a proper name.
         /// </summary>
         public static readonly HashSet<string> NotNames = new HashSet<string>
         {
             "I", "I'm", "I'll", "I've", "I'd", "RAWR", "SKRAW", "VICTORY", "MAXED", "Lv", "Victories", "Buy", "Interact", "Esc",
             "Enter", "Tab", "M",
+            // Shouted interjections (4.4): the only capitals-only words allowed mid-sentence. Other emphasis uses *stars*.
+            "CLANG", "BOOM",
         };
 
         private static readonly List<Regex> BannedPatterns = Build();
@@ -186,15 +163,20 @@ namespace Game.Cube
 
         /// <summary>
         /// Proper names in a text that lack their placeholder star: a capitalised word that does not start a sentence is a
-        /// name (unless it is a chosen name or in NotNames); a name runs on over capitalised words ("Old Digger*") and its
-        /// last word carries the star. Placeholders that appear lower-case (the apple-bonked sage*) are checked by
-        /// MissingKnownStars.
+        /// name (unless it is a chosen place name or in NotNames); a name runs on over capitalised words ("Ember Vale*") and
+        /// its last word carries the star. Character names (4.4, NpcNames) are chosen, but only as whole names: a word is
+        /// skipped only where the full name phrase stands ("Queen Wrennifer", "Primsworth the Demon"), with the numeral a
+        /// repeated name may carry ("Pipwick II"); a lone "Queen" or "Old" is still a name that needs its star. Placeholders
+        /// that appear lower-case (the greenwood*) are checked by MissingKnownStars.
         /// </summary>
         public static List<string> UnstarredNames(string text)
         {
             var found = new List<string>();
             if (string.IsNullOrEmpty(text)) return found;
             string[] words = text.Split(new[] { ' ', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
+            string[] cores = new string[words.Length];
+            for (int i = 0; i < words.Length; i++) cores[i] = Core(words[i]);
+            bool[] named = CharacterNameWords(cores);
             for (int i = 0; i < words.Length; i++)
             {
                 string word = words[i].TrimStart('.', '"', '\'', '(', '+', '*', '[', '-');
@@ -202,19 +184,49 @@ namespace Game.Cube
                 string prev = i > 0 ? words[i - 1].TrimEnd('\'', '"', '*', ')', ']') : "";
                 bool sentenceStart = i == 0 || prev.Length == 0 || SentenceEnds.IndexOf(prev[prev.Length - 1]) >= 0 ||
                                      words[i].StartsWith("(");
-                int end = 0;
-                while (end < word.Length && (char.IsLetter(word[end]) || word[end] == '\'' || word[end] == '-')) end++;
-                string core = word.Substring(0, end);
-                if (core.EndsWith("'s")) core = core.Substring(0, core.Length - 2);
-                if (sentenceStart || NotNames.Contains(core) || IsChosen(core)) continue;
+                string core = cores[i];
+                if (sentenceStart || named[i] || NotNames.Contains(core) || IsChosen(core)) continue;
                 int last = i;
-                while (!words[last].Contains("*") && last + 1 < words.Length && words[last + 1].Length > 0 && char.IsUpper(words[last + 1][0]))
+                while (!words[last].Contains("*") && last + 1 < words.Length && words[last + 1].Length > 0 &&
+                       char.IsUpper(words[last + 1][0]) && !named[last + 1])
                     last++;
                 if (!words[last].Contains("*")) found.Add(core);
                 i = last;
             }
             found.AddRange(MissingKnownStars(text));
             return found;
+        }
+
+        /// <summary>A word's letters (apostrophes and hyphens kept), without leading punctuation or a trailing "'s".</summary>
+        private static string Core(string word)
+        {
+            word = word.TrimStart('.', '"', '\'', '(', '+', '*', '[', '-');
+            int end = 0;
+            while (end < word.Length && (char.IsLetter(word[end]) || word[end] == '\'' || word[end] == '-')) end++;
+            string core = word.Substring(0, end);
+            if (core.EndsWith("'s")) core = core.Substring(0, core.Length - 2);
+            return core.TrimEnd('\'');
+        }
+
+        /// <summary>Which words belong to a whole character name (NpcNames.Phrases), with a numeral right after it.</summary>
+        private static bool[] CharacterNameWords(string[] cores)
+        {
+            var named = new bool[cores.Length];
+            for (int i = 0; i < cores.Length; i++)
+            {
+                foreach (string[] phrase in NpcNames.Phrases())
+                {
+                    if (i + phrase.Length > cores.Length) continue;
+                    bool match = true;
+                    for (int k = 0; k < phrase.Length && match; k++) match = cores[i + k] == phrase[k];
+                    if (!match) continue;
+                    for (int k = 0; k < phrase.Length; k++) named[i + k] = true;
+                    int after = i + phrase.Length;
+                    if (after < cores.Length && NpcNames.IsNumeral(cores[after])) named[after] = true;
+                    break;
+                }
+            }
+            return named;
         }
 
         private static bool IsChosen(string core)

@@ -464,7 +464,7 @@ namespace Game.Cube.Tests
                     }
                     else if (i == ChemistryPopulation.LoreTeller) Assert.AreEqual(Dialogue.StoneLoreLine, lines[0]);
                     else CollectionAssert.Contains(Dialogue.CurieLines, lines[0]);
-                    Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                    Hint hint = HintGenerator.For(spec, facts, HintDensity.Sparse)[0];
                     Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                 }
             }
@@ -514,32 +514,19 @@ namespace Game.Cube.Tests
                 StringAssert.DoesNotContain(Dialogue.ForbiddenWord, lower, text);
             }
 
-            // Proper names: a capitalised word that does not start a sentence is a name, and names carry a star.
-            var notNames = new HashSet<string> { "I", "I'm", "I'll", "I've", "I'd" };
+            // Proper names: a capitalised word that does not start a sentence is a name, and names carry a star, except the
+            // chosen character names (4.4: NpcNames), by the shared rule.
             foreach (string text in strings)
-            {
-                string[] words = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i < words.Length; i++)
-                {
-                    string word = words[i].TrimStart('.', '"', '\'', '(', '+', '*');
-                    if (word.Length == 0 || !char.IsUpper(word[0])) continue;
-                    bool sentenceStart = i == 0 || ".!?:".IndexOf(words[i - 1][words[i - 1].Length - 1]) >= 0;
-                    int end = 0;
-                    while (end < word.Length && (char.IsLetter(word[end]) || word[end] == '\'' || word[end] == '-')) end++;
-                    string core = word.Substring(0, end);
-                    bool starred = end < word.Length && word[end] == '*';
-                    if (sentenceStart || notNames.Contains(core)) continue;
-                    Assert.IsTrue(starred, $"\"{core}\" looks like a name without its star in \"{text}\"");
-                }
-            }
-            StringAssert.Contains("Marcel*", string.Join(" ", Dialogue.Flavours[Race.Mushroom].Rumours));
+                CollectionAssert.IsEmpty(InWorldText.UnstarredNames(text), $"A name without its star in \"{text}\"");
+            StringAssert.Contains(NpcNames.OldMushroom, string.Join(" ", Dialogue.Flavours[Voice.Mushroom].Rumours));
+            StringAssert.Contains(NpcNames.MushroomPatron, string.Join(" ", Dialogue.CurieLines));
 
-            // Placeholder names: every stone, the base item and the patron carry a trailing star wherever they appear.
+            // Placeholder names: every stone and the base item carry a trailing star wherever they appear.
             var names = ChemistryIsotope.VariantOrder.Select(ChemistryIsotope.StageName).Append(ChemistryIsotope.Name).ToList();
             foreach (string name in names) StringAssert.EndsWith("*", name);
             foreach (string text in strings)
             {
-                foreach (string bare in names.Select(n => n.TrimEnd('*')).Append("Glowmother").Append("Marcel"))
+                foreach (string bare in names.Select(n => n.TrimEnd('*')))
                 {
                     int at = text.IndexOf(bare, System.StringComparison.Ordinal);
                     while (at >= 0)

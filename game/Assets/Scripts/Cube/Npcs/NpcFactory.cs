@@ -23,9 +23,22 @@ namespace Game.Cube
         /// <summary>True for a race's leader (4.5's quest-givers): drawn with its race's leader design.</summary>
         public bool IsLeader { get; }
 
-        public NpcSpec(int seed, Race race, int index, NpcPart head, NpcPart torso, NpcPart legs, uint salt, bool leader = false)
+        /// <summary>
+        /// The character's name (4.4): chosen, so no "*". A generic NPC's comes from its voice's seeded pool (NpcNames.For),
+        /// a leader's and the special characters' are fixed (NpcNames). Never part of the Signature.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>A label in place of the race and role ("greeter"), or null.</summary>
+        public string KindOverride { get; }
+
+        public NpcSpec(int seed, Race race, int index, NpcPart head, NpcPart torso, NpcPart legs, uint salt, bool leader = false,
+            string name = null, string kind = null)
         {
             IsLeader = leader;
+            KindOverride = kind;
+            Name = name ?? (leader ? NpcNames.Leader(race) : NpcNames.For(seed, race,
+                head.Variant != DinoVariant.None ? head.Variant : torso.Variant, NpcNames.OffsetOf(index), NpcNames.OrdinalOf(index)));
             Seed = seed;
             Race = race;
             Index = index;
@@ -39,24 +52,42 @@ namespace Game.Cube
         public NpcRole Role => Torso.Role;
         public Movement Movement => Legs.Movement;
 
-        /// <summary>Dinosaurs take their variant from the head (then torso); other races have none.</summary>
-        public DinoVariant Variant => Head.Variant != DinoVariant.None ? Head.Variant : Torso.Variant;
+        /// <summary>
+        /// Dinosaurs take their variant from the head (then torso); other races have none. The dinosaur leader, Chief
+        /// Rockjaw, is always terrestrial (its look, voice and label), whatever its parts.
+        /// </summary>
+        public DinoVariant Variant => IsLeader && Race == Race.Dinosaur
+            ? DinoVariant.Terrestrial
+            : Head.Variant != DinoVariant.None ? Head.Variant : Torso.Variant;
 
-        /// <summary>The speaker name the dialogue box shows, sentence case ("Finch merchant", "Avian dinosaur gossip", "Finch leader").</summary>
-        public string DisplayName => $"{RaceName(Race, Variant)} {(IsLeader ? "leader" : RoleName(Role).ToLowerInvariant())}";
+        /// <summary>The kind of character, lower case ("finch merchant", "avian dinosaur gossip", "finch leader").</summary>
+        public string Kind => KindOverride ??
+            $"{RaceName(Race, Variant).ToLowerInvariant()} {(IsLeader ? "leader" : RoleName(Role).ToLowerInvariant())}";
 
-        /// <summary>The same NPC marked as its race's leader (drawn with the leader design). NpcFactory.ChooseLeader gives a
-        /// leader from its own index space; this keeps the parts and salt as they are.</summary>
+        /// <summary>The speaker name the dialogue box shows: the name, then the kind ("Pipwick the finch merchant",
+        /// "Queen Wrennifer the finch leader").</summary>
+        public string DisplayName => $"{Name} the {Kind}";
+
+        /// <summary>The voice this NPC speaks in (its race's; a dinosaur's by its variant).</summary>
+        public Voice Voice => Voices.Of(Race, Variant);
+
+        /// <summary>The same NPC marked as its race's leader (drawn with the leader design, named as the leader).
+        /// NpcFactory.ChooseLeader gives a leader from its own index space; this keeps the parts and salt as they are.</summary>
         public NpcSpec AsLeader() => new NpcSpec(Seed, Race, Index, Head, Torso, Legs, Salt, true);
+
+        /// <summary>The same NPC under another name (the greeter, the cameos, the dinosaurs' per-kind names), and optionally
+        /// another label ("greeter").</summary>
+        public NpcSpec Named(string name, string kind = null) =>
+            new NpcSpec(Seed, Race, Index, Head, Torso, Legs, Salt, IsLeader, name, kind ?? KindOverride);
 
         /// <summary>The same NPC with one part swapped (tests and later part-swapping mechanics).</summary>
         public NpcSpec With(NpcPart part)
         {
             switch (part.Slot)
             {
-                case PartSlot.Head: return new NpcSpec(Seed, Race, Index, part, Torso, Legs, Salt, IsLeader);
-                case PartSlot.Torso: return new NpcSpec(Seed, Race, Index, Head, part, Legs, Salt, IsLeader);
-                default: return new NpcSpec(Seed, Race, Index, Head, Torso, part, Salt, IsLeader);
+                case PartSlot.Head: return new NpcSpec(Seed, Race, Index, part, Torso, Legs, Salt, IsLeader, Name, KindOverride);
+                case PartSlot.Torso: return new NpcSpec(Seed, Race, Index, Head, part, Legs, Salt, IsLeader, Name, KindOverride);
+                default: return new NpcSpec(Seed, Race, Index, Head, Torso, part, Salt, IsLeader, Name, KindOverride);
             }
         }
 

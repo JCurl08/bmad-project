@@ -123,10 +123,11 @@ namespace Game.Cube.Tests
                 Phenomenon wand = StormcallerItem.KindOf(catalog.ItemFor(Theme.EarthAtmosphere, seed)) ?? Phenomenon.Quake;
                 foreach (HintDensity density in new[] { HintDensity.Sparse, HintDensity.Full })
                 {
+                    foreach (Voice voice in Voices.All) // 4.4: hints in every voice
                     foreach (HintKind kind in Enum.GetValues(typeof(HintKind)))
                         for (uint salt = 0; salt < 12; salt++)
-                            foreach (Hint h in HintGenerator.Generate(facts, kind, salt, density))
-                                yield return ($"Hint (seed {seed})", h.Text);
+                            foreach (Hint h in HintGenerator.Generate(facts, kind, salt, density, voice))
+                                yield return ($"Hint {voice} (seed {seed})", h.Text);
                     foreach (NpcSpec spec in TownPlan.Specs(seed, n))
                     {
                         List<string> lines = Dialogue.For(spec, facts, density);
@@ -170,7 +171,11 @@ namespace Game.Cube.Tests
                 // Leaders (4.3, spawned by 4.5): a few per race, so both dinosaur kinds turn up.
                 foreach (Race race in RaceExtensions.All)
                     for (int i = 0; i < 4; i++)
-                        yield return ("Speaker", NpcFactory.ChooseLeader(seed, race, i).DisplayName);
+                    {
+                        NpcSpec leader = NpcFactory.ChooseLeader(seed, race, i);
+                        yield return ("Speaker", leader.DisplayName);
+                        foreach (string line in Dialogue.For(leader, facts, HintDensity.Full)) yield return ($"Leader (seed {seed})", line);
+                    }
             }
         }
 
@@ -203,7 +208,15 @@ namespace Game.Cube.Tests
             CollectionAssert.IsNotEmpty(InWorldText.Problems("Grab the Mass Mitt* now."), "Mass");
             CollectionAssert.IsNotEmpty(InWorldText.Problems("A Chemistry gate blocks a nook."), "A science's name");
             CollectionAssert.IsNotEmpty(InWorldText.Problems("Ask the Old Digger about it."), "A name without its star");
-            CollectionAssert.IsNotEmpty(InWorldText.Problems("the demon wants everyone apart."), "A known placeholder without its star");
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("off to the greenwood we go."), "A known placeholder without its star");
+            // 4.4: characters have chosen names (NpcNames), unstarred; shouts in capitals are not names.
+            CollectionAssert.IsEmpty(InWorldText.Problems("Ask Queen Wrennifer, or Granny Trowel, or even Primsworth the Demon. How *dare* they! CLANG!"));
+            CollectionAssert.IsEmpty(InWorldText.Problems("Say hi to Pipwick II and Old Whenever's comb."), "A repeated name's numeral");
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("Ask Queen Gertrude about it."), "An unchosen name");
+            // Strict: only whole character names are chosen, never a lone word of one, and only listed shouts.
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("Ask the Queen about it."), "\"Queen\" alone is no name");
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("Bow to Wrennifer the Great."), "Half a name");
+            CollectionAssert.IsNotEmpty(InWorldText.Problems("Then ask the NASA folk."), "Capitals are not a free pass");
             CollectionAssert.IsNotEmpty(InWorldText.Problems("Never sort the stones."), "The forbidden word");
             CollectionAssert.IsEmpty(InWorldText.Problems("Welcome to Town! The Partition split us. Ask the Old Digger*."));
             CollectionAssert.IsEmpty(InWorldText.Problems("They say the Greenwood* is right next door to town."));
@@ -238,7 +251,8 @@ namespace Game.Cube.Tests
                 foreach (HintDensity density in new[] { HintDensity.Sparse, HintDensity.Full })
                 foreach (HintKind kind in Enum.GetValues(typeof(HintKind)))
                 for (uint salt = 0; salt < 8; salt++)
-                foreach (Hint h in HintGenerator.Generate(facts, kind, salt, density))
+                foreach (Voice voice in Voices.All) // 4.4: every voice names regions and gate looks the same way
+                foreach (Hint h in HintGenerator.Generate(facts, kind, salt, density, voice))
                 {
                     foreach (string word in themeWords) StringAssert.DoesNotContain(word, h.Text, $"seed {seed}: {h.Text}");
                     StringAssert.DoesNotContain(" gate", h.Text, $"Gates go by their look: {h.Text}");

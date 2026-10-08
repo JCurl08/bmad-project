@@ -528,7 +528,7 @@ namespace Game.Cube.Tests
                     List<string> lines = Dialogue.For(spec, facts, density);
                     Assert.AreEqual(Dialogue.MaxLines, lines.Count, $"seed {seed} {race}");
                     Assert.AreEqual(Dialogue.RoleLine(spec), lines[0], "The flavour line");
-                    Assert.AreEqual(HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density)[0].Text, lines[1],
+                    Assert.AreEqual(HintGenerator.For(spec, facts, density)[0].Text, lines[1],
                         "The first hint, which HintGenerator makes true for the run");
                     foreach (string line in lines)
                         StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant(), line);

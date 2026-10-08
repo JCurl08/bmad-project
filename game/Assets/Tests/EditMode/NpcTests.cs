@@ -217,7 +217,7 @@ namespace Game.Cube.Tests
                             NpcSpec swapped = spec.With(head);
                             Assert.AreEqual(spec.Torso, swapped.Torso);
                             Assert.AreEqual(spec.Legs, swapped.Legs);
-                            List<Hint> hints = HintGenerator.Generate(facts, swapped.HintKind, swapped.Salt, density);
+                            List<Hint> hints = HintGenerator.For(swapped, facts, density);
                             Assert.IsNotEmpty(hints, $"seed {seed} {race} {head}");
                             foreach (Hint hint in hints)
                             {
@@ -244,9 +244,11 @@ namespace Game.Cube.Tests
                 foreach (HintKind kind in new[] { HintKind.ItemLocation, HintKind.GateLocation, HintKind.CoreEntrance, HintKind.FaceTheme })
                 {
                     for (uint salt = 0; salt < 6; salt++)
+                    foreach (Voice voice in Voices.All) // 4.4: every voice words its hints its own way; all stay true
                     {
-                        List<Hint> full = HintGenerator.Generate(facts, kind, salt, HintDensity.Full);
-                        List<Hint> sparse = HintGenerator.Generate(facts, kind, salt, HintDensity.Sparse);
+                        List<Hint> full = HintGenerator.Generate(facts, kind, salt, HintDensity.Full, voice);
+                        List<Hint> sparse = HintGenerator.Generate(facts, kind, salt, HintDensity.Sparse, voice);
+                        foreach (Hint hint in full) AssertTrue(hint, facts, $"seed {seed} {kind} {voice} full");
                         Assert.Less(sparse.Count, full.Count, $"seed {seed} {kind}");
                         Assert.IsNotEmpty(sparse);
                         Assert.IsTrue(full.All(h => h.Precise), $"seed {seed} {kind}: full hints name the place");
@@ -255,8 +257,8 @@ namespace Game.Cube.Tests
                             Assert.IsFalse(hint.Precise);
                             string lower = hint.Text.ToLowerInvariant();
                             foreach (string word in ScreenWords)
-                                StringAssert.DoesNotContain(word, lower, $"seed {seed} {kind}: sparse hint names a screen: {hint.Text}");
-                            AssertTrue(hint, facts, $"seed {seed} {kind} sparse");
+                                StringAssert.DoesNotContain(word, lower, $"seed {seed} {kind} {voice}: sparse hint names a screen: {hint.Text}");
+                            AssertTrue(hint, facts, $"seed {seed} {kind} {voice} sparse");
                         }
                     }
                 }
@@ -269,9 +271,9 @@ namespace Game.Cube.Tests
             var facts = new RunFacts(new CubeModel(9));
             foreach (HintKind kind in new[] { HintKind.ItemLocation, HintKind.GateLocation, HintKind.CoreEntrance })
             {
-                List<Hint> hints = HintGenerator.Generate(facts, kind, 3, HintDensity.Full);
-                Assert.IsNotEmpty(hints);
-                foreach (Hint hint in hints)
+                Assert.IsNotEmpty(HintGenerator.Generate(facts, kind, 3, HintDensity.Full));
+                foreach (Voice voice in Voices.All)
+                foreach (Hint hint in HintGenerator.Generate(facts, kind, 3, HintDensity.Full, voice))
                 {
                     Assert.AreEqual(HintKind.FaceTheme, hint.Kind);
                     AssertTrue(hint, facts, kind.ToString());
@@ -313,9 +315,11 @@ namespace Game.Cube.Tests
         [Test]
         public void TablesAreSmall_AndRaceFlavourChangesTheLines()
         {
-            foreach (string[] table in Dialogue.RoleLines.Values) Assert.That(table.Length, Is.InRange(3, 4));
+            Assert.AreEqual(Voices.All.Length, Dialogue.Flavours.Count, "Every voice has its flavour");
             foreach (Dialogue.RaceFlavour f in Dialogue.Flavours.Values)
             {
+                Assert.AreEqual(4, f.Roles.Count, "Every role, in every voice");
+                foreach (string[] table in f.Roles.Values) Assert.That(table.Length, Is.InRange(3, 4));
                 Assert.That(f.Rumours.Length, Is.InRange(3, 4));
                 Assert.That(f.Greetings.Length, Is.InRange(1, 4));
             }

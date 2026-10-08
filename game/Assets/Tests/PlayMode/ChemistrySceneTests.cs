@@ -356,7 +356,7 @@ namespace Game.Cube.Tests
                 else if (i == ChemistryPopulation.LoreTeller) Assert.AreEqual(Dialogue.StoneLoreLine, lines[0]);
                 else CollectionAssert.Contains(Dialogue.CurieLines, lines[0], "A Glowmother* line");
 
-                List<Hint> hints = HintGenerator.Generate(facts, mushroom.Spec.HintKind, mushroom.Spec.Salt, HintGenerator.FirstRunDensity);
+                List<Hint> hints = HintGenerator.For(mushroom.Spec, facts, HintGenerator.FirstRunDensity);
                 Assert.AreEqual(HintGenerator.SparseCount, hints.Count, "First-run hints are sparse");
                 Assert.AreEqual(hints[0].Text, lines[1], $"mushroom {i}: its hint line");
                 foreach (Hint hint in hints) AssertHintTrueInWorld(hint, $"mushroom {i}");

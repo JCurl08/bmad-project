@@ -368,7 +368,7 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(Dialogue.MaxLines, lines.Count, "A flavour line, then the hint");
                 if (i == 0) Assert.AreEqual(Dialogue.MassMittLine, lines[0]);
                 else CollectionAssert.Contains(Dialogue.EinsteinLines, lines[0], "An Einstein line");
-                List<Hint> hints = HintGenerator.Generate(facts, alien.Spec.HintKind, alien.Spec.Salt, HintGenerator.FirstRunDensity);
+                List<Hint> hints = HintGenerator.For(alien.Spec, facts, HintGenerator.FirstRunDensity);
                 Assert.AreEqual(HintGenerator.SparseCount, hints.Count, "First-run hints are sparse");
                 Assert.AreEqual(hints[0].Text, lines[1], $"alien {i}: its hint line");
                 foreach (Hint hint in hints) AssertHintTrueInWorld(hint, $"alien {i}");

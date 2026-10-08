@@ -130,10 +130,131 @@ namespace Game.Cube
         public const int FullCount = 2;
         public const int SparseCount = 1;
 
-        private static readonly string[] FullOpeners = { "They say", "Word around the ruins is", "A little bird told me" };
-        private static readonly string[] SparseOpeners = { "Rumour has it", "Somebody once mumbled that", "I dreamt that" };
+        /// <summary>
+        /// How one voice words its hints (4.4, voices-and-names.md): the openers (three per density, picked by salt), the
+        /// connector before a guarding gate's look, the remark after a vague gate hint, the tail of a sealed face and the
+        /// sentence end. Only the wording changes: the facts in between (region, screen, nickname, gate look, town edge)
+        /// are the same in every voice, so every voice's hints are as true as the town's.
+        /// </summary>
+        public sealed class HintVoice
+        {
+            public string[] Full;
+            public string[] Sparse;
 
-        public static List<Hint> Generate(RunFacts facts, HintKind kind, uint salt, HintDensity density)
+            /// <summary>Before a guarding gate's look ({0}): ", tucked behind {0}".</summary>
+            public string Guard;
+
+            /// <summary>After a vague gate hint's sentence: " Rude of it."</summary>
+            public string Rude;
+
+            /// <summary>Before the end of a hint about a sealed face (must say "sealed").</summary>
+            public string Sealed;
+
+            /// <summary>How the hint's sentence ends ("." or "!").</summary>
+            public string End;
+
+            /// <summary>Openers that ask a question: their hint ends with "?" instead of End.</summary>
+            public string[] Questions = new string[0];
+
+            /// <summary>How a hint with this opener ends: "?" after a question opener, else End.</summary>
+            public string EndFor(string opener) => System.Array.IndexOf(Questions, opener) >= 0 ? "?" : End;
+
+            public IEnumerable<string> AllText()
+            {
+                foreach (string line in Full) yield return line;
+                foreach (string line in Sparse) yield return line;
+                yield return Guard;
+                yield return Rude;
+                yield return Sealed;
+                yield return End;
+            }
+        }
+
+        /// <summary>Each voice's hint wording. Every opener carries its voice's markers (the voice tests check them).</summary>
+        public static readonly IReadOnlyDictionary<Voice, HintVoice> VoiceTable = new Dictionary<Voice, HintVoice>
+        {
+            // A friendly, gossipy mix.
+            [Voice.Town] = new HintVoice
+            {
+                Full = new[] { "They say", "Word around the ruins is", "A little bird told me" },
+                Sparse = new[] { "Rumour has it", "Somebody once mumbled that", "I dreamt that" },
+                Guard = ", tucked behind {0}",
+                Rude = " Rude of it.",
+                Sealed = ", though it's sealed up tight for now",
+                End = ".",
+            },
+            // Near-Shakespearean and proper.
+            [Voice.Finch] = new HintVoice
+            {
+                Full = new[] { "Prithee, hark: 'tis said", "Verily, I have heard that", "Good morrow! Mine ears tell me" },
+                Sparse = new[] { "'Tis whispered that", "Forsooth, a sparrow sang that", "Methinks" },
+                Guard = ", hid behind {0}",
+                Rude = " How uncouth of it.",
+                Sealed = ", though 'tis sealed fast for now",
+                End = ".",
+            },
+            // Emotionally reactive: they flare up and fizz.
+            [Voice.Mushroom] = new HintVoice
+            {
+                Full = new[] { "Ooh! Ooh! I heard", "Gasp! Guess what:", "Ugh, *fine*, I'll tell you:" },
+                Sparse = new[] { "Oh, oh, oh! Rumour says", "Sniff... someone told me", "Wow! Word is" },
+                Guard = ", stuck behind {0}, the brute",
+                Rude = " How *dare* it! Ugh!",
+                Sealed = ", but it's sealed shut, sob",
+                End = "!",
+            },
+            // Philosophical and abstract.
+            [Voice.Alien] = new HintVoice
+            {
+                Full = new[] { "I wonder... could it be that", "Consider, if you will:", "Perhaps, in some deep sense," },
+                Questions = new[] { "I wonder... could it be that" },
+                Sparse = new[] { "Ponder this:", "I sometimes muse that", "I do wonder if" },
+                Guard = ", resting behind {0}",
+                Rude = " Why must doors be, I wonder?",
+                Sealed = ", though it is sealed... for now",
+                End = ".",
+            },
+            // Logical and terse, never an exclamation.
+            [Voice.Shape] = new HintVoice
+            {
+                Full = new[] { "If my figures hold, then", "Given the facts, it follows that", "Logically, therefore," },
+                Sparse = new[] { "If the rumours hold, then", "Given what I have heard,", "Hence, roughly," },
+                Guard = ", behind {0}",
+                Rude = " Inconvenient, therefore noted.",
+                Sealed = ", but it is sealed for now",
+                End = ".",
+            },
+            // Rugged and outdoorsy.
+            [Voice.Ground] = new HintVoice
+            {
+                Full = new[] { "Word on the trail is", "Scouted it myself:", "Back at camp they say" },
+                Sparse = new[] { "Heard it round the campfire:", "Mud on my boots says", "Old trail talk says" },
+                Guard = ", wedged behind {0}",
+                Rude = " Rough country.",
+                Sealed = ", but that trail's sealed for now",
+                End = ".",
+            },
+            // The avian dinosaurs: outdoorsy, but breezier.
+            [Voice.Sky] = new HintVoice
+            {
+                Full = new[] { "Word on the wind is", "From up in the sky, I'd say", "The breeze tells me" },
+                Sparse = new[] { "A passing breeze whispered that", "Up in the sky they say", "The wind keeps saying" },
+                Guard = ", tucked behind {0}",
+                Rude = " Bit of a headwind, that.",
+                Sealed = ", though it's sealed tight as a storm cloud for now",
+                End = ".",
+            },
+        };
+
+        /// <summary>An NPC's hints, in its own voice (what every population says).</summary>
+        public static List<Hint> For(NpcSpec spec, RunFacts facts, HintDensity density) =>
+            Generate(facts, spec.HintKind, spec.Salt, density, spec.Voice);
+
+        /// <summary>Hints in the Town voice.</summary>
+        public static List<Hint> Generate(RunFacts facts, HintKind kind, uint salt, HintDensity density) =>
+            Generate(facts, kind, salt, density, Voice.Town);
+
+        public static List<Hint> Generate(RunFacts facts, HintKind kind, uint salt, HintDensity density, Voice voice)
         {
             if (facts == null) throw new ArgumentNullException(nameof(facts));
             HintKind actual = Available(facts, kind) ? kind : HintKind.FaceTheme;
@@ -143,7 +264,7 @@ namespace Game.Cube
             var hints = new List<Hint>(count);
             int start = (int)(salt % (uint)subjects);
             for (int i = 0; i < count; i++)
-                hints.Add(Make(facts, actual, (start + i) % subjects, density, (int)((salt / 7u + (uint)i) % 3u)));
+                hints.Add(Make(facts, actual, (start + i) % subjects, density, (int)((salt / 7u + (uint)i) % 3u), VoiceTable[voice]));
             return hints;
         }
 
@@ -169,11 +290,12 @@ namespace Game.Cube
             return list;
         }
 
-        private static Hint Make(RunFacts facts, HintKind kind, int subject, HintDensity density, int opener)
+        private static Hint Make(RunFacts facts, HintKind kind, int subject, HintDensity density, int opener, HintVoice voice)
         {
             CubeModel model = facts.Model;
             bool full = density == HintDensity.Full;
-            string open = full ? FullOpeners[opener] : SparseOpeners[opener];
+            string open = full ? voice.Full[opener] : voice.Sparse[opener];
+            string end = voice.EndFor(open);
             switch (kind)
             {
                 case HintKind.ItemLocation:
@@ -187,13 +309,13 @@ namespace Game.Cube
                         if (p.IsGuarded && facts.Placement.TryGetGate(p.Screen, p.GuardSlot, out GatePlacement g))
                         {
                             look = LookOf(facts, g);
-                            guard = $", tucked behind {look}";
+                            guard = string.Format(voice.Guard, look);
                         }
-                        text = $"{open} the {ItemNickname(p.Item)} lies on the {ScreenPhrase(p.Screen, model.FaceSize)} screen of {ThemeName(faceTheme)}{guard}.";
+                        text = $"{open} the {ItemNickname(p.Item)} lies on the {ScreenPhrase(p.Screen, model.FaceSize)} screen of {ThemeName(faceTheme)}{guard}{end}";
                     }
                     else
                     {
-                        text = $"{open} the {ItemNickname(p.Item)} is somewhere in {ThemeName(faceTheme)}.";
+                        text = $"{open} the {ItemNickname(p.Item)} is somewhere in {ThemeName(faceTheme)}{end}";
                     }
                     return new Hint(kind, full, p.Screen.Face, faceTheme, p.Item, full ? p.Screen : default, text, look);
                 }
@@ -203,8 +325,8 @@ namespace Game.Cube
                     Theme faceTheme = model.ThemeOf(g.Screen.Face);
                     string look = LookOf(facts, g);
                     string text = full
-                        ? $"{open} {look} blocks a nook on the {ScreenPhrase(g.Screen, model.FaceSize)} screen of {ThemeName(faceTheme)}."
-                        : $"{open} there's {look} out in {ThemeName(faceTheme)}. Rude of it.";
+                        ? $"{open} {look} blocks a nook on the {ScreenPhrase(g.Screen, model.FaceSize)} screen of {ThemeName(faceTheme)}{end}"
+                        : $"{open} there's {look} out in {ThemeName(faceTheme)}{end}{voice.Rude}";
                     return new Hint(kind, full, g.Screen.Face, faceTheme, g.Item, full ? g.Screen : default, text, look);
                 }
                 case HintKind.CoreEntrance:
@@ -212,8 +334,8 @@ namespace Game.Cube
                     FaceLayout fl = CoreFaces(facts)[subject];
                     var screen = new ScreenAddress(fl.Face, fl.CoreCell);
                     string text = full
-                        ? $"{open} a door down into the core hides on the {ScreenPhrase(screen, model.FaceSize)} screen of {ThemeName(fl.Theme)}."
-                        : $"{open} a way into the core is somewhere in {ThemeName(fl.Theme)}.";
+                        ? $"{open} a door down into the core hides on the {ScreenPhrase(screen, model.FaceSize)} screen of {ThemeName(fl.Theme)}{end}"
+                        : $"{open} a way into the core is somewhere in {ThemeName(fl.Theme)}{end}";
                     return new Hint(kind, full, fl.Face, fl.Theme, fl.Theme, full ? screen : default, text);
                 }
                 default:
@@ -224,14 +346,14 @@ namespace Game.Cube
                     string where;
                     if (TryTownEdge(face, out Facing edge))
                         where = full
-                            ? $"walk off town's {EdgeName(edge)} side and you're in {ThemeName(theme)}"
+                            ? $"{ThemeName(theme)} lies just off town's {EdgeName(edge)} side"
                             : $"{ThemeName(theme)} is right next door to town";
                     else
                         where = full
                             ? $"{ThemeName(theme)} is on the far side of the cube, straight through from town"
                             : $"{ThemeName(theme)} is a long way from town";
-                    string tail = sealedFace ? ", though it's sealed up tight for now." : ".";
-                    return new Hint(HintKind.FaceTheme, full, face, theme, theme, default, $"{open} {where}{tail}");
+                    string tail = sealedFace ? voice.Sealed : "";
+                    return new Hint(HintKind.FaceTheme, full, face, theme, theme, default, $"{open} {where}{tail}{end}");
                 }
             }
         }
@@ -342,7 +464,7 @@ namespace Game.Cube
             yield return "a locked gate";
         }
 
-        /// <summary>What townsfolk call a face's item.</summary>
+        /// <summary>What everyone calls a face's item (the same in every voice, so a hint always names it the same way).</summary>
         public static string ItemNickname(Theme theme)
         {
             switch (theme)

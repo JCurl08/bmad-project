@@ -4,7 +4,7 @@ namespace Game.Cube
 {
     /// <summary>
     /// The Town welcome (lore-and-tone.md: campy, never explicit, never the s-word). There is no sign post
-    /// yet: the town greeter (the first Townsperson, who stands on the start screen) says it as their flavour
+    /// yet: the town greeter (the first Townsperson, Hattie Hullo: NpcNames.Greeter, who stands on the start screen) says it as their flavour
     /// line, then their hint (two lines, like every conversation).
     /// </summary>
     public static class TownSign
@@ -15,7 +15,7 @@ namespace Game.Cube
         /// <summary>The welcome, in one line: what the town is, and the Partition that made it so.</summary>
         public static readonly IReadOnlyList<string> WelcomeLines = new[]
         {
-            "Welcome to Town, " + LastMixedPlace + "! The Partition split every other race onto its own tidy face. We stayed put.",
+            "Hullo, hullo! I'm Hattie Hullo. Welcome to Town, " + LastMixedPlace + "! The Partition split every other race onto its own tidy face. We stayed put.",
         };
 
         /// <summary>

@@ -6,7 +6,7 @@ namespace Game.Cube
     /// The shape people of the Math face (round faces, triangular bodies, rectangular legs), built with the NpcFactory after
     /// the reveal. Their parts come from the run seed (NpcFactory.ChooseParts with IndexBase + i), and each talks with a
     /// flavour line, then its first hint, true for the run (RunFacts): two lines. Shape 0 explains the island screens and
-    /// shape 1 the gap-crosser* (both true for every run: the mechanics); the rest say a Bridgekeeper* line.
+    /// shape 1 the gap-crosser* (both true for every run: the mechanics); the rest say a line about Madam Spanwell (NpcNames.ShapePatron), all in the shape voice.
     /// </summary>
     public static class MathPopulation
     {
@@ -34,6 +34,6 @@ namespace Game.Cube
         }
 
         public static List<string> LinesFor(NpcSpec spec, RunFacts facts, HintDensity density, int i) =>
-            Dialogue.Conversation(FlavourFor(spec, i), HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density));
+            Dialogue.Conversation(FlavourFor(spec, i), HintGenerator.For(spec, facts, density));
     }
 }

@@ -26,7 +26,7 @@ namespace Game.Cube
         public static List<string> LinesFor(NpcSpec spec, RunFacts facts, HintDensity density, BeakKind beak, bool sayBeak)
         {
             string flavour = sayBeak ? Dialogue.BeakLine(beak == BeakKind.Thin) : Dialogue.DarwinLine(spec.Salt);
-            return Dialogue.Conversation(flavour, HintGenerator.Generate(facts, spec.HintKind, spec.Salt, density));
+            return Dialogue.Conversation(flavour, HintGenerator.For(spec, facts, density));
         }
     }
 }

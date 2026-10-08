@@ -466,7 +466,7 @@ namespace Game.Cube.Tests
                     else if (i == EarthPopulation.HazardTeller) Assert.AreEqual(Dialogue.HazardLine, lines[0]);
                     else if (spec.Variant == DinoVariant.Avian) CollectionAssert.Contains(Dialogue.SkyWatcherLines, lines[0]);
                     else CollectionAssert.Contains(Dialogue.OldDiggerLines, lines[0]);
-                    Assert.AreEqual(HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Full)[0].Text, lines[1]);
+                    Assert.AreEqual(HintGenerator.For(spec, facts, HintDensity.Full)[0].Text, lines[1]);
                 }
             }
             Assert.GreaterOrEqual(EarthPopulation.DinoCount(CubeSettings.DefaultFaceSize), 2, "Both kinds every run");
@@ -491,7 +491,6 @@ namespace Game.Cube.Tests
         private static List<string> EarthStrings()
         {
             var strings = new List<string>(FaceText.Flavour(Race.Dinosaur));
-            foreach (string[] table in Dialogue.DinoGreetings.Values) strings.AddRange(table);
             strings.AddRange(Dialogue.OldDiggerLines);
             strings.AddRange(Dialogue.SkyWatcherLines);
             strings.AddRange(Dialogue.WandLines);
@@ -567,33 +566,14 @@ namespace Game.Cube.Tests
             }
 
             // Proper names: a capitalised word that does not start a sentence is a name, and a name (one word, or a run of
-            // capitalised words like "Old Digger*") carries a star at its end.
-            var notNames = new HashSet<string> { "I", "I'm", "I'll", "I've", "I'd", "RAWR", "SKRAW" };
+            // capitalised words like "Ember Vale*") carries a star at its end, except the chosen character names (4.4:
+            // NpcNames), by the shared rule.
             foreach (string text in strings)
-            {
-                string[] words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i < words.Length; i++)
-                {
-                    string word = words[i].TrimStart('.', '"', '\'', '(', '+', '*');
-                    if (word.Length == 0 || !char.IsUpper(word[0])) continue;
-                    string prev = i > 0 ? words[i - 1].TrimEnd('\'', '"', '*', ')') : "";
-                    bool sentenceStart = i == 0 || (prev.Length > 0 && ".!?:".IndexOf(prev[prev.Length - 1]) >= 0);
-                    int end = 0;
-                    while (end < word.Length && (char.IsLetter(word[end]) || word[end] == '\'' || word[end] == '-')) end++;
-                    string core = word.Substring(0, end);
-                    if (sentenceStart || notNames.Contains(core)) continue;
-                    // The name runs on over capitalised words; its last word carries the star.
-                    int last = i;
-                    while (!words[last].Contains("*") && last + 1 < words.Length && words[last + 1].Length > 0 && char.IsUpper(words[last + 1][0]))
-                        last++;
-                    Assert.IsTrue(words[last].Contains("*"), $"\"{core}\" looks like a name without its star in \"{text}\"");
-                    i = last;
-                }
-            }
+                CollectionAssert.IsEmpty(InWorldText.UnstarredNames(text), $"A name without its star in \"{text}\"");
 
             // Placeholder names carry a trailing star wherever they appear.
             foreach (string text in strings.Concat(hints).Concat(earthHints))
-                foreach (string bare in new[] { "Stormcaller", "Old Digger", "Sky-Watcher", "Wildlands" })
+                foreach (string bare in new[] { "Stormcaller", "Wildlands" })
                 {
                     int at = text.IndexOf(bare, StringComparison.Ordinal);
                     while (at >= 0)
@@ -603,8 +583,8 @@ namespace Game.Cube.Tests
                         at = text.IndexOf(bare, after, StringComparison.Ordinal);
                     }
                 }
-            StringAssert.Contains("Old Digger*", string.Join(" ", Dialogue.OldDiggerLines));
-            StringAssert.Contains("Sky-Watcher*", string.Join(" ", Dialogue.SkyWatcherLines));
+            StringAssert.Contains(NpcNames.GroundPatron, string.Join(" ", Dialogue.OldDiggerLines));
+            StringAssert.Contains(NpcNames.SkyPatron, string.Join(" ", Dialogue.SkyWatcherLines));
         }
     }
 }

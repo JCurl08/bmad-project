@@ -457,12 +457,13 @@ namespace Game.Cube.Tests
                     CollectionAssert.Contains(Dialogue.EinsteinLines, lines[0]);
                     CollectionAssert.DoesNotContain(lines, Dialogue.MassMittLine);
                 }
-                Hint hint = HintGenerator.Generate(facts, spec.HintKind, spec.Salt, HintDensity.Sparse)[0];
+                Hint hint = HintGenerator.For(spec, facts, HintDensity.Sparse)[0];
                 Assert.AreEqual(hint.Text, lines[1], "The first hint ends the conversation");
                 foreach (string line in lines)
                     StringAssert.DoesNotContain(Dialogue.ForbiddenWord, line.ToLowerInvariant());
             }
-            Assert.IsTrue(Dialogue.EinsteinLines.Any(l => l.Contains("Time is a stretchy thing, darling!")));
+            Assert.IsTrue(Dialogue.EinsteinLines.Any(l => l.Contains("Time is a stretchy thing")));
+            Assert.IsTrue(Dialogue.EinsteinLines.Any(l => l.Contains(NpcNames.AlienPatron)), "The patron, by its chosen name");
             CollectionAssert.Contains(Dialogue.AllFixedText().ToList(), Dialogue.MassMittLine);
             foreach (string line in Dialogue.EinsteinLines.Concat(Dialogue.NewtonLines))
                 CollectionAssert.Contains(Dialogue.AllFixedText().ToList(), line);

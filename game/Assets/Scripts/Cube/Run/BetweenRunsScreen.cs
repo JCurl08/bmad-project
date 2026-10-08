@@ -13,7 +13,7 @@ namespace Game.Cube
     public class BetweenRunsScreen : MonoBehaviour
     {
         public const string CurrencyName = InWorldText.Currency;
-        public const string VictoryTitle = "VICTORY! The " + InWorldText.Demon + "'s tidy little cube is now a glorious mess.";
+        public const string VictoryTitle = "VICTORY! " + InWorldText.DemonFull + "'s tidy little cube is now a glorious mess.";
         public const string DefeatTitle = "You were defeated";
         public const string ContinueLabel = "Back to Town (new seed)  [Enter]";
         public const string SpendLabel = "Spend your " + CurrencyName + " (kicks in next run):";
@@ -54,7 +54,7 @@ namespace Game.Cube
         {
             var lines = new List<string>();
             lines.Add($"Trials solved ({e.CountOf(EarningSource.Trial)}): +{e.Of(EarningSource.Trial)}");
-            lines.Add($"{InWorldText.Demon} dethroned: +{e.Of(EarningSource.Boss)}");
+            lines.Add($"{NpcNames.Demon} dethroned: +{e.Of(EarningSource.Boss)}");
             lines.Add($"Stray {CurrencyName} found ({e.CountOf(EarningSource.Hidden)}): +{e.Of(EarningSource.Hidden)}");
             lines.Add($"Banked this run: {banked} {CurrencyName}");
             lines.Add($"In the jar: {balance} {CurrencyName}");

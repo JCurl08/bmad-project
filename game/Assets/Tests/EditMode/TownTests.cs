@@ -78,7 +78,7 @@ namespace Game.Cube.Tests
                     if (!RacePartSets.For(Race.Townsfolk).Heads.Contains(spec.Head)) foreignHeads++;
                     if (!RacePartSets.For(Race.Townsfolk).Torsos.Contains(spec.Torso)) foreignTorsos++;
                     Assert.IsTrue(RacePartSets.For(Race.Townsfolk).Legs.Contains(spec.Legs), "Townsfolk keep Townsfolk legs");
-                    StringAssert.StartsWith("Townsperson", spec.DisplayName);
+                    StringAssert.Contains(TownPlan.IsGreeter(spec) ? "Hattie Hullo the greeter" : "the townsperson", spec.DisplayName);
                 }
             }
             Assert.Greater(foreignHeads, total / 3, "Townsfolk heads come from many races");

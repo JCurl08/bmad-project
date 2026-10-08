@@ -4,7 +4,7 @@ namespace Game.Cube
     /// Every named PCG32 stream (SeededRng's stream argument) in one place. Each seeded system draws from its own
     /// stream so that adding draws to one never shifts another's results. Changing a value changes what a seed
     /// produces, so never renumber or reuse one. A new system takes the
-    /// next free value (22) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
+    /// next free value (23) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
     /// uses SeededRng's default stream. The owners' RngStream constants are aliases of these.
     /// </summary>
     public static class RngStreams
@@ -68,5 +68,8 @@ namespace Game.Cube
 
         /// <summary>Which of a face's screens get its island module (CubeLayout: Math's island screens, 1.25).</summary>
         public const ulong IslandScreens = 21;
+
+        /// <summary>Generic NPC names from each voice's pool (NpcNames, 4.4).</summary>
+        public const ulong NpcNames = 22;
     }
 }

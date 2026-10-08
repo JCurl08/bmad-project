@@ -25,6 +25,8 @@ Every character has a meaningful name, chosen and unstarred. Each race's culture
 | Dinosaurs (Earth & Atmosphere) | Rugged and outdoorsy |
 | Townsfolk | A friendly mix |
 
+The full voice guide, its tested markers and every name (pools, leaders, patrons, the greeter, the Demon) are in `epic-world-worth-exploring/voices-and-names.md`.
+
 ## Character art
 One hand-made design per race, in the player character's style; leaders get a distinct variant. The swappable-part look is not the default; the parts system is kept for CAP-9 (Should).
 

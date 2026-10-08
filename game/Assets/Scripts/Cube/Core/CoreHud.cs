@@ -11,7 +11,7 @@ namespace Game.Cube
     {
         public const string MeterLabel = "Order ↔ Entropy";
         public const string VictoryMessage = "Entropy wins! The Partition cracks… everybody mingle!";
-        public const string DefeatMessage = "Order prevails… the " + InWorldText.Demon + " tidies you away. (For now.)";
+        public const string DefeatMessage = "Order prevails… " + InWorldText.DemonFull + " tidies you away. (For now.)";
 
         /// <summary>The exit door's hint, shown while the player can walk out of the arena.</summary>
         public const string ExitHint = "Walk into the doorway in the left wall to leave";
