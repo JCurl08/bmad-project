@@ -14,6 +14,7 @@ namespace Game.Cube
 
         [SerializeField] private Health health;
         [SerializeField] private Equipment equipment;
+        [SerializeField] private RunRewards rewards;
 
         private GUIStyle textStyle;
         private GUIStyle deathStyle;
@@ -29,6 +30,16 @@ namespace Game.Cube
             get => equipment;
             set => equipment = value;
         }
+
+        /// <summary>The player's roadblock rewards (4.7): keys and run boosts, shown on a third line when there are any.</summary>
+        public RunRewards Rewards
+        {
+            get => rewards;
+            set => rewards = value;
+        }
+
+        /// <summary>The rewards line as shown ("Keys: 1 | Run boosts: +speed"), or null when nothing is held.</summary>
+        public string RewardsText => rewards != null ? rewards.HudText : null;
 
         /// <summary>The equipped item line as shown.</summary>
         public string EquippedText =>
@@ -57,8 +68,10 @@ namespace Game.Cube
             int hearts = Mathf.CeilToInt(health.Max);
             float width = hearts * (size + gap) - gap;
             float x = margin + 8f;
-            float y = Screen.height - dialogueBand - margin - (size + 40f) + 6f;
-            var back = new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, 300f) + 16f, size + 40f);
+            string rewardsLine = RewardsText;
+            float extra = rewardsLine != null ? 24f : 0f;
+            float y = Screen.height - dialogueBand - margin - (size + 40f + extra) + 6f;
+            var back = new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, rewardsLine != null ? 420f : 300f) + 16f, size + 40f + extra);
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(back, Texture2D.whiteTexture);
             for (int i = 0; i < hearts; i++)
@@ -76,6 +89,8 @@ namespace Game.Cube
             GUI.color = Color.white;
             GUI.Label(new Rect(x + width + 10f, y - 2f, 120f, 26f), HealthText, textStyle);
             GUI.Label(new Rect(x, y + size + 4f, Mathf.Max(width, 300f), 26f), EquippedText, textStyle);
+            if (rewardsLine != null)
+                GUI.Label(new Rect(x, y + size + 28f, Mathf.Max(width + 130f, 420f), 26f), rewardsLine, textStyle);
 
             string message = MessageText;
             if (message == null) return;

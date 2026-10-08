@@ -184,6 +184,7 @@ namespace Game.Cube
         private void OnRunEnded(bool victory)
         {
             if (Meta == null) Meta = new MetaSave();
+            CashInKeys();
             int banked = wallet != null ? wallet.Bank(Meta) : 0;
             Meta.RunCount++;
             if (victory) Meta.Victories++;
@@ -201,6 +202,18 @@ namespace Game.Cube
             FreezePlayer();
             ScreenOpen = true;
             ScreenOpened?.Invoke(LastRun);
+        }
+
+        /// <summary>
+        /// The keys still held when the run ends are cashed in (4.7, until 4.9's locks give them a use): RewardPlacement.KeyCashIn
+        /// Jumbles* each, banked with the rest of the run.
+        /// </summary>
+        private void CashInKeys()
+        {
+            if (player == null || !player.TryGetComponent(out RunRewards rewards)) return;
+            int keys = rewards.CashInKeys();
+            if (wallet == null) return;
+            for (int i = 0; i < keys; i++) wallet.AddAtRunEnd(EarningSource.Keys, "key:" + i, RewardPlacement.KeyCashIn);
         }
 
         private void OnItemAdded(ItemDefinition item)
@@ -290,6 +303,7 @@ namespace Game.Cube
                 equipment.enabled = true;
             }
             if (go.TryGetComponent(out MassMitt mitt)) mitt.Release();
+            if (go.TryGetComponent(out RunRewards rewards)) rewards.Clear(); // the stats are set afresh just below
             ApplyStats(true);
             if (go.TryGetComponent(out PlayerMover mover)) mover.enabled = true;
             if (go.TryGetComponent(out PlayerAttack attack)) attack.enabled = true;

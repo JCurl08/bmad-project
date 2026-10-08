@@ -71,5 +71,8 @@ namespace Game.Cube
 
         /// <summary>Generic NPC names from each voice's pool (NpcNames, 4.4).</summary>
         public const ulong NpcNames = 22;
+
+        /// <summary>Roadblock rewards (RewardPlacement, 4.7): the base of its per-face sub-streams (RewardPlacement.FaceStream).</summary>
+        public const ulong Rewards = 23;
     }
 }

@@ -34,7 +34,9 @@ namespace Game.Cube
     /// everything that stands on its screen and cutting nothing off; the trial fitting). When the catalog knows hidden-item slots
     /// (IHiddenSlotCatalog), the hidden meta-currency placement is checked too (HiddenCurrencyPlacement.FindProblems:
     /// 4-6 items in distinct hidden-item slots on built faces, each reachable from Town, outside every gated alcove
-    /// and off the exit lanes).
+    /// and off the exit lanes). With both, the roadblock rewards are checked too (4.7, RewardPlacement.FindProblems: every
+    /// gate, optional gate and hidden spot hides a reward, no item lies loose, every face has its fragment slots, key and
+    /// boost, every non-town screen holds a roadblock or is an island screen, and every required reward is reachable).
     /// Shared by the tests and the editor menu.
     /// </summary>
     public static class SeedSweep
@@ -65,13 +67,21 @@ namespace Game.Cube
             /// <summary>Hidden meta-currency problems; null when it was not checked.</summary>
             public List<string> HiddenProblems;
 
+            /// <summary>The roadblock rewards that were checked (4.7); null when they were not checked.</summary>
+            public RewardPlacement Rewards;
+
+            /// <summary>Roadblock reward problems (RewardPlacement.FindProblems); null when they were not checked.</summary>
+            public List<string> RewardProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
+            public bool RewardsChecked => RewardProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
                                   (ItemProblems == null || ItemProblems.Count == 0) &&
-                                  (HiddenProblems == null || HiddenProblems.Count == 0);
+                                  (HiddenProblems == null || HiddenProblems.Count == 0) &&
+                                  (RewardProblems == null || RewardProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -205,6 +215,29 @@ namespace Game.Cube
             // Collection simulation, doorway by doorway. Ordinary modules keep all four doorways joined and gates only close
             // alcoves, so there a pickup is reachable when its screen is and its guarding gate (if any) is open; on an island
             // screen (islandAt) only where its island is reachable, with or without the gap-crosser* (the Math item).
+            HashSet<Theme> held = CollectableItems(model, placement, islandAt);
+            foreach (Theme item in itemList)
+            {
+                if (held.Contains(item)) continue;
+                string where;
+                if (!placement.TryGetPickup(item, out PickupPlacement p))
+                    where = "it has no pickup";
+                else if (p.IsGuarded && placement.TryGetGate(p.Screen, p.GuardSlot, out GatePlacement guard))
+                    where = $"its pickup at {p.Screen} is behind a {guard.Item} gate" + StuckCause(placement, item, guard.Item);
+                else
+                    where = $"its pickup at {p.Screen} cannot be reached";
+                problems.Add($"softlock: {item} item can never be collected, {where}");
+            }
+            return problems;
+        }
+
+        /// <summary>
+        /// The items a run can collect, starting with nothing: repeatedly every pickup whose place is reachable doorway by
+        /// doorway (DoorwayReach over Math's island screens, islandAt; the gap-crosser* once held) and whose guarding gate,
+        /// if any, is opened by an item already held. Shared by the item and the reward checks (RewardPlacement).
+        /// </summary>
+        public static HashSet<Theme> CollectableItems(CubeModel model, ItemPlacement placement, Func<ScreenAddress, IslandLayout> islandAt = null)
+        {
             var reach = new DoorwayReach(model, islandAt);
             var held = new HashSet<Theme>();
             bool progress = true;
@@ -223,19 +256,7 @@ namespace Game.Cube
                     progress = true;
                 }
             }
-            foreach (Theme item in itemList)
-            {
-                if (held.Contains(item)) continue;
-                string where;
-                if (!placement.TryGetPickup(item, out PickupPlacement p))
-                    where = "it has no pickup";
-                else if (p.IsGuarded && placement.TryGetGate(p.Screen, p.GuardSlot, out GatePlacement guard))
-                    where = $"its pickup at {p.Screen} is behind a {guard.Item} gate" + StuckCause(placement, item, guard.Item);
-                else
-                    where = $"its pickup at {p.Screen} cannot be reached";
-                problems.Add($"softlock: {item} item can never be collected, {where}");
-            }
-            return problems;
+            return held;
         }
 
         /// <summary>
@@ -314,13 +335,14 @@ namespace Game.Cube
                 {
                     CubeLayout layout = CubeLayout.Generate(model, catalog);
                     result.CoreProblems = FindCoreProblems(model, layout, catalog);
+                    MathPlan islands = null;
                     if (catalog is IGateSlotCatalog gateCatalog)
                     {
                         List<Theme> items = ItemPlacement.RunItems(layout, itemThemes);
                         ItemPlacement placement = ItemPlacement.ForRun(model, layout, gateCatalog, itemThemes, variantCounts);
                         result.Placement = placement;
                         Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
-                        MathPlan islands = moduleAt != null ? MathPlan.Create(model, placement, moduleAt) : null;
+                        islands = moduleAt != null ? MathPlan.Create(model, placement, moduleAt) : null;
                         result.ItemProblems = FindItemProblems(model, placement, items, islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
@@ -348,6 +370,13 @@ namespace Game.Cube
                         result.HiddenProblems = HiddenCurrencyPlacement.FindProblems(model, layout, hidden, hiddenCatalog, hiddenModuleAt);
                         foreach (HiddenCurrencySpot spot in hidden.Spots)
                             if (TownSquare.IsTown(spot.Screen, model.FaceSize)) result.HiddenProblems.Add($"{spot} is in a town");
+                        if (result.Placement != null)
+                        {
+                            // 4.7: every roadblock hides a reward, required ones reachable, no empty screen.
+                            result.Rewards = RewardPlacement.Generate(model, layout, result.Placement, hidden, hiddenCatalog);
+                            result.RewardProblems = RewardPlacement.FindProblems(model, layout, result.Placement, hidden, result.Rewards,
+                                hiddenCatalog, islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
+                        }
                     }
                 }
                 results.Add(result);
@@ -460,13 +489,14 @@ namespace Game.Cube
         {
             var failures = new StringBuilder();
             int total = 0, failed = 0;
-            bool coreChecked = false, itemsChecked = false, hiddenChecked = false;
+            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
                 coreChecked |= r.CoreChecked;
                 itemsChecked |= r.ItemsChecked;
                 hiddenChecked |= r.HiddenChecked;
+                rewardsChecked |= r.RewardsChecked;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -481,6 +511,9 @@ namespace Game.Cube
                 if (r.HiddenProblems != null && r.HiddenProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": hidden currency ")
                         .AppendLine(string.Join("; ", r.HiddenProblems));
+                if (r.RewardProblems != null && r.RewardProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": rewards ")
+                        .AppendLine(string.Join("; ", r.RewardProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -495,6 +528,9 @@ namespace Game.Cube
                         "town with no gate, pickup, core portal, island screen, trial, flower or hidden spot on it";
             if (hiddenChecked)
                 what += ", hidden meta currency reachable and never behind a gate";
+            if (rewardsChecked)
+                what += ", every roadblock hiding a reward (no loose pickups, every required reward reachable, every face's " +
+                        "fragment slots, key and boost) and no empty screen";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

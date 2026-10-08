@@ -108,6 +108,10 @@ namespace Game.Cube.Tests
             int popups = PickupPopup.Active.Count(p => p != null && p.Text == PickupFeedback.ItemText(stone));
             navigator.TeleportTo(pickup.Screen, Facing.East);
             yield return null;
+            // 4.7: the stone lies under a mound on the lane; dig it away first.
+            yield return RewardDig.Dig(navigator, (RewardMound)world.Pickups.First(p => p != null && p.Item == stone).Guard);
+            navigator.TeleportTo(pickup.Screen, Facing.East);
+            yield return null;
             yield return this.HoldUntil(keyboard.sKey, () => inventory.Has(stone), Timeout);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(inventory.Has(stone), "Walking onto the stone picks it up");

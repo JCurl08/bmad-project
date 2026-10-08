@@ -56,6 +56,8 @@ namespace Game.Cube
             lines.Add($"Trials solved ({e.CountOf(EarningSource.Trial)}): +{e.Of(EarningSource.Trial)}");
             lines.Add($"{NpcNames.Demon} dethroned: +{e.Of(EarningSource.Boss)}");
             lines.Add($"Stray {CurrencyName} found ({e.CountOf(EarningSource.Hidden)}): +{e.Of(EarningSource.Hidden)}");
+            lines.Add(RewardText.ChestsLine(e.CountOf(EarningSource.Chest), e.Of(EarningSource.Chest)));
+            lines.Add(RewardText.KeysLine(e.CountOf(EarningSource.Keys), e.Of(EarningSource.Keys)));
             lines.Add($"Banked this run: {banked} {CurrencyName}");
             lines.Add($"In the jar: {balance} {CurrencyName}");
             return lines;
@@ -115,7 +117,7 @@ namespace Game.Cube
             foreach (string line in EarningsLines())
             {
                 GUI.Label(new Rect(x, y, width, 24f), line, textStyle);
-                y += 24f;
+                y += 22f; // seven lines since 4.7: still clear of the bottom of the 960x600 canvas
             }
             y += 10f;
 

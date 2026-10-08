@@ -104,6 +104,10 @@ namespace Game.Cube.Tests
             ItemDefinition beak = world.ItemFor(Theme.Biology);
             navigator.TeleportTo(pickup.Screen, Facing.East);
             yield return null;
+            // 4.7: the beak lies under a mound on the lane; dig it away first.
+            yield return RewardDig.Dig(navigator, (RewardMound)world.Pickups.First(p => p != null && p.Item == beak).Guard);
+            navigator.TeleportTo(pickup.Screen, Facing.East);
+            yield return null;
             yield return this.HoldUntil(keyboard.sKey, () => inventory.Has(beak), Timeout);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(inventory.Has(beak), "Walking onto the beak picks it up");

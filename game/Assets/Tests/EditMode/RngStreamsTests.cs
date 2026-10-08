@@ -35,6 +35,7 @@ namespace Game.Cube.Tests
             { nameof(RngStreams.EarthPopulation), 20 },
             { nameof(RngStreams.IslandScreens), 21 },
             { nameof(RngStreams.NpcNames), 22 },
+            { nameof(RngStreams.Rewards), 23 },
         };
 
         private static Dictionary<string, ulong> Registry() =>
@@ -89,6 +90,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(RngStreams.EarthPopulation, EarthFace.PopulationRngStream);
             Assert.AreEqual(RngStreams.IslandScreens, CubeLayout.IslandRngStream);
             Assert.AreEqual(RngStreams.NpcNames, NpcNames.RngStream);
+            Assert.AreEqual(RngStreams.Rewards, RewardPlacement.RngStream);
         }
     }
 }

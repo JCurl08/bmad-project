@@ -322,6 +322,47 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
+        public IEnumerator TimedDoor_ARunSpeedBoost_IsScaledLikeAMetaUpgrade_SoTheRequiredBouldersHold()
+        {
+            // 4.7: a roadblock's +speed boost is one PlayerStats point, which the switch reads through the mover's effective
+            // speed exactly as it reads a meta Zoomies level: one meta level plus one run boost is x1.5.
+            const int required = 2;
+            DoorLayout layout = SlotLikeDoor(required);
+            MassMitt mitt = MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f * K, true);
+            Rigidbody2D body = mitt.Body;
+            var mover = mitt.gameObject.AddComponent<Game.Tracer.PlayerMover>();
+            mover.enabled = false;
+            mitt.GetComponent<PlayerStats>().Speed = 2; // a meta upgrade level
+            RunRewards rewards = mitt.gameObject.AddComponent<RunRewards>();
+            Assert.IsTrue(rewards.Grant(Reward.Boost(RunUpgrade.Speed), FaceId.Top), "The run's boost");
+            Assert.AreEqual(3, mitt.GetComponent<PlayerStats>().Speed);
+            float speed = mover.EffectiveSpeed;
+            Assert.AreEqual(TimeField.BasePlayerSpeed * 1.5f, speed, 1e-3f);
+            Assert.AreEqual(speed, DoorSwitch.PlayerSpeed(mitt.GetComponent<Collider2D>()), 1e-3f, "The switch reads the boosted speed");
+            TimedDoorGate door = MakeDoor(layout);
+            Vector2[] spots = BesideTheDoor(layout);
+            MakeBoulder(Origin + spots[0]);
+            yield return TestInput.PhysicsSteps();
+
+            IEnumerator Run()
+            {
+                Put(body, door.Switch.transform.position);
+                yield return TestInput.PhysicsSteps(2);
+                Assert.IsTrue(door.IsAjar || door.IsOpen);
+                Assert.AreEqual(layout.BaseSeconds * TimeField.BasePlayerSpeed / speed, door.ScaledBaseSeconds, 1e-3f, "Open time scaled to the boost");
+                yield return MoveTo(body, door.Threshold, speed, () => door.IsOpen);
+                yield return TestInput.PhysicsSteps(2);
+            }
+
+            yield return Run();
+            Assert.IsFalse(door.IsOpen, "Boosted, one boulder short is still impassable");
+            MakeBoulder(Origin + spots[1]);
+            yield return TestInput.PhysicsSteps();
+            yield return Run();
+            Assert.IsTrue(door.IsOpen, "Boosted, the required boulders still pass");
+        }
+
+        [UnityTest]
         public IEnumerator TimedDoor_MoreMass_KeepsItOpenLonger_Monotonic()
         {
             DoorLayout layout = SlotLikeDoor(2);

@@ -133,6 +133,14 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.HouseWallStoneDoor, Town, 90, "stone wall with a door at its left end: the stone cottage's door"),
         new Pick(ArtKey.HouseWallStoneRight, Town, 79, "stone wall, right end"),
         new Pick(ArtKey.MarketCart, Town, 57, "a cart of goods: parked by the Town market stall"),
+
+        new Pick(ArtKey.Chest, Dungeon, 89, "closed wooden chest: a roadblock's reward (4.7)"),
+        new Pick(ArtKey.ChestOpen, Dungeon, 91, "the chest with its lid up: taken"),
+        new Pick(ArtKey.Pedestal, Dungeon, 54, "low stone stand under a face item behind a roadblock"),
+        new Pick(ArtKey.RewardKey, Town, 117, "iron key over a chest: a key"),
+        new Pick(ArtKey.RewardBoost, Dungeon, 116, "blue tonic over a chest: a boost for this run"),
+        new Pick(ArtKey.RewardFragment, Dungeon, 101, "small square shard, tinted the face's colour, over a chest: a fragment slot"),
+        new Pick(ArtKey.Mound, Dungeon, 66, "a heap of brown dirt: a hidden spot to dig away with any swing"),
     };
 
     [MenuItem("Cube/Build Art Catalog")]

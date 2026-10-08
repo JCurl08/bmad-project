@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>Where a run's meta currency came from.</summary>
-    public enum EarningSource { Trial = 0, Boss = 1, Hidden = 2 }
+    public enum EarningSource { Trial = 0, Boss = 1, Hidden = 2, Chest = 3, Keys = 4 }
 
     /// <summary>
     /// A run's earnings, pure: each source key (one trial room, the boss, one hidden item) pays at most once per run, so
@@ -14,8 +14,9 @@ namespace Game.Cube
     public sealed class RunEarnings
     {
         private readonly HashSet<string> paid = new HashSet<string>();
-        private readonly int[] bySource = new int[3];
-        private readonly int[] countBySource = new int[3];
+        private const int SourceCount = 5;
+        private readonly int[] bySource = new int[SourceCount];
+        private readonly int[] countBySource = new int[SourceCount];
 
         public int Total { get; private set; }
 
@@ -58,8 +59,9 @@ namespace Game.Cube
 
     /// <summary>
     /// This run's meta-currency earnings: every trial room of the run (TrialRoom.Completed, its own amount), a core-boss
-    /// victory (BossVictory) and each hidden currency item (HiddenCurrencyPickup.Collected, its amount), each counted once.
-    /// Earnings stop once the run has ended. Bank (called by the RunLoop on RunEnded, win or lose) adds them to the meta
+    /// victory (BossVictory), each hidden currency item (HiddenCurrencyPickup.Collected, its amount) and each Jumbles* chest
+    /// behind a roadblock (4.7, RewardChest.Opened), each counted once. Earnings stop once the run has ended, except what the
+    /// run's end itself pays (AddAtRunEnd: the unused keys cashed in). Bank (called by the RunLoop on RunEnded, win or lose) adds them to the meta
     /// balance once per run. A world rebuild (a new run) starts from zero.
     /// </summary>
     public class RunWallet : MonoBehaviour
@@ -74,11 +76,15 @@ namespace Game.Cube
         private readonly RunEarnings earnings = new RunEarnings();
         private readonly List<TrialRoom> trials = new List<TrialRoom>();
         private readonly List<HiddenCurrencyPickup> hidden = new List<HiddenCurrencyPickup>();
+        private readonly List<RewardChest> chests = new List<RewardChest>();
         private CubeWorld subscribedWorld;
         private CoreArena subscribedArena;
 
-        /// <summary>Raised whenever something pays (source, amount).</summary>
+        /// <summary>Raised whenever something pays during the run (source, amount): the pickup popups listen to it.</summary>
         public event Action<EarningSource, int> Earned;
+
+        /// <summary>Raised for what the run's end pays (AddAtRunEnd: the keys cashed in), with no popup: the run is over.</summary>
+        public event Action<EarningSource, int> EarnedAtRunEnd;
 
         public RunEarnings Earnings => earnings;
 
@@ -108,6 +114,7 @@ namespace Game.Cube
                 subscribedWorld = world;
                 world.Rebuilt += ResetRun;
                 world.Revealed += HookRun;
+                world.RewardChestBuilt += HookChest;
                 if (world.ScienceRevealed) HookRun();
             }
             if (arena != null)
@@ -123,6 +130,7 @@ namespace Game.Cube
             {
                 subscribedWorld.Rebuilt -= ResetRun;
                 subscribedWorld.Revealed -= HookRun;
+                subscribedWorld.RewardChestBuilt -= HookChest;
                 subscribedWorld = null;
             }
             if (subscribedArena != null)
@@ -139,6 +147,17 @@ namespace Game.Cube
             if (Banked || (runState != null && runState.Ended)) return false;
             if (!earnings.Add(source, key, amount)) return false;
             Earned?.Invoke(source, amount);
+            return true;
+        }
+
+        /// <summary>
+        /// Adds currency the run's end itself pays (4.7: the unused keys cashed in), once per key: after the run has ended,
+        /// but never once banked. Returns true if it paid.
+        /// </summary>
+        public bool AddAtRunEnd(EarningSource source, string key, int amount)
+        {
+            if (Banked || !earnings.Add(source, key, amount)) return false;
+            EarnedAtRunEnd?.Invoke(source, amount);
             return true;
         }
 
@@ -179,6 +198,7 @@ namespace Game.Cube
                 hidden.Add(pickup);
                 pickup.Collected += OnHiddenCollected;
             }
+            foreach (RewardChest chest in world.RewardChests) HookChest(chest);
         }
 
         private readonly Dictionary<TrialRoom, Action<int>> trialHandlers = new Dictionary<TrialRoom, Action<int>>();
@@ -200,6 +220,26 @@ namespace Game.Cube
             foreach (HiddenCurrencyPickup pickup in hidden)
                 if (pickup != null) pickup.Collected -= OnHiddenCollected;
             hidden.Clear();
+            foreach (RewardChest chest in chests)
+                if (chest != null) chest.Opened -= OnChestOpened;
+            chests.Clear();
+        }
+
+        /// <summary>
+        /// Hooks one reward chest (once): each chest as CubeWorld builds it (RewardChestBuilt, so the puzzle goals' chests that
+        /// 4.10-4.12 build after the reveal pay too), and every chest of the run on Revealed.
+        /// </summary>
+        private void HookChest(RewardChest chest)
+        {
+            if (chest == null || chests.Contains(chest)) return;
+            chests.Add(chest);
+            chest.Opened += OnChestOpened;
+        }
+
+        /// <summary>A Jumbles* chest pays its amount (keys, boosts and fragments go to the player's RunRewards).</summary>
+        private void OnChestOpened(RewardChest chest, GameObject collector)
+        {
+            if (chest.Kind == RewardKind.Jumbles) Add(EarningSource.Chest, "chest:" + chest.Spot.Index, chest.Spot.What.Amount);
         }
 
         private void OnHiddenCollected(HiddenCurrencyPickup pickup) =>

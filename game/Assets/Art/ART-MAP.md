@@ -166,5 +166,12 @@ its generated placeholder shape, so nothing renders invisible.
 | HouseWallStoneDoor | T 90 | stone wall with a door at its left end: the stone cottage's door |
 | HouseWallStoneRight | T 79 | stone wall, right end |
 | MarketCart | T 57 | a cart of goods: parked by the Town market stall |
+| Chest | D 89 | closed wooden chest: a roadblock's reward (4.7) |
+| ChestOpen | D 91 | the chest with its lid up: taken (drawn faded) |
+| Pedestal | D 54 | low stone stand under a face item behind a roadblock |
+| RewardKey | T 117 | iron key over a chest: a key |
+| RewardBoost | D 116 | blue tonic over a chest: a boost for this run |
+| RewardFragment | D 101 | small square shard, tinted the face's colour, over a chest: a fragment slot |
+| Mound | D 66 | a heap of brown dirt: a hidden spot any swing digs away |
 
 Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per row in `Tilemap/tilemap_packed.png`).

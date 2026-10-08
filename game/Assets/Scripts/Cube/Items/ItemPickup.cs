@@ -7,7 +7,7 @@ namespace Game.Cube
     /// <summary>
     /// An item lying in the world. When something with an Inventory touches its trigger, the item is
     /// added (once), PickedUp is raised and the pickup is removed. Touching it while already holding the
-    /// item has no effect.
+    /// item has no effect. A Guard (4.7: the mound over a lane spot) must be open before it can be taken.
     /// </summary>
     [RequireComponent(typeof(Collider2D))]
     public class ItemPickup : MonoBehaviour
@@ -26,6 +26,9 @@ namespace Game.Cube
 
         public bool Collected => collected;
 
+        /// <summary>A roadblock that must open before the item can be taken (4.7: the mound over a lane spot); null for none.</summary>
+        public IRewardGuard Guard { get; set; }
+
         /// <summary>Raised once, when the item is given, with the inventory that took it.</summary>
         public event Action<ItemPickup, Inventory> PickedUp;
 
@@ -40,7 +43,7 @@ namespace Game.Cube
 
         private void TryCollect(Collider2D other)
         {
-            if (collected || item == null) return;
+            if (collected || item == null || (Guard != null && !Guard.IsOpen)) return;
             Inventory inventory = FindInventory(other);
             if (inventory == null) return;
             if (!inventory.Add(item)) return;

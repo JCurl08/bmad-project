@@ -106,13 +106,22 @@ namespace Game.Cube
         HouseWallStoneDoor = 126,
         HouseWallStoneRight = 127,
         MarketCart = 128,
+
+        // Roadblock rewards (4.7): the chest, the item pedestal, the icons over a chest and the hidden spot's heap.
+        Chest = 130,
+        ChestOpen = 131,
+        Pedestal = 132,
+        RewardKey = 133,
+        RewardBoost = 134,
+        RewardFragment = 135,
+        Mound = 136,
     }
 
     /// <summary>What kind of thing a key draws. Two keys of different categories must never share a sprite.</summary>
     public enum ArtCategory
     {
         None, Player, Wall, Floor, Gate, Item, Currency, Enemy, Boulder, Switch, Plant, Prop, Portal, Demon, Particle, Ruin, Hazard,
-        Building,
+        Building, Reward,
     }
 
     /// <summary>Pure facts about the art keys: category, fallback shape, tiling and the key for a theme, item or enemy.</summary>
@@ -161,7 +170,9 @@ namespace Game.Cube
                 case ArtKey.Portal: return ArtCategory.Portal;
                 case ArtKey.Demon: return ArtCategory.Demon;
                 case ArtKey.Particle: return ArtCategory.Particle;
+                case ArtKey.Mound: return ArtCategory.Prop;
             }
+            if (v >= 130 && v < 136) return ArtCategory.Reward;
             if (v >= 120 && v < 130) return ArtCategory.Building;
             return v >= 90 && v < 100 ? ArtCategory.Ruin : ArtCategory.None;
         }

@@ -216,7 +216,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(BetweenRunsScreen.DefeatTitle, screen.Title);
             Assert.IsFalse(loop.LastRun.Victory);
             Assert.AreEqual(world.Seed, loop.LastRun.Seed, "The seed is shown for replays");
-            Assert.AreEqual(5, screen.EarningsLines().Count);
+            Assert.AreEqual(7, screen.EarningsLines().Count, "Trials, the Demon, stray Jumbles*, chests and keys (4.7), banked, the jar");
             Assert.AreEqual(1, loop.Meta.RunCount);
             Assert.AreEqual(1, Saved().RunCount, "Saved at run end");
             Assert.AreEqual(0, Saved().Victories);
@@ -320,6 +320,10 @@ namespace Game.Cube.Tests
             navigator.TeleportTo(AddressOf(home), Facing.East);
             yield return new WaitForFixedUpdate();
             PlacePlayer(first.transform.position);
+            yield return PhysicsSteps(3);
+            Assert.IsFalse(first.IsCollected, "4.7: a hidden item lies under a mound until it is dug away");
+            yield return RewardDig.Dig(navigator, (RewardMound)first.Guard);
+            PlacePlayer(first.transform.position + Vector3.right * 0.01f);
             yield return WaitUntilOrGameTimeout(() => first == null || first.IsCollected, 1f);
             Assert.IsTrue(first == null || first.IsCollected, "Touching a hidden item collects it");
             Assert.AreEqual(HiddenCurrencyPlacement.Amount, wallet.Earnings.Of(EarningSource.Hidden));

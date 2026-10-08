@@ -93,6 +93,9 @@ public static class CubeSceneBuilder
         player.AddComponent<HazardReceiver>();
         var navigator = player.AddComponent<CubeNavigator>();
         navigator.World = world;
+        // Roadblock rewards (4.7): the keys, run boosts and fragment slots the player takes this run.
+        var rewards = player.AddComponent<RunRewards>();
+        rewards.World = world;
 
         // Face content: Darwin's face (beak gates, trial, finches and enemies) plugs in on the reveal.
         worldObject.AddComponent<BiologyFace>().Player = player.transform;
@@ -147,6 +150,7 @@ public static class CubeSceneBuilder
         var hud = new GameObject("Combat HUD").AddComponent<CombatHud>();
         hud.Health = health;
         hud.Equipment = equipment;
+        hud.Rewards = rewards;
 
         // The run's outcome (one per scene) and the core arena: portals on every built face's core slot lead to
         // Maxwell's Demon; victory or defeat ends the run through the RunState.
@@ -311,10 +315,67 @@ public static class CubeSceneBuilder
                   $"{earthGates} gates ({offHomeEarth} off-home, {optionalEarth} optional); hazards {hazardCounts[0]} wind, " +
                   $"{hazardCounts[1]} snow, {hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
                   $"{string.Join(", ", levels.Select(e => $"{e.Key}x{e.Value}"))}; the Earth trial fits on {earthTrials} seeds.\n";
+        report += RewardReport(results, library);
         int towns = results.Sum(r => r.TownsChecked);
         report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
                   "module, slot-free, with a sound layout; no gate, pickup, core portal, island screen, trial, flower or hidden spot on it).\n";
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
+    }
+
+    /// <summary>The sweep's roadblock-reward lines (4.7): the kinds, the roadblocks and each face theme's mix per run.</summary>
+    private static string RewardReport(List<SeedSweep.SeedResult> results, ModuleLibrary library)
+    {
+        var kinds = new int[5];
+        var bonus = 0;
+        var roadblocks = new int[4];
+        int lane = 0, hiddenJumbles = 0, jumbles = 0, requiredJumbles = 0, everyKind = 0, seeds = 0, minSpots = int.MaxValue, maxSpots = 0;
+        var boosts = new int[3];
+        var perTheme = new Dictionary<Theme, int[]>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Rewards == null) continue;
+            seeds++;
+            var model = new CubeModel(r.Seed);
+            var seen = new HashSet<RewardKind>();
+            minSpots = Mathf.Min(minSpots, r.Rewards.Spots.Count);
+            maxSpots = Mathf.Max(maxSpots, r.Rewards.Spots.Count);
+            foreach (RewardSpot s in r.Rewards.Spots)
+            {
+                kinds[(int)s.What.Kind]++;
+                seen.Add(s.What.Kind);
+                roadblocks[(int)s.Where.Kind]++;
+                if (!s.Required) bonus++;
+                if (s.Where.IsLaneSpot) lane++;
+                if (s.HiddenIndex >= 0) hiddenJumbles++;
+                if (s.What.Kind == RewardKind.Jumbles)
+                {
+                    jumbles += s.What.Amount;
+                    if (s.Required) requiredJumbles += s.What.Amount;
+                }
+                if (s.What.Kind == RewardKind.Upgrade) boosts[(int)s.What.Upgrade]++;
+                Theme theme = model.ThemeOf(s.Face);
+                if (!perTheme.TryGetValue(theme, out int[] mix)) perTheme[theme] = mix = new int[6];
+                mix[(int)s.What.Kind]++;
+                if (!s.Required) mix[5]++;
+            }
+            if (seen.Count == 5) everyKind++;
+        }
+        if (seeds == 0) return "Rewards: not checked.\n";
+        string Avg(int count) => (count / (float)seeds).ToString("0.0");
+        string text = $"Rewards: {kinds.Sum()} over {seeds} seeds ({minSpots}-{maxSpots} a run): {kinds[(int)RewardKind.Jumbles]} Jumbles* " +
+                      $"({bonus} bonus behind optional gates, {hiddenJumbles} hidden; {Avg(requiredJumbles)} reachable Jumbles* a run), " +
+                      $"{kinds[(int)RewardKind.Equipment]} equipment ({lane} under a lane mound), {kinds[(int)RewardKind.Upgrade]} boosts " +
+                      $"({boosts[0]} heart, {boosts[1]} speed, {boosts[2]} power), {kinds[(int)RewardKind.Key]} keys, " +
+                      $"{kinds[(int)RewardKind.FragmentSlot]} fragment slots; every kind on {everyKind}/{seeds} seeds. Roadblocks: " +
+                      $"{roadblocks[(int)RoadblockKind.Gate]} gates, {roadblocks[(int)RoadblockKind.OptionalGate]} optional gates, " +
+                      $"{roadblocks[(int)RoadblockKind.Mound]} mounds, {roadblocks[(int)RoadblockKind.Puzzle]} puzzle goals.\n";
+        text += "Reward mix per face a run (fragment slots/keys/boosts/equipment/Jumbles* chests, of which bonus): " +
+                string.Join("; ", CubeModel.ScienceThemes.Where(perTheme.ContainsKey).Select(t =>
+                {
+                    int[] m = perTheme[t];
+                    return $"{t} {Avg(m[4])}/{Avg(m[3])}/{Avg(m[2])}/{Avg(m[1])}/{Avg(m[0])} ({Avg(m[5])})";
+                })) + ".\n";
+        return text;
     }
 }

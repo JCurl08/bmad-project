@@ -163,7 +163,12 @@ namespace Game.Cube.Tests
             Assert.IsFalse(gate.IsOpen, "The gate opened without its item");
             Assert.IsTrue(gate.Solid.enabled);
 
-            // Pick the item up: it lies in the open lane below its screen centre.
+            // Pick the item up: it lies in the lane below its screen centre, under a mound (4.7) that is dug away first.
+            navigator.TeleportTo(open.Screen, Facing.East);
+            yield return null;
+            ItemPickup lying = world.Pickups.First(x => x != null && x.Item == item);
+            Assert.IsInstanceOf<RewardMound>(lying.Guard, "An open pickup lies under a mound");
+            yield return RewardDig.Dig(navigator, (RewardMound)lying.Guard);
             navigator.TeleportTo(open.Screen, Facing.East);
             yield return null;
             yield return this.HoldUntil(keyboard.sKey, () => inventory.Has(item), Timeout);

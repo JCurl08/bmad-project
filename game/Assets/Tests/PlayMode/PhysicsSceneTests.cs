@@ -235,7 +235,10 @@ namespace Game.Cube.Tests
             PhysicsPlan plan = physics.Plan;
             Assert.IsTrue(world.ItemPlacement.TryGetPickup(Theme.Physics, out PickupPlacement pickup));
 
-            // The mitt: walk onto it from its screen centre.
+            // The mitt: walk onto it from its screen centre, once its mound (4.7) is dug away.
+            navigator.TeleportTo(pickup.Screen, Facing.East);
+            yield return null;
+            yield return RewardDig.Dig(navigator, (RewardMound)world.Pickups.First(p => p != null && p.Item.HomeTheme == Theme.Physics).Guard);
             navigator.TeleportTo(pickup.Screen, Facing.East);
             yield return null;
             yield return this.HoldUntil(keyboard.sKey, () => mitt.IsHeld, Timeout);

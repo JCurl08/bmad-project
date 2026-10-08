@@ -25,6 +25,9 @@ namespace Game.Cube
     /// meta-currency items (HiddenCurrencyPlacement) into hidden-item slots on the built science faces.
     /// Every face's centre screen holds its town module (4.5): placing it builds the town on it (TownSquareView), Town's with
     /// the run and each science face's on its reveal; its people come from TownPopulation (Town) and TownSquares (the rest).
+    /// Every roadblock hides a reward (4.7, RewardPlacement): an item stands on a pedestal in its gated alcove or under a
+    /// mound (RewardMound) on its screen's lane spot, every hidden currency item lies under a mound, and every other gate,
+    /// optional gate and hidden spot of the run holds a RewardChest (Jumbles*, a key, a boost or a fragment slot).
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
@@ -44,6 +47,8 @@ namespace Game.Cube
         private readonly List<Gate> optionalGates = new List<Gate>();
         private readonly List<ItemPickup> pickups = new List<ItemPickup>();
         private readonly List<HiddenCurrencyPickup> hiddenCurrency = new List<HiddenCurrencyPickup>();
+        private readonly List<RewardChest> rewardChests = new List<RewardChest>();
+        private readonly List<RewardMound> rewardMounds = new List<RewardMound>();
 
         public CubeModel Model { get; private set; }
         public int Seed => Model != null ? Model.Seed : seed;
@@ -80,6 +85,18 @@ namespace Game.Cube
 
         /// <summary>Every hidden meta-currency pickup instantiated by the reveal (same order as HiddenCurrency.Spots); collected ones become null.</summary>
         public IReadOnlyList<HiddenCurrencyPickup> HiddenCurrencyPickups => hiddenCurrency;
+
+        /// <summary>The run's roadblock rewards (4.7); null until the science faces are revealed.</summary>
+        public RewardPlacement Rewards { get; private set; }
+
+        /// <summary>Every reward chest the reveal built (keys, boosts, fragment slots, Jumbles* chests).</summary>
+        public IReadOnlyList<RewardChest> RewardChests => rewardChests;
+
+        /// <summary>Raised for every reward chest BuildRewardChest builds (the RunWallet hooks each one as it is built).</summary>
+        public event Action<RewardChest> RewardChestBuilt;
+
+        /// <summary>Every mound (hidden spot) the reveal built: over chests, hidden currency items and lane-spot items.</summary>
+        public IReadOnlyList<RewardMound> RewardMounds => rewardMounds;
 
         /// <summary>The run's planned gate looks (RunFacts.Of works them out once per run); cleared on every rebuild.</summary>
         public IReadOnlyDictionary<(ScreenAddress Screen, int Slot), string> PlannedGateLooks { get; set; }
@@ -154,6 +171,7 @@ namespace Game.Cube
             ItemPlacement = null;
             PlannedGateLooks = null;
             HiddenCurrency = null;
+            Rewards = null;
             ScienceRevealed = false;
             Relations.Reset();
             modules.Clear();
@@ -161,6 +179,8 @@ namespace Game.Cube
             optionalGates.Clear();
             pickups.Clear();
             hiddenCurrency.Clear();
+            rewardChests.Clear();
+            rewardMounds.Clear();
             foreach (IFaceContent content in FaceContents) content.Clear();
 
             if (generated != null) Destroy(generated.gameObject);
@@ -199,6 +219,7 @@ namespace Game.Cube
             }
             PlaceItems();
             PlaceHiddenCurrency();
+            PlaceRewards();
 
             Revealed?.Invoke();
             return true;
@@ -465,6 +486,127 @@ namespace Game.Cube
             }
         }
 
+        /// <summary>
+        /// Builds the run's roadblock rewards (RewardPlacement, 4.7): a mound over each lane-spot item and each hidden currency
+        /// item, and a chest behind every other roadblock (in its gate's alcove, or under a mound on its hidden-item slot).
+        /// Puzzle goals (4.10-4.12) build their own chests with BuildRewardChest.
+        /// </summary>
+        private void PlaceRewards()
+        {
+            if (Layout == null || library == null || ItemPlacement == null) return;
+            Rewards = RewardPlacement.Generate(Model, Layout, ItemPlacement, HiddenCurrency, library);
+            foreach (RewardSpot spot in Rewards.Spots)
+            {
+                Roadblock where = spot.Where;
+                ScreenModule module = ModuleAt(where.Screen);
+                if (module == null)
+                {
+                    Debug.LogError($"CubeWorld: cannot place {spot}");
+                    continue;
+                }
+                if (spot.What.Kind == RewardKind.Equipment)
+                {
+                    if (where.Kind != RoadblockKind.Mound) continue; // it stands in its gated alcove already
+                    ItemPickup pickup = pickups.Find(p => p != null && p.Item != null && p.Item.HomeTheme == spot.What.Item);
+                    if (pickup == null) continue;
+                    RewardMound over = CreateMound(spot, pickup.transform.parent, pickup.transform.position);
+                    over.Cover(pickup);
+                    pickup.Guard = over;
+                    continue;
+                }
+                if (spot.HiddenIndex >= 0)
+                {
+                    HiddenCurrencyPickup coin = spot.HiddenIndex < hiddenCurrency.Count ? hiddenCurrency[spot.HiddenIndex] : null;
+                    if (coin == null) continue;
+                    RewardMound over = CreateMound(spot, coin.transform.parent, coin.transform.position);
+                    over.Cover(coin);
+                    coin.Guard = over;
+                    continue;
+                }
+                if (where.Kind == RoadblockKind.Puzzle) continue;
+
+                Vector2 at;
+                GateSlot alcove = null;
+                if (where.Kind == RoadblockKind.Mound)
+                {
+                    HiddenItemSlot[] slots = module.HiddenItems;
+                    if (where.Slot == Roadblock.LaneSpot) at = ScreenCenter(where.Screen) + OpenPickupOffset;
+                    else if (where.Slot >= 0 && where.Slot < slots.Length) at = slots[where.Slot].transform.position;
+                    else
+                    {
+                        Debug.LogError($"CubeWorld: cannot place {spot}");
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (where.Slot < 0 || where.Slot >= module.Gates.Length)
+                    {
+                        Debug.LogError($"CubeWorld: cannot place {spot}");
+                        continue;
+                    }
+                    alcove = module.Gates[where.Slot];
+                    at = alcove.PocketCentre;
+                }
+                RewardMound mound = where.Kind == RoadblockKind.Mound ? CreateMound(spot, module.transform, at) : null;
+                RewardChest chest = BuildRewardChest(spot, module.transform, at, mound);
+                if (alcove != null)
+                {
+                    TuckIntoPocket(chest.transform, alcove);
+                    chest.BlockingGate = alcove.GetComponentInChildren<Gate>(true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A reward chest for a spot at a world point (with its icon over it for a key, boost or fragment slot), kept shut and
+        /// hidden by guard (a mound) when given, and listed in RewardChests (the RunWallet pays its Jumbles*). It is also the
+        /// hook 4.10-4.12 build their puzzle goals' rewards with, before Revealed is raised.
+        /// </summary>
+        public RewardChest BuildRewardChest(RewardSpot spot, Transform parent, Vector2 at, RewardMound guard = null)
+        {
+            Theme theme = Model.ThemeOf(spot.Face);
+            GameObject go = CreateBlock($"Reward Chest {spot.Index} ({spot.What})", parent, at,
+                Vector2.one * RewardChest.Size, Color.white, 5, false, ArtKey.Chest);
+            var trigger = go.AddComponent<CircleCollider2D>();
+            trigger.isTrigger = true;
+            trigger.radius = RewardChest.Radius;
+            var chest = go.AddComponent<RewardChest>();
+            chest.Spot = spot;
+            chest.Theme = theme;
+            SpriteRenderer icon = null;
+            ArtKey iconKey = RewardChest.IconOf(spot.What);
+            if (iconKey != ArtKey.None)
+            {
+                Color tint = spot.What.Kind == RewardKind.FragmentSlot ? ThemeColor(theme) : Color.white;
+                icon = ArtCatalog.AddSprite(go.transform, "Icon", iconKey, new Vector2(0f, 0.55f * ScreenMath.ContentScale),
+                    Vector2.one * RewardChest.IconSize, tint, 6, material);
+            }
+            chest.SetArt(go.transform.Find("Visual").GetComponent<SpriteRenderer>(), icon);
+            if (guard != null)
+            {
+                guard.Cover(chest);
+                chest.Guard = guard;
+            }
+            rewardChests.Add(chest);
+            RewardChestBuilt?.Invoke(chest);
+            return chest;
+        }
+
+        /// <summary>A hidden spot's heap of dirt at a world point (a trigger: it never blocks the way).</summary>
+        private RewardMound CreateMound(RewardSpot spot, Transform parent, Vector2 at)
+        {
+            GameObject go = CreateBlock($"Mound {spot.Index}", parent, at, Vector2.one * RewardMound.Size, Color.white, 7, false,
+                ArtKey.Mound);
+            var trigger = go.AddComponent<CircleCollider2D>();
+            trigger.isTrigger = true;
+            trigger.radius = RewardMound.Radius;
+            var mound = go.AddComponent<RewardMound>();
+            mound.Spot = spot;
+            rewardMounds.Add(mound);
+            return mound;
+        }
+
         /// <summary>Builds one gate: through the face content of its item's theme when there is one, else a plain Gate.</summary>
         private Gate BuildGate(FaceGateRequest request, ItemDefinition item, IFaceContent[] contents)
         {
@@ -535,6 +677,9 @@ namespace Game.Cube
             var trigger = go.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
             trigger.radius = ItemPickup.Radius;
+            // 4.7: every item stands on a low pedestal behind its roadblock.
+            ArtCatalog.AddSprite(go.transform, "Pedestal", ArtKey.Pedestal, new Vector2(0f, -0.3f * ScreenMath.ContentScale),
+                new Vector2(size, size * 0.6f), Color.white, 4, material);
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Item = item;
             return pickup;
