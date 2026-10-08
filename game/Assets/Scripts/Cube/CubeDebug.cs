@@ -17,6 +17,8 @@ namespace Game.Cube
     /// removed on a rebuild. While the player is in the core arena, the overlay says so (instead of a face and cell) and
     /// F3/F7 spawn inside the arena's screen. F11 lights the whole cube-net map for the run (debug "visit all"); the
     /// overlay also reminds that M opens the map. While the map pauses the game (GamePause) only F1 works.
+    /// Inside a town building (4.6) the overlay names the room, F3/F7 spawn inside it and F8 walks the player back out of
+    /// its door; F5, F6 and F10 take the player out like any teleport.
     /// </summary>
     public class CubeDebug : MonoBehaviour, IHintDensityTarget
     {
@@ -67,10 +69,30 @@ namespace Game.Cube
         /// <summary>True while the player is in the core arena.</summary>
         public bool PlayerInCoreArena => navigator != null && navigator.InCoreArena;
 
-        /// <summary>Centre of the screen the player is on: the arena's while in the core arena, else the face screen's.</summary>
+        /// <summary>The town buildings' rooms (found in the scene when not set).</summary>
+        public TownInteriors Interiors
+        {
+            get
+            {
+                if (interiors == null) interiors = FindAnyObjectByType<TownInteriors>();
+                return interiors;
+            }
+            set => interiors = value;
+        }
+
+        [SerializeField] private TownInteriors interiors;
+
+        /// <summary>True while the player is inside a town building.</summary>
+        public bool PlayerInInterior => navigator != null && navigator.InInterior;
+
+        /// <summary>What the overlay shows in place of the cell while the player is inside a town building.</summary>
+        public const string InteriorLabel = "Inside the town's";
+
+        /// <summary>Centre of the screen the player is on: the arena's in the core arena, the room's inside a building, else the face screen's.</summary>
         public Vector2 PlayerScreenCentre()
         {
             if (PlayerInCoreArena && CoreArena != null) return CoreArena.Centre;
+            if (PlayerInInterior && Interiors != null && Interiors.Current != null) return Interiors.Current.Centre;
             ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
             return world.ScreenCenter(here);
         }
@@ -153,10 +175,12 @@ namespace Game.Cube
 
         /// <summary>
         /// F8: leaves the core arena for the Town start screen. The arena abandons the fight on its own once the
-        /// player is outside it, and a fresh fight starts on the next portal entry. Does nothing outside the arena.
+        /// player is outside it, and a fresh fight starts on the next portal entry. Inside a town building (4.6) it walks the
+        /// player out of its door instead (TownInteriors.Leave). Does nothing anywhere else.
         /// </summary>
         public bool LeaveCoreArena()
         {
+            if (PlayerInInterior) return Interiors != null && Interiors.Leave();
             if (!PlayerInCoreArena || world.Model == null) return false;
             navigator.TeleportTo(world.Model.StartScreen, Facing.East);
             return true;
@@ -416,10 +440,16 @@ namespace Game.Cube
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
                               "F1 overlay   F2 slots   F3 NPCs (+Shift leaders)   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
-                              "F8 leave core   F9 rest (full health)   F10 new run   F11 light map   M map";
+                              "F8 leave core/room   F9 rest (full health)   F10 new run   F11 light map   M map";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
+                if (PlayerInInterior)
+                {
+                    string room = Interiors != null && Interiors.Current != null ? Interiors.Current.Interior.Name : "building";
+                    return head + $"{InteriorLabel} {room}   Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}\n" +
+                           $"Town cell ({here.Cell.x},{here.Cell.y})   (off the cube net)\n\n" + tail;
+                }
                 string facing = navigator != null ? navigator.Facing.ToString() : "-";
                 ScreenModule module = world.ModuleAt(here);
                 string moduleText = module != null ? module.name.Replace(module.Theme.ToString(), InWorldText.Region(module.Theme)) : model.IsSealed(here.Face) ? "-" : "(unrevealed)";

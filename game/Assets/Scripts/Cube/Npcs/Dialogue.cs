@@ -409,6 +409,52 @@ namespace Game.Cube
         /// <summary>A leader's whole conversation (4.5): their greeting, then their region's quest hook (two lines, MaxLines).</summary>
         public static List<string> LeaderConversation(Race race) => new List<string>(MaxLines) { LeaderLine(race), QuestLine(race) };
 
+        /// <summary>
+        /// What a shop's keeper says (4.6), in their voice: a welcome to a bare counter, then that the currency (InWorldText.Currency) is spent between
+        /// trips (meta-currency spending stays on the between-runs screen; the counter is a hook for later stories).
+        /// </summary>
+        public static readonly IReadOnlyDictionary<Voice, string[]> KeeperLineTable = new Dictionary<Voice, string[]>
+        {
+            [Voice.Town] = new[]
+            {
+                "Welcome to the shop, dear! The shelves are all spoken for today, but the gossip's free and I've plenty of it.",
+                InWorldText.Currency + " get spent between trips, back where you rest up. Come by after a long day and we'll talk prices!",
+            },
+            [Voice.Finch] = new[]
+            {
+                "Good morrow! Thou art welcome at my counter, though 'tis bare of wares this day.",
+                "Prithee, keep thy " + InWorldText.Currency + " till thou art betwixt thy journeys; verily, 'tis then that spending is done.",
+            },
+            [Voice.Mushroom] = new[]
+            {
+                "Ooh, a customer! I'm *so* thrilled! Nothing's for sale today, though. Sob.",
+                InWorldText.Currency + "? Ugh, you spend those between trips, not here. I just love standing at my counter!",
+            },
+            [Voice.Alien] = new[]
+            {
+                "A counter with nothing on it. Perhaps that is the purest shop of all, I wonder?",
+                InWorldText.Currency + " are spent between journeys, I am told. Consider: are " + InWorldText.Currency + " unspent truly " + InWorldText.Currency + " at all?",
+            },
+            [Voice.Shape] = new[]
+            {
+                "This is a counter. If nothing is on it, then nothing is for sale.",
+                InWorldText.Currency + " are spent between journeys. Therefore, keep them until then.",
+            },
+            [Voice.Ground] = new[]
+            {
+                "Counter's cut from ridge rock. Nothing on it yet; supplies come up the trail later.",
+                "Spend your " + InWorldText.Currency + " back at camp, between trips. Out here we just swap stories by the fire.",
+            },
+            [Voice.Sky] = new[]
+            {
+                "Shelves are bare as a clear sky today. Stock blows in later.",
+                "Spend your " + InWorldText.Currency + " between trips, when the wind's at your back.",
+            },
+        };
+
+        /// <summary>A shop keeper's conversation (two lines, MaxLines) in a voice.</summary>
+        public static List<string> KeeperLines(Voice voice) => new List<string>(KeeperLineTable[voice]);
+
         /// <summary>Lines the finches of the Greenwood* say about their patron, Grandsire Beakwell (one per finch, picked by salt).</summary>
         public static readonly string[] DarwinLines =
         {
@@ -640,6 +686,7 @@ namespace Game.Cube
                     for (int r = 0; r < f.Rumours.Length; r++)
                         yield return Fill(template, f, (uint)(r * 13));
             foreach (string line in f.Greetings) yield return line;
+            foreach (string line in KeeperLineTable[voice]) yield return line;
         }
 
         /// <summary>Every fixed line and filler, for the tone check.</summary>
@@ -659,6 +706,8 @@ namespace Game.Cube
                 foreach (string line in SpokenLines(voice)) yield return line;
             foreach (string line in LeaderLines.Values) yield return line;
             foreach (string line in QuestLines.Values) yield return line;
+            foreach (string[] keeper in KeeperLineTable.Values)
+                foreach (string line in keeper) yield return line;
             foreach (string line in DarwinLines) yield return line;
             foreach (string line in BeakLines) yield return line;
             foreach (string line in CurieLines) yield return line;

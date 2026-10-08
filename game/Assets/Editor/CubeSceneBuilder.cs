@@ -108,6 +108,10 @@ public static class CubeSceneBuilder
         var squares = worldObject.AddComponent<TownSquares>();
         squares.World = world;
         squares.Player = player.transform;
+        // Enterable buildings (4.6): every town's marked door leads into its race's room, off the cube net.
+        var interiors = worldObject.AddComponent<TownInteriors>();
+        interiors.World = world;
+        interiors.Navigator = navigator;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -133,6 +137,7 @@ public static class CubeSceneBuilder
         var debug = new GameObject("Cube Debug").AddComponent<CubeDebug>();
         debug.World = world;
         debug.Navigator = navigator;
+        debug.Interiors = interiors;
 
         // Town: one NPC of each face race plus a few Townsfolk, respawned on every run start.
         var town = new GameObject("Town Population").AddComponent<TownPopulation>();

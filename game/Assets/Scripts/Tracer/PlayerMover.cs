@@ -128,6 +128,7 @@ namespace Game.Tracer
         {
             latch.Hold();
             if (body != null) body.linearVelocity = Vector2.zero;
+            MoveInput = Vector2.zero;
         }
 
         /// <summary>Ends a StopUntilFreshPress wait (a teleport or a new run).</summary>
@@ -213,6 +214,12 @@ namespace Game.Tracer
         /// </summary>
         public Vector2 Facing { get; private set; } = Vector2.down;
 
+        /// <summary>
+        /// The move input the last physics step acted on (after the fresh-press wait; zero while waiting, before the first
+        /// step, and once the mover is disabled): what the player is pushing toward right now.
+        /// </summary>
+        public Vector2 MoveInput { get; private set; }
+
         /// <summary>Sets the facing (e.g. to the entry facing after a teleport). A zero direction is ignored.</summary>
         public void SetFacing(Vector2 direction)
         {
@@ -260,10 +267,12 @@ namespace Game.Tracer
                 input = latch.Filter(input);
                 if (latch.Waiting)
                 {
+                    MoveInput = Vector2.zero;
                     body.linearVelocity = Vector2.zero;
                     return;
                 }
             }
+            MoveInput = input;
             if (input.sqrMagnitude > 1e-4f) Facing = input.normalized;
             MoveModifier m = Modifier;
             if (m.IsNone)

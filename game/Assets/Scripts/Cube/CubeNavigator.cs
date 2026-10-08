@@ -12,6 +12,8 @@ namespace Game.Cube
     /// faces are unrevealed reveals (lays out) them before the player is moved.
     /// While the player is outside the cube (in the core arena, via EnterCoreArena) edge crossing is off; any teleport onto a
     /// screen (a new run, a debug jump) turns it back on.
+    /// Inside a town building (4.6, TownInteriors: EnterInterior) edge crossing is off too, and Current is the town's screen
+    /// (the room is not on the cube net); walking out (ReturnTo) or any teleport puts the player back on the net.
     /// A face crossing stops the player (1.25): it arrives facing into the new face, just inside the doorway it came
     /// through, and stands still until every direction is let go and a key is pressed again (PlayerMover.StopUntilFreshPress),
     /// so a held key never carries it on (or, over an edge the flat world draws turned, straight back out). Pressing toward
@@ -41,7 +43,16 @@ namespace Game.Cube
         public Facing Facing { get; private set; } = Facing.East;
 
         public ScreenAddress Current =>
+            InInterior ? interiorTown :
             world != null ? new ScreenAddress(Face, world.CellAt(Face, Position)) : new ScreenAddress(Face, Vector2Int.zero);
+
+        /// <summary>True while the player is inside a town building (4.6): edges are not checked and Current is the town's screen.</summary>
+        public bool InInterior { get; private set; }
+
+        /// <summary>The marked door the player went in by (world, its sill), while InInterior: where the map shows them.</summary>
+        public Vector2 InteriorDoor { get; private set; }
+
+        private ScreenAddress interiorTown;
 
         /// <summary>True while the player is in the core arena (outside every face): edges are not checked and Current is meaningless.</summary>
         public bool InCoreArena { get; private set; }
@@ -106,8 +117,19 @@ namespace Game.Cube
         /// </summary>
         public void TeleportTo(ScreenAddress address, Facing facing)
         {
+            PlaceOn(address, world.LandingPoint(address, facing), facing);
+        }
+
+        /// <summary>
+        /// Puts the player back on a screen at a given point (walking out of a town building puts them outside its door),
+        /// facing the given way; like TeleportTo otherwise (edge crossing back on, the mover's facing set, no wait for a
+        /// fresh press).
+        /// </summary>
+        public void PlaceOn(ScreenAddress address, Vector2 position, Facing facing)
+        {
             RevealIfArriving(address.Face);
             InCoreArena = false;
+            InInterior = false;
             Face = address.Face;
             Facing = facing;
             if (TryGetComponent(out PlayerMover mover))
@@ -115,7 +137,29 @@ namespace Game.Cube
                 mover.SetFacing(facing.ToVector());
                 mover.ClearFreshPressWait();
             }
-            SetPosition(world.LandingPoint(address, facing));
+            SetPosition(position);
+        }
+
+        /// <summary>
+        /// Goes into a town building (4.6, TownInteriors): snaps the player into its room (off the cube net) facing the given
+        /// way, suspends edge crossing and keeps Current on the town's screen (door: the marked door's sill, for the map)
+        /// until the player walks out (PlaceOn) or any teleport.
+        /// </summary>
+        public void EnterInterior(ScreenAddress town, Vector2 door, Vector2 position, Facing facing)
+        {
+            InCoreArena = false;
+            InInterior = true;
+            interiorTown = town;
+            InteriorDoor = door;
+            Face = town.Face;
+            Facing = facing;
+            if (TryGetComponent(out PlayerMover mover))
+            {
+                mover.SetFacing(facing.ToVector());
+                mover.ClearFreshPressWait();
+            }
+            if (body != null) body.linearVelocity = Vector2.zero;
+            SetPosition(position);
         }
 
         /// <summary>
@@ -125,6 +169,7 @@ namespace Game.Cube
         public void EnterCoreArena(Vector2 position)
         {
             InCoreArena = true;
+            InInterior = false;
             if (TryGetComponent(out PlayerMover mover)) mover.ClearFreshPressWait();
             SetPosition(position);
         }
@@ -138,7 +183,7 @@ namespace Game.Cube
 
         private void CheckEdges()
         {
-            if (world == null || world.Model == null || InCoreArena) return;
+            if (world == null || world.Model == null || InCoreArena || InInterior) return;
 
             Vector2 extent = world.FaceExtent;
             Vector2 origin = world.FaceOrigin(Face);

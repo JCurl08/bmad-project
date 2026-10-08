@@ -34,7 +34,8 @@ namespace Game.Cube
     /// this run (VisitTracker) are filled in their region colour (CubeWorld.ThemeColor); the rest stay dark. Markers
     /// (MapMarkers) show the player and which way they face, the Town start screen, gates (opened ones hollow), item
     /// pickups, trials (solved ones filled) and core portals, on visited screens only. In the core arena a "core" banner
-    /// replaces the player marker. While open, gameplay pauses (GamePause: time stopped, player, attack and dialogue input
+    /// replaces the player marker. Inside a town building (4.6) the player stands on their town's screen, the marker at
+    /// the building's door, with an "Inside the shop" (hall, home) badge in the header. While open, gameplay pauses (GamePause: time stopped, player, attack and dialogue input
     /// ignored); pressing the key again (or Escape) closes it and resumes. It cannot open while the between-runs screen is
     /// up and closes if that screen opens. Drawn with OnGUI, like the other HUDs, and readable on the 960x600 canvas.
     /// </summary>
@@ -57,7 +58,28 @@ namespace Game.Cube
             yield return CloseHint;
             yield return CoreLabel;
             foreach (string label in LegendLabels) yield return label;
+            foreach (InteriorKind kind in new[] { InteriorKind.Shop, InteriorKind.LeadersHall, InteriorKind.Home })
+                yield return InsideText(kind);
         }
+
+        /// <summary>The map's header band (title, inside badge, close hint): the net starts below it.</summary>
+        public const float HeaderHeight = 56f;
+
+        /// <summary>The title's and the close hint's places in the header, at a screen width.</summary>
+        public static Rect TitleRect(float w) => new Rect(16f, 8f, 200f, 36f);
+        public static Rect CloseHintRect(float w) => new Rect(w - 216f, 14f, 200f, 24f);
+
+        /// <summary>The inside badge's width: room for the longest badge ("Inside the leader's hall") at 16 pt bold.</summary>
+        public const float InsideBadgeWidth = 300f;
+
+        /// <summary>The inside badge's font size (bold).</summary>
+        public const int InsideFontSize = 16;
+
+        /// <summary>Where the inside badge sits: centred in the header, between the title and the close hint.</summary>
+        public static Rect InsideBadgeRect(float w) => new Rect(Mathf.Round(w / 2f - InsideBadgeWidth / 2f), 11f, InsideBadgeWidth, 32f);
+
+        /// <summary>The badge in the map's header while the player is inside a town building ("Inside the shop").</summary>
+        public static string InsideText(InteriorKind kind) => $"Inside the {TownInterior.RoomName(kind)}";
 
         public static readonly Color FogColor = new Color(0.1f, 0.1f, 0.13f);
         public static readonly Color SealedColor = new Color(0.05f, 0.05f, 0.06f);
@@ -85,6 +107,7 @@ namespace Game.Cube
         private GUIStyle titleStyle;
         private GUIStyle textStyle;
         private GUIStyle bannerStyle;
+        private GUIStyle insideStyle;
 
         public CubeWorld World
         {
@@ -138,6 +161,22 @@ namespace Game.Cube
 
         /// <summary>True while the player is in the core arena (the map shows the core banner instead of a player marker).</summary>
         public bool PlayerInCore => navigator != null && navigator.InCoreArena;
+
+        /// <summary>True while the player is inside a town building (the map shows the town's screen with an inside badge).</summary>
+        public bool PlayerInside => navigator != null && navigator.InInterior;
+
+        /// <summary>The inside badge's text while the player is inside a town building (null outside).</summary>
+        public string InsideLabel
+        {
+            get
+            {
+                if (!PlayerInside || world == null || world.Model == null) return null;
+                return InsideText(TownInterior.KindFor(world.Model.ThemeOf(navigator.Face)));
+            }
+        }
+
+        /// <summary>Where the player marker stands (world): the player, or inside a building the door they went in by.</summary>
+        public Vector2 PlayerMarkerPoint => PlayerInside ? navigator.InteriorDoor : navigator != null ? (Vector2)navigator.transform.position : Vector2.zero;
 
         /// <summary>The screen the player marker is on (meaningless in the core arena).</summary>
         public ScreenAddress PlayerScreen => navigator != null ? navigator.Current : default;
@@ -318,8 +357,20 @@ namespace Game.Cube
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            GUI.Label(new Rect(16f, 8f, 200f, 36f), Title, titleStyle);
-            GUI.Label(new Rect(w - 216f, 14f, 200f, 24f), CloseHint, textStyle);
+            GUI.Label(TitleRect(w), Title, titleStyle);
+            GUI.Label(CloseHintRect(w), CloseHint, textStyle);
+            string inside = InsideLabel;
+            if (inside != null)
+            {
+                // The inside badge, in the header line between the title and the close hint (it never covers the net):
+                // a dark tab in the town marker's orange.
+                Rect badge = InsideBadgeRect(w);
+                Fill(badge, new Color(0.08f, 0.06f, 0.1f, 0.92f));
+                Outline(badge, TownColor, MarkerOutlineWidth);
+                GUI.color = TownColor;
+                GUI.Label(badge, inside, insideStyle);
+                GUI.color = Color.white;
+            }
 
             CubeNet n = Net;
             int size = n.FaceSize;
@@ -328,7 +379,7 @@ namespace Game.Cube
             float netW = CubeNet.Columns * faceSpan + (CubeNet.Columns - 1) * FaceGap;
             float netH = CubeNet.Rows * faceSpan + (CubeNet.Rows - 1) * FaceGap;
             float left = Mathf.Floor((w - netW) / 2f);
-            float top = 56f + Mathf.Floor(Mathf.Max(0f, (h - 56f - LegendHeight(w) - netH) / 2f));
+            float top = HeaderHeight + Mathf.Floor(Mathf.Max(0f, (h - HeaderHeight - LegendHeight(w) - netH) / 2f));
 
             Rect CellRect(Vector2Int netCell)
             {
@@ -383,8 +434,7 @@ namespace Game.Cube
                 Outline(r, MarkerOutlineColor, MarkerOutlineWidth);
                 Outline(new Rect(r.x + MarkerOutlineWidth, r.y + MarkerOutlineWidth, r.width - 2f * MarkerOutlineWidth,
                     r.height - 2f * MarkerOutlineWidth), Color.white, MarkerOutlineWidth);
-                Vector2 local = n.ToNetLocal(here.Face,
-                    MapMarkers.LocalIn(world.ScreenCenter(here), navigator.transform.position));
+                Vector2 local = n.ToNetLocal(here.Face, MapMarkers.LocalIn(world.ScreenCenter(here), PlayerMarkerPoint));
                 var at = new Vector2(r.x + local.x * r.width, r.y + (1f - local.y) * r.height);
                 DrawPlayer(at, PlayerNetDirection, glyph * 1.4f);
             }
@@ -563,6 +613,8 @@ namespace Game.Cube
             textStyle.normal.textColor = new Color(0.9f, 0.9f, 0.95f);
             bannerStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             bannerStyle.normal.textColor = Color.white;
+            insideStyle = new GUIStyle(GUI.skin.label) { fontSize = InsideFontSize, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            insideStyle.normal.textColor = Color.white;
         }
     }
 }

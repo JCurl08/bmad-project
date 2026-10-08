@@ -18,7 +18,7 @@ namespace Game.Cube
         public MoveModifier CurrentMoveModifier => Applies ? HazardZone.ModifierAt(transform.position) : MoveModifier.None;
 
         /// <summary>
-        /// True when hazards may act on the player: not in the core arena, and on the Earth face (when the player has a
+        /// True when hazards may act on the player: not in the core arena or a town building (4.6), and on the Earth face (when the player has a
         /// navigator; without one, as in component tests, only the zones' areas decide).
         /// </summary>
         public bool Applies
@@ -31,7 +31,7 @@ namespace Game.Cube
                     navigatorResolved = true;
                 }
                 if (navigator == null) return true;
-                if (navigator.InCoreArena) return false;
+                if (navigator.InCoreArena || navigator.InInterior) return false;
                 CubeWorld world = navigator.World;
                 return world != null && world.Model != null && world.Model.ThemeOf(navigator.Face) == Theme.EarthAtmosphere;
             }

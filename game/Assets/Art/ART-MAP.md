@@ -67,6 +67,13 @@ its generated placeholder shape, so nothing renders invisible.
     touch of the region colour, the outline kept, on a stepped pedestal.
   - The plaza is a tiled paving of pale flagstones with soft joints, translucent over the region's floor. The marked door
     (story 4.6's way in) has a red woven rug in front and a lantern beside it.
+- **Interiors (4.6):** the room behind each town's marked door (`TownInterior`, built by `TownInteriorView`) is drawn in
+  code (`InteriorArt`) in the same style: tiled floors and walls in the race's colours (Town planks and plaster, finch
+  woven straw and twigs, mushroom lilac moss and a spotted stalk wall, alien metal plates and lit panels, shape
+  chequered tiles, dinosaur flagstones and logs), and outlined furniture drawn at its rect's size: counters and shelves
+  of wares, a throne on a dais with banners, pillars and a carpet, a bed (a nest bed for the finches), a hearth, a table
+  and stools, rugs, and each race's keepsake (a barrel and crate, a seed perch, a bubbling pot, a telescope, a stack of
+  shapes, a campfire). The exit has the marked door's rug and a pale arrow pointing out.
 - **Generated in code (not Kenney):** NPC parts (outlined race silhouettes, `NpcPartArt`, drawn only with
   `NpcFactory.PartArt` on, kept for epic-varied-runs; shape people have a round
   face, a triangular body and rectangular legs, their circle, triangle and rhombus kinds shown by accessories; finches

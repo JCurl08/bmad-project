@@ -41,6 +41,8 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 
 **Leaders (4.5):** a leader greets the player (`Dialogue.LeaderLines`), then gives the region's quest hook in their voice (`Dialogue.QuestLines`): the region is coming apart, so bring back what was lost and help mend it. Story 4.8 fills the hook in with the face's fragments. Chief Rockjaw's hook suits both dinosaur voices.
 
+**Shop keepers (4.6):** a shop's keeper (`Dialogue.KeeperLines`, one pair per voice) welcomes the player to a bare counter, then says Jumbles* (`InWorldText.Currency`) are spent between trips (spending stays on the between-runs screen). Their label reads "Name the <race> shopkeeper". Everyone else inside a building talks like the town's residents.
+
 ## Names
 
 - **Make them punny but subtle.** A name may hint at its culture (a corner, a hedgerow, a fizz, a musing, a trail, a breeze), never at a real scientist.
