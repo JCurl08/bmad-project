@@ -9,6 +9,7 @@ namespace Game.Cube
     public static class RewardText
     {
         public const string KeyPopup = "+1 key";
+        public const string ChestKeyPopup = "+1 chest key";
         public const string HeartPopup = "+1 heart (this run)";
         public const string SpeedPopup = "Quicker feet (this run)";
         public const string PowerPopup = "Harder bonk (this run)";
@@ -64,10 +65,17 @@ namespace Game.Cube
         }
 
         /// <summary>The HUD's rewards line ("Keys: 2 | Run boosts: +1 heart, +speed"), or null when there is nothing to show.</summary>
-        public static string HudLine(int keys, IReadOnlyList<RunUpgrade> upgrades)
+        public static string HudLine(int keys, IReadOnlyList<RunUpgrade> upgrades) => HudLine(keys, 0, upgrades, false);
+
+        /// <summary>
+        /// The HUD's rewards line ("Keys: 1 | Chest keys: 2 | Run boosts: +1 heart"), or null when there is nothing to show. With
+        /// alwaysKeys (the run has locked arches, 4.9) the key count shows even at 0.
+        /// </summary>
+        public static string HudLine(int keys, int chestKeys, IReadOnlyList<RunUpgrade> upgrades, bool alwaysKeys)
         {
             var parts = new List<string>();
-            if (keys > 0) parts.Add($"Keys: {keys}");
+            if (keys > 0 || alwaysKeys) parts.Add($"Keys: {keys}");
+            if (chestKeys > 0) parts.Add($"Chest keys: {chestKeys}");
             if (upgrades != null && upgrades.Count > 0)
             {
                 var labels = new List<string>();
@@ -92,6 +100,8 @@ namespace Game.Cube
         public static IEnumerable<string> All()
         {
             yield return KeyPopup;
+            yield return ChestKeyPopup;
+            yield return HudLine(0, 2, new[] { RunUpgrade.Power }, true);
             yield return HeartPopup;
             yield return SpeedPopup;
             yield return PowerPopup;

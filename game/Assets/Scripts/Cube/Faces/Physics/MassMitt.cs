@@ -226,6 +226,9 @@ namespace Game.Cube
             if (was != null) was.Detach(this);
         }
 
+        /// <summary>True when an Interact press would act this frame (equipped and holding a boulder, or one within GrabRange; 4.9: locks yield to it).</summary>
+        public bool WouldInteract => IsEquipped && (held != null || Nearest() != null);
+
         /// <summary>The nearest enabled boulder within GrabRange, or null.</summary>
         public Boulder Nearest()
         {

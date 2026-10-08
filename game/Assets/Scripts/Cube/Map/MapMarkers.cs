@@ -18,6 +18,8 @@ namespace Game.Cube
         Portal = 4,
         /// <summary>A face's town (4.5), on its centre screen; Done = the face is mended (4.8).</summary>
         Town = 5,
+        /// <summary>A locked face-edge arch (4.9), at its doorway; Detail 0 = a key lock, 1 + theme = that item's lock. Opened arches have none.</summary>
+        Lock = 6,
     }
 
     /// <summary>One thing the map can show on a screen: where it is on the screen (0..1, the face's frame) and its state.</summary>
@@ -32,8 +34,12 @@ namespace Game.Cube
         /// <summary>Opened (gates), completed (trials) or mended (towns, 4.8); false for the other kinds.</summary>
         public readonly bool Done;
 
-        public MapMarker(MapMarkerKind kind, ScreenAddress screen, Vector2 local, bool done = false)
+        /// <summary>Lock (4.9): 0 for a key lock, 1 + (int)theme for an item lock.</summary>
+        public readonly int Detail;
+
+        public MapMarker(MapMarkerKind kind, ScreenAddress screen, Vector2 local, bool done = false, int detail = 0)
         {
+            Detail = detail;
             Kind = kind;
             Screen = screen;
             Local = new Vector2(Mathf.Clamp01(local.x), Mathf.Clamp01(local.y));
@@ -79,6 +85,35 @@ namespace Game.Cube
                     markers.Add(At(world, MapMarkerKind.Trial, screen, trial.transform.position, trial.IsComplete));
                 foreach (CorePortal portal in module.GetComponentsInChildren<CorePortal>())
                     markers.Add(At(world, MapMarkerKind.Portal, screen, portal.transform.position, false));
+            }
+            markers.AddRange(Locks(world));
+            return markers;
+        }
+
+        /// <summary>How far in from its edge a lock marker sits on its screen (0..1 of the screen).</summary>
+        public const float LockInset = 0.07f;
+
+        /// <summary>
+        /// A marker on every still-locked face-edge doorway of the run (4.9), on its screen just inside the doorway, so the map
+        /// shows the locks of every screen the player has seen (Visible keeps those on visited screens). Opened arches have none.
+        /// </summary>
+        public static List<MapMarker> Locks(CubeWorld world)
+        {
+            var markers = new List<MapMarker>();
+            if (world == null || world.Model == null || world.Locks == null || world.Locks.Plan == null) return markers;
+            CubeModel model = world.Model;
+            foreach (ScreenAddress screen in model.AllScreens())
+            {
+                if (model.IsSealed(screen.Face)) continue;
+                for (int f = 0; f < 4; f++)
+                {
+                    var side = (Facing)f;
+                    if (!ScreenEdges.IsFaceEdge(model.FaceSize, screen.Cell, side) || !model.TryStep(screen, side, out _, out _)) continue;
+                    if (!world.Locks.IsLocked(screen.Face, side)) continue;
+                    EdgeLock l = world.Locks.LockOf(CubeEdge.Of(screen.Face, side));
+                    Vector2 local = new Vector2(0.5f, 0.5f) + (Vector2)side.ToVector() * (0.5f - LockInset);
+                    markers.Add(new MapMarker(MapMarkerKind.Lock, screen, local, false, l.Kind == LockKind.Item ? 1 + (int)l.Item : 0));
+                }
             }
             return markers;
         }

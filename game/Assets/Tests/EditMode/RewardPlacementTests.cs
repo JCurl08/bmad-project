@@ -59,6 +59,19 @@ namespace Game.Cube.Tests
             RewardPlacement.FindProblems(run.Model, run.Layout, run.Items, run.Hidden, rewards ?? run.Rewards, Library(),
                 run.Math != null ? run.Math.IslandAt : (System.Func<ScreenAddress, IslandLayout>)null, puzzles);
 
+        /// <summary>
+        /// The arch keys a face must hide (4.9), from its pool's size in the placement: the pool is every required reward of the
+        /// face that is not an item or hidden currency. It takes the 6 fragment slots, then a key, the boost, and the second key, so
+        /// a pool of 7-8 has 1 key and a pool of 9 or more has KeysPerFace (2).
+        /// </summary>
+        internal static int ExpectedKeys(RewardPlacement rewards, FaceId face)
+        {
+            int pool = rewards.Spots.Count(s => s.Face == face && s.Required && s.What.Kind != RewardKind.Equipment && s.HiddenIndex < 0);
+            int afterSlots = pool - RewardPlacement.FragmentSlotsPerFace;
+            if (afterSlots <= 0) return 0;
+            return afterSlots <= RewardPlacement.UpgradesPerFace ? 1 : System.Math.Min(RewardPlacement.KeysPerFace, afterSlots - RewardPlacement.UpgradesPerFace);
+        }
+
         // ---------- Seeds 1-50 ----------
 
         [Test]
@@ -77,10 +90,10 @@ namespace Game.Cube.Tests
                 foreach (RewardSpot s in r.Rewards.Spots) kinds.Add(s.What.Kind);
                 // Every seed hides every kind, required: the fragments, a key, a boost, items and Jumbles*.
                 foreach (RewardKind kind in new[] { RewardKind.Jumbles, RewardKind.Equipment, RewardKind.Upgrade, RewardKind.Key,
-                             RewardKind.FragmentSlot })
+                             RewardKind.FragmentSlot, RewardKind.ChestKey })
                     Assert.Greater(r.Rewards.Count(kind, true), 0, $"seed {r.Seed}: no required {kind}");
             }
-            Assert.AreEqual(5, kinds.Count, "Every reward kind appears across the seeds");
+            Assert.AreEqual(6, kinds.Count, "Every reward kind appears across the seeds (chest keys since 4.9)");
             StringAssert.Contains("every roadblock hiding a reward", SeedSweep.Describe(results));
         }
 
@@ -130,7 +143,7 @@ namespace Game.Cube.Tests
                     CollectionAssert.AreEqual(Enumerable.Range(1, dice.Of(face)), slots.Select(s => s.What.Ordinal),
                         $"seed {seed} {face}");
                     Assert.IsTrue(slots.All(s => s.Required), "Required");
-                    Assert.AreEqual(RewardPlacement.KeysPerFace, run.Rewards.Spots.Count(s => s.Face == face && s.What.Kind == RewardKind.Key));
+                    Assert.AreEqual(ExpectedKeys(run.Rewards, face), run.Rewards.Spots.Count(s => s.Face == face && s.What.Kind == RewardKind.Key), $"seed {seed} {face}: 4.9 keys");
                     Assert.AreEqual(RewardPlacement.UpgradesPerFace, run.Rewards.Spots.Count(s => s.Face == face && s.What.Kind == RewardKind.Upgrade));
                     Assert.IsFalse(run.Rewards.Spots.Any(s => TownSquare.IsTown(s.Where.Screen, run.Model.FaceSize)), "Nothing in a town");
                 }

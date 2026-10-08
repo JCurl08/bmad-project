@@ -176,7 +176,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(6, hud.FragmentDice.Count, "Every face's die once revealed");
             CollectionAssert.AreEqual(Enumerable.Range(1, 6), hud.FragmentDice.Select(d => d.Count), "In die-number order");
 
-            // Every fragment chest is built, numbered as pips; the slots above k hold plain chests.
+            // Every fragment chest is built, numbered as pips; the slots above k hold chest keys (4.9), with no die.
             foreach (RewardChest chest in world.RewardChests)
             {
                 int count = world.Dice.Of(chest.Spot.Face);

@@ -49,7 +49,7 @@ namespace Game.Cube
 
         /// <summary>The legend's labels, in drawing order (one per marker style).</summary>
         public static readonly string[] LegendLabels =
-            { "You", "Start", "Town", "Mended town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal" };
+            { "You", "Start", "Town", "Mended town", "Gate", "Opened gate", "Item", "Trial", "Trial solved", "Core portal", "Locked arch" };
 
         /// <summary>Every piece of text the map can show (for the voice-rule tests).</summary>
         public static IEnumerable<string> AllTexts()
@@ -91,6 +91,9 @@ namespace Game.Cube
         private static readonly Color TrialColor = new Color(0.45f, 0.9f, 1f);
         private static readonly Color PortalColor = new Color(1f, 0.4f, 0.8f);
         private static readonly Color StartColor = Color.white;
+
+        /// <summary>A key-locked arch's padlock (4.9); an item lock's padlock takes the item's region colour.</summary>
+        private static readonly Color LockColor = new Color(0.82f, 0.84f, 0.9f);
         private static readonly Color TownColor = new Color(1f, 0.62f, 0.3f);
 
         /// <summary>A mended face's town marker and fragment tag (4.8): gold.</summary>
@@ -496,7 +499,7 @@ namespace Game.Cube
                 Rect r = CellRect(n.NetCell(m.Screen));
                 Vector2 local = n.ToNetLocal(m.Screen.Face, m.Local);
                 var at = new Vector2(r.x + local.x * r.width, r.y + (1f - local.y) * r.height);
-                DrawMarker(m.Kind, m.Done, at, glyph);
+                DrawMarker(m.Kind, m.Done, at, glyph, m.Detail);
             }
 
             if (PlayerInCore)
@@ -541,11 +544,12 @@ namespace Game.Cube
             yield return new KeyValuePair<string, Color>("Portal", PortalColor);
             yield return new KeyValuePair<string, Color>("Town", TownColor);
             yield return new KeyValuePair<string, Color>("Mended town", MendedColor);
+            yield return new KeyValuePair<string, Color>("Locked arch", LockColor);
         }
 
         private static Rect Grow(Rect r, float by) => new Rect(r.x - by, r.y - by, r.width + 2f * by, r.height + 2f * by);
 
-        private void DrawMarker(MapMarkerKind kind, bool done, Vector2 at, float s)
+        private void DrawMarker(MapMarkerKind kind, bool done, Vector2 at, float s, int detail = 0)
         {
             float o = MarkerOutlineWidth;
             Color dark = MarkerOutlineColor;
@@ -578,6 +582,22 @@ namespace Game.Cube
                     Tex(Ring, new Rect(at.x - s * 0.75f, at.y - s * 0.75f, s * 1.5f, s * 1.5f), PortalColor);
                     Tex(Disc, new Rect(at.x - s * 0.3f, at.y - s * 0.3f, s * 0.6f, s * 0.6f), PortalColor);
                     break;
+                case MapMarkerKind.Lock:
+                {
+                    // A padlock (4.9): a pale body under a shackle, on a dark backing; a dark keyhole for a key lock, the
+                    // item's region colour in its middle for an item lock.
+                    var body = new Rect(at.x - s * 0.5f, at.y - s * 0.15f, s, s * 0.7f);
+                    var shackle = new Rect(at.x - s * 0.3f, at.y - s * 0.55f, s * 0.6f, s * 0.45f);
+                    Fill(Grow(body, o), dark);
+                    Outline(Grow(shackle, o), dark, s * 0.18f + 2f * o);
+                    Outline(shackle, LockColor, s * 0.18f);
+                    Fill(body, LockColor);
+                    if (detail > 0)
+                        Fill(new Rect(at.x - s * 0.3f, at.y - s * 0.02f, s * 0.6f, s * 0.44f), CubeWorld.ThemeColor((Theme)(detail - 1)));
+                    else
+                        Fill(new Rect(at.x - s * 0.08f, at.y + s * 0.02f, s * 0.16f, s * 0.36f), dark);
+                    break;
+                }
                 case MapMarkerKind.Town:
                     // A little house: a square under a stepped roof, on a dark backing; gold with a pennant once mended (4.8).
                     Color house = done ? MendedColor : TownColor;
@@ -640,7 +660,8 @@ namespace Game.Cube
                     case 6: DrawMarker(MapMarkerKind.Item, false, at, s); break;
                     case 7: DrawMarker(MapMarkerKind.Trial, false, at, s); break;
                     case 8: DrawMarker(MapMarkerKind.Trial, true, at, s); break;
-                    default: DrawMarker(MapMarkerKind.Portal, false, at, s); break;
+                    case 9: DrawMarker(MapMarkerKind.Portal, false, at, s); break;
+                    default: DrawMarker(MapMarkerKind.Lock, false, at, s); break;
                 }
                 GUI.Label(new Rect(x + s * 2f + 6f, y, step - s * 2f - 6f, 24f), LegendLabels[i], textStyle);
             }

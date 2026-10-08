@@ -26,6 +26,9 @@ namespace Game.Cube
         public const float BadgeScale = 0.75f;
         public static readonly Color PopupColor = new Color(0.75f, 0.95f, 1f);
 
+        /// <summary>A chest key's tint (4.9): the key art in pale blue, so it reads apart from an arch key's gold.</summary>
+        public static readonly Color ChestKeyTint = new Color(0.55f, 0.8f, 1f);
+
         [SerializeField] private SpriteRenderer chest;
         [SerializeField] private SpriteRenderer icon;
 
@@ -116,6 +119,7 @@ namespace Game.Cube
             switch (reward.Kind)
             {
                 case RewardKind.Key: return RewardText.KeyPopup;
+                case RewardKind.ChestKey: return RewardText.ChestKeyPopup;
                 case RewardKind.Upgrade: return RewardText.UpgradePopup(reward.Upgrade);
                 case RewardKind.FragmentSlot: return RewardText.FragmentPopup(theme, reward.Ordinal, Mathf.Max(reward.Ordinal, fragmentCount));
                 default: return null;
@@ -127,7 +131,8 @@ namespace Game.Cube
         {
             switch (reward.Kind)
             {
-                case RewardKind.Key: return ArtKey.RewardKey;
+                case RewardKind.Key:
+                case RewardKind.ChestKey: return ArtKey.RewardKey; // a chest key: the same key, tinted (ChestKeyTint)
                 case RewardKind.Upgrade: return ArtKey.RewardBoost;
                 case RewardKind.FragmentSlot: return ArtKey.RewardFragment;
                 default: return ArtKey.None;

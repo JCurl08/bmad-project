@@ -174,7 +174,11 @@ namespace Game.Cube
                 else Rest();
             }
             if (keyboard.f10Key.wasPressedThisFrame) StartNewRun();
-            if (keyboard.f11Key.wasPressedThisFrame) RevealMap();
+            if (keyboard.f11Key.wasPressedThisFrame)
+            {
+                if (keyboard.shiftKey.isPressed) UnlockArches();
+                else RevealMap();
+            }
         }
 
         /// <summary>
@@ -223,6 +227,12 @@ namespace Game.Cube
             if (loop == null) return false;
             loop.StartRun(RunLoop.NextSeed(world.Seed, DateTime.Now.Ticks));
             return true;
+        }
+
+        /// <summary>Shift+F11 (4.9): opens every locked face-edge arch of the run, spending nothing.</summary>
+        public void UnlockArches()
+        {
+            if (world != null) world.UnlockAllEdges();
         }
 
         /// <summary>
@@ -459,7 +469,7 @@ namespace Game.Cube
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
                               "F1 overlay   F2 slots   F3 NPCs (+Shift leaders)   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
-                              "F8 leave core/room   F9 rest (+Shift fragments)   F10 new run   F11 light map   M map";
+                              "F8 leave core/room   F9 rest (+Shift fragments)   F10 new run   F11 light map (+Shift unlock arches)   M map";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;

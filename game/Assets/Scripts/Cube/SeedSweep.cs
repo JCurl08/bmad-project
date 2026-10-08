@@ -73,15 +73,26 @@ namespace Game.Cube
             /// <summary>Roadblock reward problems (RewardPlacement.FindProblems); null when they were not checked.</summary>
             public List<string> RewardProblems;
 
+            /// <summary>The face-edge locks that were checked (4.9); null when they were not checked.</summary>
+            public EdgeLocks Locks;
+
+            /// <summary>The lock check (4.9: no spending order soft-locks, enough first edges); null when not checked.</summary>
+            public LockReport LockReport;
+
+            /// <summary>Lock problems (EdgeLocks.Check); null when they were not checked.</summary>
+            public List<string> LockProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
             public bool RewardsChecked => RewardProblems != null;
+            public bool LocksChecked => LockProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
                                   (ItemProblems == null || ItemProblems.Count == 0) &&
                                   (HiddenProblems == null || HiddenProblems.Count == 0) &&
-                                  (RewardProblems == null || RewardProblems.Count == 0);
+                                  (RewardProblems == null || RewardProblems.Count == 0) &&
+                                  (LockProblems == null || LockProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -376,6 +387,15 @@ namespace Game.Cube
                             result.Rewards = RewardPlacement.Generate(model, layout, result.Placement, hidden, hiddenCatalog);
                             result.RewardProblems = RewardPlacement.FindProblems(model, layout, result.Placement, hidden, result.Rewards,
                                 hiddenCatalog, islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
+                            // 4.9: the face-edge locks, over every order of spending the keys (the game's 3x3 faces only: the
+                            // N = 2 tests keep the unlocked cube, as they keep no towns).
+                            if (TownSquare.HasTown(faceSize))
+                            {
+                                var lockWorld = new LockWorld(model, layout, result.Placement, result.Rewards,
+                                    islands != null ? islands.IslandAt : (Func<ScreenAddress, IslandLayout>)null);
+                                result.Locks = EdgeLocks.Generate(lockWorld, out result.LockReport);
+                                result.LockProblems = result.LockReport.Problems;
+                            }
                         }
                     }
                 }
@@ -489,7 +509,7 @@ namespace Game.Cube
         {
             var failures = new StringBuilder();
             int total = 0, failed = 0;
-            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false;
+            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -497,6 +517,7 @@ namespace Game.Cube
                 itemsChecked |= r.ItemsChecked;
                 hiddenChecked |= r.HiddenChecked;
                 rewardsChecked |= r.RewardsChecked;
+                locksChecked |= r.LocksChecked;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -514,6 +535,9 @@ namespace Game.Cube
                 if (r.RewardProblems != null && r.RewardProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": rewards ")
                         .AppendLine(string.Join("; ", r.RewardProblems));
+                if (r.LockProblems != null && r.LockProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": locks ")
+                        .AppendLine(string.Join("; ", r.LockProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -531,6 +555,9 @@ namespace Game.Cube
             if (rewardsChecked)
                 what += ", every roadblock hiding a reward (no loose pickups, every required reward reachable, Town numbered 1 " +
                         "and the other faces 2-6, every face numbered k holding fragments 1..k, its key and boost) and no empty screen";
+            if (locksChecked)
+                what += ", every face-edge arch locked (a key or an item) with no order of spending keys soft-locking a screen, " +
+                        "island, item, fragment, key or core portal, and at least two edges able to be opened first";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

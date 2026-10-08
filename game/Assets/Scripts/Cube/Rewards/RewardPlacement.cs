@@ -26,6 +26,12 @@ namespace Game.Cube
         /// slots above k hold plain Jumbles* chests instead.
         /// </summary>
         FragmentSlot = 4,
+
+        /// <summary>
+        /// A chest key (4.9): opens one optional gate's bonus alcove (a key-locked bonus alcove, AlcoveLock), never a face-edge
+        /// arch. A pool of its own, so spending them never starves the arches' keys; an unused one is cashed in at the run's end.
+        /// </summary>
+        ChestKey = 5,
     }
 
     /// <summary>The in-run boosts a roadblock can hide. Each is one PlayerStats point for the rest of the run.</summary>
@@ -105,6 +111,7 @@ namespace Game.Cube
         public static Reward Boost(RunUpgrade upgrade) => new Reward(RewardKind.Upgrade, upgrade: upgrade);
         public static Reward Key() => new Reward(RewardKind.Key);
         public static Reward Fragment(int ordinal) => new Reward(RewardKind.FragmentSlot, ordinal: ordinal);
+        public static Reward ChestKey() => new Reward(RewardKind.ChestKey);
 
         public bool Equals(Reward o) => Kind == o.Kind && Amount == o.Amount && Item == o.Item && Upgrade == o.Upgrade && Ordinal == o.Ordinal;
         public override bool Equals(object obj) => obj is Reward o && Equals(o);
@@ -118,6 +125,7 @@ namespace Game.Cube
                 case RewardKind.Equipment: return $"{Item} item";
                 case RewardKind.Upgrade: return $"{Upgrade} boost";
                 case RewardKind.Key: return "key";
+                case RewardKind.ChestKey: return "chest key";
                 default: return $"fragment {Ordinal}";
             }
         }
@@ -177,8 +185,9 @@ namespace Game.Cube
     /// screens with no roadblock yet (so every screen holds something), and extra mounds on free hidden-item slots
     /// while the pool is under ReservedPerFace. The pool is shuffled; its first FragmentSlotsPerFace spots are the face's
     /// fragment slots 1..6: on the face numbered k (DieNumbers, 4.8) slots 1..k hold fragments 1..k and the slots above k
-    /// plain Jumbles* chests (ChestJumbles). Then KeysPerFace keys, UpgradesPerFace boosts, and Jumbles* chests for the
-    /// rest. (The die numbers decide only what the reserved slots hold, so every draw is as in 4.7.)</item>
+    /// chest keys (4.9: 6 - k a face, ChestKeysPerRun a run). Then KeysPerFace arch keys (on the first unguarded spots),
+    /// UpgradesPerFace boosts, and Jumbles* chests (ChestJumbles) for the rest. (The die numbers decide only what the reserved
+    /// slots hold, so every draw is as in 4.7.)</item>
     /// </list>
     /// The sweep (FindProblems) proves every required reward reachable, no reward outside a roadblock and no empty screen.
     /// </summary>
@@ -196,13 +205,24 @@ namespace Game.Cube
         /// <summary>Fragment slots reserved on every science face: the most any face needs (4.8's die numbers run 2-6).</summary>
         public const int FragmentSlotsPerFace = 6;
 
-        /// <summary>Keys hidden on every science face (assumption: 4.9 tunes the count with its locks).</summary>
-        public const int KeysPerFace = 1;
+        /// <summary>
+        /// Arch keys hidden on every science face (4.9 tuned it from 1 with its locks): each opens one key-locked face-edge arch
+        /// (EdgeLocks). They go to the face's first unguarded spots (a mound or a puzzle, never behind an item gate), so a face
+        /// entered with a key always pays its keys back.
+        /// </summary>
+        public const int KeysPerFace = 2;
 
         /// <summary>In-run boosts hidden on every science face.</summary>
         public const int UpgradesPerFace = 1;
 
-        /// <summary>The pool a face needs: its fragment slots, keys and boosts.</summary>
+        /// <summary>
+        /// Chest keys a run hides (4.9): each opens one key-locked bonus alcove (an optional gate). They fill the fragment slots
+        /// above each face's die number (6 - k on the face numbered k), so the run always has 30 - 20 = 10, two a face on
+        /// average, more on the faces with fewer fragments.
+        /// </summary>
+        public const int ChestKeysPerRun = FragmentSlotsPerFace * 5 - (DieNumbers.FragmentsPerRun - DieNumbers.TownNumber);
+
+        /// <summary>The pool a face needs: its fragment slots (fragments and chest keys), keys and boosts.</summary>
         public const int ReservedPerFace = FragmentSlotsPerFace + KeysPerFace + UpgradesPerFace;
 
         /// <summary>Jumbles* in a chest from a face's pool (and in a fragment slot above the face's die number).</summary>
@@ -211,7 +231,7 @@ namespace Game.Cube
         /// <summary>Jumbles* in an optional gate's bonus chest.</summary>
         public const int OptionalJumbles = 10;
 
-        /// <summary>Jumbles* each key still held at the run's end is cashed in for (until 4.9 gives keys a use).</summary>
+        /// <summary>Jumbles* each found key (arch or chest key) still held at the run's end is cashed in for.</summary>
         public const int KeyCashIn = 5;
 
         private readonly List<RewardSpot> spots;
@@ -362,6 +382,7 @@ namespace Game.Cube
                 pools[face] = pool;
             }
 
+
             for (int f = 0; f < CubeSettings.FaceCount; f++)
             {
                 if (!pools.TryGetValue((FaceId)f, out List<Roadblock> pool)) continue;
@@ -369,10 +390,19 @@ namespace Game.Cube
                 rng.Shuffle(pool);
                 int k = 0, number = dice.Of((FaceId)f);
                 for (int ordinal = 1; ordinal <= FragmentSlotsPerFace && k < pool.Count; ordinal++)
-                    Add(pool[k++], ordinal <= number ? Reward.Fragment(ordinal) : Reward.Jumbles(ChestJumbles), true);
-                for (int i = 0; i < KeysPerFace && k < pool.Count; i++) Add(pool[k++], Reward.Key(), true);
+                    Add(pool[k++], ordinal <= number ? Reward.Fragment(ordinal) : Reward.ChestKey(), true);
+                void AddKey()
+                {
+                    // 4.9: a key never waits behind an item gate (no draw: the first unguarded spot left moves up).
+                    int j = pool.FindIndex(k, r => r.Kind != RoadblockKind.Gate);
+                    if (j > k) (pool[k], pool[j]) = (pool[j], pool[k]);
+                    Add(pool[k++], Reward.Key(), true);
+                }
+                // The first key, the boost, then the other keys (a face short of room, Math with its island screens, drops a key).
+                if (k < pool.Count) AddKey();
                 for (int i = 0; i < UpgradesPerFace && k < pool.Count; i++)
                     Add(pool[k++], Reward.Boost((RunUpgrade)rng.NextInt(3)), true);
+                for (int i = 1; i < KeysPerFace && k < pool.Count; i++) AddKey();
                 while (k < pool.Count) Add(pool[k++], Reward.Jumbles(ChestJumbles), true);
             }
             return new RewardPlacement(model.Seed, result);
@@ -490,7 +520,7 @@ namespace Game.Cube
                         if (s.What.Kind == RewardKind.Key) keys++;
                         if (s.What.Kind == RewardKind.Upgrade) boosts++;
                     }
-                    if (keys != KeysPerFace) problems.Add($"{face} ({fl.Theme}) hides {keys} keys (expected {KeysPerFace})");
+                    if (keys < 1 || keys > KeysPerFace) problems.Add($"{face} ({fl.Theme}) hides {keys} keys (expected 1-{KeysPerFace})");
                     if (boosts != UpgradesPerFace) problems.Add($"{face} ({fl.Theme}) hides {boosts} boosts (expected {UpgradesPerFace})");
                 }
                 foreach (RewardSpot s in fragments)
@@ -506,6 +536,14 @@ namespace Game.Cube
                         if (TownSquare.IsTown(screen, n) || IsIsland(fl, screen.Cell)) continue;
                         if (!held.Contains(screen)) problems.Add($"{screen} ({fl.Theme}) is empty: no puzzle, roadblock or reward");
                     }
+            }
+
+            // 4.9: the run's chest keys fill the fragment slots above each face's number.
+            if (n >= TownSquare.MinFaceSize)
+            {
+                int expected = 0, chests = rewards.Count(RewardKind.ChestKey);
+                foreach (FaceId face in layout.Faces.Keys) expected += FragmentSlotsPerFace - dice.Of(face);
+                if (chests != expected) problems.Add($"the run hides {chests} chest keys (expected {expected})");
             }
 
             // Reachability: collect the items doorway by doorway, then every required reward.
@@ -542,6 +580,7 @@ namespace Game.Cube
                     case RewardKind.Equipment: sb.Append('E').Append(s.What.Item); break;
                     case RewardKind.Upgrade: sb.Append('U').Append(s.What.Upgrade); break;
                     case RewardKind.Key: sb.Append('K'); break;
+                    case RewardKind.ChestKey: sb.Append('C'); break;
                     default: sb.Append('F').Append(s.What.Ordinal); break;
                 }
                 if (!s.Required) sb.Append('?');

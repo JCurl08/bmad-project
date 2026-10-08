@@ -68,6 +68,7 @@ namespace Game.Cube.Tests
         public IEnumerator WalkOffTownEdge_ArrivesOnAdjacentFaceAsModelPredicts()
         {
             yield return LoadCubeScene();
+            world.UnlockAllEdges(); // 4.9: the walk over the edge itself (LockSceneTests covers the locks)
             CubeModel model = world.Model;
 
             // East first (the most natural walk), otherwise any direction into an unsealed face.
@@ -170,6 +171,7 @@ namespace Game.Cube.Tests
             yield return LoadCubeScene();
             NoEnemies();
             world.RevealScience();
+            world.UnlockAllEdges(); // 4.9: every edge open, to walk them all
             navigator.GetComponent<PlayerStats>().MaxHealth = 999;
             var body = navigator.GetComponent<Rigidbody2D>();
             var mover = navigator.GetComponent<PlayerMover>();
@@ -257,6 +259,7 @@ namespace Game.Cube.Tests
             yield return LoadCubeScene();
             NoEnemies();
             world.RevealScience();
+            world.UnlockAllEdges(); // 4.9: the doorways lead on once unlocked
             var body = navigator.GetComponent<Rigidbody2D>();
             var mover = navigator.GetComponent<PlayerMover>();
             int n = world.Model.FaceSize;

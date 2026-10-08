@@ -92,6 +92,9 @@ namespace Game.Cube
             return true;
         }
 
+        /// <summary>Opens the gate for good whatever its own mechanic (4.9: a chest key on a bonus alcove). False if it was already open.</summary>
+        public bool ForceOpen() => OpenNow();
+
         private void Open()
         {
             bool effect = PlaysOpenEffect; // read before OnOpened changes the gate's own state

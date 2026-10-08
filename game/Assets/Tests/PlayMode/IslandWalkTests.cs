@@ -95,6 +95,7 @@ namespace Game.Cube.Tests
             }
             math.SpawnEnemies = false;
             world.RevealScience();
+            world.UnlockAllEdges(); // 4.9: the walk is about the islands; a face-edge doorway is walked out of and back in by
             Assert.IsNotNull(math.Plan, $"seed {seed}: the Math plan");
             yield return null;
         }

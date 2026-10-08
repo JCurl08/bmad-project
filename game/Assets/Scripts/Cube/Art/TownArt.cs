@@ -591,6 +591,42 @@ namespace Game.Cube
             return sprite;
         }
 
+        /// <summary>
+        /// A lock's keyhole plate (4.9): a gold plate with a dark keyhole for a key-locked arch, a pale-blue one for a key-locked
+        /// bonus alcove (a chest key's lock).
+        /// </summary>
+        public static Sprite Keyhole(bool chest)
+        {
+            string key = chest ? "Keyhole Chest" : "Keyhole";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            Color32 rim = chest ? Bl : Gs, plate = chest ? Cy : Gd;
+            var c = new Canvas(11, 13);
+            c.Rect(0, 0, 6, 8, rim);
+            c.Rect(1, 1, 5, 7, plate);
+            // The keyhole: a round head over a slot.
+            c.Px(3, 7, O); c.Px(2, 6, O); c.Px(3, 6, O); c.Px(4, 6, O); c.Px(2, 5, O); c.Px(3, 5, O); c.Px(4, 5, O);
+            c.Px(3, 4, O); c.Px(3, 3, O); c.Px(3, 2, O);
+            c.Outline();
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>An item lock's plate (4.9): a dark plate in the keyhole plate's gold rim, for the item's icon to sit on.</summary>
+        public static Sprite LockPlate()
+        {
+            const string key = "Lock Plate";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            var c = new Canvas(14, 14);
+            c.Rect(0, 0, 9, 9, Gs);
+            c.Rect(1, 1, 8, 8, DSl);
+            c.Px(0, 0, Gd); c.Px(9, 0, Gd); c.Px(0, 9, Gd); c.Px(9, 9, Gd); // rivets
+            c.Outline();
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
         /// <summary>A mended town's banner (4.8): a pennant in the region's colour with a gold band, on a dark pole.</summary>
         public static Sprite RepairBanner(Theme theme)
         {

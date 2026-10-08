@@ -8,7 +8,7 @@ namespace Game.Cube.Tests
 {
     /// <summary>
     /// Fragments and face repair (4.8): the die numbers (Town always 1, the others 2-6 and varying) on seeds 1-50, the
-    /// fragments they place (face numbered k: fragments 1..k, all reachable; the slots above k plain Jumbles* chests, the
+    /// fragments they place (face numbered k: fragments 1..k, all reachable; the slots above k chest keys since 4.9, the
     /// 4.7 draws untouched), the leaders' quest (naming the count; a hand-in of all k mends the face; the Mayor gives
     /// Town's one fragment, then mends Town), and the boss benefits (fixed per theme; each changes exactly its arena
     /// parameters in the player's favour; none gives the 1.11 arena value for value).
@@ -102,7 +102,7 @@ namespace Game.Cube.Tests
         // ---------- Fragments ----------
 
         [Test]
-        public void EveryFragment_IsPlacedAndReachable_TheSlotsAboveKAreJumbles_OverSeeds1To50()
+        public void EveryFragment_IsPlacedAndReachable_TheSlotsAboveKAreChestKeys_OverSeeds1To50()
         {
             for (int seed = 1; seed <= 50; seed++)
             {
@@ -116,6 +116,8 @@ namespace Game.Cube.Tests
                     CollectionAssert.AreEqual(Enumerable.Range(1, k), fragments.Select(s => s.What.Ordinal), $"seed {seed} {face}");
                     Assert.IsTrue(fragments.All(s => s.Required && s.What.Amount == 0), "Required, and a fragment is no Jumbles*");
                     total += fragments.Count;
+                    Assert.AreEqual(RewardPlacement.FragmentSlotsPerFace - k,
+                        run.Rewards.Spots.Count(s => s.Face == face && s.What.Kind == RewardKind.ChestKey), "4.9: a chest key in each slot above k");
                 }
                 Assert.AreEqual(DieNumbers.FragmentsPerRun - DieNumbers.TownNumber, total, $"seed {seed}: 2+3+4+5+6 on the science faces");
             }
@@ -137,12 +139,11 @@ namespace Game.Cube.Tests
                     Assert.AreEqual(a.Required, b.Required);
                     if (a.What.Equals(b.What)) continue;
                     differ++;
-                    // Only a fragment and a plain chest swap places, in the reserved slots.
+                    // Only a fragment and a chest key (4.9: a slot above k) swap places, in the reserved slots.
                     var kinds = new[] { a.What.Kind, b.What.Kind };
-                    CollectionAssert.AreEquivalent(new[] { RewardKind.FragmentSlot, RewardKind.Jumbles }, kinds, $"seed {seed}: {a} vs {b}");
-                    RewardSpot jumbles = a.What.Kind == RewardKind.Jumbles ? a : b;
-                    Assert.AreEqual(RewardPlacement.ChestJumbles, jumbles.What.Amount, "A slot above k is a plain Jumbles* chest");
-                    Assert.AreEqual(-1, jumbles.HiddenIndex);
+                    CollectionAssert.AreEquivalent(new[] { RewardKind.FragmentSlot, RewardKind.ChestKey }, kinds, $"seed {seed}: {a} vs {b}");
+                    RewardSpot above = a.What.Kind == RewardKind.ChestKey ? a : b;
+                    Assert.AreEqual(-1, above.HiddenIndex);
                 }
                 Assert.Greater(differ, 0, $"seed {seed}: other dice, other fragment counts");
             }

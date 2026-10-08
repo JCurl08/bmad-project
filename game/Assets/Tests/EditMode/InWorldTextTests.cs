@@ -72,6 +72,7 @@ namespace Game.Cube.Tests
             }
             foreach (int amount in new[] { 1, 5, 25 }) yield return ("Pickup popups", PickupFeedback.JumbleText(amount));
             foreach (string line in RewardText.All()) yield return ("Roadblock rewards", line);
+            foreach (string line in LockText.All()) yield return ("Locks", line);
 
             // Enemy names (they name the enemy objects and may show in later UI).
             foreach (BiologyEnemyKind k in Enum.GetValues(typeof(BiologyEnemyKind))) yield return ("Enemies", BiologyEnemies.Name(k));

@@ -493,6 +493,10 @@ namespace Game.Cube.Tests
                 Assert.Greater(expected.Count(e => e.StartsWith("Item")), 0, $"seed {seed} has items");
                 Assert.Greater(expected.Count(e => e.StartsWith("Trial")), 0, $"seed {seed} has trials");
                 Assert.AreEqual(arena.Portals.Count, expected.Count(e => e.StartsWith("Portal")), $"seed {seed} portals");
+                // Every still-locked face-edge arch (4.9), read from the built arches.
+                foreach (LockedArch a in world.LockedArches)
+                    if (a != null && !a.IsOpen) expected.Add(Key(MapMarkerKind.Lock, a.Screen, false));
+                Assert.Greater(expected.Count(e => e.StartsWith("Lock")), 0, $"seed {seed} has locked arches");
 
                 List<string> shown = map.Markers.Where(m => m.Kind != MapMarkerKind.Start)
                     .Select(m => Key(m.Kind, m.Screen, m.Done)).ToList();

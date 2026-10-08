@@ -49,6 +49,8 @@ namespace Game.Cube
         private readonly List<HiddenCurrencyPickup> hiddenCurrency = new List<HiddenCurrencyPickup>();
         private readonly List<RewardChest> rewardChests = new List<RewardChest>();
         private readonly List<RewardMound> rewardMounds = new List<RewardMound>();
+        private readonly List<LockedArch> lockedArches = new List<LockedArch>();
+        private readonly List<AlcoveLock> alcoveLocks = new List<AlcoveLock>();
 
         public CubeModel Model { get; private set; }
         public int Seed => Model != null ? Model.Seed : seed;
@@ -89,6 +91,18 @@ namespace Game.Cube
         /// <summary>The run's roadblock rewards (4.7); null until the science faces are revealed.</summary>
         public RewardPlacement Rewards { get; private set; }
 
+        /// <summary>
+        /// The run's locks on the face-edge arches (4.9, EdgeLocks) and which are open; a fresh state on every rebuild. Its Plan is
+        /// null (nothing locked) without a module library and an item catalog.
+        /// </summary>
+        public EdgeLockState Locks { get; private set; }
+
+        /// <summary>Every locked arch built so far this run (Town's with the run, the others on the reveal); opened ones stay listed.</summary>
+        public IReadOnlyList<LockedArch> LockedArches => lockedArches;
+
+        /// <summary>The chest-key locks on this run's optional gates (4.9: the key-locked bonus alcoves).</summary>
+        public IReadOnlyList<AlcoveLock> AlcoveLocks => alcoveLocks;
+
         /// <summary>The run's die numbers (4.8): Town 1, the other faces 2-6; rolled on every rebuild.</summary>
         public DieNumbers Dice { get; private set; }
 
@@ -114,6 +128,19 @@ namespace Game.Cube
             if (view != null) view.Repaired = true;
             FaceRepaired?.Invoke(face);
             return true;
+        }
+
+        /// <summary>An edge opened (4.9): every arch built along it, on both faces, drops its bars.</summary>
+        private void OnEdgeOpened(CubeEdge edge)
+        {
+            foreach (LockedArch arch in lockedArches)
+                if (arch != null && arch.Edge == edge) arch.ShowOpen();
+        }
+
+        /// <summary>Opens every face-edge arch of the run (tests and the debug tools; nothing is spent).</summary>
+        public void UnlockAllEdges()
+        {
+            if (Locks != null) Locks.OpenAll();
         }
 
         /// <summary>Every reward chest the reveal built (keys, boosts, fragment slots, Jumbles* chests).</summary>
@@ -195,6 +222,13 @@ namespace Game.Cube
             seed = newSeed;
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize, sealedThemes);
             Dice = DieNumbers.Roll(Model);
+            lockedArches.Clear();
+            alcoveLocks.Clear();
+            if (Locks != null) Locks.Opened -= OnEdgeOpened;
+            Locks = new EdgeLockState(library != null && itemCatalog != null
+                ? EdgeLocks.ForRun(Model, library, itemCatalog.Themes(), itemCatalog.VariantCounts())
+                : null);
+            Locks.Opened += OnEdgeOpened;
             Repairs = new FaceRepairs();
             Layout = null;
             ItemPlacement = null;
@@ -464,7 +498,11 @@ namespace Game.Cube
                 List<ItemDefinition> variants = itemCatalog.VariantsOf(placement.Item);
                 ItemDefinition item = placement.Variant >= 0 && placement.Variant < variants.Count ? variants[placement.Variant] : null;
                 Gate gate = BuildGate(new FaceGateRequest(placement.Screen, placement.Slot, placement.Item, true), item, contents);
-                if (gate != null) optionalGates.Add(gate);
+                if (gate == null) continue;
+                optionalGates.Add(gate);
+                // 4.9: a chest key opens the bonus alcove behind it.
+                ScreenModule module = ModuleAt(placement.Screen);
+                alcoveLocks.Add(AlcoveLock.Attach(gate, GateSize(module.Gates[placement.Slot]), material));
             }
             foreach (PickupPlacement placement in ItemPlacement.Pickups)
             {
@@ -608,7 +646,8 @@ namespace Game.Cube
             ArtKey iconKey = RewardChest.IconOf(spot.What);
             if (iconKey != ArtKey.None)
             {
-                Color tint = spot.What.Kind == RewardKind.FragmentSlot ? ThemeColor(theme) : Color.white;
+                Color tint = spot.What.Kind == RewardKind.FragmentSlot ? ThemeColor(theme)
+                    : spot.What.Kind == RewardKind.ChestKey ? RewardChest.ChestKeyTint : Color.white;
                 icon = ArtCatalog.AddSprite(go.transform, "Icon", iconKey, new Vector2(0f, 0.55f * ScreenMath.ContentScale),
                     Vector2.one * RewardChest.IconSize, tint, 6, material);
             }
@@ -766,6 +805,7 @@ namespace Game.Cube
                             CreateBlock($"Wall {x},{y} {side} {i}", walls, centre + pieces[i].center, pieces[i].size, tint, -5, true, ArtKey.Wall);
                         if (!ScreenEdges.IsFaceEdge(FaceSize, address.Cell, side)) continue;
                         BuildGateArch($"Gate Arch {x},{y} {side}", walls, centre, side);
+                        if (Locks != null && Locks.IsLocked(face, side)) lockedArches.Add(LockedArch.Build(this, walls, address, side, material));
                     }
                 }
             }

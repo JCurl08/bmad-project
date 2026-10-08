@@ -130,6 +130,19 @@ namespace Game.Cube
             TryTalk();
         }
 
+        /// <summary>
+        /// True when some enabled NPC with something to say has a player within its talking range (4.9: an Interact press is
+        /// then the NPC's, so a lock nearby yields to it).
+        /// </summary>
+        public static bool AnyInRange(Transform player)
+        {
+            if (player == null) return false;
+            foreach (NpcTalker t in Active)
+                if (t != null && t.Spec != null && t.lines.Count > 0 &&
+                    Vector2.Distance(player.position, t.transform.position) <= t.range) return true;
+            return false;
+        }
+
         /// <summary>True when the player is within talking range.</summary>
         public bool PlayerInRange()
         {

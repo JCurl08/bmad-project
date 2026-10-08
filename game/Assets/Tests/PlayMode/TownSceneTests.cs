@@ -273,6 +273,7 @@ namespace Game.Cube.Tests
         {
             yield return Load();
             yield return WaitForPopulation();
+            world.UnlockAllEdges(); // 4.9: this walk is about the reveal, not the locks (LockSceneTests)
             CubeModel model = world.Model;
             Facing direction = new[] { Facing.East, Facing.North, Facing.West, Facing.South }
                 .First(d => !model.IsSealed(CubeModel.NeighborFace(CubeModel.StartFace, d)));

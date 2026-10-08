@@ -19,7 +19,14 @@ namespace Game.Cube
         private readonly List<(FaceId Face, int Ordinal)> fragments = new List<(FaceId, int)>();
         private CubeWorld subscribed;
 
+        /// <summary>Keys found this run (arch keys, 4.9: EdgeLockState spends them after the starting key).</summary>
         public int Keys { get; private set; }
+
+        /// <summary>Chest keys found this run (4.9): each opens one key-locked bonus alcove (AlcoveLock), never an arch.</summary>
+        public int ChestKeys { get; private set; }
+
+        /// <summary>The arch keys the player can use now: the found ones and the run's starting key(s) still unused (EdgeLockState).</summary>
+        public int KeysHeld => Keys + (world != null && world.Locks != null ? world.Locks.StartKeysLeft : 0);
 
         /// <summary>The boosts taken this run, in order.</summary>
         public IReadOnlyList<RunUpgrade> Upgrades => upgrades;
@@ -43,7 +50,7 @@ namespace Game.Cube
         public event Action<RunRewards> Changed;
 
         /// <summary>The HUD line, or null when nothing is held.</summary>
-        public string HudText => RewardText.HudLine(Keys, upgrades);
+        public string HudText => RewardText.HudLine(KeysHeld, ChestKeys, upgrades, world != null && world.Locks != null && world.Locks.Plan != null);
 
         public CubeWorld World
         {
@@ -83,6 +90,9 @@ namespace Game.Cube
                 case RewardKind.Key:
                     Keys++;
                     break;
+                case RewardKind.ChestKey:
+                    ChestKeys++;
+                    break;
                 case RewardKind.Upgrade:
                     upgrades.Add(reward.Upgrade);
                     Apply(reward.Upgrade, +1);
@@ -98,7 +108,7 @@ namespace Game.Cube
             return true;
         }
 
-        /// <summary>Spends a key (4.9's locks). False when none is held.</summary>
+        /// <summary>Spends a found key (4.9: a key-locked arch, after the starting key). False when none is held.</summary>
         public bool TrySpendKey()
         {
             if (Keys <= 0) return false;
@@ -107,11 +117,21 @@ namespace Game.Cube
             return true;
         }
 
-        /// <summary>The run's end: returns the keys still held and lets them go (the RunLoop pays KeyCashIn for each).</summary>
+        /// <summary>Spends a chest key (4.9: a key-locked bonus alcove). False when none is held.</summary>
+        public bool TrySpendChestKey()
+        {
+            if (ChestKeys <= 0) return false;
+            ChestKeys--;
+            Changed?.Invoke(this);
+            return true;
+        }
+
+        /// <summary>The run's end: returns the keys found and still held (arch keys and chest keys; never the starting key) and lets them go (the RunLoop pays KeyCashIn for each).</summary>
         public int CashInKeys()
         {
-            int keys = Keys;
+            int keys = Keys + ChestKeys;
             Keys = 0;
+            ChestKeys = 0;
             if (keys > 0) Changed?.Invoke(this);
             return keys;
         }
@@ -126,8 +146,9 @@ namespace Game.Cube
         /// <summary>Forgets everything without touching the stats (the RunLoop then sets them afresh).</summary>
         public void Clear()
         {
-            bool any = Keys > 0 || upgrades.Count > 0 || fragments.Count > 0;
+            bool any = Keys > 0 || ChestKeys > 0 || upgrades.Count > 0 || fragments.Count > 0;
             Keys = 0;
+            ChestKeys = 0;
             upgrades.Clear();
             fragments.Clear();
             if (any) Changed?.Invoke(this);

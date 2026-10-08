@@ -237,7 +237,8 @@ namespace Game.Cube.Tests
             // The key.
             if (!key.IsOpen) Assert.IsTrue(key.Open(navigator.gameObject));
             Assert.AreEqual(1, rewards.Keys);
-            StringAssert.Contains("Keys: 1", hud.RewardsText);
+            Assert.AreEqual(1 + EdgeLocks.StartKeys, rewards.KeysHeld, "4.9: the found key and the run's starting key");
+            StringAssert.Contains($"Keys: {rewards.KeysHeld}", hud.RewardsText);
 
             if (!boost.IsOpen) Assert.IsTrue(boost.Open(navigator.gameObject));
             RunUpgrade kind = boost.Spot.What.Upgrade;
@@ -364,7 +365,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(0, rewards.Keys);
             Assert.IsEmpty(rewards.Upgrades);
             Assert.AreEqual(loop.RunStats, StatBlock.Of(stats), "Base plus meta upgrades only");
-            Assert.IsNull(hud.RewardsText);
+            Assert.AreEqual($"Keys: {EdgeLocks.StartKeys}", hud.RewardsText, "4.9: only the new run's starting key");
 
             // A rebuild from elsewhere (the debug reroll) takes them back too.
             yield return Reveal(43);

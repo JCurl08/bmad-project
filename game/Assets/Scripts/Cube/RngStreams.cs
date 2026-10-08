@@ -4,7 +4,7 @@ namespace Game.Cube
     /// Every named PCG32 stream (SeededRng's stream argument) in one place. Each seeded system draws from its own
     /// stream so that adding draws to one never shifts another's results. Changing a value changes what a seed
     /// produces, so never renumber or reuse one. A new system takes the
-    /// next free value (25) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
+    /// next free value (26) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
     /// uses SeededRng's default stream. The owners' RngStream constants are aliases of these.
     /// </summary>
     public static class RngStreams
@@ -77,5 +77,8 @@ namespace Game.Cube
 
         /// <summary>The faces' die numbers (DieNumbers, 4.8): Town is 1, the other faces get 2-6 shuffled.</summary>
         public const ulong DieNumbers = 24;
+
+        /// <summary>The locks on the face-edge arches (EdgeLocks, 4.9): which edges need a key and which an item.</summary>
+        public const ulong EdgeLocks = 25;
     }
 }

@@ -76,6 +76,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("islandScreens", CubeLayout.IslandRngStream),
             new KeyValuePair<string, ulong>("rewards", RewardPlacement.RngStream),
             new KeyValuePair<string, ulong>("dice", DieNumbers.RngStream),
+            new KeyValuePair<string, ulong>("edgeLocks", EdgeLocks.RngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -118,7 +119,10 @@ namespace Game.Cube.Tests
             Add("hidden", hidden.Signature());
             DieNumbers dice = DieNumbers.Roll(model);
             Add("dice", dice.Signature());
-            Add("rewards", RewardPlacement.Generate(model, layout, placement, hidden, library, null, dice).Signature());
+            RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, null, dice);
+            Add("rewards", rewards.Signature());
+            // 4.9: the face-edge locks (and which draw the soft-lock check kept).
+            Add("locks", EdgeLocks.ForRun(model, library, catalog.Themes(), catalog.VariantCounts()).Signature());
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
             if (biology != null)

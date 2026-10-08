@@ -316,6 +316,7 @@ public static class CubeSceneBuilder
                   $"{hazardCounts[1]} snow, {hazardCounts[2]} freezing rain, {hazardCounts[3]} crevices; levels " +
                   $"{string.Join(", ", levels.Select(e => $"{e.Key}x{e.Value}"))}; the Earth trial fits on {earthTrials} seeds.\n";
         report += RewardReport(results, library);
+        report += LockReportLine(results);
         int towns = results.Sum(r => r.TownsChecked);
         report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
                   "module, slot-free, with a sound layout; no gate, pickup, core portal, island screen, trial, flower or hidden spot on it).\n";
@@ -323,10 +324,57 @@ public static class CubeSceneBuilder
         else Debug.LogError(report);
     }
 
+    /// <summary>The sweep's lock line (4.9): the lock kinds, the first edges and their variety, and the spending states explored.</summary>
+    private static string LockReportLine(List<SeedSweep.SeedResult> results)
+    {
+        int seeds = 0, keyLocks = 0, itemLocks = 0, states = 0, draws = 0, maxDraw = 0, fallbacks = 0, passed = 0;
+        var firstCounts = new SortedDictionary<int, int>();
+        var firstRegions = new SortedDictionary<Theme, int>();
+        var itemLockThemes = new SortedDictionary<Theme, int>();
+        var firstSets = new HashSet<string>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Locks == null || r.LockReport == null) continue;
+            seeds++;
+            if (r.LockProblems.Count == 0) passed++;
+            var model = new CubeModel(r.Seed);
+            keyLocks += r.Locks.Count(LockKind.Key);
+            itemLocks += r.Locks.Count(LockKind.Item);
+            foreach (EdgeLock l in r.Locks.Locks)
+                if (l.Kind == LockKind.Item)
+                {
+                    itemLockThemes.TryGetValue(l.Item, out int c);
+                    itemLockThemes[l.Item] = c + 1;
+                }
+            states += r.LockReport.States;
+            draws += r.Locks.Attempts;
+            maxDraw = Mathf.Max(maxDraw, r.Locks.Attempts);
+            if (r.Locks.FellBack) fallbacks++;
+            firstCounts.TryGetValue(r.LockReport.FirstEdges.Count, out int n);
+            firstCounts[r.LockReport.FirstEdges.Count] = n + 1;
+            var names = new List<Theme>();
+            foreach (CubeEdge e in r.LockReport.FirstEdges)
+            {
+                Theme t = model.ThemeOf(e.A == CubeModel.StartFace ? e.B : e.A);
+                names.Add(t);
+                firstRegions.TryGetValue(t, out int c);
+                firstRegions[t] = c + 1;
+            }
+            names.Sort();
+            firstSets.Add(string.Join(",", names));
+        }
+        if (seeds == 0) return "Locks: not checked.\n";
+        return $"Locks: {keyLocks} key and {itemLocks} item locks over {seeds} seeds (12 edges a run; item locks by item: " +
+               string.Join(", ", itemLockThemes.Select(e => $"{e.Key} {e.Value}")) + $"); no spending order soft-locks on {passed}/{seeds} seeds " +
+               $"({states} spending states explored); first edges per seed: " + string.Join(", ", firstCounts.Select(e => $"{e.Key} on {e.Value}")) +
+               "; first routes by region: " + string.Join(", ", firstRegions.Select(e => $"{e.Key} {e.Value}")) +
+               $"; {firstSets.Count} different sets of first routes; draws kept {draws} in all (at most {maxDraw}); fallbacks {fallbacks}.\n";
+    }
+
     /// <summary>The sweep's roadblock-reward lines (4.7): the kinds, the roadblocks and each face theme's mix per run.</summary>
     private static string RewardReport(List<SeedSweep.SeedResult> results, ModuleLibrary library)
     {
-        var kinds = new int[5];
+        var kinds = new int[6];
         var bonus = 0;
         var roadblocks = new int[4];
         int lane = 0, hiddenJumbles = 0, jumbles = 0, requiredJumbles = 0, everyKind = 0, seeds = 0, minSpots = int.MaxValue, maxSpots = 0;
@@ -355,18 +403,18 @@ public static class CubeSceneBuilder
                 }
                 if (s.What.Kind == RewardKind.Upgrade) boosts[(int)s.What.Upgrade]++;
                 Theme theme = model.ThemeOf(s.Face);
-                if (!perTheme.TryGetValue(theme, out int[] mix)) perTheme[theme] = mix = new int[6];
+                if (!perTheme.TryGetValue(theme, out int[] mix)) perTheme[theme] = mix = new int[7];
                 mix[(int)s.What.Kind]++;
-                if (!s.Required) mix[5]++;
+                if (!s.Required) mix[6]++;
             }
-            if (seen.Count == 5) everyKind++;
+            if (seen.Count == 6) everyKind++;
         }
         if (seeds == 0) return "Rewards: not checked.\n";
         string Avg(int count) => (count / (float)seeds).ToString("0.0");
         string text = $"Rewards: {kinds.Sum()} over {seeds} seeds ({minSpots}-{maxSpots} a run): {kinds[(int)RewardKind.Jumbles]} Jumbles* " +
                       $"({bonus} bonus behind optional gates, {hiddenJumbles} hidden; {Avg(requiredJumbles)} reachable Jumbles* a run), " +
                       $"{kinds[(int)RewardKind.Equipment]} equipment ({lane} under a lane mound), {kinds[(int)RewardKind.Upgrade]} boosts " +
-                      $"({boosts[0]} heart, {boosts[1]} speed, {boosts[2]} power), {kinds[(int)RewardKind.Key]} keys, " +
+                      $"({boosts[0]} heart, {boosts[1]} speed, {boosts[2]} power), {kinds[(int)RewardKind.Key]} keys, {kinds[(int)RewardKind.ChestKey]} chest keys, " +
                       $"{kinds[(int)RewardKind.FragmentSlot]} fragments; every kind on {everyKind}/{seeds} seeds. Roadblocks: " +
                       $"{roadblocks[(int)RoadblockKind.Gate]} gates, {roadblocks[(int)RoadblockKind.OptionalGate]} optional gates, " +
                       $"{roadblocks[(int)RoadblockKind.Mound]} mounds, {roadblocks[(int)RoadblockKind.Puzzle]} puzzle goals.\n";
@@ -395,11 +443,11 @@ public static class CubeSceneBuilder
         text += $"Fragments: {fragments} on the science faces over {seeds} seeds ({reachableFragments} proven reachable; " +
                 $"{DieNumbers.FragmentsPerRun - DieNumbers.TownNumber} a run, plus Town's 1 from its leader); Town numbered 1 on {townOnes}/{seeds} seeds; " +
                 "numbers seen per region: " + string.Join(", ", numbersByTheme.OrderBy(e => e.Key).Select(e => $"{e.Key} {{{string.Join(",", e.Value)}}}")) + ".\n";
-        text += "Reward mix per face a run (fragments/keys/boosts/equipment/Jumbles* chests, of which bonus): " +
+        text += "Reward mix per face a run (fragments/keys/chest keys/boosts/equipment/Jumbles* chests, of which bonus): " +
                 string.Join("; ", CubeModel.ScienceThemes.Where(perTheme.ContainsKey).Select(t =>
                 {
                     int[] m = perTheme[t];
-                    return $"{t} {Avg(m[4])}/{Avg(m[3])}/{Avg(m[2])}/{Avg(m[1])}/{Avg(m[0])} ({Avg(m[5])})";
+                    return $"{t} {Avg(m[4])}/{Avg(m[3])}/{Avg(m[5])}/{Avg(m[2])}/{Avg(m[1])}/{Avg(m[0])} ({Avg(m[6])})";
                 })) + ".\n";
         return text;
     }

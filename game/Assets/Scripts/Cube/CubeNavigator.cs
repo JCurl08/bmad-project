@@ -199,9 +199,10 @@ namespace Game.Cube
             t = Mathf.Clamp01(t);
 
             var exitCell = new ScreenAddress(Face, world.CellAt(Face, Position));
-            if (!world.Model.TryStep(exitCell, direction, out ScreenAddress next, out Facing newFacing))
+            bool locked = world.Locks != null && world.Locks.IsLocked(Face, direction);
+            if (locked || !world.Model.TryStep(exitCell, direction, out ScreenAddress next, out Facing newFacing))
             {
-                // Sealed: behave like a wall. (The world also builds a collider here; this is the backstop.)
+                // Sealed, or a locked arch (4.9; its bars are a collider too, this is the backstop): behave like a wall. (The world also builds a collider here; this is the backstop.)
                 // Clamp only the axis being exited so a corner hit does not shove the player sideways.
                 Vector2 clamped = local;
                 Vector2 velocity = body != null ? body.linearVelocity : Vector2.zero;

@@ -18,12 +18,19 @@ namespace Game.Cube
     {
         private readonly CubeModel model;
         private readonly Func<ScreenAddress, IslandLayout> islandAt;
+        private readonly Func<ScreenAddress, Facing, bool> doorOpen;
         private readonly Dictionary<bool, HashSet<(ScreenAddress, int)>> cache = new Dictionary<bool, HashSet<(ScreenAddress, int)>>();
 
-        public DoorwayReach(CubeModel model, Func<ScreenAddress, IslandLayout> islandAt = null)
+        /// <summary>
+        /// The walk over a run's cube. doorOpen (optional, 4.9) shuts doorways: a side of a screen it answers false for leads
+        /// nowhere (a locked face-edge arch, EdgeLocks). It answers the same for both sides of a doorway, so every join stays
+        /// two-way.
+        /// </summary>
+        public DoorwayReach(CubeModel model, Func<ScreenAddress, IslandLayout> islandAt = null, Func<ScreenAddress, Facing, bool> doorOpen = null)
         {
             this.model = model ?? throw new ArgumentNullException(nameof(model));
             this.islandAt = islandAt;
+            this.doorOpen = doorOpen;
         }
 
         /// <summary>The island layout of a screen, or null for an ordinary screen.</summary>
@@ -73,6 +80,7 @@ namespace Game.Cube
             {
                 var side = (Facing)f;
                 if (RegionOfDoor(screen, side) != region) continue;
+                if (doorOpen != null && !doorOpen(screen, side)) continue;
                 if (!model.TryStep(screen, side, out ScreenAddress next, out Facing facing)) continue;
                 int there = RegionOfDoor(next, facing.Opposite());
                 if (there >= 0) yield return (next, there);

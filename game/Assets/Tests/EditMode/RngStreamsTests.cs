@@ -37,6 +37,7 @@ namespace Game.Cube.Tests
             { nameof(RngStreams.NpcNames), 22 },
             { nameof(RngStreams.Rewards), 23 },
             { nameof(RngStreams.DieNumbers), 24 },
+            { nameof(RngStreams.EdgeLocks), 25 },
         };
 
         private static Dictionary<string, ulong> Registry() =>
@@ -93,6 +94,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(RngStreams.NpcNames, NpcNames.RngStream);
             Assert.AreEqual(RngStreams.Rewards, RewardPlacement.RngStream);
             Assert.AreEqual(RngStreams.DieNumbers, DieNumbers.RngStream);
+            Assert.AreEqual(RngStreams.EdgeLocks, EdgeLocks.RngStream);
         }
     }
 }
