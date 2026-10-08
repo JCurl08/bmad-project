@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -27,20 +28,20 @@ namespace Game.Cube
         /// <summary>Seconds of pause added per second of fight after FreshSeconds (the Demon tiring).</summary>
         public const float RestoreFatigue = 0.06f;
         public const float FetchTimeout = 4f;
-        public const float NudgeSpeed = 4.5f;
-        public const float MoveSpeed = 3f;
+        public const float NudgeSpeed = 4.5f * ScreenMath.ContentScale;
+        public const float MoveSpeed = 3f * ScreenMath.ContentScale;
         public const float PulseInterval = 4f;
         public const float FirstPulseDelay = 2.5f;
         public const float TelegraphSeconds = 0.8f;
-        public const float PulseSpeed = 6.5f;
+        public const float PulseSpeed = 6.5f * ScreenMath.ContentScale;
         public const float DefaultPulseDamage = 1f;
-        public const float HitRadius = 0.45f;
+        public const float HitRadius = 0.45f * ScreenMath.ContentScale;
 
         /// <summary>How far either side of the door a fetched particle lines up before going through.</summary>
-        public const float DoorApproach = 0.9f;
+        public const float DoorApproach = 0.9f * ScreenMath.ContentScale;
 
         /// <summary>How far past the membrane a fetched particle must be before it counts as returned.</summary>
-        public const float HomeClearance = 0.7f;
+        public const float HomeClearance = 0.7f * ScreenMath.ContentScale;
 
         private enum FetchLeg { None, Approach, Through }
 
@@ -194,7 +195,7 @@ namespace Game.Cube
                 {
                     Vector2 approach = door + new Vector2(strayDir * DoorApproach, 0f);
                     fetching.Nudge(approach, NudgeSpeed);
-                    if (Vector2.Distance(fetching.Position, approach) < 0.35f)
+                    if (Vector2.Distance(fetching.Position, approach) < 0.35f * ScreenMath.ContentScale)
                     {
                         leg = FetchLeg.Through;
                         SetDoor(true);
@@ -202,7 +203,7 @@ namespace Game.Cube
                 }
                 if (leg == FetchLeg.Through)
                 {
-                    Vector2 exit = door + new Vector2(-strayDir * (HomeClearance + 0.4f), 0f);
+                    Vector2 exit = door + new Vector2(-strayDir * (HomeClearance + 0.4f * ScreenMath.ContentScale), 0f);
                     fetching.Nudge(exit, NudgeSpeed);
                     if (fetching.IsHome && Mathf.Abs(fetching.Position.x - arena.MembraneX) >= HomeClearance)
                     {
@@ -296,13 +297,13 @@ namespace Game.Cube
             if (bodyRenderer != null)
                 bodyRenderer.color = Color.Lerp(bodyColor, Color.white, 0.5f + 0.5f * Mathf.Sin(Time.time * 40f));
             if (telegraphLine == null) return;
-            const float length = 18f;
+            const float length = 18f * ScreenMath.ContentScale;
             Vector2 aim = TelegraphAim;
             Vector2 mid = Position + aim * (length / 2f);
             Transform line = telegraphLine.transform;
             line.position = new Vector3(mid.x, mid.y, transform.position.z);
             line.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
-            line.localScale = new Vector3(length, 0.08f, 1f);
+            line.localScale = new Vector3(length, 0.08f * ScreenMath.ContentScale, 1f);
             telegraphLine.enabled = true;
         }
 

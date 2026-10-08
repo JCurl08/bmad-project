@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -152,7 +153,7 @@ namespace Game.Cube
                 Vector2 threshold = door.ThresholdLocal;
                 foreach (float x in SwitchLaneX)
                 {
-                    foreach (float y in new[] { sy * 0.6f, 0f, -sy * 0.6f })
+                    foreach (float y in new[] { sy * 0.6f * ScreenMath.ContentScale, 0f, -sy * 0.6f * ScreenMath.ContentScale })
                     {
                         var at = new Vector2(-sx * x, y);
                         if (!Free(at, TimeField.SwitchRadius, ctx.Others) || !Free(at, TimeField.SwitchRadius, own)) continue;
@@ -180,7 +181,7 @@ namespace Game.Cube
                 FitBoulders(screen, specs, null, own, out List<TimedDoorSpec> baseline, out _, out _);
                 ScreenContext ctx = Ctx(screen);
                 var candidates = new List<(float bx, int side)>();
-                for (float x = BoothOuter / 2f + ScreenModule.ExitLaneHalfWidth; x <= 6.5f - BoothOuter / 2f + 1e-4f; x += GridStep)
+                for (float x = BoothOuter / 2f + ScreenModule.ExitLaneHalfWidth; x <= ScreenMath.DefaultScreenSize.x / 2f - ScreenModule.EdgeClearance - BoothOuter / 2f + 1e-4f; x += GridStep)
                     foreach (int side in new[] { 1, -1 })
                         foreach (float sign in new[] { 1f, -1f })
                         {
@@ -200,8 +201,8 @@ namespace Game.Cube
                     foreach ((float bx, int side) c in candidates)
                     {
                         Rect r = BoothFootprint(c.bx, c.side);
-                        if (Grow(aRect, 0.5f).Overlaps(r)) continue;
-                        if (Vector2.Distance(aDoor.FieldLocal, BoothDoor(c.bx, c.side, TrialRequired).FieldLocal) < 2f * TimeField.FieldRadius + 0.5f) continue;
+                        if (Grow(aRect, 0.5f * ScreenMath.ContentScale).Overlaps(r)) continue;
+                        if (Vector2.Distance(aDoor.FieldLocal, BoothDoor(c.bx, c.side, TrialRequired).FieldLocal) < 2f * TimeField.FieldRadius + 0.5f * ScreenMath.ContentScale) continue;
                         partners.Add(c);
                     }
                     if (partners.Count == 0) continue;
@@ -246,7 +247,7 @@ namespace Game.Cube
             private static bool BoothFits(Rect rect, DoorLayout door, ScreenContext ctx, List<ScreenMark> own)
             {
                 if (!ScreenModule.KeepsExitsOpen(rect)) return false;
-                Rect grown = Grow(rect, 0.05f);
+                Rect grown = Grow(rect, 0.05f * ScreenMath.ContentScale);
                 foreach (Rect b in ctx.Blocked)
                     if (b.Overlaps(grown)) return false;
                 foreach (ScreenMark m in ctx.Others)

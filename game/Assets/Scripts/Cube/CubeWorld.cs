@@ -26,7 +26,7 @@ namespace Game.Cube
     /// </summary>
     public class CubeWorld : MonoBehaviour
     {
-        private const float WallThickness = 1f;
+        private const float WallThickness = ScreenEdges.EdgeWallThickness;
 
         [SerializeField] private int seed = 1234;
         [SerializeField] private Sprite sprite;
@@ -53,7 +53,7 @@ namespace Game.Cube
         public ItemCatalog ItemCatalog => itemCatalog;
 
         /// <summary>Where an open (unguarded) pickup sits, relative to its screen centre: in the clear vertical lane.</summary>
-        public static readonly Vector2 OpenPickupOffset = new Vector2(0f, -2.5f);
+        public static readonly Vector2 OpenPickupOffset = new Vector2(0f, -2.5f) * ScreenMath.ContentScale;
 
         /// <summary>The item and gate placement of this run; null until the science faces are revealed.</summary>
         public ItemPlacement ItemPlacement { get; private set; }
@@ -95,7 +95,7 @@ namespace Game.Cube
         public Sprite Sprite => sprite != null ? sprite : GetFallbackSprite();
         public Material Material => material;
 
-        /// <summary>One screen is ScreenMath.DefaultScreenSize (16x10); never duplicated here.</summary>
+        /// <summary>One screen is ScreenMath.DefaultScreenSize (24x15); never duplicated here.</summary>
         public static Vector2 ScreenSize => ScreenMath.DefaultScreenSize;
 
         /// <summary>World size of one face: N screens by N screens.</summary>
@@ -449,7 +449,7 @@ namespace Game.Cube
                     Debug.LogError($"CubeWorld: cannot place {spot}");
                     continue;
                 }
-                const float size = 0.7f;
+                const float size = 0.7f * ScreenMath.ContentScale;
                 Transform slot = slots[spot.Slot].transform;
                 GameObject go = CreateBlock($"Hidden Jumble {i}", slot, slot.position, new Vector2(size, size),
                     Color.white, 4, false, ArtKey.Jumbles);
@@ -484,10 +484,10 @@ namespace Game.Cube
         }
 
         /// <summary>How far a guarded pickup's visuals sit behind the pocket centre, clear of the gate art in front of it.</summary>
-        public const float GuardedVisualDepth = 0.4f;
+        public const float GuardedVisualDepth = 0.4f * ScreenMath.ContentScale;
 
         /// <summary>World size of a plain pickup's item art.</summary>
-        public const float PickupSize = 0.85f;
+        public const float PickupSize = 0.85f * ScreenMath.ContentScale;
 
         /// <summary>
         /// Moves a guarded pickup's visuals (its sprite children; the trigger stays at the pocket centre) to the back of the

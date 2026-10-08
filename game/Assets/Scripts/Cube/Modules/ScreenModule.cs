@@ -4,17 +4,20 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// A hand-built template for one 16x10 screen. The prefab root sits at the screen centre; children
+    /// A hand-built template for one screen (24x15 since 4.1; the layouts were drawn for 16x10 and scaled by ScreenMath.ContentScale). The prefab root sits at the screen centre; children
     /// hold obstacles and tagged slot markers (exits, gates, hidden items, core entrances).
     /// Built by the Cube > Build Module Library editor script.
     /// </summary>
     public class ScreenModule : MonoBehaviour
     {
-        /// <summary>Half-width of the clear lanes through the screen centre (keeps all four exits and the centre open).</summary>
-        public const float ExitLaneHalfWidth = 1.25f;
+        /// <summary>Half-width of the clear lanes through the screen centre (keeps all four exits and the centre open): 1.875, so the lanes and doorways are 3.75 wide.</summary>
+        public const float ExitLaneHalfWidth = 1.25f * Game.Tracer.ScreenMath.ContentScale;
 
-        /// <summary>Clear band along every screen edge, so the whole edge stays crossable.</summary>
-        public const float EdgeClearance = 1.5f;
+        /// <summary>
+        /// Clear band along every screen edge: the edge wall (half a tile since 4.1) plus the clear strip inside it (the first
+        /// screens' 0.5, scaled), so nothing placed by the KeepsExitsOpen rules meets a wall. 1.25.
+        /// </summary>
+        public const float EdgeClearance = ScreenEdges.EdgeWallThickness + 0.5f * Game.Tracer.ScreenMath.ContentScale;
 
         /// <summary>
         /// Rule for every obstacle (local rect, screen centre at the origin): it stays inside the screen,

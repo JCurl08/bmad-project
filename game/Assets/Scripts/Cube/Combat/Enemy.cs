@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -15,15 +16,15 @@ namespace Game.Cube
         public const float DefaultHealth = 8f;
         public const float DefaultContactDamage = 1f;
         public const float DefaultInvulnerableSeconds = 0.1f;
-        public const float BodyRadius = 0.4f;
+        public const float BodyRadius = 0.4f * ScreenMath.ContentScale;
         public const float BodyMass = 5f;
         public const int SortingOrder = 7;
 
         /// <summary>World size of an enemy's body art (a little larger than its collider).</summary>
-        public const float VisualSize = 0.95f;
+        public const float VisualSize = 0.95f * ScreenMath.ContentScale * CubeSettings.PeopleArtScale; // drawn larger than BodyRadius (visual only)
 
         /// <summary>Where a face enemy's weakness mark sits: just above its body art.</summary>
-        public static readonly Vector2 MarkOffset = new Vector2(0f, 0.6f);
+        public static readonly Vector2 MarkOffset = new Vector2(0f, 0.6f) * (ScreenMath.ContentScale * CubeSettings.PeopleArtScale);
 
         /// <summary>A body colour as a soft tint over the enemy art (the art reads first; the tint tells variants apart).</summary>
         public static Color ArtTint(Color color) => Color.Lerp(Color.white, color, 0.4f);

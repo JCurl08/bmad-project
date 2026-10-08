@@ -85,6 +85,14 @@ namespace Game.Cube.Tests
                     // The walk sits between the two open times with room to spare either side (10%+).
                     Assert.Less(TimeField.OpenSeconds(baseSeconds, required - 1), walk * 0.9f, context);
                     Assert.Greater(TimeField.OpenSeconds(baseSeconds, required), walk * 1.1f, context);
+                    // 4.1: the puzzle-difficulty research's boulder targets (section 1d): the slack at the required count and
+                    // how early one short shuts, by tier (1 boulder early, 2 mid, 3 late).
+                    float slack = TimeField.OpenSeconds(baseSeconds, required) / walk;
+                    float shortBy = 1f - TimeField.OpenSeconds(baseSeconds, required - 1) / walk;
+                    (float min, float max, float shortMin) = required == 1 ? (1.35f, 2f, 0.15f)
+                        : required == 2 ? (1.20f, 1.30f, 0.12f) : (1.12f, 1.20f, 0.10f);
+                    Assert.That(slack, Is.InRange(min - 1e-4f, max + 1e-4f), $"{context}: slack {slack:0.000}");
+                    Assert.GreaterOrEqual(shortBy, shortMin, $"{context}: one short shuts only {shortBy:P1} early");
                 }
             }
             // The design notes' example: base 1 s, k 0.6, so 2 boulders (2.2 s) fail a 2.5 s walk and 3 (2.8 s) pass.
@@ -95,10 +103,11 @@ namespace Game.Cube.Tests
         [Test]
         public void WalkSeconds_IsTheDistanceLessBothTouches_AtBasePlayerSpeed()
         {
-            Assert.AreEqual(6f, TimeField.BasePlayerSpeed);
-            float walk = TimeField.WalkSeconds(Vector2.zero, new Vector2(10f, 0f));
+            // 4.1: the speed scales with the screen (6 on the first 16x10 screens), and so do all the lengths.
+            Assert.AreEqual(6f * Game.Tracer.ScreenMath.ContentScale, TimeField.BasePlayerSpeed, 1e-5f);
+            float walk = TimeField.WalkSeconds(Vector2.zero, new Vector2(15f, 0f));
             float touches = TimeField.SwitchRadius + TimeField.ThresholdRadius + 2f * TimeField.PlayerRadius;
-            Assert.AreEqual((10f - touches) / 6f, walk, 1e-5f);
+            Assert.AreEqual((15f - touches) / TimeField.BasePlayerSpeed, walk, 1e-5f);
             Assert.AreEqual(0f, TimeField.WalkSeconds(Vector2.zero, Vector2.zero));
         }
 

@@ -20,6 +20,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class CubeSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
         private const float WalkTimeout = 10f;
 
@@ -188,7 +191,7 @@ namespace Game.Cube.Tests
 
                         // Start in the doorway's lane, a little inside the edge.
                         Vector2 half = CubeWorld.ScreenSize / 2f;
-                        yield return PlaceOn(from, Vector2.Scale(direction.ToVector(), half - Vector2.one * 1.2f), direction);
+                        yield return PlaceOn(from, Vector2.Scale(direction.ToVector(), half - Vector2.one * 1.2f * K), direction);
 
                         int crossings = navigator.Crossings;
                         Press(KeyFor(keyboard, direction), queueEventOnly: true);
@@ -223,7 +226,7 @@ namespace Game.Cube.Tests
                             failures.Add($"{from} {direction} -> {arrived}: holding the key crossed again (now {navigator.Current})");
                             continue;
                         }
-                        if (drift > 0.05f || !waiting)
+                        if (drift > 0.05f * K || !waiting)
                             failures.Add($"{from} {direction} -> {arrived}: the held key moved the player {drift:0.00} (waiting {waiting})");
 
                         // A fresh press toward the doorway behind walks back over the same edge.
@@ -270,7 +273,7 @@ namespace Game.Cube.Tests
             foreach (var (screen, side) in cases)
             {
                 bool faceEdge = ScreenEdges.IsFaceEdge(n, screen.Cell, side);
-                Vector2 off = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, 2.6f) : new Vector2(4.5f, side.ToVector().y * bandY);
+                Vector2 off = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, 2.6f * K) : new Vector2(4.5f * K, side.ToVector().y * bandY);
                 yield return PlaceOn(screen, off, side);
                 int crossings = navigator.Crossings;
                 yield return this.HoldUntil(KeyFor(keyboard, side), () => false, 0.8f);
@@ -280,8 +283,8 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(screen, navigator.Current, $"{screen} {side}: left the screen through the wall");
                 float reach = Vector2.Dot(local, side.ToVector());
                 float wallFace = (side.IsHorizontal() ? half.x : half.y) - ScreenEdges.EdgeWallThickness;
-                Assert.LessOrEqual(reach, wallFace - 0.35f, $"{screen} {side}: the player stands against the wall, not in it");
-                Assert.GreaterOrEqual(reach, wallFace - 0.45f, $"{screen} {side}: the player walked up to the wall");
+                Assert.LessOrEqual(reach, wallFace - 0.35f * K, $"{screen} {side}: the player stands against the wall, not in it");
+                Assert.GreaterOrEqual(reach, wallFace - 0.45f * K, $"{screen} {side}: the player walked up to the wall");
 
                 // Through the doorway: it leads on.
                 Vector2 door = side.IsHorizontal() ? new Vector2(side.ToVector().x * bandX, 0f) : new Vector2(0f, side.ToVector().y * bandY);
@@ -323,6 +326,19 @@ namespace Game.Cube.Tests
                 int activeCores = screens.Sum(s => world.ModuleAt(s).ActiveCoreEntrances().Count);
                 Assert.AreEqual(1, activeCores, $"{face} ({model.ThemeOf(face)}) active core entrances");
             }
+        }
+
+        [UnityTest]
+        public IEnumerator Player_IsDrawnAThirdLargerOnTheCanvas_ThanOnTheFirstScreens_ItsColliderUnchanged()
+        {
+            // 4.1 review: the hero (one tile on the first 16x10 screens, at 60 px per unit) reads 1.33x larger on the
+            // 24x15 canvas (40 px per unit); visual only, the collider only scales with the screen.
+            yield return LoadCubeScene();
+            SpriteRenderer art = navigator.transform.Find("Visual").GetComponent<SpriteRenderer>();
+            float canvasPixels = art.bounds.size.y * 600f / CubeWorld.ScreenSize.y;
+            Assert.AreEqual(CubeSettings.PeopleArtScale, canvasPixels / (1f * 600f / 10f), 0.01f, "The hero's drawn height on the canvas");
+            Assert.AreEqual(0.4f * K, navigator.GetComponent<CircleCollider2D>().radius, 1e-4f, "The collider is not grown with the art");
+            Assert.Greater(art.sortingOrder, -4, "The hero draws over walls and gate arches");
         }
 
         [UnityTest]
@@ -463,7 +479,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(ExitScreen(direction), navigator.Current, "Player should be stopped at the sealed edge");
 
             // Actually against the sealed edge: within wall thickness + collider radius (+ epsilon) of it.
-            const float reach = 1f + 0.4f + 0.05f;
+            const float reach = ScreenEdges.EdgeWallThickness + TimeField.PlayerRadius + 0.05f;
             Vector2 extent = world.FaceExtent;
             Vector2 local = (Vector2)navigator.transform.position - world.FaceOrigin(CubeModel.StartFace);
             Assert.That(local.x, Is.InRange(0f, extent.x));

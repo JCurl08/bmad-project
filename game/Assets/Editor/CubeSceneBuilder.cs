@@ -66,11 +66,11 @@ public static class CubeSceneBuilder
         var visual = new GameObject("Visual");
         visual.transform.SetParent(player.transform, false);
         var renderer = visual.AddComponent<SpriteRenderer>();
-        ArtCatalog.Apply(renderer, ArtKey.Player, Vector2.one); // one tile: the hero
+        ArtCatalog.Apply(renderer, ArtKey.Player, Vector2.one * (ScreenMath.ContentScale * CubeSettings.PeopleArtScale)); // the hero: one tile of the first screens, scaled (4.1), drawn PeopleArtScale larger than its collider
         if (material != null) renderer.sharedMaterial = material;
         renderer.color = Color.white;
         renderer.sortingOrder = 10;
-        player.AddComponent<CircleCollider2D>().radius = 0.4f;
+        player.AddComponent<CircleCollider2D>().radius = TimeField.PlayerRadius; // 0.4 on the first screens, scaled
         var body = player.AddComponent<Rigidbody2D>();
         body.gravityScale = 0f;
         body.freezeRotation = true;

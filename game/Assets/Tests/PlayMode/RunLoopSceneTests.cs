@@ -24,6 +24,9 @@ namespace Game.Cube.Tests
     [IsolatedMetaSave]
     public class RunLoopSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
 
         private CubeWorld world;
@@ -533,10 +536,10 @@ namespace Game.Cube.Tests
                     HiddenCurrencyPickup pickup = world.HiddenCurrencyPickups[i];
                     Assert.IsTrue(CubeLayout.IsLaidOut(world.Model, spot.Screen.Face));
                     HiddenItemSlot slot = world.ModuleAt(spot.Screen).HiddenItems[spot.Slot];
-                    Assert.Less(Vector2.Distance(slot.transform.position, pickup.transform.position), 0.01f, $"seed {seed}: {spot}");
+                    Assert.Less(Vector2.Distance(slot.transform.position, pickup.transform.position), 0.01f * K, $"seed {seed}: {spot}");
                     Assert.IsTrue(pickup.GetComponent<Collider2D>().isTrigger, "Blocks nothing");
                     foreach (Gate gate in world.Gates.Concat(world.OptionalGates))
-                        Assert.Greater(Vector2.Distance(gate.transform.position, pickup.transform.position), 1f, "Not at a gate");
+                        Assert.Greater(Vector2.Distance(gate.transform.position, pickup.transform.position), 1f * K, "Not at a gate");
                 }
             }
         }

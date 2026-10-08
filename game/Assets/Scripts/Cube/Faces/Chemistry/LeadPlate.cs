@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -19,7 +20,7 @@ namespace Game.Cube
     /// </summary>
     public class LeadPlate : MonoBehaviour, IAttackReceiver
     {
-        public const float Radius = 0.4f;
+        public const float Radius = 0.4f * ScreenMath.ContentScale;
 
         /// <summary>The plate art's tint while it waits, and once the stone has weighed it down.</summary>
         public static readonly Color PlateColor = new Color(0.95f, 0.95f, 0.9f);
@@ -59,7 +60,7 @@ namespace Game.Cube
         {
             if (top != null) top.color = PressedColor;
             if (slug == null)
-                slug = BeakGate.AddSprite(transform, "Lead Slug", PartShape.Circle, Vector2.zero, new Vector2(0.35f, 0.35f),
+                slug = BeakGate.AddSprite(transform, "Lead Slug", PartShape.Circle, Vector2.zero, new Vector2(0.35f, 0.35f) * ScreenMath.ContentScale,
                     ChemistryIsotope.LeadColor, -1, material);
         }
 

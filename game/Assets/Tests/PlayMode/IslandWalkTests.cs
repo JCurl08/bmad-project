@@ -25,6 +25,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class IslandWalkTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
         private static readonly Facing[] Sides = { Facing.North, Facing.East, Facing.South, Facing.West };
 
@@ -299,7 +302,7 @@ namespace Game.Cube.Tests
             Rect g = b.Gap;
             float near = axis.x > 0.5f ? g.xMin : axis.x < -0.5f ? -g.xMax : axis.y > 0.5f ? g.yMin : -g.yMax;
             float short_ = near - Vector2.Dot(body.position - centre, axis);
-            if (Mathf.Abs(short_ - TimeField.PlayerRadius) <= 0.1f) return true;
+            if (Mathf.Abs(short_ - TimeField.PlayerRadius) <= 0.1f * K) return true;
             Fail($"{what} {short_:0.00} short of the gap at {body.position - centre} (expected {TimeField.PlayerRadius}: against it)");
             return false;
         }
@@ -369,8 +372,8 @@ namespace Game.Cube.Tests
             {
                 yield return null;
                 float remaining = Vector2.Dot(target - body.position, axis);
-                if (remaining < 0.02f) break;
-                mover.Speed = Mathf.Clamp(remaining / step, 0.2f, baseSpeed);
+                if (remaining < 0.02f * K) break;
+                mover.Speed = Mathf.Clamp(remaining / step, 0.2f * K, baseSpeed);
                 still = (body.position - last).sqrMagnitude < 1e-6f ? still + 1 : 0;
                 last = body.position;
                 if (still > 8) break;
@@ -383,7 +386,7 @@ namespace Game.Cube.Tests
             mover.Speed = baseSpeed;
             if (expect < 0) yield break;
             Vector2 local = body.position - centre;
-            if (layout.IslandAt(local) != expect || (body.position - target).magnitude > 0.3f)
+            if (layout.IslandAt(local) != expect || (body.position - target).magnitude > 0.3f * K)
                 Fail($"walking {leg} stopped at {local} (island {layout.IslandAt(local)}), short of {target - centre} on island {expect}");
         }
     }

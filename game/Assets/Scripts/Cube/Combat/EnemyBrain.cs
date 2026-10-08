@@ -13,11 +13,11 @@ namespace Game.Cube
     [RequireComponent(typeof(Enemy))]
     public class EnemyBrain : MonoBehaviour
     {
-        public const float DefaultChaseSpeed = 2.2f;
-        public const float DefaultSightRadius = 7f;
+        public const float DefaultChaseSpeed = 2.2f * ScreenMath.ContentScale;
+        public const float DefaultSightRadius = 7f * ScreenMath.ContentScale;
 
         /// <summary>Gap (world units) between colliders that still counts as touching.</summary>
-        public const float ContactGap = 0.06f;
+        public const float ContactGap = 0.06f * ScreenMath.ContentScale;
 
         [SerializeField] private Rect bounds;
         [SerializeField] private Transform player;
@@ -113,7 +113,7 @@ namespace Game.Cube
         private bool InBounds(Vector2 point)
         {
             if (bounds.width <= 0f && bounds.height <= 0f) return true;
-            const float slack = 1f;
+            const float slack = 1f * ScreenMath.ContentScale;
             return point.x >= bounds.xMin - slack && point.x <= bounds.xMax + slack &&
                    point.y >= bounds.yMin - slack && point.y <= bounds.yMax + slack;
         }

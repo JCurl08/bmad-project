@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -21,6 +22,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class MathSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
 
         private Keyboard keyboard;
@@ -228,7 +232,7 @@ namespace Game.Cube.Tests
             yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[layout.DoorIsland(from)]));
             yield return WalkRoute(centre, layout, Route(layout, layout.DoorIsland(from), layout.DoorIsland(to), false));
             Assert.IsTrue(world.Model.TryStep(screenAt, to, out ScreenAddress next, out _));
-            Vector2 outside = centre + Vector2.Scale(to.ToVector(), CubeWorld.ScreenSize / 2f) + (Vector2)to.ToVector() * 1.5f;
+            Vector2 outside = centre + Vector2.Scale(to.ToVector(), CubeWorld.ScreenSize / 2f) + (Vector2)to.ToVector() * 1.5f * K;
             yield return WalkTo(outside);
             Assert.AreEqual(next, navigator.Current, $"Walked out of {screenAt} by its {to} doorway");
 
@@ -237,7 +241,7 @@ namespace Game.Cube.Tests
             int door = layout.DoorIsland(from);
             Facing across = sides.First(d => d != from && !layout.Bridges.Any(b => b.Joins(door) &&
                 layout.Spots[b.Other(door)] == layout.Spots[door] + d.ToVector()));
-            yield return WalkTo(body.position + (Vector2)across.ToVector() * 3f, 1f);
+            yield return WalkTo(body.position + (Vector2)across.ToVector() * 3f * K, 1f);
             Assert.AreEqual(door, layout.IslandAt(body.position - centre), $"The water stopped the player at the shore ({across})");
 
             // The trial: over the joined islands to the one its broken span leaves from, the gap-crosser* swung at the gap,
@@ -258,7 +262,7 @@ namespace Game.Cube.Tests
             if (!inventory.Has(crosser)) inventory.Add(crosser);
             navigator.GetComponent<Equipment>().Equip(crosser);
             yield return new WaitForSeconds(attack.Cooldown + 0.02f);
-            yield return PutPlayerAt(screenAt, (Vector2)gap.transform.position - toward * (IslandLayout.GapLength / 2f + 0.45f));
+            yield return PutPlayerAt(screenAt, (Vector2)gap.transform.position - toward * (IslandLayout.GapLength / 2f + 0.45f * K));
             navigator.GetComponent<Game.Tracer.PlayerMover>().SetFacing(facing.ToVector());
             attack.TryAttack();
             yield return null;
@@ -292,7 +296,7 @@ namespace Game.Cube.Tests
                 if (navigator.Current != spec.Screen) navigator.TeleportTo(spec.Screen, Facing.East);
                 yield return this.TapThroughPhysics(KeyFor(keyboard, toward));
                 yield return new WaitForSeconds(attack.Cooldown + 0.02f);
-                yield return PutPlayerAt(spec.Screen, (Vector2)slot.transform.position - (Vector2)toward.ToVector() * 1.0f);
+                yield return PutPlayerAt(spec.Screen, (Vector2)slot.transform.position - (Vector2)toward.ToVector() * 1.0f * K);
                 Assert.GreaterOrEqual(attack.TryAttack(), 0, "The swing happened");
                 yield return null;
                 Assert.IsTrue(gap.IsOpen, $"{spec}: the gap-crosser* lays a crossing");

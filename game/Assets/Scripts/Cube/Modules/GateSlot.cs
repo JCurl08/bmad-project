@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,16 +12,16 @@ namespace Game.Cube
     public class GateSlot : ModuleSlot
     {
         /// <summary>Width of a gate (the alcove opening between its side walls).</summary>
-        public const float GateWidth = 2f;
+        public const float GateWidth = 2f * ScreenMath.ContentScale;
 
         /// <summary>Thickness of a gate and of the alcove walls.</summary>
-        public const float GateThickness = 0.2f;
+        public const float GateThickness = 0.2f * ScreenMath.ContentScale;
 
         [Tooltip("Direction the alcove opens toward (the screen interior).")]
         [SerializeField] private Facing opening = Facing.South;
 
         [Tooltip("Offset from this slot (the opening) to the pocket centre, in module-local units.")]
-        [SerializeField] private Vector2 pocketOffset = new Vector2(0f, 1f);
+        [SerializeField] private Vector2 pocketOffset = new Vector2(0f, 1f) * ScreenMath.ContentScale;
 
         public Facing Opening
         {

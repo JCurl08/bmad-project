@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
@@ -16,6 +17,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class FeedbackTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-7000f, 7000f);
 
         private readonly List<Object> created = new List<Object>();
@@ -105,7 +109,7 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator AnEnemyHit_FlashesItsBodyAndItsMark()
         {
-            Enemy enemy = Enemy.Spawn(null, Origin, new Rect(Origin - Vector2.one * 3f, Vector2.one * 6f));
+            Enemy enemy = Enemy.Spawn(null, Origin, new Rect(Origin - Vector2.one * 3f * K, Vector2.one * 6f * K));
             Track(enemy.gameObject);
             ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Circle, Enemy.MarkOffset, Vector2.one * 0.3f, Color.red, 8, null);
             yield return null;

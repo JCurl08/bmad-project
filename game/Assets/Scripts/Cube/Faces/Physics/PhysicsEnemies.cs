@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -21,7 +22,7 @@ namespace Game.Cube
     {
         public const float FleaHealth = 6f;
         public const float ClingHealth = 8f;
-        public const float SightRadius = 4f;
+        public const float SightRadius = 4f * ScreenMath.ContentScale;
 
         public static readonly Color FleaColor = new Color(0.75f, 0.45f, 1f);
         public static readonly Color ClingColor = new Color(0.95f, 0.95f, 0.55f);
@@ -54,7 +55,7 @@ namespace Game.Cube
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
             ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Square, Enemy.MarkOffset,
-                new Vector2(0.24f, 0.24f), mark, Enemy.SortingOrder + 1, material);
+                new Vector2(0.24f, 0.24f) * ScreenMath.ContentScale, mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<PhysicsEnemy>().Kind = kind;
             return enemy;
         }

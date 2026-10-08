@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -12,8 +13,8 @@ namespace Game.Cube
         public static readonly Color DoorColor = new Color(0.35f, 0.3f, 0.45f);
 
         /// <summary>Button position relative to the screen centre: the horizontal lane, across from the gate's quadrant.</summary>
-        public const float ButtonLaneX = 5f;
-        public const float ButtonLaneY = 0.6f;
+        public const float ButtonLaneX = 5f * ScreenMath.ContentScale;
+        public const float ButtonLaneY = 0.6f * ScreenMath.ContentScale;
 
         [SerializeField] private BeakButton button;
 
@@ -62,7 +63,7 @@ namespace Game.Cube
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
             Color mark = item != null ? item.PlaceholderColor : Color.white;
-            AddSprite(block.transform, "Beak Mark", PartShape.Circle, Vector2.zero, new Vector2(0.3f, 0.3f), mark, -3, material);
+            AddSprite(block.transform, "Beak Mark", PartShape.Circle, Vector2.zero, new Vector2(0.3f, 0.3f) * ScreenMath.ContentScale, mark, -3, material);
             gate.Link(BeakButton.Create(buttonParent, buttonWorld, item, material));
             ArtCatalog.DressGate(gate, ArtKey.GateButtonDoor);
             return gate;

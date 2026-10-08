@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
@@ -17,6 +18,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class BiologyComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-7000f, -7000f);
 
         private readonly List<Object> created = new List<Object>();
@@ -53,7 +57,7 @@ namespace Game.Cube.Tests
             var body = go.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f;
             body.bodyType = RigidbodyType2D.Kinematic;
-            go.AddComponent<CircleCollider2D>().radius = 0.4f;
+            go.AddComponent<CircleCollider2D>().radius = 0.4f * K;
             go.AddComponent<Game.Tracer.PlayerMover>();
             var inventory = go.AddComponent<Inventory>();
             go.AddComponent<Health>();
@@ -90,7 +94,7 @@ namespace Game.Cube.Tests
         public IEnumerator ThickBeak_BreaksARockGate_OtherItemsBareAndTouchDoNot()
         {
             PlayerAttack attack = MakePlayer(Origin);
-            BreakableGate gate = BreakableGate.Build(Block(Origin + Vector2.down * 1.1f), thick, BreakableLook.Rock, 1, false, null);
+            BreakableGate gate = BreakableGate.Build(Block(Origin + Vector2.down * 1.1f * K), thick, BreakableLook.Rock, 1, false, null);
             int opened = 0;
             gate.Opened += _ => opened++;
             yield return null;
@@ -113,10 +117,10 @@ namespace Game.Cube.Tests
         public IEnumerator ThinBeak_PressesADistantButton_FromBeyondNormalReach_ButNotBeyondItsOwn()
         {
             PlayerAttack attack = MakePlayer(Origin);
-            ButtonGate near = ButtonGate.Build(Block(Origin + new Vector2(30f, 0f)), thin, Origin + Vector2.down * 2.3f,
+            ButtonGate near = ButtonGate.Build(Block(Origin + new Vector2(30f * K, 0f)), thin, Origin + Vector2.down * 2.3f * K,
                 null, 1, false, null);
             Track(near.Button.gameObject);
-            ButtonGate far = ButtonGate.Build(Block(Origin + new Vector2(40f, 0f)), thin, Origin + new Vector2(0f, -3.8f),
+            ButtonGate far = ButtonGate.Build(Block(Origin + new Vector2(40f * K, 0f)), thin, Origin + new Vector2(0f, -3.8f * K),
                 null, 1, false, null);
             Track(far.Button.gameObject);
             yield return null;
@@ -141,7 +145,7 @@ namespace Game.Cube.Tests
         public IEnumerator Pollinating_AFlower_GrowsItsVineBridge_Once()
         {
             PlayerAttack attack = MakePlayer(Origin);
-            FlowerVineGate vine = FlowerVineGate.Build(Block(Origin + new Vector2(16f, 0f)), thin, Origin + Vector2.down * 2f,
+            FlowerVineGate vine = FlowerVineGate.Build(Block(Origin + new Vector2(16f * K, 0f)), thin, Origin + Vector2.down * 2f * K,
                 null, 1, false, null);
             Track(vine.Flower.gameObject);
             yield return null;
@@ -162,11 +166,11 @@ namespace Game.Cube.Tests
         {
             PlayerAttack attack = MakePlayer(Origin);
             // Tuned 2x2 face: four beak gates on the face take two hits each, three take one.
-            BreakableGate gate = BreakableGate.Build(Block(Origin + Vector2.down * 1.1f), thick, BreakableLook.Pot, 4, false, null, 2);
-            BreakableGate fewer = BreakableGate.Build(Block(Origin + new Vector2(30f, 0f)), thick, BreakableLook.Pot, 3, false, null, 2);
+            BreakableGate gate = BreakableGate.Build(Block(Origin + Vector2.down * 1.1f * K), thick, BreakableLook.Pot, 4, false, null, 2);
+            BreakableGate fewer = BreakableGate.Build(Block(Origin + new Vector2(30f * K, 0f)), thick, BreakableLook.Pot, 3, false, null, 2);
             // 3x3 face: the same density per screen, so eight gates take two hits and seven take one.
-            BreakableGate big = BreakableGate.Build(Block(Origin + new Vector2(40f, 0f)), thick, BreakableLook.Rock, 8, false, null, 3);
-            BreakableGate bigFewer = BreakableGate.Build(Block(Origin + new Vector2(50f, 0f)), thick, BreakableLook.Rock, 7, false, null, 3);
+            BreakableGate big = BreakableGate.Build(Block(Origin + new Vector2(40f * K, 0f)), thick, BreakableLook.Rock, 8, false, null, 3);
+            BreakableGate bigFewer = BreakableGate.Build(Block(Origin + new Vector2(50f * K, 0f)), thick, BreakableLook.Rock, 7, false, null, 3);
             yield return null;
             Assert.AreEqual(2, gate.HitsToOpen);
             Assert.AreEqual(1, fewer.HitsToOpen);
@@ -182,7 +186,7 @@ namespace Game.Cube.Tests
         private BiologyTrial MakeTrial(BeakKind beak, ItemDefinition item, IReadOnlyList<Vector2> positions, List<int> fired)
         {
             var go = Track(new GameObject("Trial"));
-            go.transform.position = Origin + new Vector2(60f, 0f);
+            go.transform.position = Origin + new Vector2(60f * K, 0f);
             var trial = go.AddComponent<BiologyTrial>();
             trial.Configure(beak, item, positions, BiologyPlan.TrialCurrency, null);
             trial.Completed += c => fired.Add(c);
@@ -193,9 +197,9 @@ namespace Game.Cube.Tests
         public IEnumerator ThickTrial_RocksInOrder_FiresOnce_AndAWrongRockResets()
         {
             var fired = new List<int>();
-            Vector2 c = Origin + new Vector2(60f, 0f);
+            Vector2 c = Origin + new Vector2(60f * K, 0f);
             BiologyTrial trial = MakeTrial(BeakKind.Thick, thick,
-                new[] { c + new Vector2(-3f, 0f), c, c + new Vector2(3f, 0f) }, fired);
+                new[] { c + new Vector2(-3f * K, 0f), c, c + new Vector2(3f * K, 0f) }, fired);
             yield return null;
             IReadOnlyList<TrialTarget> rocks = trial.Targets;
             Assert.AreEqual(3, rocks.Count);
@@ -212,7 +216,7 @@ namespace Game.Cube.Tests
             PlayerAttack attack = MakePlayer(Origin);
             for (int i = 0; i < 3; i++)
             {
-                attack.transform.position = (Vector2)rocks[i].transform.position + Vector2.up * 0.9f;
+                attack.transform.position = (Vector2)rocks[i].transform.position + Vector2.up * 0.9f * K;
                 Swing(attack, thick);
             }
             Assert.IsTrue(trial.IsComplete);
@@ -226,9 +230,9 @@ namespace Game.Cube.Tests
         public IEnumerator ThinTrial_TwoButtonsThenTheFlower_FiresOnce()
         {
             var fired = new List<int>();
-            Vector2 c = Origin + new Vector2(80f, 0f);
+            Vector2 c = Origin + new Vector2(80f * K, 0f);
             BiologyTrial trial = MakeTrial(BeakKind.Thin, thin,
-                new[] { c + new Vector2(-3f, 0f), c + new Vector2(3f, 0f), c + new Vector2(0f, 3f) }, fired);
+                new[] { c + new Vector2(-3f * K, 0f), c + new Vector2(3f * K, 0f), c + new Vector2(0f, 3f * K) }, fired);
             yield return null;
             IReadOnlyList<TrialTarget> t = trial.Targets;
             Assert.AreEqual(TrialTargetKind.Flower, t[2].Kind);
@@ -247,9 +251,9 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator BiologyEnemies_TakeMarkedlyMoreDamageFromTheirWeakness()
         {
-            var bounds = new Rect(Origin + new Vector2(90f, -5f), new Vector2(10f, 10f));
+            var bounds = new Rect(Origin + new Vector2(90f * K, -5f * K), new Vector2(10f * K, 10f * K));
             Enemy weevil = BiologyEnemies.Spawn(BiologyEnemyKind.SeedWeevil, thick, bounds.center, bounds, null, null, null);
-            Enemy puff = BiologyEnemies.Spawn(BiologyEnemyKind.PollenPuff, other, bounds.center + Vector2.right * 3f, bounds, null, null, null);
+            Enemy puff = BiologyEnemies.Spawn(BiologyEnemyKind.PollenPuff, other, bounds.center + Vector2.right * 3f * K, bounds, null, null, null);
             Track(puff.gameObject);
             Track(weevil.gameObject);
             weevil.GetComponent<EnemyBrain>().enabled = false;

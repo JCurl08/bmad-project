@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -13,8 +14,11 @@ namespace Game.Cube.Tests
     /// </summary>
     public class ItemComponentTests
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(5000f, 5000f);
-        private const float Speed = 5f;
+        private const float Speed = 5f * K;
 
         private readonly List<Object> created = new List<Object>();
         private ItemDefinition item;
@@ -47,7 +51,7 @@ namespace Game.Cube.Tests
             body.gravityScale = 0f;
             body.freezeRotation = true;
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-            go.AddComponent<CircleCollider2D>().radius = 0.4f;
+            go.AddComponent<CircleCollider2D>().radius = 0.4f * K;
             inventory = go.AddComponent<Inventory>();
             return body;
         }
@@ -82,8 +86,8 @@ namespace Game.Cube.Tests
         public IEnumerator Pickup_AddsItemOnce_RemovesPickup_SecondPickupOfOwnedItemHasNoEffect()
         {
             ItemPickup first = MakePickup(Origin);
-            ItemPickup second = MakePickup(Origin + new Vector2(2f, 0f));
-            Rigidbody2D body = MakePlayer(Origin + new Vector2(-3f, 0f), out Inventory inventory);
+            ItemPickup second = MakePickup(Origin + new Vector2(2f * K, 0f));
+            Rigidbody2D body = MakePlayer(Origin + new Vector2(-3f * K, 0f), out Inventory inventory);
             int added = 0, firstEvents = 0, secondEvents = 0;
             inventory.ItemAdded += _ => added++;
             first.PickedUp += (_, __) => firstEvents++;
@@ -91,7 +95,7 @@ namespace Game.Cube.Tests
 
             yield return Push(body, new Vector2(Speed, 0f), 1.5f);
 
-            Assert.Greater(body.position.x, (Origin + new Vector2(2f, 0f)).x, "Player should have walked over both pickups");
+            Assert.Greater(body.position.x, (Origin + new Vector2(2f * K, 0f)).x, "Player should have walked over both pickups");
             Assert.IsTrue(inventory.Has(item));
             Assert.AreEqual(1, inventory.Items.Count);
             Assert.AreEqual(1, added, "ItemAdded must be raised once");
@@ -108,7 +112,7 @@ namespace Game.Cube.Tests
             var go = Track(new GameObject("Test Gate"));
             go.transform.position = position;
             var gate = go.AddComponent<Gate>();
-            gate.Solid.size = new Vector2(0.2f, 2f);
+            gate.Solid.size = new Vector2(0.2f * K, 2f * K);
             gate.RequiredItem = item;
             return gate;
         }
@@ -117,21 +121,21 @@ namespace Game.Cube.Tests
         public IEnumerator Gate_WithoutItem_StaysSolid()
         {
             Gate gate = MakeGate(Origin);
-            Rigidbody2D body = MakePlayer(Origin + new Vector2(-2f, 0f), out _);
+            Rigidbody2D body = MakePlayer(Origin + new Vector2(-2f * K, 0f), out _);
 
             yield return Push(body, new Vector2(Speed, 0f), 1.5f);
 
             Assert.IsFalse(gate.IsOpen);
             Assert.IsTrue(gate.Solid.enabled);
-            Assert.Less(body.position.x, Origin.x - 0.1f - 0.4f + 0.05f, "Player passed a closed gate");
-            Assert.Greater(body.position.x, Origin.x - 1f, "Player never reached the gate");
+            Assert.Less(body.position.x, Origin.x - 0.1f * K - 0.4f * K + 0.05f * K, "Player passed a closed gate");
+            Assert.Greater(body.position.x, Origin.x - 1f * K, "Player never reached the gate");
         }
 
         [UnityTest]
         public IEnumerator Gate_WithItem_OpensOnTouch_AndLetsThePlayerThrough()
         {
             Gate gate = MakeGate(Origin);
-            Rigidbody2D body = MakePlayer(Origin + new Vector2(-2f, 0f), out Inventory inventory);
+            Rigidbody2D body = MakePlayer(Origin + new Vector2(-2f * K, 0f), out Inventory inventory);
             inventory.Add(item);
             int opened = 0;
             gate.Opened += _ => opened++;
@@ -141,7 +145,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(gate.IsOpen);
             Assert.IsFalse(gate.Solid.enabled);
             Assert.AreEqual(1, opened);
-            Assert.Greater(body.position.x, Origin.x + 1f, "Player did not get through the open gate");
+            Assert.Greater(body.position.x, Origin.x + 1f * K, "Player did not get through the open gate");
         }
 
         private OneWayGate MakeOneWay(Vector2 position, Facing allowed)
@@ -149,7 +153,7 @@ namespace Game.Cube.Tests
             var go = Track(new GameObject("Test One-Way Gate"));
             go.transform.position = position;
             var gate = go.AddComponent<OneWayGate>();
-            gate.Width = 2f;
+            gate.Width = 2f * K;
             gate.AllowedDirection = allowed;
             return gate;
         }
@@ -158,28 +162,28 @@ namespace Game.Cube.Tests
         public IEnumerator OneWayGate_Forward_Crosses()
         {
             MakeOneWay(Origin, Facing.East);
-            Rigidbody2D body = MakePlayer(Origin + new Vector2(-2f, 0f), out _);
+            Rigidbody2D body = MakePlayer(Origin + new Vector2(-2f * K, 0f), out _);
 
             yield return Push(body, new Vector2(Speed, 0f), 1.2f);
 
-            Assert.Greater(body.position.x, Origin.x + 1f, "Crossing in the allowed direction must succeed");
+            Assert.Greater(body.position.x, Origin.x + 1f * K, "Crossing in the allowed direction must succeed");
         }
 
         [UnityTest]
         public IEnumerator OneWayGate_Back_IsBlocked_FromTheFarSide_AndAfterCrossing()
         {
             MakeOneWay(Origin, Facing.North);
-            Rigidbody2D body = MakePlayer(Origin + new Vector2(0f, 2f), out _);
+            Rigidbody2D body = MakePlayer(Origin + new Vector2(0f, 2f * K), out _);
 
             // Pushing against it from the far side.
             yield return Push(body, new Vector2(0f, -Speed), 1.2f);
-            Assert.Greater(body.position.y, Origin.y + 0.15f + 0.4f - 0.05f, "Pushing back through a one-way gate must be blocked");
-            Assert.Less(body.position.y, Origin.y + 1f, "Player never reached the gate");
+            Assert.Greater(body.position.y, Origin.y + 0.15f * K + 0.4f * K - 0.05f * K, "Pushing back through a one-way gate must be blocked");
+            Assert.Less(body.position.y, Origin.y + 1f * K, "Player never reached the gate");
 
             // Committed: cross from the near side, then try to come back.
-            body.position = Origin + new Vector2(0f, -2f);
+            body.position = Origin + new Vector2(0f, -2f * K);
             yield return Push(body, new Vector2(0f, Speed), 1.2f);
-            Assert.Greater(body.position.y, Origin.y + 1f, "Crossing northward must succeed");
+            Assert.Greater(body.position.y, Origin.y + 1f * K, "Crossing northward must succeed");
             yield return Push(body, new Vector2(0f, -Speed), 1.2f);
             Assert.Greater(body.position.y, Origin.y, "Coming back after crossing must be blocked");
         }
@@ -191,13 +195,13 @@ namespace Game.Cube.Tests
             go.transform.position = Origin;
             var zone = go.AddComponent<BoxCollider2D>();
             zone.isTrigger = true;
-            zone.size = new Vector2(1f, 1f);
+            zone.size = new Vector2(1f * K, 1f * K);
             var trial = go.AddComponent<TrialRoom>();
             trial.Currency = 25;
             var payouts = new List<int>();
             trial.Completed += amount => payouts.Add(amount);
 
-            Rigidbody2D body = MakePlayer(Origin + new Vector2(-3f, 0f), out _);
+            Rigidbody2D body = MakePlayer(Origin + new Vector2(-3f * K, 0f), out _);
             yield return Push(body, new Vector2(Speed, 0f), 1.2f);   // in and out
             yield return Push(body, new Vector2(-Speed, 0f), 1.2f);  // and back through again
 

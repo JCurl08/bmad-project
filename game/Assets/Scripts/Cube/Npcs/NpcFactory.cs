@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -83,15 +84,15 @@ namespace Game.Cube
         public const int SortingOrder = 6;
 
         /// <summary>Collider width; the height is the stacked parts' height (at most MaxBodyHeight).</summary>
-        public const float BodyWidth = 0.6f;
-        public const float MaxBodyHeight = 1.4f;
+        public const float BodyWidth = 0.6f * ScreenMath.ContentScale;
+        public const float MaxBodyHeight = 1.4f * ScreenMath.ContentScale;
         public const float BodyMass = 5f;
 
         /// <summary>
         /// True if an NPC standing with its feet at this point would overlap no solid collider (walls,
         /// closed gates, the player, other NPCs). Triggers are ignored. Used to pick spawn spots.
         /// </summary>
-        public static bool IsClear(Vector2 feet, float margin = 0.1f)
+        public static bool IsClear(Vector2 feet, float margin = 0.1f * ScreenMath.ContentScale)
         {
             Physics2D.SyncTransforms();
             var size = new Vector2(BodyWidth + 2f * margin, MaxBodyHeight + 2f * margin);
@@ -136,29 +137,33 @@ namespace Game.Cube
             body.interpolation = RigidbodyInterpolation2D.Interpolate;
 
             // Legs at the feet, torso above, head on top; the root sits at the feet's centre.
-            float y = 0f;
+            // Drawn PeopleArtScale larger than the body (visual only): the collider keeps the parts' own height (bodyHeight).
+            float y = 0f, bodyHeight = 0f;
             var renderers = new List<SpriteRenderer>();
             foreach (NpcPart part in new[] { spec.Legs, spec.Torso, spec.Head })
             {
+                Vector2 partBody = part.Size * ScreenMath.ContentScale; // parts are authored at the first screens' scale
+                Vector2 size = partBody * CubeSettings.PeopleArtScale;
                 var visual = new GameObject(part.Slot.ToString());
                 visual.transform.SetParent(go.transform, false);
-                visual.transform.localPosition = new Vector3(0f, y + part.Size.y / 2f, 0f);
+                visual.transform.localPosition = new Vector3(0f, y + size.y / 2f, 0f);
                 // The race's outlined part (ArtCatalog.NpcPart), scaled to exactly the part's size.
                 Sprite sprite = ArtCatalog.NpcPart(spec.Race, part);
                 Vector2 spriteSize = sprite.bounds.size;
-                visual.transform.localScale = new Vector3(part.Size.x / spriteSize.x, part.Size.y / spriteSize.y, 1f);
+                visual.transform.localScale = new Vector3(size.x / spriteSize.x, size.y / spriteSize.y, 1f);
                 var renderer = visual.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
                 if (material != null) renderer.sharedMaterial = material;
                 renderer.color = NpcPartArt.TintFor(spec.Race, part); // white for parts drawn in full colour (finches)
                 renderer.sortingOrder = SortingOrder + (int)part.Slot;
                 renderers.Add(renderer);
-                y += part.Size.y;
+                y += size.y;
+                bodyHeight += partBody.y;
             }
 
             var collider = go.AddComponent<BoxCollider2D>();
-            collider.size = new Vector2(BodyWidth, y);
-            collider.offset = new Vector2(0f, y / 2f);
+            collider.size = new Vector2(BodyWidth, bodyHeight);
+            collider.offset = new Vector2(0f, bodyHeight / 2f);
 
             var mover = go.AddComponent<NpcMover>();
             mover.Configure(spec.Movement, bounds, player, spec.Salt);

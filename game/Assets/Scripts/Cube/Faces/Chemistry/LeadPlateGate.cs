@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -21,7 +22,7 @@ namespace Game.Cube
         protected override Color ClosedColor => DoorColor;
 
         /// <summary>Plate distance along the horizontal lane from the screen centre (Biology buttons sit at ButtonLaneX).</summary>
-        public const float PlateLaneX = 3.2f;
+        public const float PlateLaneX = 3.2f * ScreenMath.ContentScale;
 
         public bool WantsLead => !IsOpen;
 

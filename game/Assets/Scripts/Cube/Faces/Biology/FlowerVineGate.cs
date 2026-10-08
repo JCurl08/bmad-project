@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -13,7 +14,7 @@ namespace Game.Cube
         public static readonly Color VineColor = new Color(0.3f, 0.85f, 0.3f);
 
         /// <summary>Flower position relative to its screen centre: the vertical centre lane, upper half.</summary>
-        public static readonly Vector2 FlowerLocal = new Vector2(0f, 2.6f);
+        public static readonly Vector2 FlowerLocal = new Vector2(0f, 2.6f) * ScreenMath.ContentScale;
 
         [SerializeField] private PollinationFlower flower;
         [SerializeField] private Material bridgeMaterial;
@@ -40,7 +41,7 @@ namespace Game.Cube
         {
             base.OnOpened();
             Vector2 size = Solid.size;
-            Vector2 bridgeSize = size.x >= size.y ? new Vector2(size.x, 0.6f) : new Vector2(0.6f, size.y);
+            Vector2 bridgeSize = size.x >= size.y ? new Vector2(size.x, 0.6f * ScreenMath.ContentScale) : new Vector2(0.6f * ScreenMath.ContentScale, size.y);
             if (ArtDressed && TryGetBridgeArt())
             {
                 // The leafy bridge art lies where the bramble art was, one tile deep.
@@ -65,7 +66,7 @@ namespace Game.Cube
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
             Color mark = item != null ? item.PlaceholderColor : Color.white;
-            AddSprite(block.transform, "Beak Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.35f, 0.35f), mark, -3, material);
+            AddSprite(block.transform, "Beak Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.35f, 0.35f) * ScreenMath.ContentScale, mark, -3, material);
             gate.Link(PollinationFlower.Create(flowerParent, flowerWorld, item, material));
             ArtCatalog.DressGate(gate, ArtKey.GateVine);
             return gate;

@@ -1,4 +1,5 @@
 using System;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,7 +12,7 @@ namespace Game.Cube
     [RequireComponent(typeof(Collider2D))]
     public class HiddenCurrencyPickup : MonoBehaviour
     {
-        public const float Radius = 0.35f;
+        public const float Radius = 0.35f * ScreenMath.ContentScale;
         public static readonly Color PlaceholderColor = new Color(1f, 0.8f, 0.25f);
 
         [SerializeField, Min(0)] private int amount = HiddenCurrencyPlacement.Amount;

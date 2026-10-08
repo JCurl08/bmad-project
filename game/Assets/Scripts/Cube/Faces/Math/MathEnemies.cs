@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -20,7 +21,7 @@ namespace Game.Cube
     {
         public const float DeadEndHealth = 7f;
         public const float LooseEndHealth = 8f;
-        public const float SightRadius = 4f;
+        public const float SightRadius = 4f * ScreenMath.ContentScale;
 
         public static readonly Color DeadEndColor = new Color(0.6f, 0.45f, 0.95f);
         public static readonly Color LooseEndColor = new Color(0.95f, 0.55f, 0.3f);
@@ -53,7 +54,7 @@ namespace Game.Cube
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
             ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Triangle, Enemy.MarkOffset,
-                new Vector2(0.28f, 0.26f), mark, Enemy.SortingOrder + 1, material);
+                new Vector2(0.28f, 0.26f) * ScreenMath.ContentScale, mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<MathEnemy>().Kind = kind;
             return enemy;
         }

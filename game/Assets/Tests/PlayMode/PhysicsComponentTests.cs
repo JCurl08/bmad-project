@@ -2,6 +2,7 @@ using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
@@ -20,6 +21,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class PhysicsComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(9000f, 7000f);
 
         private readonly List<Object> created = new List<Object>();
@@ -94,15 +98,15 @@ namespace Game.Cube.Tests
 
         /// <summary>A door above the lane on the right, its switch at the far left of the lane (like a slot door's).</summary>
         private static DoorLayout SlotLikeDoor(int required) =>
-            new DoorLayout(new Vector2(4.9f, 1.4f), Vector2.down, GateSlot.GateWidth, GateSlot.GateThickness, 1.9f, required)
-                .WithSwitch(new Vector2(-6.3f, 0.6f));
+            new DoorLayout(new Vector2(4.9f * K, 1.4f * K), Vector2.down, GateSlot.GateWidth, GateSlot.GateThickness, 1.9f * K, required)
+                .WithSwitch(new Vector2(-6.3f * K, 0.6f * K));
 
         /// <summary>Spots in the lane beside a door's threshold, inside its field and clear of the run from the switch.</summary>
         private static Vector2[] BesideTheDoor(DoorLayout layout)
         {
-            float below = layout.Opening.y < 0f ? -1.25f : 1.25f;
+            float below = layout.Opening.y < 0f ? -1.25f * K : 1.25f * K;
             Vector2 q = layout.FieldLocal;
-            return new[] { q + new Vector2(0f, below), q + new Vector2(-0.95f, below), q + new Vector2(0.95f, below) };
+            return new[] { q + new Vector2(0f, below), q + new Vector2(-0.95f * K, below), q + new Vector2(0.95f * K, below) };
         }
 
         private static void Put(Rigidbody2D body, Vector2 at)
@@ -120,7 +124,7 @@ namespace Game.Cube.Tests
             while (t < timeout && (stop == null || !stop()))
             {
                 Vector2 d = to - body.position;
-                if (d.magnitude < 0.02f) break;
+                if (d.magnitude < 0.02f * K) break;
                 body.linearVelocity = d.normalized * Mathf.Min(speed, d.magnitude / Time.fixedDeltaTime);
                 yield return new WaitForFixedUpdate();
                 t += Time.fixedDeltaTime;
@@ -145,7 +149,7 @@ namespace Game.Cube.Tests
         {
             MassMitt mitt = MakePlayer(Origin, false);
             var body = mitt.Body;
-            Boulder boulder = MakeBoulder(Origin + new Vector2(0f, -1.0f));
+            Boulder boulder = MakeBoulder(Origin + new Vector2(0f, -1.0f * K));
             yield return TestInput.PhysicsSteps();
             Vector2 start = boulder.Position;
 
@@ -163,10 +167,10 @@ namespace Game.Cube.Tests
             Assert.IsFalse(boulder.IsGrabbed, "A swing with another item grabs nothing");
 
             // Walk straight into it for a second: it does not budge, and the player stops against it.
-            yield return MoveTo(body, Origin + new Vector2(0f, -3f), TimeField.BasePlayerSpeed, null, 1f);
+            yield return MoveTo(body, Origin + new Vector2(0f, -3f * K), TimeField.BasePlayerSpeed, null, 1f);
             yield return TestInput.PhysicsSteps();
             Assert.Less(Vector2.Distance(start, boulder.Position), 1e-3f, "Pushing does not move a boulder");
-            Assert.Greater(body.position.y, boulder.Position.y + Boulder.Radius + TimeField.PlayerRadius - 0.1f, "The boulder stops the player");
+            Assert.Greater(body.position.y, boulder.Position.y + Boulder.Radius + TimeField.PlayerRadius - 0.1f * K, "The boulder stops the player");
         }
 
         // ---------- Drag ----------
@@ -177,7 +181,7 @@ namespace Game.Cube.Tests
             MassMitt mitt = MakePlayer(Origin, true);
             Rigidbody2D body = mitt.Body;
             Assert.AreSame(mittItem, mitt.GetComponent<Equipment>().Equipped, "The mitt is equipped");
-            Boulder boulder = MakeBoulder(Origin + new Vector2(1.2f, 0f));
+            Boulder boulder = MakeBoulder(Origin + new Vector2(1.2f * K, 0f));
             yield return TestInput.PhysicsSteps();
 
             Assert.IsTrue(mitt.Interact(), "Interact with the mitt grabs the nearest boulder");
@@ -186,33 +190,33 @@ namespace Game.Cube.Tests
             StringAssert.Contains("dragging", mitt.HudText);
 
             // It follows the player (pulled to the left, keeping its offset).
-            yield return MoveTo(body, Origin + new Vector2(-3f, 0f), TimeField.BasePlayerSpeed);
+            yield return MoveTo(body, Origin + new Vector2(-3f * K, 0f), TimeField.BasePlayerSpeed);
             yield return TestInput.PhysicsSteps();
             Assert.AreSame(boulder, mitt.Held, "Still held after the drag");
-            Assert.Less(Vector2.Distance(boulder.Position, body.position + new Vector2(1.2f, 0f)), 0.2f, "The boulder follows at its offset");
+            Assert.Less(Vector2.Distance(boulder.Position, body.position + new Vector2(1.2f * K, 0f)), 0.2f * K, "The boulder follows at its offset");
 
             // Pushed into a wall, it stops at the wall; the player is stopped by the wall too and is never pushed through it.
-            GameObject wall = Wall(Origin + new Vector2(2.05f, 0f), new Vector2(0.1f, 4f));
-            float wallFace = 2.0f;
-            yield return MoveTo(body, Origin + new Vector2(4f, 0f), TimeField.BasePlayerSpeed, null, 1.5f);
+            GameObject wall = Wall(Origin + new Vector2(2.05f * K, 0f), new Vector2(0.1f * K, 4f * K));
+            float wallFace = 2.0f * K;
+            yield return MoveTo(body, Origin + new Vector2(4f * K, 0f), TimeField.BasePlayerSpeed, null, 1.5f);
             yield return TestInput.PhysicsSteps(5);
-            Assert.LessOrEqual(boulder.Position.x - Origin.x, wallFace - Boulder.Radius + 0.03f, "The boulder stops at the wall");
-            Assert.LessOrEqual(body.position.x - Origin.x, wallFace - TimeField.PlayerRadius + 0.03f, "The player is not pushed into the wall");
+            Assert.LessOrEqual(boulder.Position.x - Origin.x, wallFace - Boulder.Radius + 0.03f * K, "The boulder stops at the wall");
+            Assert.LessOrEqual(body.position.x - Origin.x, wallFace - TimeField.PlayerRadius + 0.03f * K, "The player is not pushed into the wall");
             Assert.IsNull(mitt.Held, "Stuck behind the player, the boulder is let go");
 
             // Let go while overlapping: the player is not shoved out (no depenetration push).
             Vector2 standing = body.position;
             yield return TestInput.PhysicsSteps(5);
-            Assert.Less(Vector2.Distance(standing, body.position), 0.02f, "Letting go never shoves the player");
+            Assert.Less(Vector2.Distance(standing, body.position), 0.02f * K, "Letting go never shoves the player");
 
             // Walk away, then back into it: once apart they collide again, and an unheld boulder does not move.
-            yield return MoveTo(body, Origin + new Vector2(-1f, 0f), TimeField.BasePlayerSpeed);
+            yield return MoveTo(body, Origin + new Vector2(-1f * K, 0f), TimeField.BasePlayerSpeed);
             yield return TestInput.PhysicsSteps(3);
             Vector2 resting = boulder.Position;
-            yield return MoveTo(body, Origin + new Vector2(3f, 0f), TimeField.BasePlayerSpeed, null, 0.8f);
+            yield return MoveTo(body, Origin + new Vector2(3f * K, 0f), TimeField.BasePlayerSpeed, null, 0.8f);
             yield return TestInput.PhysicsSteps(3);
             Assert.Less(Vector2.Distance(resting, boulder.Position), 1e-3f, "An unheld boulder never moves");
-            Assert.Less(body.position.x, boulder.Position.x - Boulder.Radius - TimeField.PlayerRadius + 0.1f, "The player bumps into it again");
+            Assert.Less(body.position.x, boulder.Position.x - Boulder.Radius - TimeField.PlayerRadius + 0.1f * K, "The player bumps into it again");
             Object.Destroy(wall);
 
             // A second press lets go; a swing grabs and a second swing lets go.
@@ -221,7 +225,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(mitt.Interact());
             Assert.IsNull(mitt.Held, "A second press lets go");
 
-            Put(body, boulder.Position + Vector2.up * 1.0f); // above it, facing down (no PlayerMover: down)
+            Put(body, boulder.Position + Vector2.up * 1.0f * K); // above it, facing down (no PlayerMover: down)
             yield return TestInput.PhysicsSteps();
             var attack = mitt.GetComponent<PlayerAttack>();
             attack.TryAttack();
@@ -231,7 +235,7 @@ namespace Game.Cube.Tests
 
             // Too far: the player leaves (a teleport), the boulder is let go.
             Assert.IsTrue(mitt.Interact());
-            Put(body, body.position + new Vector2(0f, 6f));
+            Put(body, body.position + new Vector2(0f, 6f * K));
             yield return TestInput.PhysicsSteps(3);
             Assert.IsNull(mitt.Held, "Moving away lets go");
             Assert.IsFalse(boulder.IsGrabbed);
@@ -245,7 +249,7 @@ namespace Game.Cube.Tests
             const int required = 3;
             DoorLayout layout = SlotLikeDoor(required);
             Assert.IsFalse(TimeField.Passable(layout.BaseSeconds, 0f, layout.WalkSeconds));
-            MassMitt mitt = MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f, true);
+            MassMitt mitt = MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f * K, true);
             Rigidbody2D body = mitt.Body;
             TimedDoorGate door = MakeDoor(layout);
             yield return TestInput.PhysicsSteps();
@@ -285,7 +289,7 @@ namespace Game.Cube.Tests
         {
             const int required = 2;
             DoorLayout layout = SlotLikeDoor(required);
-            MassMitt mitt = MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f, true);
+            MassMitt mitt = MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f * K, true);
             Rigidbody2D body = mitt.Body;
             var mover = mitt.gameObject.AddComponent<Game.Tracer.PlayerMover>();
             mover.enabled = false; // the test drives the velocity; the mover still reports the effective speed
@@ -350,20 +354,20 @@ namespace Game.Cube.Tests
         public IEnumerator Trial_TheSameBouldersMoveFromOneBoothToTheOther_AndCompletionFiresOnce()
         {
             const int required = PhysicsPlan.TrialRequired;
-            DoorLayout a = PhysicsPlan.BoothDoor(-3.5f, 1, required).WithSwitch(new Vector2(6.3f, 0.6f));
-            DoorLayout b = PhysicsPlan.BoothDoor(3.5f, -1, required).WithSwitch(new Vector2(-6.3f, -0.6f));
+            DoorLayout a = PhysicsPlan.BoothDoor(-3.5f * K, 1, required).WithSwitch(new Vector2(6.3f * K, 0.6f * K));
+            DoorLayout b = PhysicsPlan.BoothDoor(3.5f * K, -1, required).WithSwitch(new Vector2(-6.3f * K, -0.6f * K));
             var spec = new PhysicsTrialSpec(default, new[]
             {
-                new TrialBoothSpec(PhysicsPlan.BoothFootprint(-3.5f, 1), a),
-                new TrialBoothSpec(PhysicsPlan.BoothFootprint(3.5f, -1), b),
-            }, new[] { new Vector2(-5f, -3f), new Vector2(5f, 3f) }, required);
+                new TrialBoothSpec(PhysicsPlan.BoothFootprint(-3.5f * K, 1), a),
+                new TrialBoothSpec(PhysicsPlan.BoothFootprint(3.5f * K, -1), b),
+            }, new[] { new Vector2(-5f * K, -3f * K), new Vector2(5f * K, 3f * K) }, required);
             var go = Track(new GameObject("Trial"));
             go.transform.position = Origin;
             var trial = go.AddComponent<PhysicsTrial>();
             trial.Configure(mittItem, spec, Origin, PhysicsPlan.TrialCurrency, null);
             var fired = new List<int>();
             trial.Completed += c => fired.Add(c);
-            MassMitt mitt = MakePlayer(Origin + new Vector2(0f, -3.5f), true);
+            MassMitt mitt = MakePlayer(Origin + new Vector2(0f, -3.5f * K), true);
             Rigidbody2D body = mitt.Body;
             yield return TestInput.PhysicsSteps();
             Assert.AreEqual(2, trial.Doors.Count);
@@ -414,10 +418,10 @@ namespace Game.Cube.Tests
             {
                 ItemDefinition weakness = kind == PhysicsEnemyKind.QuantumFlea ? mittItem : isotope;
                 ItemDefinition notIt = kind == PhysicsEnemyKind.QuantumFlea ? isotope : mittItem;
-                var bounds = new Rect(Origin + new Vector2(-2f, -2f), new Vector2(4f, 4f));
+                var bounds = new Rect(Origin + new Vector2(-2f * K, -2f * K), new Vector2(4f * K, 4f * K));
                 Enemy weak = PhysicsEnemies.Spawn(kind, weakness, Origin, bounds, null, null, null);
                 Track(weak.gameObject);
-                Enemy plain = PhysicsEnemies.Spawn(kind, weakness, Origin + new Vector2(1.5f, 0f), bounds, null, null, null);
+                Enemy plain = PhysicsEnemies.Spawn(kind, weakness, Origin + new Vector2(1.5f * K, 0f), bounds, null, null, null);
                 Track(plain.gameObject);
                 Assert.AreSame(weakness, weak.Weakness);
                 Assert.AreEqual(kind, weak.GetComponent<PhysicsEnemy>().Kind);

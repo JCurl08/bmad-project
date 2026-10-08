@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -16,6 +17,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class NpcSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
 
         private Keyboard keyboard;
@@ -64,7 +68,7 @@ namespace Game.Cube.Tests
             NpcTalker target = npcs[0];
             foreach (NpcTalker other in npcs)
                 if (other != target) other.gameObject.SetActive(false);
-            Vector2 at = (Vector2)navigator.transform.position + new Vector2(1f, 0f);
+            Vector2 at = (Vector2)navigator.transform.position + new Vector2(1f * K, 0f);
             target.GetComponent<Rigidbody2D>().position = at;
             target.transform.position = at;
             yield return new WaitForFixedUpdate();
@@ -97,7 +101,7 @@ namespace Game.Cube.Tests
             debug.SpawnNpcs();
             // Wander and flee legs move, so make one NPC clearly the nearest.
             NpcTalker nearest = debug.DebugNpcs[2];
-            Vector2 at = (Vector2)navigator.transform.position + new Vector2(0.6f, 0f);
+            Vector2 at = (Vector2)navigator.transform.position + new Vector2(0.6f * K, 0f);
             nearest.GetComponent<Rigidbody2D>().position = at;
             nearest.transform.position = at;
 

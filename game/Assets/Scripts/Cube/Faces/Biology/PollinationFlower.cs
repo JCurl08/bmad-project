@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -9,7 +10,7 @@ namespace Game.Cube
     /// </summary>
     public class PollinationFlower : MonoBehaviour, IAttackReceiver
     {
-        public const float Radius = 0.4f;
+        public const float Radius = 0.4f * ScreenMath.ContentScale;
         public static readonly Color BudColor = new Color(0.95f, 0.55f, 0.85f);
         public static readonly Color BloomColor = new Color(1f, 0.9f, 0.3f);
 
@@ -48,7 +49,7 @@ namespace Game.Cube
             flower.petals = ArtCatalog.AddSprite(go.transform, "Petals", ArtKey.Flower, Vector2.zero,
                 new Vector2(Radius * 2f, Radius * 2f), Tint(BudColor), -2, material);
             Color centre = item != null ? item.PlaceholderColor : Color.white;
-            BeakGate.AddSprite(go.transform, "Centre", PartShape.Circle, new Vector2(0f, 0.12f), new Vector2(0.22f, 0.22f), centre, -1,
+            BeakGate.AddSprite(go.transform, "Centre", PartShape.Circle, new Vector2(0f, 0.12f) * ScreenMath.ContentScale, new Vector2(0.22f, 0.22f) * ScreenMath.ContentScale, centre, -1,
                 material);
             return flower;
         }

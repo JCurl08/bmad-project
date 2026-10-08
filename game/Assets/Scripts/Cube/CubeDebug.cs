@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -25,8 +26,8 @@ namespace Game.Cube
         [SerializeField] private bool overlayVisible; // off by default: F1 shows it
         [SerializeField] private bool slotMarkersVisible;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
-        [SerializeField, Min(0.5f)] private float npcSpawnRadius = 2.5f;
-        [SerializeField, Min(0.5f)] private float enemySpawnRadius = 3f;
+        [SerializeField, Min(0.5f)] private float npcSpawnRadius = 2.5f * ScreenMath.ContentScale;
+        [SerializeField, Min(0.5f)] private float enemySpawnRadius = 3f * ScreenMath.ContentScale;
 
         private readonly List<NpcTalker> debugNpcs = new List<NpcTalker>();
         /// <summary>RNG stream for F7 weakness picks (see RngStreams).</summary>
@@ -227,7 +228,7 @@ namespace Game.Cube
             Transform player = navigator != null ? navigator.transform : null;
             Vector2 screenCentre = PlayerScreenCentre();
             Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
-            const float margin = 1f;
+            const float margin = 1f * ScreenMath.ContentScale;
             Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
             var bounds = new Rect(screenCentre - half, half * 2f);
             RunFacts facts = RunFacts.Of(world);
@@ -296,7 +297,7 @@ namespace Game.Cube
             Transform player = navigator != null ? navigator.transform : null;
             Vector2 screenCentre = PlayerScreenCentre();
             Vector2 centre = player != null ? (Vector2)player.position : screenCentre;
-            const float margin = 1f;
+            const float margin = 1f * ScreenMath.ContentScale;
             Vector2 half = CubeWorld.ScreenSize / 2f - new Vector2(margin, margin);
             var bounds = new Rect(screenCentre - half, half * 2f);
 

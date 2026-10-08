@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -50,7 +51,7 @@ namespace Game.Cube
             gate.Optional = optional;
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
-            BeakGate.AddSprite(block.transform, "Wand Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.35f, 0.35f),
+            BeakGate.AddSprite(block.transform, "Wand Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.35f, 0.35f) * ScreenMath.ContentScale,
                 StormcallerItem.ColorOf(gate.Kind), -3, material);
             return gate;
         }

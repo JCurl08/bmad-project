@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -16,10 +17,10 @@ namespace Game.Cube
         [SerializeField] private Facing allowedDirection = Facing.East;
 
         [Tooltip("Length of the gate across the passage.")]
-        [SerializeField, Min(0.1f)] private float width = 2f;
+        [SerializeField, Min(0.1f)] private float width = 2f * ScreenMath.ContentScale;
 
         [Tooltip("Thickness of the gate along the allowed direction.")]
-        [SerializeField, Min(0.05f)] private float thickness = 0.3f;
+        [SerializeField, Min(0.05f)] private float thickness = 0.3f * ScreenMath.ContentScale;
 
         public Facing AllowedDirection
         {

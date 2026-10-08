@@ -21,6 +21,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class CombatComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-5000f, -5000f);
         private const float Timeout = 5f;
 
@@ -49,7 +52,7 @@ namespace Game.Cube.Tests
 
         private ItemDefinition Item(string id, Color color) => Track(ItemDefinition.Create(id, id, Theme.Biology, color));
 
-        private static Rect BoundsAround(Vector2 centre) => new Rect(centre - new Vector2(4f, 3f), new Vector2(8f, 6f));
+        private static Rect BoundsAround(Vector2 centre) => new Rect(centre - new Vector2(4f * K, 3f * K), new Vector2(8f * K, 6f * K));
 
         /// <summary>A player like the Cube scene's: dynamic body, collider, mover, inventory and combat parts.</summary>
         private GameObject MakePlayer(Vector2 position, bool kinematic = false)
@@ -60,7 +63,7 @@ namespace Game.Cube.Tests
             body.gravityScale = 0f;
             body.freezeRotation = true;
             if (kinematic) body.bodyType = RigidbodyType2D.Kinematic;
-            go.AddComponent<CircleCollider2D>().radius = 0.4f;
+            go.AddComponent<CircleCollider2D>().radius = 0.4f * K;
             go.AddComponent<PlayerMover>();
             go.AddComponent<Inventory>();
             go.AddComponent<Health>();
@@ -147,7 +150,7 @@ namespace Game.Cube.Tests
             enemy.Health.InvulnerableSeconds = 10f;
             NpcSpec spec = NpcFactory.ChooseParts(1, Race.Mushroom, 0);
             spec = spec.With(RacePartSets.For(Race.Mushroom).Legs.First(l => l.Movement == Movement.Stand));
-            NpcTalker npc = NpcFactory.Spawn(spec, new[] { "hi" }, front + new Vector2(0.75f, -0.3f), BoundsAround(Origin), new RaceRelations(), player.transform);
+            NpcTalker npc = NpcFactory.Spawn(spec, new[] { "hi" }, front + new Vector2(0.75f * K, -0.3f * K), BoundsAround(Origin), new RaceRelations(), player.transform);
             Track(npc.gameObject);
             int reported = -1;
             attack.Swung += (_, n) => reported = n;
@@ -171,7 +174,7 @@ namespace Game.Cube.Tests
         {
             GameObject player = MakePlayer(Origin, kinematic: true);
             Health playerHealth = player.GetComponent<Health>();
-            Enemy enemy = MakeEnemy(null, Origin + new Vector2(2.5f, 0f), player.transform);
+            Enemy enemy = MakeEnemy(null, Origin + new Vector2(2.5f * K, 0f), player.transform);
             enemy.DestroyOnDeath = false;
             var brain = enemy.GetComponent<EnemyBrain>();
             var body = enemy.GetComponent<Rigidbody2D>();
@@ -185,11 +188,11 @@ namespace Game.Cube.Tests
             yield return new WaitForSeconds(1f);
             Assert.IsFalse(brain.Alive);
             Assert.IsFalse(brain.Chasing);
-            Assert.Less(Vector2.Distance(at, body.position), 0.02f, "A dead enemy stops moving");
+            Assert.Less(Vector2.Distance(at, body.position), 0.02f * K, "A dead enemy stops moving");
             Assert.AreEqual(playerHealth.Max, playerHealth.Current, 1e-4f, "A dead enemy deals no contact damage");
 
             // Even when touching the player.
-            body.position = Origin + new Vector2(0.8f, 0f);
+            body.position = Origin + new Vector2(0.8f * K, 0f);
             Physics2D.SyncTransforms();
             Assert.AreEqual(0f, brain.TryContactDamage(), 1e-5f);
         }
@@ -225,7 +228,7 @@ namespace Game.Cube.Tests
             Health health = player.GetComponent<Health>();
             int damaged = 0;
             health.Damaged += (_, __, ___) => damaged++;
-            MakeEnemy(null, Origin + new Vector2(1.5f, 0f), player.transform);
+            MakeEnemy(null, Origin + new Vector2(1.5f * K, 0f), player.transform);
 
             yield return WaitUntilOrTimeout(() => damaged > 0, Timeout);
             Assert.AreEqual(1, damaged, "The chasing enemy reached the player");
@@ -247,7 +250,7 @@ namespace Game.Cube.Tests
             Health health = player.GetComponent<Health>();
             var stats = player.GetComponent<PlayerStats>();
             stats.Defence = 1;
-            Enemy enemy = MakeEnemy(null, Origin + new Vector2(1.2f, 0f), player.transform);
+            Enemy enemy = MakeEnemy(null, Origin + new Vector2(1.2f * K, 0f), player.transform);
             enemy.ContactDamage = 3f;
 
             yield return WaitUntilOrTimeout(() => health.Current < health.Max, Timeout);
@@ -270,7 +273,7 @@ namespace Game.Cube.Tests
             var box = Track(new GameObject("Test Dialogue Box")).AddComponent<DialogueBox>();
             NpcSpec spec = NpcFactory.ChooseParts(1, Race.Mushroom, 0);
             spec = spec.With(RacePartSets.For(Race.Mushroom).Legs.First(l => l.Movement == Movement.Stand));
-            NpcTalker npc = NpcFactory.Spawn(spec, new[] { "hi" }, Origin + new Vector2(1.2f, 0f), BoundsAround(Origin), new RaceRelations(), player.transform);
+            NpcTalker npc = NpcFactory.Spawn(spec, new[] { "hi" }, Origin + new Vector2(1.2f * K, 0f), BoundsAround(Origin), new RaceRelations(), player.transform);
             Track(npc.gameObject);
             npc.Box = box;
             var stats = player.GetComponent<PlayerStats>();
@@ -300,7 +303,7 @@ namespace Game.Cube.Tests
             yield return new WaitForSeconds(0.3f);
             Release(keyboard.dKey, queueEventOnly: true);
             yield return null;
-            Assert.Less(Vector2.Distance(at, player.transform.position), 0.01f, "A dead player does not move");
+            Assert.Less(Vector2.Distance(at, player.transform.position), 0.01f * K, "A dead player does not move");
             Assert.AreEqual(0, swings, "A dead player does not attack");
             Assert.AreEqual(1, died);
 
@@ -319,7 +322,7 @@ namespace Game.Cube.Tests
             Health playerHealth = player.GetComponent<Health>();
             NpcSpec spec = NpcFactory.ChooseParts(1, Race.Shape, 0);
             spec = spec.With(RacePartSets.For(Race.Shape).Legs.First(l => l.Movement == Movement.Stand));
-            NpcTalker npc = NpcFactory.Spawn(spec, new[] { "hi" }, Origin + new Vector2(2.5f, 0f), BoundsAround(Origin), relations, player.transform);
+            NpcTalker npc = NpcFactory.Spawn(spec, new[] { "hi" }, Origin + new Vector2(2.5f * K, 0f), BoundsAround(Origin), relations, player.transform);
             Track(npc.gameObject);
             var hostile = npc.GetComponent<HostileNpc>();
             var npcHealth = npc.GetComponent<Health>();
@@ -414,8 +417,8 @@ namespace Game.Cube.Tests
                 if (run == 0) slow = speed;
                 else fast = speed;
             }
-            Assert.AreEqual(mover.Speed, slow, 0.05f, "Speed 1 = base speed");
-            Assert.AreEqual(mover.Speed * 1.5f, fast, 0.05f, "Speed 3 = x1.5");
+            Assert.AreEqual(mover.Speed, slow, 0.05f * K, "Speed 1 = base speed");
+            Assert.AreEqual(mover.Speed * 1.5f, fast, 0.05f * K, "Speed 3 = x1.5");
             Assert.AreEqual(mover.Speed * 1.5f, mover.EffectiveSpeed, 1e-4f);
         }
     }

@@ -16,4 +16,4 @@ MonoBehaviour:
   displayName: Thin Beak*
   homeTheme: 1
   placeholderColor: {r: 0.55, g: 0.95, b: 0.85, a: 1}
-  attackReach: 2.5
+  attackReach: 3.75

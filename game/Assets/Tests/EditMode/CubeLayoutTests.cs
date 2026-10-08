@@ -199,9 +199,17 @@ namespace Game.Cube.Tests
             {
                 solids.Add(($"{side} gate arch", ScreenEdges.ArchRect(side)));
                 foreach (Rect w in ScreenEdges.WallRects(side)) solids.Add(($"{side} wall", w));
+                // 4.1: the walls are half a tile; the arch (no collider) stands on the wall and reaches through the edge
+                // band's clear strip, never past the band, so module content (kept out of the band) never meets it.
                 Rect arch = ScreenEdges.ArchRect(side);
-                Assert.IsTrue(ScreenEdges.WallRects(side).Concat(new[] { ScreenEdges.DoorwayRect(side) })
-                    .Any(w => w.Contains(arch.center)), $"{side}: the arch stands on the wall band");
+                Vector2 h = ScreenEdges.Half;
+                float e = ScreenModule.EdgeClearance + 1e-4f;
+                Rect band = side == Facing.North ? Rect.MinMaxRect(-h.x, h.y - e, h.x, h.y + 1e-4f)
+                    : side == Facing.South ? Rect.MinMaxRect(-h.x, -h.y - 1e-4f, h.x, -h.y + e)
+                    : side == Facing.East ? Rect.MinMaxRect(h.x - e, -h.y, h.x + 1e-4f, h.y)
+                    : Rect.MinMaxRect(-h.x - 1e-4f, -h.y, -h.x + e, h.y);
+                Assert.IsTrue(band.Contains(arch.min) && band.Contains(arch.max), $"{side}: the arch stays in the edge band");
+                Assert.IsTrue(ScreenEdges.WallRects(side).Any(w => w.Overlaps(arch)), $"{side}: the arch stands on the wall");
             }
             foreach (ScreenModule module in AllLibraryModules(library).Concat(new[] { library.Pool(Theme.Math).Last() }))
             {

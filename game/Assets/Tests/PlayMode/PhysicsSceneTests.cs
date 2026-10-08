@@ -25,6 +25,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class PhysicsSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
         private const float Timeout = 6f;
 
@@ -117,7 +120,7 @@ namespace Game.Cube.Tests
             while (t < timeout && (stop == null || !stop()))
             {
                 Vector2 d = to - body.position;
-                if (d.magnitude < 0.02f) break;
+                if (d.magnitude < 0.02f * K) break;
                 body.linearVelocity = d.normalized * Mathf.Min(speed, d.magnitude / Time.fixedDeltaTime);
                 yield return new WaitForFixedUpdate();
                 t += Time.fixedDeltaTime;
@@ -139,9 +142,9 @@ namespace Game.Cube.Tests
         /// <summary>World spots in the lane beside a door's threshold, inside its field, clear of the run from its switch.</summary>
         private static Vector2[] BesideTheDoor(TimedDoorGate door)
         {
-            float below = door.Opening.y < 0f ? -1.25f : 1.25f;
+            float below = door.Opening.y < 0f ? -1.25f * K : 1.25f * K;
             Vector2 q = door.FieldCentre;
-            return new[] { q + new Vector2(0f, below), q + new Vector2(-0.95f, below), q + new Vector2(0.95f, below) };
+            return new[] { q + new Vector2(0f, below), q + new Vector2(-0.95f * K, below), q + new Vector2(0.95f * K, below) };
         }
 
         /// <summary>A direction from a point along which the player fits at near and at far (no solid collider but boulders).</summary>
@@ -153,8 +156,8 @@ namespace Game.Cube.Tests
                 float a = k * Mathf.PI / 8f;
                 var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
                 if (Fits(from + dir * near, dragged) && Fits(from + dir * far, dragged) && Fits(from + dir * (near + far) / 2f, dragged) &&
-                    Fits(from + dir * 0.4f, dragged) && Fits(from + dir * 0.8f, dragged) &&
-                    (boulderBounds == null || boulderBounds.Value.Contains(from + dir * 0.8f))) return dir;
+                    Fits(from + dir * 0.4f * K, dragged) && Fits(from + dir * 0.8f * K, dragged) &&
+                    (boulderBounds == null || boulderBounds.Value.Contains(from + dir * 0.8f * K))) return dir;
             }
             Assert.Fail($"No room beside the boulder at {from}");
             return Vector2.up;
@@ -163,7 +166,7 @@ namespace Game.Cube.Tests
         /// <summary>True when the player (and the dragged boulder) fit at a point: nothing solid but the dragged boulder there.</summary>
         private static bool Fits(Vector2 at, Boulder dragged = null)
         {
-            foreach (Collider2D c in Physics2D.OverlapCircleAll(at, TimeField.PlayerRadius + 0.05f))
+            foreach (Collider2D c in Physics2D.OverlapCircleAll(at, TimeField.PlayerRadius + 0.05f * K))
                 if (c != null && c.enabled && !c.isTrigger && c.GetComponentInParent<CubeNavigator>() == null &&
                     (dragged == null ? c.GetComponent<Boulder>() == null : c.GetComponent<Boulder>() != dragged)) return false;
             return true;
@@ -268,14 +271,14 @@ namespace Game.Cube.Tests
                     // A real drag: stand clear beside one of the door's boulders, grab it with the mitt and pull it a little.
                     Boulder dragged = mine[0];
                     Vector2 from = dragged.Position;
-                    Vector2 away = ClearDirection(from, 1.0f, 1.8f, dragged, Boulder.ScreenBounds(world.ScreenCenter(spec.Screen)));
-                    yield return PutPlayerAt(spec.Screen, from + away * 1.0f);
+                    Vector2 away = ClearDirection(from, 1.0f * K, 1.8f * K, dragged, Boulder.ScreenBounds(world.ScreenCenter(spec.Screen)));
+                    yield return PutPlayerAt(spec.Screen, from + away * 1.0f * K);
                     Assert.IsTrue(mitt.Grab(dragged), "The mitt grabs the boulder");
                     Assert.AreSame(dragged, mitt.Held);
-                    yield return MoveTo(body.position + away * 0.8f, 3f);
+                    yield return MoveTo(body.position + away * 0.8f * K, 3f * K);
                     yield return new WaitForFixedUpdate();
                     yield return new WaitForFixedUpdate();
-                    Assert.Greater(Vector2.Distance(from, dragged.Position), 0.5f, "The boulder follows the mitt");
+                    Assert.Greater(Vector2.Distance(from, dragged.Position), 0.5f * K, "The boulder follows the mitt");
                     Assert.IsTrue(mitt.Interact(), "A second press lets go");
                     Assert.IsNull(mitt.Held);
                     first = false;
@@ -372,7 +375,7 @@ namespace Game.Cube.Tests
             }
 
             NpcTalker talker = physics.Aliens[0];
-            Vector2 near = (Vector2)talker.transform.position + Vector2.left * 0.9f;
+            Vector2 near = (Vector2)talker.transform.position + Vector2.left * 0.9f * K;
             navigator.TeleportTo(ScreenOf(talker.transform.position, face), Facing.East);
             body.position = near;
             navigator.transform.position = new Vector3(near.x, near.y, navigator.transform.position.z);

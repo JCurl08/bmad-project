@@ -153,6 +153,13 @@ public static class ItemCatalogBuilder
             }
             variants.Add(item);
         }
+        // The thin beak's reach is a length, so it scales with the screen (4.1): keep an existing asset in step.
+        foreach (ItemDefinition v in variants)
+        {
+            if (v == null || v.Id != BiologyBeaks.ThinId || Mathf.Approximately(v.AttackReach, BiologyBeaks.ThinReach)) continue;
+            v.AttackReach = BiologyBeaks.ThinReach;
+            EditorUtility.SetDirty(v);
+        }
         // The Chemistry stones, the same way (in roll order, assets named after the stones without the placeholder star).
         foreach (IsotopeStage stage in ChemistryIsotope.VariantOrder)
         {

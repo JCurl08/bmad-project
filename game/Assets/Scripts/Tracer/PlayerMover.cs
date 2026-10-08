@@ -106,7 +106,7 @@ namespace Game.Tracer
         /// <summary>The least grip a modifier can give (per physics step), so a slide always ends.</summary>
         public const float MinGrip = 0.03f;
 
-        [SerializeField, Min(0f)] private float speed = 6f;
+        [SerializeField, Min(0f)] private float speed = 6f * ScreenMath.ContentScale; // 9: crosses a 24-wide screen in the 2.7 s the first screens took at 6
         [SerializeField] private string moveActionPath = "Player/Move";
 
         private Rigidbody2D body;

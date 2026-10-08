@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -41,7 +42,7 @@ namespace Game.Cube
                 optional, faceSize, material);
             gate.blastMaterial = material;
             Vector2 size = gate.Solid.size;
-            Vector2 crack = size.x >= size.y ? new Vector2(size.x * 0.8f, 0.08f) : new Vector2(0.08f, size.y * 0.8f);
+            Vector2 crack = size.x >= size.y ? new Vector2(size.x * 0.8f, 0.08f * ScreenMath.ContentScale) : new Vector2(0.08f * ScreenMath.ContentScale, size.y * 0.8f);
             BeakGate.AddSprite(block.transform, "Crack", PartShape.Square, Vector2.zero, crack, CrackColor, -3, material);
             ArtCatalog.DressGate(gate, ArtKey.GateCrackedWall);
             return gate;

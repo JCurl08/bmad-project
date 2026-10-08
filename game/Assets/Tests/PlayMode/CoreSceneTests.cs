@@ -30,6 +30,9 @@ namespace Game.Cube.Tests
         private const float SkillMinSeconds = 60f;
         private const float SkillMaxSeconds = 120f;
 
+        /// <summary>Lengths below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         /// <summary>
         /// Skill-check fights start on a multiple of this game time: the next multiple at least one spacing past the
         /// current fixed time. Game code times short windows against Time.time (a knocked particle's, the player's
@@ -191,7 +194,7 @@ namespace Game.Cube.Tests
             while (t < timeout && (stop == null || !stop()))
             {
                 Vector2 d = to - body.position;
-                if (d.magnitude < 0.02f) break;
+                if (d.magnitude < 0.02f * K) break;
                 body.linearVelocity = d.normalized * Mathf.Min(speed, d.magnitude / Time.fixedDeltaTime);
                 yield return new WaitForFixedUpdate();
                 t += Time.fixedDeltaTime;
@@ -274,7 +277,7 @@ namespace Game.Cube.Tests
                     // Step in from just off the portal, on the screen-centre side.
                     Vector2 at = portal.transform.position;
                     Vector2 fromCentre = ((Vector2)world.ScreenCenter(coreScreen) - at).normalized;
-                    PlacePlayer(at + fromCentre * 1.5f);
+                    PlacePlayer(at + fromCentre * 1.5f * K);
                     yield return new WaitForFixedUpdate();
                     int crossings = navigator.Crossings;
                     FaceId before = navigator.Face;
@@ -332,9 +335,9 @@ namespace Game.Cube.Tests
             var up = new Vector2Int(1, 1);
             Vector2 dir = Unit(up);
             Vector2 gap = arena.GapCentres[0];
-            Vector2 spot = gap - new Vector2(3f, 3f);
+            Vector2 spot = gap - new Vector2(3f, 3f) * K;
             particle.Teleport(spot);
-            PlacePlayer(spot - dir * 1.6f);
+            PlacePlayer(spot - dir * 1.6f * K);
             yield return Face(up);
             particle.Teleport(spot);
             PlacePlayer(spot - dir * attack.Reach);
@@ -349,11 +352,11 @@ namespace Game.Cube.Tests
 
             // Straight at the shut door: it bounces back.
             Particle second = Of(ArenaSide.Warm)[1];
-            Vector2 doorSpot = c + new Vector2(-3f, 0f);
+            Vector2 doorSpot = c + new Vector2(-3f, 0f) * K;
             Vector2 toDoor = Vector2.right;
             Assert.IsFalse(demon.DoorOpen);
             second.Teleport(doorSpot);
-            PlacePlayer(doorSpot - toDoor * 1.6f);
+            PlacePlayer(doorSpot - toDoor * 1.6f * K);
             yield return Face(Vector2Int.right);
             second.Teleport(doorSpot);
             PlacePlayer(doorSpot - toDoor * attack.Reach);
@@ -391,7 +394,7 @@ namespace Game.Cube.Tests
             stats.MaxHealth = 999; // pulses stay on: the idle player is hit, but survives the 20 s
             List<Particle> warm = Of(ArenaSide.Warm);
             Vector2 c = arena.Centre;
-            for (int i = 0; i < 6; i++) warm[i].Teleport(c + new Vector2(1.6f + (i % 2) * 4.5f, -3.5f + 1.4f * (i / 2) + (i % 2) * 0.7f));
+            for (int i = 0; i < 6; i++) warm[i].Teleport(c + new Vector2(1.6f + (i % 2) * 4.5f, -3.5f + 1.4f * (i / 2) + (i % 2) * 0.7f) * K);
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
             float start = arena.Meter;
@@ -426,12 +429,12 @@ namespace Game.Cube.Tests
             runState.RunEnded += v => order.Add($"run {v} {arena.Outcome} {hud.MessageText != null}");
             List<Particle> warm = Of(ArenaSide.Warm);
             Vector2 c = arena.Centre;
-            for (int i = 0; i < 6; i++) warm[i].Teleport(c + new Vector2(2f + (i % 3) * 1.5f, -3.6f + 0.9f * (i / 3)));
+            for (int i = 0; i < 6; i++) warm[i].Teleport(c + new Vector2(2f + (i % 3) * 1.5f, -3.6f + 0.9f * (i / 3)) * K);
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(arena.FightActive, "Six across is not yet enough");
             Assert.IsEmpty(runEvents);
-            warm[6].Teleport(c + new Vector2(6.5f, 3.6f));
+            warm[6].Teleport(c + new Vector2(6.5f, 3.6f) * K);
             yield return WaitUntilOrGameTimeout(() => !arena.FightActive, 1f);
 
             Assert.AreEqual(CoreOutcome.Victory, arena.Outcome);
@@ -489,8 +492,8 @@ namespace Game.Cube.Tests
             Assert.IsNotEmpty(arena.ExitDoor.GetComponentsInChildren<SpriteRenderer>());
             Assert.Less(arena.ExitDoorCentre.x, arena.Inner.xMin, "In the wall, outside the walkable inside");
             Assert.LessOrEqual(arena.Recess.xMax, arena.Inner.xMin + 1e-4f, "The recess lies outside the playfield");
-            Assert.Less(arena.ExitZone.xMax, arena.Inner.xMin - 0.4f, "Leaving takes walking deep into the recess");
-            Assert.Greater(arena.ExitZone.yMin, arena.EntryPoint.y + 2f, "Far from where the player arrives");
+            Assert.Less(arena.ExitZone.xMax, arena.Inner.xMin - 0.4f * K, "Leaving takes walking deep into the recess");
+            Assert.Greater(arena.ExitZone.yMin, arena.EntryPoint.y + 2f * K, "Far from where the player arrives");
             Assert.IsTrue(arena.ExitBlocker.enabled && !arena.ExitBlocker.isTrigger, "A solid block fills the doorway");
             Assert.IsTrue(arena.Particles.All(p => p.GetComponent<Collider2D>() == null ||
                                                    !Physics2D.GetIgnoreCollision(arena.ExitBlocker, p.GetComponent<Collider2D>())),
@@ -502,16 +505,16 @@ namespace Game.Cube.Tests
 
             // A particle knocked at the doorway bounces back: it never gets into the recess.
             Particle stray = arena.Particles.First(p => p.Home == ArenaSide.Warm);
-            stray.Teleport(new Vector2(arena.Inner.xMin + 0.6f, arena.Centre.y + CoreArena.ExitOffsetY));
-            stray.GetComponent<Rigidbody2D>().linearVelocity = new Vector2(-8f, 0f);
+            stray.Teleport(new Vector2(arena.Inner.xMin + 0.6f * K, arena.Centre.y + CoreArena.ExitOffsetY));
+            stray.GetComponent<Rigidbody2D>().linearVelocity = new Vector2(-8f, 0f) * K;
             for (int i = 0; i < 40; i++)
             {
                 yield return new WaitForFixedUpdate();
-                Assert.Greater(stray.Position.x, arena.Inner.xMin - 0.05f, "No particle enters the recess");
+                Assert.Greater(stray.Position.x, arena.Inner.xMin - 0.05f * K, "No particle enters the recess");
             }
 
             // Walk west into the door with the move keys.
-            Vector2 start = new Vector2(arena.Inner.xMin + 1.6f, arena.Centre.y + CoreArena.ExitOffsetY);
+            Vector2 start = new Vector2(arena.Inner.xMin + 1.6f * K, arena.Centre.y + CoreArena.ExitOffsetY);
             PlacePlayer(start);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(navigator.InCoreArena, "Standing near the door is not leaving");
@@ -564,13 +567,13 @@ namespace Game.Cube.Tests
             yield return Load();
             yield return EnterFightFromTown(1234);
             stats.MaxHealth = 999;
-            float x = arena.Inner.xMin + 0.45f;
+            float x = arena.Inner.xMin + 0.45f * K;
             float doorY = arena.Centre.y + CoreArena.ExitOffsetY;
 
             // Pressing into the wall just below and just above the doorway.
-            foreach (float y in new[] { doorY - CoreArena.ExitHalfHeight - 0.5f, doorY + CoreArena.ExitHalfHeight + 0.45f })
+            foreach (float y in new[] { doorY - CoreArena.ExitHalfHeight - 0.5f * K, doorY + CoreArena.ExitHalfHeight + 0.45f * K })
             {
-                PlacePlayer(new Vector2(x + 0.5f, y));
+                PlacePlayer(new Vector2(x + 0.5f * K, y));
                 Hold(new Vector2Int(-1, 0));
                 for (int i = 0; i < 40; i++) yield return new WaitForFixedUpdate();
                 Hold(Vector2Int.zero);
@@ -578,11 +581,11 @@ namespace Game.Cube.Tests
             }
 
             // Walking along the wall, up past the doorway and down again, without turning into it.
-            PlacePlayer(new Vector2(x, doorY - 2.2f));
+            PlacePlayer(new Vector2(x, doorY - 2.2f * K));
             Hold(new Vector2Int(0, 1));
-            yield return WaitUntilOrGameTimeout(() => body.position.y > doorY + 1.3f, 3f);
+            yield return WaitUntilOrGameTimeout(() => body.position.y > doorY + 1.3f * K, 3f);
             Hold(new Vector2Int(0, -1));
-            yield return WaitUntilOrGameTimeout(() => body.position.y < doorY - 1.3f, 3f);
+            yield return WaitUntilOrGameTimeout(() => body.position.y < doorY - 1.3f * K, 3f);
             Hold(Vector2Int.zero);
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(navigator.InCoreArena, "Walking along the wall past the doorway does not leave");
@@ -591,7 +594,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(0, arena.Exits);
 
             // Stepping just into the doorway's mouth (not deep into the recess) does not leave either.
-            PlacePlayer(new Vector2(arena.Inner.xMin - 0.2f, doorY));
+            PlacePlayer(new Vector2(arena.Inner.xMin - 0.2f * K, doorY));
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
             Assert.IsTrue(navigator.InCoreArena, "In the doorway's mouth");
@@ -612,7 +615,7 @@ namespace Game.Cube.Tests
 
             // A pulse straight at the player: base damage, through Health. Close to the Demon, so the second pulse
             // arrives well inside the invulnerability window.
-            PlacePlayer(c + new Vector2(-1.8f, -2f));
+            PlacePlayer(c + new Vector2(-1.8f, -2f) * K);
             yield return new WaitForFixedUpdate();
             OrderPulse pulse = demon.FirePulse((Vector2)navigator.transform.position - demon.Position);
             yield return WaitUntilOrGameTimeout(() => pulse == null, 3f);
@@ -640,7 +643,7 @@ namespace Game.Cube.Tests
 
             // The Demon's own pulses: a telegraph aimed where the player stands, then a pulse along it.
             yield return new WaitForSeconds(health.InvulnerableSeconds + 0.1f);
-            PlacePlayer(c + new Vector2(-4f, 2.5f));
+            PlacePlayer(c + new Vector2(-4f, 2.5f) * K);
             demon.Firing = true;
             int fired = demon.PulsesFired;
             yield return WaitUntilOrGameTimeout(() => demon.Telegraphing, MaxwellDemon.PulseInterval + 1f);
@@ -652,8 +655,8 @@ namespace Game.Cube.Tests
             // Step off the line: the pulse misses.
             before = health.Current;
             Vector2 side = Vector2.Perpendicular(demon.TelegraphAim);
-            if ((body.position + side * 2f).y > c.y + CoreArena.InnerHalf.y - 0.5f) side = -side;
-            yield return MoveTo(body.position + side * 2f, TimeField.BasePlayerSpeed);
+            if ((body.position + side * 2f * K).y > c.y + CoreArena.InnerHalf.y - 0.5f * K) side = -side;
+            yield return MoveTo(body.position + side * 2f * K, TimeField.BasePlayerSpeed);
             yield return WaitUntilOrGameTimeout(() => demon.PulsesFired > fired, MaxwellDemon.TelegraphSeconds + 0.5f);
             Assert.AreEqual(fired + 1, demon.PulsesFired, "Then the pulse");
             yield return WaitUntilOrGameTimeout(() => arena.Pulses.Count == 0, 3f);
@@ -688,7 +691,7 @@ namespace Game.Cube.Tests
             // Further events are ignored: mixing the arena now does nothing.
             Vector2 c = arena.Centre;
             List<Particle> warm = Of(ArenaSide.Warm);
-            for (int i = 0; i < 8; i++) warm[i].Teleport(c + new Vector2(2f + (i % 4) * 1.3f, -3f + 2f * (i / 4)));
+            for (int i = 0; i < 8; i++) warm[i].Teleport(c + new Vector2(2f + (i % 4) * 1.3f, -3f + 2f * (i / 4)) * K);
             for (int i = 0; i < 5; i++) yield return new WaitForFixedUpdate();
             Assert.AreEqual(CoreOutcome.Defeat, arena.Outcome);
             Assert.IsFalse(runState.EndRun(true));
@@ -730,7 +733,7 @@ namespace Game.Cube.Tests
             Assert.IsInstanceOf<FallbackBoss>(arena.CurrentPhase);
             stats.MaxHealth = 1;
             health.ResetHealth();
-            PlacePlayer(arena.Centre + new Vector2(-5f, 0f));
+            PlacePlayer(arena.Centre + new Vector2(-5f, 0f) * K);
             yield return WaitUntilOrGameTimeout(() => health.IsDead, MaxwellDemon.FirstPulseDelay + MaxwellDemon.TelegraphSeconds + 3f);
             Assert.IsTrue(health.IsDead);
             yield return null;
@@ -762,7 +765,7 @@ namespace Game.Cube.Tests
                 {
                     first = positions;
                     Assert.IsTrue(positions.Select((p, i) => Vector2.Distance(p, arena.OrderedSpot(i < 8 ? ArenaSide.Warm : ArenaSide.Cool, i % 8)))
-                        .Any(d => d > 0.05f), "The particles drifted");
+                        .Any(d => d > 0.05f * K), "The particles drifted");
                 }
                 else
                 {
@@ -844,8 +847,8 @@ namespace Game.Cube.Tests
         /// </summary>
         private sealed class Bot
         {
-            private const float Deadband = 0.15f;
-            private const float Behind = 1.7f;
+            private const float Deadband = 0.15f * K;
+            private const float Behind = 1.7f * K;
 
             private static readonly Vector2Int[] Dirs =
             {
@@ -898,9 +901,9 @@ namespace Game.Cube.Tests
                 Vector2 rel = Pos - p;
                 float behind = Vector2.Dot(rel, -d);
                 float lateral = Mathf.Abs(rel.x * d.y - rel.y * d.x);
-                if (lateral < 0.25f && behind > 0.6f && behind < Behind + 0.6f)
+                if (lateral < 0.25f * K && behind > 0.6f * K && behind < Behind + 0.6f * K)
                 {
-                    if (behind > t.attack.Reach + 0.15f) return dir; // walk in along the line: this also faces it
+                    if (behind > t.attack.Reach + 0.15f * K) return dir; // walk in along the line: this also faces it
                     if (Vector2.Angle(t.mover.Facing, d) > 0.5f) return Steer(p - d * Behind, p, d); // back off and come again
                     if (!t.attack.Ready) return Vector2Int.zero;
                     // Swing on the move, still holding the keys, as a keyboard player does.
@@ -916,11 +919,11 @@ namespace Game.Cube.Tests
             /// <summary>Keys toward a goal (per-axis dead band), going round the target particle if it is in the way.</summary>
             private Vector2Int Steer(Vector2 goal, Vector2 p, Vector2 d)
             {
-                if (SegmentDistance(p, Pos, goal) < 0.85f && Vector2.Distance(Pos, goal) > 0.3f)
+                if (SegmentDistance(p, Pos, goal) < 0.85f * K && Vector2.Distance(Pos, goal) > 0.3f * K)
                 {
                     Vector2 perp = Vector2.Perpendicular(d);
                     if (Vector2.Dot(Pos - p, perp) < 0f) perp = -perp;
-                    goal = p + perp * 1.3f - d * 0.4f;
+                    goal = p + perp * 1.3f * K - d * 0.4f * K;
                 }
                 return Keys(goal);
             }
@@ -942,9 +945,9 @@ namespace Game.Cube.Tests
             private bool Valid(Vector2 spot, ArenaSide side)
             {
                 Rect r = Arena.Inner;
-                const float m = 0.5f;
+                const float m = 0.5f * K;
                 if (spot.x < r.xMin + m || spot.x > r.xMax - m || spot.y < r.yMin + m || spot.y > r.yMax - m) return false;
-                return Arena.SideOf(spot) == side && Mathf.Abs(spot.x - Arena.MembraneX) > 0.65f;
+                return Arena.SideOf(spot) == side && Mathf.Abs(spot.x - Arena.MembraneX) > 0.65f * K;
             }
 
             private void Choose(ArenaSide side)
@@ -961,7 +964,7 @@ namespace Game.Cube.Tests
                         Vector2 d = Unit(k);
                         if (!Valid(p.Position - d * Behind, side) || !Valid(p.Position - d * t.attack.Reach, side)) continue;
                         float miss = Simulate(p.Position, d);
-                        float score = miss * 4f + (miss > 0f ? 3f : 0f) + 0.5f * Vector2.Distance(Pos, p.Position - d * Behind);
+                        float score = miss * 4f + (miss > 0f ? 3f * K : 0f) + 0.5f * Vector2.Distance(Pos, p.Position - d * Behind);
                         if (score >= best) continue;
                         best = score;
                         target = p;
@@ -976,7 +979,7 @@ namespace Game.Cube.Tests
             /// </summary>
             private float Simulate(Vector2 p, Vector2 d)
             {
-                const float step = 0.05f, r = Particle.Radius;
+                const float step = 0.05f * K, r = Particle.Radius;
                 float budget = Particle.KnockSpeed / Particle.Damping * 0.8f;
                 Rect inner = Arena.Inner;
                 float mx = Arena.MembraneX, cy = Arena.Centre.y;
@@ -1006,9 +1009,9 @@ namespace Game.Cube.Tests
                 Vector2[] gaps = Arena.GapCentres;
                 Vector2 gap = Vector2.Distance(Pos, gaps[0]) <= Vector2.Distance(Pos, gaps[1]) ? gaps[0] : gaps[1];
                 float s = side == ArenaSide.Warm ? 1f : -1f;
-                Vector2 before = gap - new Vector2(s * 1.2f, 0f);
-                Vector2 after = gap + new Vector2(s * 1.2f, 0f);
-                bool lined = Mathf.Abs(Pos.y - gap.y) < 0.25f;
+                Vector2 before = gap - new Vector2(s * 1.2f * K, 0f);
+                Vector2 after = gap + new Vector2(s * 1.2f * K, 0f);
+                bool lined = Mathf.Abs(Pos.y - gap.y) < 0.25f * K;
                 return Keys(lined ? after : before);
             }
 
@@ -1022,8 +1025,8 @@ namespace Game.Cube.Tests
                     float time = Vector2.Dot(rel, v) / Mathf.Max(1e-4f, v.sqrMagnitude);
                     if (time < 0f || time > 0.9f) continue;
                     Vector2 miss = rel - v * time;
-                    if (miss.magnitude > 1.1f) continue;
-                    away = Away(miss.magnitude > 0.05f ? miss : Vector2.Perpendicular(v));
+                    if (miss.magnitude > 1.1f * K) continue;
+                    away = Away(miss.magnitude > 0.05f * K ? miss : Vector2.Perpendicular(v));
                     return true;
                 }
                 MaxwellDemon demon = Arena.Demon;
@@ -1032,9 +1035,9 @@ namespace Game.Cube.Tests
                     Vector2 rel = Pos - demon.Position;
                     float along = Vector2.Dot(rel, demon.TelegraphAim);
                     Vector2 lateral = rel - demon.TelegraphAim * along;
-                    if (along > -0.5f && lateral.magnitude < 1.1f)
+                    if (along > -0.5f * K && lateral.magnitude < 1.1f * K)
                     {
-                        away = Away(lateral.magnitude > 0.05f ? lateral : Vector2.Perpendicular(demon.TelegraphAim));
+                        away = Away(lateral.magnitude > 0.05f * K ? lateral : Vector2.Perpendicular(demon.TelegraphAim));
                         return true;
                     }
                 }
@@ -1049,8 +1052,8 @@ namespace Game.Cube.Tests
                 float bestDot = float.MinValue;
                 foreach (Vector2Int k in Dirs)
                 {
-                    Vector2 ahead = Pos + Unit(k) * 1.2f;
-                    if (ahead.x < r.xMin + 0.5f || ahead.x > r.xMax - 0.5f || ahead.y < r.yMin + 0.5f || ahead.y > r.yMax - 0.5f) continue;
+                    Vector2 ahead = Pos + Unit(k) * 1.2f * K;
+                    if (ahead.x < r.xMin + 0.5f * K || ahead.x > r.xMax - 0.5f * K || ahead.y < r.yMin + 0.5f * K || ahead.y > r.yMax - 0.5f * K) continue;
                     float dot = Vector2.Dot(Unit(k), want.normalized);
                     if (dot <= bestDot) continue;
                     bestDot = dot;

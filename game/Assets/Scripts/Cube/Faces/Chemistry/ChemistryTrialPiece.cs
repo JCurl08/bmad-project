@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,8 +12,8 @@ namespace Game.Cube
     /// </summary>
     public class ChemistryTrialPiece : MonoBehaviour, IAttackReceiver
     {
-        public const float LampRadius = 0.35f;
-        public const float WallSize = 0.7f;
+        public const float LampRadius = 0.35f * ScreenMath.ContentScale;
+        public const float WallSize = 0.7f * ScreenMath.ContentScale;
 
         public static readonly Color DarkLampColor = new Color(0.12f, 0.1f, 0.16f);
 
@@ -120,7 +121,7 @@ namespace Game.Cube
             // Pips in the stone's colour show the order: one per number.
             for (int p = 0; p <= index; p++)
                 BeakGate.AddSprite(go.transform, $"Pip {p + 1}", PartShape.Circle,
-                    new Vector2((p - index / 2f) * 0.18f, size / 2f + 0.15f), new Vector2(0.12f, 0.12f),
+                    new Vector2((p - index / 2f) * 0.18f * ScreenMath.ContentScale, size / 2f + 0.15f * ScreenMath.ContentScale), new Vector2(0.12f, 0.12f) * ScreenMath.ContentScale,
                     ChemistryIsotope.StageColor(wants), -1, material);
             return piece;
         }

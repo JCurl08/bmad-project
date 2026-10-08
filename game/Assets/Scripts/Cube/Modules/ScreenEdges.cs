@@ -6,25 +6,29 @@ namespace Game.Cube
     /// <summary>
     /// The walls round every screen (1.25), as pure geometry local to the screen centre. Each of a screen's four edges is
     /// an uncrossable wall, EdgeWallThickness deep inside the screen, except one doorway centred on it: the gap where the
-    /// exit lane meets the edge (DoorwayHalfWidth either side of the centre line, the lane's half-width, so 2.5 tiles wide).
-    /// A doorway that leads onto another face is a gate arch (DoorArch art, ArchWidth across and ArchDepth deep: the wall's
-    /// own depth, so the arch never reaches into the screen, and its open middle is exactly the doorway); a doorway within a
-    /// face is a plain opening. An edge that leads nowhere (a
+    /// exit lane meets the edge (DoorwayHalfWidth either side of the centre line, the lane's half-width, so 3.75 tiles wide).
+    /// A doorway that leads onto another face is a gate arch (DoorArch art, ArchWidth across and ArchDepth deep: the edge band's
+    /// depth, so the arch never reaches past the band into the screen's content, and its open middle is exactly the doorway); a
+    /// doorway within a face is a plain opening. An edge that leads nowhere (a
     /// sealed face) has no doorway: CubeWorld walls it off whole. Everything here stays inside the edge band
     /// (ScreenModule.EdgeClearance) and off the lanes, so no content placed by the KeepsExitsOpen rules meets a wall.
     /// </summary>
     public static class ScreenEdges
     {
-        /// <summary>Depth of the wall along every screen edge (one tile).</summary>
-        public const float EdgeWallThickness = 1f;
+        /// <summary>Depth of the wall along every screen edge: half a tile (4.1; it was one tile on the 16x10 screens).</summary>
+        public const float EdgeWallThickness = 0.5f;
 
-        /// <summary>Half the width of every doorway: the exit lane's half-width (a 2.5-tile gap).</summary>
+        /// <summary>Half the width of every doorway: the exit lane's half-width (a 3.75-tile gap, so at least the 2.5 it was).</summary>
         public const float DoorwayHalfWidth = ScreenModule.ExitLaneHalfWidth;
 
-        /// <summary>A face-edge gate arch: its width across the doorway (posts included) and its depth into the screen.</summary>
-        public const float ArchWidth = 5f, ArchDepth = EdgeWallThickness;
+        /// <summary>
+        /// A face-edge gate arch: its width across the doorway (posts included: twice the doorway, as the art's open middle is
+        /// half of it) and its depth into the screen (the edge band, so it stays clear of every module's content). The posts stand
+        /// on the half-tile wall and the edge band's clear strip; the arch has no collider.
+        /// </summary>
+        public const float ArchWidth = 4f * DoorwayHalfWidth, ArchDepth = ScreenModule.EdgeClearance;
 
-        /// <summary>Half the screen (8 x 5).</summary>
+        /// <summary>Half the screen (12 x 7.5).</summary>
         public static Vector2 Half => Game.Tracer.ScreenMath.DefaultScreenSize / 2f;
 
         /// <summary>True when a side of a cell leaves its face (a face edge) rather than leading to the next screen of the face.</summary>

@@ -1,4 +1,5 @@
 using System;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,7 +12,7 @@ namespace Game.Cube
     [RequireComponent(typeof(Collider2D))]
     public class ItemPickup : MonoBehaviour
     {
-        public const float Radius = 0.4f;
+        public const float Radius = 0.4f * ScreenMath.ContentScale;
 
         [SerializeField] private ItemDefinition item;
 

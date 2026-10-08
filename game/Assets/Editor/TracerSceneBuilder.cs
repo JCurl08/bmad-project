@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Tracer > Create Tracer Scene: builds Assets/Scenes/Tracer.unity from code (no hand-written YAML)
-/// with two adjacent 16x10 screens, the player, the screen camera and the audio/save probes,
+/// with two adjacent screens (ScreenMath.DefaultScreenSize, 24x15), the player, the screen camera and the audio/save probes,
 /// and makes it the only build scene.
 /// </summary>
 public static class TracerSceneBuilder
@@ -17,8 +17,8 @@ public static class TracerSceneBuilder
     private const string UnlitSpriteMaterialPath =
         "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Unlit-Default.mat";
 
-    private const float WallThickness = 1f;
-    private const float DoorwayHeight = 3f;
+    private const float WallThickness = 1f * ScreenMath.ContentScale; // the first screens' one-tile walls, scaled with the screen (4.1)
+    private const float DoorwayHeight = 3f * ScreenMath.ContentScale;
 
     [MenuItem("Tracer/Create Tracer Scene")]
     public static void CreateTracerScene()
@@ -57,10 +57,10 @@ public static class TracerSceneBuilder
         CreateBlock("Divider Upper", walls, squareSprite, material, new Vector2(dividerX, h - t - segment / 2f), new Vector2(t, segment), wallColor, 0, true);
 
         // Player.
-        GameObject player = CreateBlock("Player", null, roundSprite, material, new Vector2(4f, h / 2f), new Vector2(0.8f, 0.8f),
+        GameObject player = CreateBlock("Player", null, roundSprite, material, new Vector2(4f * ScreenMath.ContentScale, h / 2f), new Vector2(0.8f, 0.8f) * ScreenMath.ContentScale,
             new Color(1f, 0.85f, 0.3f), 10, collider: false);
         var playerCollider = player.AddComponent<CircleCollider2D>();
-        playerCollider.radius = 0.4f;
+        playerCollider.radius = 0.4f * ScreenMath.ContentScale;
         var body = player.AddComponent<Rigidbody2D>();
         body.gravityScale = 0f;
         body.freezeRotation = true;

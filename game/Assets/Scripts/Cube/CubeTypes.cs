@@ -27,6 +27,13 @@ namespace Game.Cube
         public const int TunedScreensPerFace = 4;
 
         /// <summary>
+        /// How much larger people (the player, NPCs, enemies) are drawn than their colliders imply (4.1 review): their art is
+        /// this much bigger, so they read about 1.33x larger on the canvas than on the first 16x10 screens. Visual only:
+        /// colliders, speeds, spots and every gameplay distance ignore it.
+        /// </summary>
+        public const float PeopleArtScale = 4f / 3f;
+
+        /// <summary>
         /// A per-face count tuned on a face of TunedScreensPerFace screens, scaled to a face of faceSize x faceSize
         /// screens so the number per screen stays about the same (rounded half up; at least 1 when tunedCount is
         /// positive, 0 otherwise). On a face of the tuned size it returns tunedCount unchanged.

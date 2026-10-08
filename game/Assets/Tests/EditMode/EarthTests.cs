@@ -25,6 +25,11 @@ namespace Game.Cube.Tests
         private const string ItemCatalogPath = "Assets/Items/ItemCatalog.asset";
         private const int Seeds = 50;
 
+        /// <summary>Hand-made geometry below is in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
+        private static Rect R(float xMin, float yMin, float xMax, float yMax) => Rect.MinMaxRect(xMin * K, yMin * K, xMax * K, yMax * K);
+
 
         private static ModuleLibrary Library()
         {
@@ -287,11 +292,11 @@ namespace Game.Cube.Tests
             // player seals the nook behind them, and the flood fill catches it.
             var nook = new List<Rect>
             {
-                Rect.MinMaxRect(2f, 1.8f, 2.3f, 3.3f), Rect.MinMaxRect(5f, 1.8f, 5.3f, 3.3f), Rect.MinMaxRect(2f, 3.3f, 5.3f, 3.45f),
+                R(2f, 1.8f, 2.3f, 3.3f), R(5f, 1.8f, 5.3f, 3.3f), R(2f, 3.3f, 5.3f, 3.45f),
             };
-            Rect half = Rect.MinMaxRect(2.6f, 1.4f, 3.6f, 2f);
+            Rect half = R(2.6f, 1.4f, 3.6f, 2f);
             Assert.IsNull(EarthPlan.CreviceProblem(half, nook, null), "Without the piece the player gets past the strip");
-            var withPiece = new List<Rect>(nook) { EarthPlan.TrialPieceRect(new Vector2(4.35f, 1.75f)) };
+            var withPiece = new List<Rect>(nook) { EarthPlan.TrialPieceRect(new Vector2(4.35f, 1.75f) * K) };
             StringAssert.Contains("cut off", EarthPlan.CreviceProblem(half, withPiece, null), "With the piece the nook is sealed");
 
             // Every seed's crevice on the trial screen passes with the pieces solid.
@@ -308,14 +313,14 @@ namespace Game.Cube.Tests
             // A strip that closes a nook (with the walls around it) is caught by the flood fill.
             var walls = new List<Rect>
             {
-                Rect.MinMaxRect(2f, 1.8f, 2.3f, 3.3f), Rect.MinMaxRect(5f, 1.8f, 5.3f, 3.3f), Rect.MinMaxRect(2f, 3.3f, 5.3f, 3.45f),
+                R(2f, 1.8f, 2.3f, 3.3f), R(5f, 1.8f, 5.3f, 3.3f), R(2f, 3.3f, 5.3f, 3.45f),
             };
-            Rect closing = Rect.MinMaxRect(2.6f, 1.4f, 4.7f, 2f);
-            Assert.IsNull(EarthPlan.CreviceProblem(Rect.MinMaxRect(-5f, -3.2f, -3f, -2.6f), walls, null), "An open strip is fine");
+            Rect closing = R(2.6f, 1.4f, 4.7f, 2f);
+            Assert.IsNull(EarthPlan.CreviceProblem(R(-5f, -3.2f, -3f, -2.6f), walls, null), "An open strip is fine");
             StringAssert.Contains("cut off", EarthPlan.CreviceProblem(closing, walls, null));
-            StringAssert.Contains("exit lane", EarthPlan.CreviceProblem(Rect.MinMaxRect(-1f, 1.5f, 1f, 2.1f), new List<Rect>(), null));
-            StringAssert.Contains("sits on", EarthPlan.CreviceProblem(Rect.MinMaxRect(3f, 2f, 5f, 2.6f), new List<Rect>(),
-                new[] { new ScreenMark("a hidden-item slot", new Vector2(4f, 2.3f), 0.6f) }));
+            StringAssert.Contains("exit lane", EarthPlan.CreviceProblem(R(-1f, 1.5f, 1f, 2.1f), new List<Rect>(), null));
+            StringAssert.Contains("sits on", EarthPlan.CreviceProblem(R(3f, 2f, 5f, 2.6f), new List<Rect>(),
+                new[] { new ScreenMark("a hidden-item slot", new Vector2(4f, 2.3f) * K, 0.6f * K) }));
         }
 
         [Test]

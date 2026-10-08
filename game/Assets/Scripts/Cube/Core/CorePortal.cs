@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -10,7 +11,7 @@ namespace Game.Cube
     /// </summary>
     public class CorePortal : MonoBehaviour
     {
-        public const float Radius = 0.45f;
+        public const float Radius = 0.45f * ScreenMath.ContentScale;
         public const float SpinDegreesPerSecond = 120f;
 
         [SerializeField] private CoreArena arena;

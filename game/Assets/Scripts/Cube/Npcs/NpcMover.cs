@@ -22,9 +22,9 @@ namespace Game.Cube
         [SerializeField] private Movement movement;
         [SerializeField] private Rect bounds;
         [SerializeField] private Transform player;
-        [SerializeField, Min(0f)] private float wanderSpeed = 1.5f;
-        [SerializeField, Min(0f)] private float fleeSpeed = 3.5f;
-        [SerializeField, Min(0f)] private float fleeRadius = 3f;
+        [SerializeField, Min(0f)] private float wanderSpeed = 1.5f * ScreenMath.ContentScale;
+        [SerializeField, Min(0f)] private float fleeSpeed = 3.5f * ScreenMath.ContentScale;
+        [SerializeField, Min(0f)] private float fleeRadius = 3f * ScreenMath.ContentScale;
         [SerializeField, Min(0f)] private float pauseSeconds = 0.6f;
 
         private Rigidbody2D body;
@@ -179,7 +179,7 @@ namespace Game.Cube
         }
 
         /// <summary>Speed at which a body pushed outside its bounds walks back in (at least; faster if it was moving faster).</summary>
-        public const float ReturnSpeed = 1.5f;
+        public const float ReturnSpeed = 1.5f * ScreenMath.ContentScale;
 
         /// <summary>
         /// The velocity trimmed so one step of dt from here stays inside bounds (an empty rect means no bounds).

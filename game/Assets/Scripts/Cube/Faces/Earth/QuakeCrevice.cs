@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -37,9 +38,9 @@ namespace Game.Cube
             ArtCatalog.AddSprite(go.transform, "Crack", ArtKey.Crevice, Vector2.zero, worldArea.size, Tint, -5, material, true);
             bool across = worldArea.width >= worldArea.height;
             Vector2 lip = across
-                ? new Vector2(worldArea.width / 2f - 0.4f, worldArea.height / 2f + 0.3f)
-                : new Vector2(worldArea.width / 2f + 0.3f, worldArea.height / 2f - 0.4f);
-            crevice.Fossil = ArtCatalog.AddSprite(go.transform, "Fossil", ArtKey.Fossil, lip, new Vector2(0.6f, 0.6f), FossilColor, -4,
+                ? new Vector2(worldArea.width / 2f - 0.4f * ScreenMath.ContentScale, worldArea.height / 2f + 0.3f * ScreenMath.ContentScale)
+                : new Vector2(worldArea.width / 2f + 0.3f * ScreenMath.ContentScale, worldArea.height / 2f - 0.4f * ScreenMath.ContentScale);
+            crevice.Fossil = ArtCatalog.AddSprite(go.transform, "Fossil", ArtKey.Fossil, lip, new Vector2(0.6f, 0.6f) * ScreenMath.ContentScale, FossilColor, -4,
                 material, false);
             return crevice;
         }

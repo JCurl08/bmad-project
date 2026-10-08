@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -21,7 +22,7 @@ namespace Game.Cube
         private readonly List<SpriteRenderer> dust = new List<SpriteRenderer>();
         private readonly List<Vector2> dustDirections = new List<Vector2>();
         private float age;
-        private float spread = 1f;
+        private float spread = ScreenMath.ContentScale;
 
         /// <summary>Effects started so far (tests).</summary>
         public static int Played { get; private set; }
@@ -38,7 +39,7 @@ namespace Game.Cube
             go.transform.position = at.position;
             var effect = go.AddComponent<GateOpenEffect>();
             Vector2 size = gate.Solid != null ? gate.Solid.size : Vector2.one;
-            effect.spread = Mathf.Max(1f, Mathf.Max(size.x, size.y) * 0.6f);
+            effect.spread = Mathf.Max(ScreenMath.ContentScale, Mathf.Max(size.x, size.y) * 0.6f);
             Material material = gate.Visual != null ? gate.Visual.sharedMaterial : null;
             effect.ring = ArtCatalog.AddShape(go.transform, "Ring", PartShape.Circle, Vector2.zero, Vector2.one * 0.5f, RingColor, 12,
                 material);
@@ -46,7 +47,7 @@ namespace Game.Cube
             {
                 float angle = (i + 0.5f) * Mathf.PI * 2f / DustCount;
                 effect.dustDirections.Add(new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)));
-                effect.dust.Add(ArtCatalog.AddShape(go.transform, $"Dust {i}", PartShape.Square, Vector2.zero, Vector2.one * 0.16f,
+                effect.dust.Add(ArtCatalog.AddShape(go.transform, $"Dust {i}", PartShape.Square, Vector2.zero, Vector2.one * (0.16f * ScreenMath.ContentScale),
                     DustColor, 12, material));
             }
             Played++;
@@ -70,7 +71,7 @@ namespace Game.Cube
             float ease = 1f - (1f - t) * (1f - t);
             if (ring != null)
             {
-                float size = Mathf.Lerp(0.5f, 1.6f * spread, ease);
+                float size = Mathf.Lerp(0.5f * ScreenMath.ContentScale, 1.6f * spread, ease);
                 ring.transform.localScale = new Vector3(size, size, 1f);
                 Color c = RingColor;
                 c.a *= 1f - t;
@@ -79,7 +80,7 @@ namespace Game.Cube
             for (int i = 0; i < dust.Count; i++)
             {
                 if (dust[i] == null) continue;
-                dust[i].transform.localPosition = dustDirections[i] * (0.2f + ease * 0.9f * spread);
+                dust[i].transform.localPosition = dustDirections[i] * (0.2f * ScreenMath.ContentScale + ease * 0.9f * spread);
                 Color c = DustColor;
                 c.a = 1f - t;
                 dust[i].color = c;

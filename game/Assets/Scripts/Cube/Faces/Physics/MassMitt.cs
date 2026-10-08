@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -32,13 +33,13 @@ namespace Game.Cube
     public class MassMitt : MonoBehaviour
     {
         /// <summary>Boulders whose centres are this close to the player's can be grabbed.</summary>
-        public const float GrabRange = 1.8f;
+        public const float GrabRange = 1.8f * ScreenMath.ContentScale;
 
         /// <summary>A held boulder this far from where it should be (stuck) is let go.</summary>
-        public const float StuckDistance = 1.0f;
+        public const float StuckDistance = 1.0f * ScreenMath.ContentScale;
 
         /// <summary>A held boulder this far from the player is let go.</summary>
-        public const float LetGoDistance = 2.6f;
+        public const float LetGoDistance = 2.6f * ScreenMath.ContentScale;
 
         [SerializeField] private ItemDefinition item;
         [SerializeField] private string interactActionPath = "Player/Interact";

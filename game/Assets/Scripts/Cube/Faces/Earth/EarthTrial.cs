@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -18,7 +19,7 @@ namespace Game.Cube
         public const int PieceCount = 4;
 
         /// <summary>Least distance between two targets, so one swing (default reach) never strikes two.</summary>
-        public const float PieceSpacing = 3f;
+        public const float PieceSpacing = 3f * ScreenMath.ContentScale;
 
         private const int PickAttempts = 20;
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -262,7 +263,7 @@ namespace Game.Cube
             Color color = ChemistryIsotope.StageColor(stage);
             color.a = stage == IsotopeStage.Glow ? 0.3f : 0.2f;
             halo.color = color;
-            float size = stage == IsotopeStage.Glow ? 2.2f : 1.3f;
+            float size = (stage == IsotopeStage.Glow ? 2.2f : 1.3f) * ScreenMath.ContentScale;
             halo.transform.localScale = new Vector3(size, size, 1f);
         }
 
@@ -297,7 +298,7 @@ namespace Game.Cube
             if (label == null || cam == null) return;
             if (labelStyle == null)
                 labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * 0.75f);
+            Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * (0.75f * ScreenMath.ContentScale));
             if (screen.z < 0f) return;
             var rect = new Rect(screen.x - 52f, Screen.height - screen.y - 22f, 104f, 20f);
             GUI.color = new Color(0f, 0f, 0f, 0.7f);

@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -10,8 +11,8 @@ namespace Game.Cube
     /// </summary>
     public class TrialTarget : MonoBehaviour, IAttackReceiver
     {
-        public const float RockSize = 0.7f;
-        public const float TriggerRadius = 0.35f;
+        public const float RockSize = 0.7f * ScreenMath.ContentScale;
+        public const float TriggerRadius = 0.35f * ScreenMath.ContentScale;
 
         [SerializeField] private BiologyTrial trial;
         [SerializeField] private TrialTargetKind kind;
@@ -80,7 +81,7 @@ namespace Game.Cube
             if (kind != TrialTargetKind.Flower)
                 for (int p = 0; p <= index; p++)
                     BeakGate.AddSprite(go.transform, $"Pip {p + 1}", PartShape.Circle,
-                        new Vector2((p - index / 2f) * 0.18f, size / 2f + 0.15f), new Vector2(0.12f, 0.12f), Color.white, -1, material);
+                        new Vector2((p - index / 2f) * 0.18f * ScreenMath.ContentScale, size / 2f + 0.15f * ScreenMath.ContentScale), new Vector2(0.12f, 0.12f) * ScreenMath.ContentScale, Color.white, -1, material);
             return target;
         }
     }

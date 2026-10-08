@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -9,7 +10,7 @@ namespace Game.Cube
     /// </summary>
     public abstract class ModuleSlot : MonoBehaviour
     {
-        private const float MarkerSize = 0.6f;
+        private const float MarkerSize = 0.6f * ScreenMath.ContentScale;
         private const int MarkerSortingOrder = 20;
 
         private SpriteRenderer marker;

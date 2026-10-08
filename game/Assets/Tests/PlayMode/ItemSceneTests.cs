@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -18,6 +19,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class ItemSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
         private const float Timeout = 6f;
 
@@ -178,7 +182,7 @@ namespace Game.Cube.Tests
         private IEnumerator StandBefore(GatePlacement placement, GateSlot slot)
         {
             navigator.TeleportTo(placement.Screen, Facing.East);
-            Vector2 at = (Vector2)slot.transform.position + (Vector2)slot.Opening.ToVector() * 1.1f;
+            Vector2 at = (Vector2)slot.transform.position + (Vector2)slot.Opening.ToVector() * 1.1f * K;
             body.position = at;
             body.linearVelocity = Vector2.zero;
             navigator.transform.position = new Vector3(at.x, at.y, navigator.transform.position.z);

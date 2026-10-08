@@ -289,7 +289,7 @@ namespace Game.Cube.Tests
                 Rect[] walls = ScreenEdges.WallRects(side);
                 Assert.AreEqual(2, walls.Length);
                 float width = side.IsHorizontal() ? door.height : door.width;
-                Assert.GreaterOrEqual(width, 2f, $"{side}: the doorway is at least two tiles wide");
+                Assert.GreaterOrEqual(width, 2.5f, $"{side}: the doorway is at least 2.5 tiles wide");
                 Assert.AreEqual(2f * ScreenModule.ExitLaneHalfWidth, width, 1e-4f, $"{side}: the doorway is the exit lane's width");
                 Vector2 along = side.IsHorizontal() ? new Vector2(0f, door.center.y) : new Vector2(door.center.x, 0f);
                 Assert.AreEqual(Vector2.zero, along, $"{side}: the doorway is centred on its edge");
@@ -307,8 +307,8 @@ namespace Game.Cube.Tests
                 for (float t = -0.98f; t <= 0.98f; t += 0.02f)
                 {
                     Vector2 p = side.IsHorizontal()
-                        ? new Vector2(side.ToVector().x * (half.x - 0.5f), t * (half.y - ScreenEdges.EdgeWallThickness))
-                        : new Vector2(t * half.x, side.ToVector().y * (half.y - 0.5f));
+                        ? new Vector2(side.ToVector().x * (half.x - ScreenEdges.EdgeWallThickness / 2f), t * (half.y - ScreenEdges.EdgeWallThickness))
+                        : new Vector2(t * half.x, side.ToVector().y * (half.y - ScreenEdges.EdgeWallThickness / 2f));
                     bool inWall = walls.Any(w => w.Contains(p));
                     Assert.AreNotEqual(door.Contains(p), inWall, $"{side} at {p}: wall or doorway, never both or neither");
                 }

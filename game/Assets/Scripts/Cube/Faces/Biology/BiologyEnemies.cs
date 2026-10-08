@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -21,7 +22,7 @@ namespace Game.Cube
     {
         public const float WeevilHealth = 6f;
         public const float PuffHealth = 8f;
-        public const float SightRadius = 4f;
+        public const float SightRadius = 4f * ScreenMath.ContentScale;
 
         public static readonly Color WeevilColor = new Color(0.45f, 0.3f, 0.15f);
         public static readonly Color PuffColor = new Color(1f, 0.9f, 0.45f);
@@ -55,7 +56,7 @@ namespace Game.Cube
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
             ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Triangle, Enemy.MarkOffset,
-                new Vector2(0.3f, 0.3f), mark, Enemy.SortingOrder + 1, material);
+                new Vector2(0.3f, 0.3f) * ScreenMath.ContentScale, mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<BiologyEnemy>().Kind = kind;
             return enemy;
         }

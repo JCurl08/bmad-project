@@ -9,7 +9,7 @@ namespace Game.Cube
     public enum CoreOutcome { None, Victory, Defeat }
 
     /// <summary>
-    /// The cube's core: one 16x10 screen in its own region, far below the faces (screen ArenaScreen, so ScreenCamera frames
+    /// The cube's core: one screen (24x15) in its own region, far below the faces (screen ArenaScreen, so ScreenCamera frames
     /// it exactly). Walls all round; a central membrane splits a warm half (left) from a cool half (right). The membrane has
     /// the Demon's door in its middle and a gap at each end that the Demon cannot block, so mixing is always possible.
     /// On every reveal it puts a CorePortal on each built face's active core-entrance slot. Entering (CorePortal) suspends
@@ -29,15 +29,15 @@ namespace Game.Cube
         /// <summary>The arena's screen on the world grid: below the faces (which start at y = 0), at x = 0.</summary>
         public static readonly Vector2Int DefaultArenaScreen = new Vector2Int(0, -3);
 
-        /// <summary>Half the walkable inside (the walls sit just outside it): 15 x 9.</summary>
-        public static readonly Vector2 InnerHalf = new Vector2(7.5f, 4.5f);
+        /// <summary>Half the walkable inside (the walls sit just outside it, at the screen's edge): 22.5 x 13.5 (the first screens' 15 x 9, scaled).</summary>
+        public static readonly Vector2 InnerHalf = ScreenMath.DefaultScreenSize / 2f - Vector2.one * WallThickness;
 
-        public const float WallThickness = 0.5f;
-        public const float MembraneThickness = 0.3f;
-        public const float DoorHalfHeight = 1f;
+        public const float WallThickness = 0.5f * ScreenMath.ContentScale;
+        public const float MembraneThickness = 0.3f * ScreenMath.ContentScale;
+        public const float DoorHalfHeight = 1f * ScreenMath.ContentScale;
 
         /// <summary>Height of the always-open gap at each end of the membrane.</summary>
-        public const float GapHeight = 1.5f;
+        public const float GapHeight = 1.5f * ScreenMath.ContentScale;
 
         public const int DefaultParticlesPerSide = 8;
 
@@ -114,7 +114,7 @@ namespace Game.Cube
         }
 
         /// <summary>Where the player arrives: the far left of the warm half.</summary>
-        public Vector2 EntryPoint => Centre + new Vector2(-6.5f, -3.5f);
+        public Vector2 EntryPoint => Centre + new Vector2(-6.5f, -3.5f) * ScreenMath.ContentScale;
 
         public MaxwellDemon Demon
         {
@@ -147,31 +147,31 @@ namespace Game.Cube
 
         // ---------------------------------------------------------------- the exit (CAP-27)
 
-        /// <summary>Half the height of the exit doorway in the west wall: just wider than the player (radius 0.4), so only walking straight in gets through.</summary>
-        public const float ExitHalfHeight = 0.5f;
+        /// <summary>Half the height of the exit doorway in the west wall: just wider than the player (radius 0.6), so only walking straight in gets through.</summary>
+        public const float ExitHalfHeight = 0.5f * ScreenMath.ContentScale;
 
         /// <summary>Height of the exit doorway's centre above the arena's centre (the upper west wall, far from the entry point).</summary>
-        public const float ExitOffsetY = 2.75f;
+        public const float ExitOffsetY = 2.75f * ScreenMath.ContentScale;
 
         /// <summary>How deep the recess behind the doorway runs, from the arena's inner west edge (through the wall and beyond).</summary>
-        public const float RecessDepth = 2.0f;
+        public const float RecessDepth = 2.0f * ScreenMath.ContentScale;
 
         /// <summary>
         /// How far past the inner west edge the player's centre must be to leave: down the recess, past the screen's edge (a
         /// walk of 1.6 units through the doorway). Walking along or against the wall never gets there, and nor does steering
         /// at a point just behind the wall (anything aimed at the playfield lies within about a unit of it).
         /// </summary>
-        public const float ExitDepth = 1.6f;
+        public const float ExitDepth = 1.6f * ScreenMath.ContentScale;
 
         private Transform exitDoor;
         private Collider2D exitBlocker;
         private bool doorwayOpen;
 
         /// <summary>The player's collider radius (the scene builds it at 0.4).</summary>
-        public const float PlayerRadius = 0.4f;
+        public const float PlayerRadius = 0.4f * ScreenMath.ContentScale;
 
         /// <summary>How far off the doorway's centre line the player may be and still be let in (walking straight west).</summary>
-        public const float DoorwayAim = 0.25f;
+        public const float DoorwayAim = 0.25f * ScreenMath.ContentScale;
         private bool hasEntry;
         private ScreenAddress entryScreen;
         private Facing entryFacing = Facing.East;
@@ -288,20 +288,20 @@ namespace Game.Cube
             float doorY = Centre.y + ExitOffsetY;
             if (!doorwayOpen)
             {
-                bool atDoorway = p.x <= wallLine + PlayerRadius + 0.05f && Mathf.Abs(p.y - doorY) <= DoorwayAim;
+                bool atDoorway = p.x <= wallLine + PlayerRadius + 0.05f * ScreenMath.ContentScale && Mathf.Abs(p.y - doorY) <= DoorwayAim;
                 PlayerMover mover = navigator.GetComponent<PlayerMover>();
                 bool walkingWest = mover != null && mover.Facing.x < -0.99f;
                 if (atDoorway && walkingWest) SetDoorway(true);
                 else return;
             }
-            if (p.x > wallLine + PlayerRadius + 0.05f)
+            if (p.x > wallLine + PlayerRadius + 0.05f * ScreenMath.ContentScale)
             {
                 SetDoorway(false); // walked back out of the doorway
                 return;
             }
             // In the doorway or the recess: keep the player in its lane (the doorway's width less the player, and the back wall).
             float lane = ExitHalfHeight - PlayerRadius;
-            var kept = new Vector2(Mathf.Max(p.x, Recess.xMin + 0.3f), Mathf.Clamp(p.y, doorY - lane, doorY + lane));
+            var kept = new Vector2(Mathf.Max(p.x, Recess.xMin + 0.3f * ScreenMath.ContentScale), Mathf.Clamp(p.y, doorY - lane, doorY + lane));
             if (kept != p && body != null)
             {
                 body.position = kept;
@@ -392,7 +392,7 @@ namespace Game.Cube
         public bool Contains(Vector2 point)
         {
             Rect r = Inner;
-            const float slack = 0.5f;
+            const float slack = 0.5f * ScreenMath.ContentScale;
             return point.x >= r.xMin - slack && point.x <= r.xMax + slack && point.y >= r.yMin - slack && point.y <= r.yMax + slack;
         }
 
@@ -513,8 +513,8 @@ namespace Game.Cube
         public Vector2 OrderedSpot(ArenaSide side, int k)
         {
             int column = k / 4, row = k % 4;
-            float x = 3f + 2f * column;
-            float y = -2.25f + 1.5f * row;
+            float x = (3f + 2f * column) * ScreenMath.ContentScale;
+            float y = (-2.25f + 1.5f * row) * ScreenMath.ContentScale;
             return Centre + new Vector2(side == ArenaSide.Warm ? -x : x, y);
         }
 
@@ -767,7 +767,7 @@ namespace Game.Cube
             var demonVisual = new GameObject("Visual");
             demonVisual.transform.SetParent(demonObject.transform, false);
             var demonRenderer = demonVisual.AddComponent<SpriteRenderer>();
-            ArtCatalog.Apply(demonRenderer, ArtKey.Demon, new Vector2(1.3f, 1.3f));
+            ArtCatalog.Apply(demonRenderer, ArtKey.Demon, new Vector2(1.3f, 1.3f) * ScreenMath.ContentScale);
             if (material != null) demonRenderer.sharedMaterial = material;
             demonRenderer.color = new Color(0.85f, 0.55f, 1f);
             demonRenderer.sortingOrder = 8;
@@ -800,12 +800,12 @@ namespace Game.Cube
             exitDoor = new GameObject("Exit Door").transform;
             exitDoor.SetParent(root, false);
             exitDoor.position = ExitDoorCentre;
-            ArtCatalog.AddShape(exitDoor, "Frame Top", PartShape.Square, new Vector2(0f, h / 2f + 0.1f), new Vector2(w + 0.3f, 0.2f),
+            ArtCatalog.AddShape(exitDoor, "Frame Top", PartShape.Square, new Vector2(0f, h / 2f + 0.1f * ScreenMath.ContentScale), new Vector2(w + 0.3f * ScreenMath.ContentScale, 0.2f * ScreenMath.ContentScale),
                 new Color(0.92f, 0.88f, 0.78f), 2, material);
-            ArtCatalog.AddShape(exitDoor, "Frame Bottom", PartShape.Square, new Vector2(0f, -h / 2f - 0.1f), new Vector2(w + 0.3f, 0.2f),
+            ArtCatalog.AddShape(exitDoor, "Frame Bottom", PartShape.Square, new Vector2(0f, -h / 2f - 0.1f * ScreenMath.ContentScale), new Vector2(w + 0.3f * ScreenMath.ContentScale, 0.2f * ScreenMath.ContentScale),
                 new Color(0.92f, 0.88f, 0.78f), 2, material);
-            SpriteRenderer arrow = ArtCatalog.AddShape(exitDoor, "Arrow", PartShape.Triangle, new Vector2(w / 2f + 0.55f, 0f),
-                new Vector2(0.5f, 0.45f), new Color(1f, 0.95f, 0.6f, 0.85f), 3, material);
+            SpriteRenderer arrow = ArtCatalog.AddShape(exitDoor, "Arrow", PartShape.Triangle, new Vector2(w / 2f + 0.55f * ScreenMath.ContentScale, 0f),
+                new Vector2(0.5f, 0.45f) * ScreenMath.ContentScale, new Color(1f, 0.95f, 0.6f, 0.85f), 3, material);
             arrow.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // apex up, turned to point out (west)
             RefreshExit();
         }

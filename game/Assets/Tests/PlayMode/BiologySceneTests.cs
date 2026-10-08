@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -22,9 +23,12 @@ namespace Game.Cube.Tests
     /// </summary>
     public class BiologySceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
         private const float Timeout = 6f;
-        private const float ThinDistance = 2.0f;
+        private const float ThinDistance = 2.0f * K;
 
         private Keyboard keyboard;
         private CubeWorld world;
@@ -139,7 +143,7 @@ namespace Game.Cube.Tests
         /// </summary>
         private static Facing FromLane(Vector2 local, out float laneDistance)
         {
-            if (Mathf.Abs(Mathf.Abs(local.y) - BiologyTrial.LaneSideOffset) < 0.01f)
+            if (Mathf.Abs(Mathf.Abs(local.y) - BiologyTrial.LaneSideOffset) < 0.01f * K)
             {
                 laneDistance = Mathf.Abs(local.y);
                 return local.y >= 0f ? Facing.North : Facing.South;
@@ -225,7 +229,7 @@ namespace Game.Cube.Tests
             // The thick-beak extras stay shut for the thin beak.
             BeakGateSpec optional = plan.Gates.First(s => s.Optional);
             GateSlot slot = world.ModuleAt(optional.Screen).Gates[optional.Slot];
-            yield return StrikeFrom(optional.Screen, slot.transform.position, slot.Opening.Opposite(), 1.0f);
+            yield return StrikeFrom(optional.Screen, slot.transform.position, slot.Opening.Opposite(), 1.0f * K);
             Assert.IsFalse(GateFor(optional).IsOpen, "A thick-beak gate ignores the thin beak");
 
             // The trial: two distant buttons, then the flower.
@@ -259,7 +263,7 @@ namespace Game.Cube.Tests
                 BeakGate gate = GateFor(spec);
                 GateSlot slot = world.ModuleAt(spec.Screen).Gates[spec.Slot];
                 for (int hit = 0; hit < gate.HitsToOpen; hit++)
-                    yield return StrikeFrom(spec.Screen, slot.transform.position, slot.Opening.Opposite(), 1.0f);
+                    yield return StrikeFrom(spec.Screen, slot.transform.position, slot.Opening.Opposite(), 1.0f * K);
                 Assert.IsTrue(gate.IsOpen, $"The thick beak breaks {spec}");
                 Assert.IsFalse(gate.Solid.enabled, "The alcove is open");
             }
@@ -271,7 +275,7 @@ namespace Game.Cube.Tests
             var door = (ButtonGate)GateFor(optional);
             Vector2 button = door.Button.transform.position;
             Facing side = button.x >= world.ScreenCenter(optional.Screen).x ? Facing.East : Facing.West;
-            yield return StrikeFrom(optional.Screen, button, side, 0.8f);
+            yield return StrikeFrom(optional.Screen, button, side, 0.8f * K);
             Assert.IsFalse(door.IsOpen, "A thin-beak button ignores the thick beak");
 
             // The trial: a wrong rock resets, then rocks 1, 2, 3 in order.
@@ -282,7 +286,7 @@ namespace Game.Cube.Tests
             IEnumerator Strike(TrialTarget rock)
             {
                 Vector2 local = (Vector2)rock.transform.position - centre;
-                yield return StrikeFrom(plan.TrialScreen, rock.transform.position, FromLane(local, out _), 0.9f);
+                yield return StrikeFrom(plan.TrialScreen, rock.transform.position, FromLane(local, out _), 0.9f * K);
             }
             yield return Strike(trial.Targets[0]);
             Assert.AreEqual(1, trial.Progress);
@@ -381,7 +385,7 @@ namespace Game.Cube.Tests
             }
 
             NpcTalker talker = biology.Finches[0];
-            Vector2 near = (Vector2)talker.transform.position + Vector2.left * 0.9f;
+            Vector2 near = (Vector2)talker.transform.position + Vector2.left * 0.9f * K;
             navigator.TeleportTo(ScreenOf(talker.transform.position, face), Facing.East);
             body.position = near;
             navigator.transform.position = new Vector3(near.x, near.y, navigator.transform.position.z);

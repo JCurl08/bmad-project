@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -141,36 +142,41 @@ namespace Game.Cube
         /// <summary>The calm eye: the face's centre screen ((1,1) at 3x3).</summary>
         public static Vector2Int EyeCell(int faceSize) => new Vector2Int(faceSize / 2, faceSize / 2);
 
-        // Hazard geometry (local to the screen centre; the screen is 16 x 10).
+        // Hazard geometry (local to the screen centre; authored for the first 16 x 10 screens, scaled by ScreenMath.ContentScale).
         /// <summary>Hazard areas stay inside this half-extent (inside the screen, clear of its very edge).</summary>
-        public static readonly Vector2 AreaHalf = new Vector2(7f, 4.4f);
+        public static readonly Vector2 AreaHalf = new Vector2(7f, 4.4f) * ScreenMath.ContentScale;
 
-        public const float WindBandWidth = 2.4f;
-        public static readonly Vector2 SnowSize = new Vector2(5f, 3.4f);
-        public static readonly Vector2 RainSize = new Vector2(6f, 4f);
+        public const float WindBandWidth = 2.4f * ScreenMath.ContentScale;
+        public static readonly Vector2 SnowSize = new Vector2(5f, 3.4f) * ScreenMath.ContentScale;
+        public static readonly Vector2 RainSize = new Vector2(6f, 4f) * ScreenMath.ContentScale;
 
         /// <summary>A crevice strip's lengths, longest first (a shorter one is tried where a longer one fits nowhere), and its thickness.</summary>
-        public static readonly float[] CreviceLengths = { 3f, 2.4f, 1.8f };
+        public static readonly float[] CreviceLengths = { 3f * ScreenMath.ContentScale, 2.4f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale };
 
-        public const float CreviceThickness = 0.6f;
+        public const float CreviceThickness = 0.6f * ScreenMath.ContentScale;
 
         /// <summary>Room a crevice keeps from an exit lane and the edge band (on top of ScreenModule.KeepsExitsOpen).</summary>
-        public const float CreviceLaneMargin = 0.1f;
+        public const float CreviceLaneMargin = 0.1f * ScreenMath.ContentScale;
 
         /// <summary>
         /// Room a crevice keeps from walls and alcoves (a little: whether a gap is left that the player cannot pass is the
         /// flood fill's to judge, and it rejects any strip that cuts a spot off).
         /// </summary>
-        public const float CreviceWallClearance = 0.3f;
+        public const float CreviceWallClearance = 0.3f * ScreenMath.ContentScale;
 
         /// <summary>Room a crevice keeps from a spot something stands on (a gate front, a slot, a trial piece).</summary>
-        public const float CreviceMarkClearance = 0.5f;
+        public const float CreviceMarkClearance = 0.5f * ScreenMath.ContentScale;
 
         /// <summary>How far in front of a gate's opening (toward the lane) its front reaches, and the room others keep from it.</summary>
-        public const float FrontDepth = 0.6f, FrontRadius = 1f;
+        public const float FrontDepth = 0.6f * ScreenMath.ContentScale, FrontRadius = 1f * ScreenMath.ContentScale;
+
+        /// <summary>Crevice centres are tried on a grid of this step over the screen inside its edge band (CreviceBand).</summary>
+        public const float CreviceStep = 0.5f * ScreenMath.ContentScale;
+
+        private static Vector2 CreviceBand => ScreenMath.DefaultScreenSize / 2f - Vector2.one * ScreenModule.EdgeClearance;
 
         /// <summary>The connectivity grid's step.</summary>
-        public const float GridStep = 0.25f;
+        public const float GridStep = 0.25f * ScreenMath.ContentScale;
 
         private readonly List<EarthGateSpec> gates;
         private readonly List<HazardSpec> hazards;
@@ -408,7 +414,7 @@ namespace Game.Cube
             ((ulong)(uint)seed << 32) | (uint)((int)s.Face * 64 + s.Cell.x * 8 + s.Cell.y) | (0x45u << 16);
 
         /// <summary>Room a trial piece keeps from a mark (a gate front, a slot, a button or plate), beyond both radii.</summary>
-        public const float TrialMarkClearance = 0.3f;
+        public const float TrialMarkClearance = 0.3f * ScreenMath.ContentScale;
 
         /// <summary>
         /// The trial's piece spots on a module (local): lane-side spots clear of every mark (gate fronts, hidden-item and
@@ -462,22 +468,22 @@ namespace Game.Cube
                     Vector2 dir;
                     if (horizontal)
                     {
-                        float cy = side * 2.6f;
+                        float cy = side * 2.6f * ScreenMath.ContentScale;
                         area = Rect.MinMaxRect(-AreaHalf.x, cy - WindBandWidth / 2f, AreaHalf.x, cy + WindBandWidth / 2f);
                         dir = new Vector2(along, 0f);
                     }
                     else
                     {
-                        float cx = side * 4.2f;
+                        float cx = side * 4.2f * ScreenMath.ContentScale;
                         area = Rect.MinMaxRect(cx - WindBandWidth / 2f, -AreaHalf.y, cx + WindBandWidth / 2f, AreaHalf.y);
                         dir = new Vector2(0f, along);
                     }
                     return new HazardSpec(s, kind, Clip(area), dir, strength);
                 }
                 case HazardKind.Snow:
-                    return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3.6f, 2.2f), SnowSize)), Vector2.zero, strength);
+                    return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3.6f * ScreenMath.ContentScale, 2.2f * ScreenMath.ContentScale), SnowSize)), Vector2.zero, strength);
                 default:
-                    return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3f, 1.8f), RainSize)), Vector2.zero, strength);
+                    return new HazardSpec(s, kind, Clip(CentredOn(LanePatchCentre(rng, 3f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale), RainSize)), Vector2.zero, strength);
             }
         }
 
@@ -513,9 +519,9 @@ namespace Game.Cube
                 foreach (GateSlot slot in module.Gates)
                     list.Add(new ScreenMark("gate front", FrontLocal((Vector2)slot.transform.position - origin, slot.PocketOffset), FrontRadius));
                 foreach (HiddenItemSlot h in module.HiddenItems)
-                    list.Add(new ScreenMark("hidden-item slot", (Vector2)h.transform.position - origin, 0.6f));
+                    list.Add(new ScreenMark("hidden-item slot", (Vector2)h.transform.position - origin, 0.6f * ScreenMath.ContentScale));
                 foreach (CoreEntranceSlot c in module.CoreEntrances)
-                    list.Add(new ScreenMark("core-entrance slot", (Vector2)c.transform.position - origin, 2f));
+                    list.Add(new ScreenMark("core-entrance slot", (Vector2)c.transform.position - origin, 2f * ScreenMath.ContentScale));
             }
             if (trialSpots != null)
                 foreach (Vector2 p in trialSpots) list.Add(new ScreenMark("Earth trial piece", p, BiologyTrial.PieceBoundRadius));
@@ -541,11 +547,13 @@ namespace Game.Cube
             foreach (float length in CreviceLengths)
             {
                 var candidates = new List<Rect>();
-                for (float x = -6.5f; x <= 6.5f + 1e-4f; x += 0.5f)
-                    for (float y = -3.5f; y <= 3.5f + 1e-4f; y += 0.5f)
+                int nx = Mathf.FloorToInt(CreviceBand.x / CreviceStep + 1e-4f), ny = Mathf.FloorToInt(CreviceBand.y / CreviceStep + 1e-4f);
+                for (int i = -nx; i <= nx; i++)
+                    for (int j = -ny; j <= ny; j++)
                     {
-                        candidates.Add(CentredOn(new Vector2(x, y), new Vector2(length, CreviceThickness)));
-                        candidates.Add(CentredOn(new Vector2(x, y), new Vector2(CreviceThickness, length)));
+                        var c = new Vector2(i * CreviceStep, j * CreviceStep);
+                        candidates.Add(CentredOn(c, new Vector2(length, CreviceThickness)));
+                        candidates.Add(CentredOn(c, new Vector2(CreviceThickness, length)));
                     }
                 rng.Shuffle(candidates);
                 foreach (Rect strip in candidates)
@@ -776,7 +784,7 @@ namespace Game.Cube
                 bool across = a.width >= a.height;
                 float length = across ? a.width : a.height;
                 float half = (across ? a.height : a.width) / 2f;
-                int steps = Mathf.Max(1, Mathf.CeilToInt(length / 0.5f));
+                int steps = Mathf.Max(1, Mathf.CeilToInt(length / (0.5f * ScreenMath.ContentScale)));
                 for (int k = 0; k <= steps; k++)
                 {
                     float t = k / (float)steps;

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -18,6 +19,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class TownSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
 
         private Keyboard keyboard;
@@ -142,7 +146,7 @@ namespace Game.Cube.Tests
                 // Only this NPC active, right next to the player; Interact opens it and walks through every line.
                 foreach (NpcTalker other in npcs)
                     other.gameObject.SetActive(other == target);
-                Vector2 at = (Vector2)navigator.transform.position + new Vector2(1f, 0f);
+                Vector2 at = (Vector2)navigator.transform.position + new Vector2(1f * K, 0f);
                 target.GetComponent<Rigidbody2D>().position = at;
                 target.transform.position = at;
                 yield return new WaitForFixedUpdate();

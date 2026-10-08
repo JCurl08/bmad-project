@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -13,7 +14,7 @@ namespace Game.Cube
     public sealed class FaceSpots
     {
         /// <summary>Minimum distance between two spots on a screen (keeps trial pieces apart for single swings).</summary>
-        public const float MinSpacing = 2.2f;
+        public const float MinSpacing = 2.2f * ScreenMath.ContentScale;
 
         private readonly CubeWorld world;
         private readonly SeededRng rng;

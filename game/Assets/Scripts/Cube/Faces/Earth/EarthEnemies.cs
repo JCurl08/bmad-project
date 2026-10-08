@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -20,7 +21,7 @@ namespace Game.Cube
     {
         public const float SquallHealth = 7f;
         public const float RumblerHealth = 9f;
-        public const float SightRadius = 4f;
+        public const float SightRadius = 4f * ScreenMath.ContentScale;
 
         public static readonly Color SquallColor = new Color(0.7f, 0.8f, 1f);
         public static readonly Color RumblerColor = new Color(0.75f, 0.5f, 0.3f);
@@ -54,7 +55,7 @@ namespace Game.Cube
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
             ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Diamond, Enemy.MarkOffset,
-                new Vector2(0.28f, 0.28f), mark, Enemy.SortingOrder + 1, material);
+                new Vector2(0.28f, 0.28f) * ScreenMath.ContentScale, mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<EarthEnemy>().Kind = kind;
             return enemy;
         }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -30,7 +31,7 @@ namespace Game.Cube
         public static int RumblerCount(int faceSize) => CubeSettings.PerScreen(TunedRumblerCount, faceSize);
 
         /// <summary>NPCs and enemies spawn at least this far beyond a crevice, gate front, trial piece or slot.</summary>
-        public const float KeepOut = 0.9f;
+        public const float KeepOut = 0.9f * ScreenMath.ContentScale;
 
         /// <summary>The calm eye's soft ring (decor only).</summary>
         public static readonly Color EyeColor = new Color(1f, 1f, 0.85f, 0.18f);
@@ -189,7 +190,7 @@ namespace Game.Cube
             var eye = new GameObject("Calm Eye").transform;
             eye.SetParent(root, false);
             eye.position = world.ScreenCenter(Plan.Eye);
-            ArtCatalog.AddShape(eye, "Ring", PartShape.Circle, Vector2.zero, new Vector2(7f, 7f), EyeColor, -9, world.Material);
+            ArtCatalog.AddShape(eye, "Ring", PartShape.Circle, Vector2.zero, new Vector2(7f, 7f) * ScreenMath.ContentScale, EyeColor, -9, world.Material);
             decor.Add(eye);
         }
 

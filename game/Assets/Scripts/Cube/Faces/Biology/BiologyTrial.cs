@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -17,27 +18,27 @@ namespace Game.Cube
         public const int ThinButtons = 2;
 
         /// <summary>Trial pieces sit just beside a centre lane: this far from the screen centre line.</summary>
-        public const float LaneSideOffset = 1.8f;
+        public const float LaneSideOffset = 1.8f * ScreenMath.ContentScale;
 
         /// <summary>Half-size of the clear square a trial piece needs.</summary>
-        public const float PieceHalfSize = 0.4f;
+        public const float PieceHalfSize = 0.4f * ScreenMath.ContentScale;
 
-        /// <summary>Radius of a circle that contains any trial piece (rock 0.7 square: half-diagonal ~0.495).</summary>
-        public const float PieceBoundRadius = 0.5f;
+        /// <summary>Radius of a circle that contains any trial piece (rock 0.7 square: half-diagonal ~0.495; all scaled by ContentScale).</summary>
+        public const float PieceBoundRadius = 0.5f * ScreenMath.ContentScale;
 
         /// <summary>
         /// The longest a swing hitbox can be across, any facing: the thin beak's box (ThinReach + half the default
         /// 1.1 hitbox, by 1.1 wide) has a diagonal of about 3.24; the thick beak's is smaller.
         /// </summary>
-        public const float MaxSwingDiagonal = 3.25f;
+        public const float MaxSwingDiagonal = 3.25f * ScreenMath.ContentScale;
 
         /// <summary>
         /// Minimum distance between two trial pieces: more than a swing hitbox's diagonal plus both pieces' bound
         /// radii, so no single swing (thin or thick beak, any facing) can ever touch two pieces.
         /// </summary>
-        public const float PieceSpacing = MaxSwingDiagonal + 2f * PieceBoundRadius + 0.15f;
+        public const float PieceSpacing = MaxSwingDiagonal + 2f * PieceBoundRadius + 0.15f * ScreenMath.ContentScale;
 
-        private const float SpotStep = 0.25f;
+        private const float SpotStep = 0.25f * ScreenMath.ContentScale;
         private const int PickAttempts = 20;
 
         /// <summary>Pieces needed for a beak's trial.</summary>

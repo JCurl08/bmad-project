@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,8 +12,8 @@ namespace Game.Cube
     public class PickupPopup : MonoBehaviour
     {
         public const float Seconds = 1f;
-        private const float Rise = 0.8f;
-        private const float StartHeight = 1f;
+        private const float Rise = 0.8f * ScreenMath.ContentScale;
+        private const float StartHeight = 1f * ScreenMath.ContentScale;
 
         private static readonly List<PickupPopup> active = new List<PickupPopup>();
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -37,7 +38,7 @@ namespace Game.Cube
         /// <summary>The shoreline: a foam line on the island's edge, and wet sand just inside it.</summary>
         public static readonly Color FoamColor = new Color(0.93f, 0.97f, 1f, 0.9f);
         public static readonly Color WetSandColor = new Color(0.45f, 0.36f, 0.1f, 0.4f);
-        public const float FoamWidth = 0.07f, WetSandWidth = 0.12f;
+        public const float FoamWidth = 0.07f * ScreenMath.ContentScale, WetSandWidth = 0.12f * ScreenMath.ContentScale;
 
         public static readonly Color SignColor = new Color(0.8f, 0.62f, 0.38f);
         public static readonly Color LoneTextColor = new Color(0.8f, 0.92f, 1f);
@@ -193,10 +194,10 @@ namespace Game.Cube
         }
 
         /// <summary>The lookout sign's board (with its dark edge) and where it sits above the sign's spot.</summary>
-        public static readonly Vector2 SignBoardSize = new Vector2(0.86f, 0.54f), SignBoardOffset = new Vector2(0f, 0.1f);
+        public static readonly Vector2 SignBoardSize = new Vector2(0.86f, 0.54f) * ScreenMath.ContentScale, SignBoardOffset = new Vector2(0f, 0.1f) * ScreenMath.ContentScale;
 
         /// <summary>The sign's spot keeps at least this far off the doorway's centre line (the walk in).</summary>
-        public const float SignOffWalk = 0.6f;
+        public const float SignOffWalk = 0.6f * ScreenMath.ContentScale;
 
         /// <summary>The board of a sign standing at a spot (local rect).</summary>
         public static Rect SignBoard(Vector2 spot) => new Rect(spot + SignBoardOffset - SignBoardSize / 2f, SignBoardSize);
@@ -247,7 +248,7 @@ namespace Game.Cube
             Vector2 preferred = r.center + (side.IsHorizontal() ? Vector2.up : Vector2.right) * SignOffWalk;
             Vector2 best = preferred, fallback = preferred;
             float bestDistance = float.MaxValue, fallbackGap = -1f;
-            const float step = 0.05f;
+            const float step = 0.05f * ScreenMath.ContentScale;
             for (float x = r.xMin; x <= r.xMax + 1e-4f; x += step)
                 for (float y = r.yMin; y <= r.yMax + 1e-4f; y += step)
                 {
@@ -359,14 +360,14 @@ namespace Game.Cube
             var go = new GameObject($"Lookout Sign ({side})");
             go.transform.SetParent(transform, false);
             go.transform.localPosition = SignSpot(Layout, side);
-            ArtCatalog.AddShape(go.transform, "Post", PartShape.Square, new Vector2(0f, -0.2f), new Vector2(0.1f, 0.55f),
+            ArtCatalog.AddShape(go.transform, "Post", PartShape.Square, new Vector2(0f, -0.2f) * ScreenMath.ContentScale, new Vector2(0.1f, 0.55f) * ScreenMath.ContentScale,
                 new Color(0.35f, 0.24f, 0.12f), SignOrder, material);
             ArtCatalog.AddShape(go.transform, "Board Edge", PartShape.Square, SignBoardOffset, SignBoardSize,
                 new Color(0.3f, 0.2f, 0.1f), SignOrder + 1, material);
-            ArtCatalog.AddShape(go.transform, "Board", PartShape.Square, new Vector2(0f, 0.1f), new Vector2(0.78f, 0.46f), SignColor,
+            ArtCatalog.AddShape(go.transform, "Board", PartShape.Square, new Vector2(0f, 0.1f) * ScreenMath.ContentScale, new Vector2(0.78f, 0.46f) * ScreenMath.ContentScale, SignColor,
                 SignOrder + 2, material);
-            SpriteRenderer arrow = ArtCatalog.AddShape(go.transform, "Arrow", PartShape.Triangle, new Vector2(0f, 0.1f),
-                new Vector2(0.34f, 0.32f), new Color(0.25f, 0.16f, 0.08f), SignOrder + 3, material);
+            SpriteRenderer arrow = ArtCatalog.AddShape(go.transform, "Arrow", PartShape.Triangle, new Vector2(0f, 0.1f) * ScreenMath.ContentScale,
+                new Vector2(0.34f, 0.32f) * ScreenMath.ContentScale, new Color(0.25f, 0.16f, 0.08f), SignOrder + 3, material);
             arrow.transform.localRotation = Quaternion.Euler(0f, 0f, ScreenEdges.ArchAngle(side));
             return go;
         }
@@ -506,7 +507,7 @@ namespace Game.Cube
             Vector2 art = vertical ? new Vector2(gap.height, gap.width) : gap.size;
             span.hole = ArtCatalog.AddSprite(go.transform, "Hole", ArtKey.GateGap, Vector2.zero, art, GapGate.GapColor * 1.6f, -8, material, false);
             if (vertical) span.hole.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-            span.mark = ArtCatalog.AddShape(go.transform, "Gap Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.3f, 0.3f),
+            span.mark = ArtCatalog.AddShape(go.transform, "Gap Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.3f, 0.3f) * ScreenMath.ContentScale,
                 GapCrosserItem.ItemColor, -6, material);
             return span;
         }

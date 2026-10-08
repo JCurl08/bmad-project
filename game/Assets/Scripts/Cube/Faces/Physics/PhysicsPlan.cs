@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -38,37 +39,37 @@ namespace Game.Cube
         public const int TrialRequired = 2;
 
         /// <summary>Minimum centre distance between a placed thing and any other interactable (the 1.9 spot rule).</summary>
-        public const float MinGap = 1.05f;
+        public const float MinGap = 1.05f * ScreenMath.ContentScale;
 
         /// <summary>Extra room kept between the edges of two placed things.</summary>
-        public const float GapMargin = 0.25f;
+        public const float GapMargin = 0.25f * ScreenMath.ContentScale;
 
         /// <summary>Minimum distance between two boulders' starting spots.</summary>
-        public const float BoulderSpacing = 1.0f;
+        public const float BoulderSpacing = 1.0f * ScreenMath.ContentScale;
 
         /// <summary>Boulders start at least this far beyond a door's time field.</summary>
-        public const float FieldClearance = 0.25f;
+        public const float FieldClearance = 0.25f * ScreenMath.ContentScale;
 
         /// <summary>A switch must be at least this many seconds' walk from its door.</summary>
         public const float MinWalkSeconds = 0.9f;
 
         /// <summary>Boulders counted as "near a door" sit this far inside its field (for room and reachability).</summary>
-        public const float NearMargin = 0.45f;
+        public const float NearMargin = 0.45f * ScreenMath.ContentScale;
 
         // Booth geometry (local, for a booth above the horizontal lane; mirrored below it).
-        public const float BoothInner = 1.2f;
-        public const float BoothWall = 0.15f;
-        public const float BoothNearY = 1.3f;
+        public const float BoothInner = 1.2f * ScreenMath.ContentScale;
+        public const float BoothWall = 0.15f * ScreenMath.ContentScale;
+        public const float BoothNearY = 1.3f * ScreenMath.ContentScale;
         public static float BoothOuter => BoothInner + 2f * BoothWall;
         public static float BoothDoorY => BoothNearY + BoothWall / 2f;
         public static float BoothFarY => BoothNearY + BoothOuter;
 
-        private const float GridStep = 0.25f;
-        private const float BoulderHalf = Boulder.Radius + 0.05f;
+        private const float GridStep = 0.25f * ScreenMath.ContentScale;
+        private const float BoulderHalf = Boulder.Radius + 0.05f * ScreenMath.ContentScale;
         private const int TrialAttempts = 40;
 
         /// <summary>Lane x distances (far side of the door) tried for a switch, farthest first.</summary>
-        private static readonly float[] SwitchLaneX = { 6.3f, 5.6f, 4.9f, 4.2f, 3.5f };
+        private static readonly float[] SwitchLaneX = { 6.3f * ScreenMath.ContentScale, 5.6f * ScreenMath.ContentScale, 4.9f * ScreenMath.ContentScale, 4.2f * ScreenMath.ContentScale, 3.5f * ScreenMath.ContentScale };
 
         private readonly List<TimedDoorSpec> doors;
         private readonly Dictionary<ScreenAddress, ScreenContext> contexts;
@@ -321,7 +322,7 @@ namespace Game.Cube
                     {
                         if (Vector2.Distance(booth.Layout.FieldLocal, Trial.Booths[j].Layout.FieldLocal) < 2f * TimeField.FieldRadius)
                             problems.Add($"{what} and booth {j} share a time field (no need to move the boulders)");
-                        if (Grow(booth.Footprint, 0.5f).Overlaps(Trial.Booths[j].Footprint)) problems.Add($"{what} touches booth {j}");
+                        if (Grow(booth.Footprint, 0.5f * ScreenMath.ContentScale).Overlaps(Trial.Booths[j].Footprint)) problems.Add($"{what} touches booth {j}");
                     }
                     problems.AddRange(DoorProblems(what, booth.Layout, ctx, booths));
                     bool[] reach = grid.ReachableTo(booth.Layout);
@@ -463,8 +464,8 @@ namespace Game.Cube
         public static bool PathClear(Vector2 a, Vector2 b, List<Rect> blocked, List<Rect> booths)
         {
             float length = Vector2.Distance(a, b);
-            int steps = Mathf.Max(1, Mathf.CeilToInt(length / 0.1f));
-            float r = TimeField.PlayerRadius - 0.02f;
+            int steps = Mathf.Max(1, Mathf.CeilToInt(length / (0.1f * ScreenMath.ContentScale)));
+            float r = TimeField.PlayerRadius - 0.02f * ScreenMath.ContentScale;
             for (int i = 0; i <= steps; i++)
             {
                 Vector2 p = Vector2.Lerp(a, b, i / (float)steps);

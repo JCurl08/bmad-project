@@ -27,7 +27,7 @@ namespace Game.Cube
         public static int LooseEndCount(int faceSize) => CubeSettings.PerScreen(TunedLooseEndCount, faceSize);
 
         /// <summary>NPCs and enemies spawn at least this far beyond a slot or interactable (a portal, a hidden item, a plate).</summary>
-        public const float SlotKeepOut = 1.2f;
+        public const float SlotKeepOut = FaceContent.SlotKeepOut;
 
         [SerializeField] private Transform player;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;

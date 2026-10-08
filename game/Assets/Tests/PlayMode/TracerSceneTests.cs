@@ -49,7 +49,7 @@ namespace Game.Tracer.Tests
             Vector3 actual = screenCamera.transform.position;
             Assert.AreEqual(expected.x, actual.x, 1e-4f, "Camera x not centred on the screen");
             Assert.AreEqual(expected.y, actual.y, 1e-4f, "Camera y not centred on the screen");
-            Assert.AreEqual(5f, screenCamera.GetComponent<Camera>().orthographicSize, 1e-4f, "Camera must show one 16x10 screen");
+            Assert.AreEqual(ScreenMath.DefaultScreenSize.y / 2f, screenCamera.GetComponent<Camera>().orthographicSize, 1e-4f, "Camera must show one 24x15 screen");
         }
 
         [UnityTest]
@@ -58,19 +58,19 @@ namespace Game.Tracer.Tests
             yield return LoadTracerScene();
 
             // Walk across: hold right through the doorway into screen B.
-            yield return this.HoldUntil(keyboard.dKey, () => player.position.x > 18f, Timeout);
+            yield return this.HoldUntil(keyboard.dKey, () => player.position.x > 18f * ScreenMath.ContentScale, Timeout);
             yield return null;
             yield return null;
 
-            Assert.Greater(player.position.x, 18f, "Player did not reach screen B");
+            Assert.Greater(player.position.x, 18f * ScreenMath.ContentScale, "Player did not reach screen B");
             AssertCameraOnScreen(new Vector2Int(1, 0));
 
             // Walk back: hold left into screen A.
-            yield return this.HoldUntil(keyboard.aKey, () => player.position.x < 14f, Timeout);
+            yield return this.HoldUntil(keyboard.aKey, () => player.position.x < 14f * ScreenMath.ContentScale, Timeout);
             yield return null;
             yield return null;
 
-            Assert.Less(player.position.x, 14f, "Player did not return to screen A");
+            Assert.Less(player.position.x, 14f * ScreenMath.ContentScale, "Player did not return to screen A");
             AssertCameraOnScreen(new Vector2Int(0, 0));
         }
 
@@ -85,8 +85,8 @@ namespace Game.Tracer.Tests
             yield return WaitRealSeconds(1.5f);
 
             Vector3 p = player.position;
-            const float wallInner = 1f;   // wall thickness
-            const float radius = 0.4f;    // player collider radius
+            const float wallInner = 1f * ScreenMath.ContentScale;   // wall thickness (the scene's walls scale with the screen)
+            const float radius = 0.4f * ScreenMath.ContentScale;    // player collider radius
             const float tolerance = 0.05f;
             Assert.GreaterOrEqual(p.x, wallInner + radius - tolerance, "Player passed through the left wall");
             Assert.GreaterOrEqual(p.y, wallInner + radius - tolerance, "Player passed through the bottom wall");
@@ -99,7 +99,7 @@ namespace Game.Tracer.Tests
             Press(keyboard.wKey, queueEventOnly: true);
             yield return WaitRealSeconds(1.5f);
             Release(keyboard.wKey, queueEventOnly: true);
-            Assert.LessOrEqual(player.position.y, 10f - wallInner - radius + tolerance, "Player passed through the top wall");
+            Assert.LessOrEqual(player.position.y, ScreenMath.DefaultScreenSize.y - wallInner - radius + tolerance, "Player passed through the top wall");
             Assert.AreEqual(new Vector2Int(0, 0), screenCamera.CurrentScreen);
         }
     }

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
@@ -16,6 +17,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class NpcComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-5000f, 5000f);
         private static readonly string[] TestLines = { "one", "two", "three" };
 
@@ -30,7 +34,7 @@ namespace Game.Cube.Tests
             base.Setup();
             keyboard = InputSystem.AddDevice<Keyboard>();
             player = Track(new GameObject("Test Player")).transform;
-            player.position = Origin + new Vector2(1f, 0f);
+            player.position = Origin + new Vector2(1f * K, 0f);
             box = Track(new GameObject("Test Dialogue Box")).AddComponent<DialogueBox>();
             relations = new RaceRelations();
         }
@@ -49,7 +53,7 @@ namespace Game.Cube.Tests
             return o;
         }
 
-        private static Rect BoundsAround(Vector2 centre) => new Rect(centre - new Vector2(4f, 3f), new Vector2(8f, 6f));
+        private static Rect BoundsAround(Vector2 centre) => new Rect(centre - new Vector2(4f * K, 3f * K), new Vector2(8f * K, 6f * K));
 
         private NpcTalker MakeNpc(Movement movement, Vector2 position, Race race = Race.Mushroom)
         {
@@ -59,6 +63,37 @@ namespace Game.Cube.Tests
             Track(npc.gameObject);
             npc.Box = box;
             return npc;
+        }
+
+        /// <summary>Canvas pixels per world unit on the 960x600 canvas for a screen this many units high.</summary>
+        private static float PixelsPerUnit(float screenHeight) => 600f / screenHeight;
+
+        [UnityTest]
+        public IEnumerator People_AreDrawnAThirdLargerOnTheCanvas_ThanOnTheFirstScreens_WithTheirCollidersUnchanged()
+        {
+            // 4.1 review: people read about 1.33x larger on the canvas than on the first 16x10 screens; visual only.
+            Assert.AreEqual(4f / 3f, CubeSettings.PeopleArtScale, 1e-5f);
+            NpcTalker npc = MakeNpc(Movement.Stand, Origin);
+            Enemy enemy = Track(Enemy.Spawn(null, Origin + new Vector2(6f * K, 0f), BoundsAround(Origin)).gameObject).GetComponent<Enemy>();
+            yield return null;
+
+            // NPC: the parts' authored height (first screens' units) against the drawn height.
+            NpcSpec spec = npc.Spec;
+            float authored = spec.Legs.Size.y + spec.Torso.Size.y + spec.Head.Size.y;
+            SpriteRenderer[] parts = npc.GetComponentsInChildren<SpriteRenderer>();
+            float top = parts.Max(p => p.bounds.max.y), bottom = parts.Min(p => p.bounds.min.y);
+            float drawn = top - bottom;
+            float canvasRatio = drawn * PixelsPerUnit(CubeWorld.ScreenSize.y) / (authored * PixelsPerUnit(10f));
+            Assert.AreEqual(CubeSettings.PeopleArtScale, canvasRatio, 0.01f, "An NPC reads 1.33x as tall on the canvas as before");
+            var box = npc.GetComponent<BoxCollider2D>();
+            Assert.AreEqual(authored * ScreenMath.ContentScale, box.size.y, 1e-3f, "Its collider only scales with the screen");
+            Assert.AreEqual(NpcFactory.BodyWidth, box.size.x, 1e-4f);
+
+            // Enemy: art against its body.
+            SpriteRenderer art = enemy.transform.Find("Visual").GetComponent<SpriteRenderer>();
+            float enemyRatio = art.bounds.size.y * PixelsPerUnit(CubeWorld.ScreenSize.y) / (0.95f * PixelsPerUnit(10f));
+            Assert.AreEqual(CubeSettings.PeopleArtScale, enemyRatio, 0.01f, "An enemy reads 1.33x as big on the canvas as before");
+            Assert.AreEqual(0.4f * ScreenMath.ContentScale, enemy.GetComponent<CircleCollider2D>().radius, 1e-4f, "Its collider only scales with the screen");
         }
 
         [UnityTest]
@@ -99,7 +134,7 @@ namespace Game.Cube.Tests
         public IEnumerator Interact_OutOfRange_DoesNothing()
         {
             MakeNpc(Movement.Stand, Origin);
-            player.position = Origin + new Vector2(NpcTalker.DefaultRange + 1f, 0f);
+            player.position = Origin + new Vector2(NpcTalker.DefaultRange + 1f * K, 0f);
             yield return null;
 
             yield return this.Tap(keyboard.eKey);
@@ -132,7 +167,7 @@ namespace Game.Cube.Tests
         public IEnumerator StandLegs_StayPut()
         {
             NpcTalker npc = MakeNpc(Movement.Stand, Origin);
-            player.position = Origin + new Vector2(0.5f, 0f);
+            player.position = Origin + new Vector2(0.5f * K, 0f);
             yield return new WaitForSeconds(1f);
             Assert.Less(Vector2.Distance(npc.transform.position, Origin), 1e-3f);
         }
@@ -153,7 +188,7 @@ namespace Game.Cube.Tests
                 Assert.IsTrue(at.x >= bounds.xMin - 1e-3f && at.x <= bounds.xMax + 1e-3f &&
                               at.y >= bounds.yMin - 1e-3f && at.y <= bounds.yMax + 1e-3f, $"Wandered out of bounds to {at}");
             }
-            Assert.Greater(furthest, 0.5f, "Wander legs never moved");
+            Assert.Greater(furthest, 0.5f * K, "Wander legs never moved");
         }
 
         private GameObject MakeWall(Vector2 centre, Vector2 size)
@@ -176,7 +211,7 @@ namespace Game.Cube.Tests
 
         private static void AssertInside(Bounds b, Rect interior, string what)
         {
-            const float tolerance = 0.05f;
+            const float tolerance = 0.05f * K;
             Assert.IsTrue(b.min.x >= interior.xMin - tolerance && b.max.x <= interior.xMax + tolerance &&
                           b.min.y >= interior.yMin - tolerance && b.max.y <= interior.yMax + tolerance,
                 $"{what}: NPC collider {b.min}..{b.max} entered a wall or gate (interior {interior})");
@@ -187,11 +222,11 @@ namespace Game.Cube.Tests
         {
             // A pen around Origin: walls left, top and bottom, a closed gate on the right. The mover's bounds
             // (8 x 6) are much larger, so only the colliders keep it in.
-            var interior = new Rect(Origin + new Vector2(-1.5f, -0.5f), new Vector2(3f, 2.4f));
-            MakeWall(Origin + new Vector2(-1.6f, 0.7f), new Vector2(0.2f, 3f));
-            MakeWall(Origin + new Vector2(0f, -0.6f), new Vector2(3.4f, 0.2f));
-            MakeWall(Origin + new Vector2(0f, 2.0f), new Vector2(3.4f, 0.2f));
-            Gate gate = MakeClosedGate(Origin + new Vector2(1.6f, 0.7f), new Vector2(0.2f, 3f));
+            var interior = new Rect(Origin + new Vector2(-1.5f * K, -0.5f * K), new Vector2(3f * K, 2.4f * K));
+            MakeWall(Origin + new Vector2(-1.6f * K, 0.7f * K), new Vector2(0.2f * K, 3f * K));
+            MakeWall(Origin + new Vector2(0f, -0.6f * K), new Vector2(3.4f * K, 0.2f * K));
+            MakeWall(Origin + new Vector2(0f, 2.0f * K), new Vector2(3.4f * K, 0.2f * K));
+            Gate gate = MakeClosedGate(Origin + new Vector2(1.6f * K, 0.7f * K), new Vector2(0.2f * K, 3f * K));
             NpcTalker npc = MakeNpc(Movement.Wander, Origin);
             player.position = Origin + new Vector2(100f, 0f);
             var body = npc.GetComponent<Collider2D>();
@@ -204,26 +239,26 @@ namespace Game.Cube.Tests
                 furthest = Mathf.Max(furthest, Vector2.Distance(npc.transform.position, Origin));
             }
             Assert.IsFalse(gate.IsOpen, "An NPC must not open a gate");
-            Assert.Greater(furthest, 0.3f, "Wander legs never moved inside the pen");
+            Assert.Greater(furthest, 0.3f * K, "Wander legs never moved inside the pen");
         }
 
         [UnityTest]
         public IEnumerator FleeLegs_StopAtAWall()
         {
-            MakeWall(Origin + new Vector2(-1.2f, 0.5f), new Vector2(0.2f, 4f));
+            MakeWall(Origin + new Vector2(-1.2f * K, 0.5f * K), new Vector2(0.2f * K, 4f * K));
             NpcTalker npc = MakeNpc(Movement.Flee, Origin);
-            player.position = Origin + new Vector2(0.8f, 0.5f);
+            player.position = Origin + new Vector2(0.8f * K, 0.5f * K);
             yield return new WaitForSeconds(1f);
             Bounds b = npc.GetComponent<Collider2D>().bounds;
-            Assert.GreaterOrEqual(b.min.x, Origin.x - 1.1f - 0.05f, "Fled through the wall");
-            Assert.Less(npc.transform.position.x, Origin.x - 0.3f, "Did not flee toward the wall at all");
+            Assert.GreaterOrEqual(b.min.x, Origin.x - 1.1f * K - 0.05f * K, "Fled through the wall");
+            Assert.Less(npc.transform.position.x, Origin.x - 0.3f * K, "Did not flee toward the wall at all");
         }
 
         [UnityTest]
         public IEnumerator SeveralInRange_OnlyTheNearestAnswers()
         {
             MakeNpc(Movement.Stand, Origin, Race.Finch);                              // 1.0 from the player
-            NpcTalker near = MakeNpc(Movement.Stand, Origin + new Vector2(1.8f, 0f), Race.Alien); // 0.8
+            NpcTalker near = MakeNpc(Movement.Stand, Origin + new Vector2(1.8f * K, 0f), Race.Alien); // 0.8
             yield return null;
 
             yield return this.Tap(keyboard.eKey);
@@ -247,7 +282,7 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator HostileInRange_DoesNotRefuse_PressesThatAdvanceAnotherConversation()
         {
-            NpcTalker hostile = MakeNpc(Movement.Stand, Origin + new Vector2(1.8f, 0f), Race.Shape); // nearest
+            NpcTalker hostile = MakeNpc(Movement.Stand, Origin + new Vector2(1.8f * K, 0f), Race.Shape); // nearest
             NpcTalker friend = MakeNpc(Movement.Stand, Origin, Race.Finch);
             int refused = 0;
             hostile.Refused += _ => refused++;
@@ -282,15 +317,15 @@ namespace Game.Cube.Tests
         {
             NpcTalker npc = MakeNpc(Movement.Flee, Origin);
             NpcMover mover = npc.GetComponent<NpcMover>();
-            player.position = Origin + new Vector2(mover.FleeRadius + 3f, 0f);
+            player.position = Origin + new Vector2(mover.FleeRadius + 3f * K, 0f);
             yield return new WaitForSeconds(0.5f);
             Assert.Less(Vector2.Distance(npc.transform.position, Origin), 1e-3f, "Flee legs moved with nobody near");
 
-            player.position = Origin + new Vector2(1f, 0f);
+            player.position = Origin + new Vector2(1f * K, 0f);
             yield return new WaitForSeconds(0.6f);
             Vector2 at = npc.transform.position;
-            Assert.Greater(Vector2.Distance(at, player.position), 2f, "Did not get away from the player");
-            Assert.Less(at.x, Origin.x - 0.5f, "Did not flee away from the player (westward)");
+            Assert.Greater(Vector2.Distance(at, player.position), 2f * K, "Did not get away from the player");
+            Assert.Less(at.x, Origin.x - 0.5f * K, "Did not flee away from the player (westward)");
             Assert.IsTrue(mover.Bounds.Contains(at) || Mathf.Approximately(at.x, mover.Bounds.xMin), "Fled out of bounds");
         }
     }

@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -9,7 +10,7 @@ namespace Game.Cube
     /// </summary>
     public class BeakButton : MonoBehaviour, IAttackReceiver
     {
-        public const float Radius = 0.35f;
+        public const float Radius = 0.35f * ScreenMath.ContentScale;
         public static readonly Color UpColor = new Color(0.95f, 0.3f, 0.35f);
         public static readonly Color DownColor = new Color(0.35f, 0.85f, 0.4f);
 

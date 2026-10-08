@@ -20,6 +20,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class EarthSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
 
         private Keyboard keyboard;
@@ -91,7 +94,7 @@ namespace Game.Cube.Tests
             if (navigator.Current != screen) navigator.TeleportTo(screen, Facing.East);
             yield return this.TapThroughPhysics(KeyFor(keyboard, toward));
             yield return new WaitForSeconds(attack.Cooldown + 0.02f);
-            yield return PutPlayerAt(screen, (Vector2)slot.transform.position - (Vector2)toward.ToVector() * 1.0f);
+            yield return PutPlayerAt(screen, (Vector2)slot.transform.position - (Vector2)toward.ToVector() * 1.0f * K);
             attack.TryAttack();
             yield return null;
         }
@@ -100,14 +103,14 @@ namespace Game.Cube.Tests
         private static Vector2 FreePointIn(Rect area)
         {
             Physics2D.SyncTransforms();
-            for (float r = 0f; r < Mathf.Max(area.width, area.height); r += 0.25f)
+            for (float r = 0f; r < Mathf.Max(area.width, area.height); r += 0.25f * K)
                 for (int k = 0; k < 16; k++)
                 {
                     float a = k * Mathf.PI / 8f;
                     Vector2 p = area.center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
-                    if (!area.Contains(p) || p.x < area.xMin + 0.5f || p.x > area.xMax - 0.5f || p.y < area.yMin + 0.5f || p.y > area.yMax - 0.5f)
+                    if (!area.Contains(p) || p.x < area.xMin + 0.5f * K || p.x > area.xMax - 0.5f * K || p.y < area.yMin + 0.5f * K || p.y > area.yMax - 0.5f * K)
                         continue;
-                    if (Physics2D.OverlapCircleAll(p, 0.5f).All(c => c.isTrigger || c.GetComponentInParent<CubeNavigator>() != null)) return p;
+                    if (Physics2D.OverlapCircleAll(p, 0.5f * K).All(c => c.isTrigger || c.GetComponentInParent<CubeNavigator>() != null)) return p;
                 }
             return area.center;
         }
@@ -177,13 +180,13 @@ namespace Game.Cube.Tests
                 ScreenModule module = world.ModuleAt(screen);
                 Vector2 feet = (Vector2)npc.transform.position - world.ScreenCenter(screen);
                 foreach (ScreenMark m in FaceContent.SlotMarks(module))
-                    Assert.GreaterOrEqual(Vector2.Distance(feet, m.Local), m.Radius + FaceContent.SlotKeepOut - 0.3f,
+                    Assert.GreaterOrEqual(Vector2.Distance(feet, m.Local), m.Radius + FaceContent.SlotKeepOut - 0.3f * K,
                         $"{npc.name} on {screen} stands on a {m.What}");
             }
             foreach (NpcTalker dino in earth.Dinosaurs)
             {
                 ScreenAddress screen = new ScreenAddress(face, world.CellAt(face, dino.transform.position));
-                Assert.IsFalse(plan.NearCrevice(screen, (Vector2)dino.transform.position - world.ScreenCenter(screen), 0.4f),
+                Assert.IsFalse(plan.NearCrevice(screen, (Vector2)dino.transform.position - world.ScreenCenter(screen), 0.4f * K),
                     $"{dino.name} spawned on a crevice");
             }
         }
@@ -235,7 +238,7 @@ namespace Game.Cube.Tests
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
             Assert.IsFalse(mover.Modifier.IsNone, "In the band the wind reaches the mover");
-            Assert.Greater(Vector2.Dot(body.linearVelocity, band.Direction), 0.5f, "Pushed along the band");
+            Assert.Greater(Vector2.Dot(body.linearVelocity, band.Direction), 0.5f * K, "Pushed along the band");
             Assert.AreEqual(TimeField.BasePlayerSpeed, mover.EffectiveSpeed, 1e-4f, "EffectiveSpeed (the Physics doors' maths) is untouched");
 
             // The calm eye: nothing.

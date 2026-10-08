@@ -233,9 +233,9 @@ namespace Game.Cube
             if (module == null) return list;
             Vector2 origin = module.transform.position;
             foreach (HiddenItemSlot h in module.HiddenItems)
-                list.Add(new ScreenMark("hidden-item slot", (Vector2)h.transform.position - origin, 0.45f));
+                list.Add(new ScreenMark("hidden-item slot", (Vector2)h.transform.position - origin, FaceContent.HiddenSlotRadius));
             foreach (CoreEntranceSlot c in module.CoreEntrances)
-                list.Add(new ScreenMark("core-entrance slot", (Vector2)c.transform.position - origin, 0.6f));
+                list.Add(new ScreenMark("core-entrance slot", (Vector2)c.transform.position - origin, FaceContent.CoreSlotRadius));
             return list;
         }
 

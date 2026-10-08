@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -45,7 +46,7 @@ namespace Game.Cube
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
             Color mark = item != null ? item.PlaceholderColor : Color.white;
-            AddSprite(block.transform, "Beak Mark", PartShape.Triangle, Vector2.zero, new Vector2(0.35f, 0.35f), mark, -3, material);
+            AddSprite(block.transform, "Beak Mark", PartShape.Triangle, Vector2.zero, new Vector2(0.35f, 0.35f) * ScreenMath.ContentScale, mark, -3, material);
             ArtCatalog.DressGate(gate, look == BreakableLook.Pot ? ArtKey.GatePot : ArtKey.GateRock);
             return gate;
         }

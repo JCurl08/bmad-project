@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -82,7 +83,7 @@ namespace Game.Cube
             sw.top = ArtCatalog.AddSprite(go.transform, "Top", ArtKey.DoorSwitch, Vector2.zero,
                 new Vector2(TimeField.SwitchRadius * 2.2f, TimeField.SwitchRadius * 2.2f), PadColor, -2, material);
             // A clock hand: this switch starts a door's clock.
-            BeakGate.AddSprite(go.transform, "Hand", PartShape.Square, new Vector2(0f, 0.09f), new Vector2(0.05f, 0.2f),
+            BeakGate.AddSprite(go.transform, "Hand", PartShape.Square, new Vector2(0f, 0.09f) * ScreenMath.ContentScale, new Vector2(0.05f, 0.2f) * ScreenMath.ContentScale,
                 new Color(0.1f, 0.1f, 0.15f), -1, material);
             return sw;
         }

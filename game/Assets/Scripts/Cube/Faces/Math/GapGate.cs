@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -28,8 +29,8 @@ namespace Game.Cube
         public static readonly Color GapColor = new Color(0.25f, 0.2f, 0.18f);
 
         /// <summary>How far in front of the opening (toward the lane) the gap's front reaches, and the room other content keeps from it.</summary>
-        public const float FrontDepth = 0.6f;
-        public const float FrontRadius = 1.0f;
+        public const float FrontDepth = 0.6f * ScreenMath.ContentScale;
+        public const float FrontRadius = 1.0f * ScreenMath.ContentScale;
 
         [SerializeField] private Material crossingMaterial;
 
@@ -60,7 +61,7 @@ namespace Game.Cube
             // The crossing: a plank laid across the gap, from the lane into the pocket.
             Vector2 size = Solid.size;
             bool across = size.x >= size.y;
-            Vector2 plank = across ? new Vector2(0.9f, 1.3f) : new Vector2(1.3f, 0.9f);
+            Vector2 plank = across ? new Vector2(0.9f, 1.3f) * ScreenMath.ContentScale : new Vector2(1.3f, 0.9f) * ScreenMath.ContentScale;
             Vector2 at = Visual != null ? (Vector2)Visual.transform.localPosition : Vector2.zero;
             Crossing = ArtCatalog.AddSprite(transform, "Crossing", ArtKey.PlankBridge, at, across ? new Vector2(plank.y, plank.x) : plank,
                 Color.white, ArtCatalog.GateArtOrder + 1, crossingMaterial, false);
@@ -74,7 +75,7 @@ namespace Game.Cube
             gate.crossingMaterial = material;
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
-            BeakGate.AddSprite(block.transform, "Gap Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.32f, 0.32f),
+            BeakGate.AddSprite(block.transform, "Gap Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.32f, 0.32f) * ScreenMath.ContentScale,
                 item != null ? item.PlaceholderColor : GapCrosserItem.ItemColor, -3, material);
             ArtCatalog.DressGate(gate, ArtKey.GateGap);
             return gate;

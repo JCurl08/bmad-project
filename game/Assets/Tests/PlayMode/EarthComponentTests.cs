@@ -22,6 +22,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class EarthComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-9000f, -7000f);
 
         private readonly List<Object> created = new List<Object>();
@@ -58,7 +61,7 @@ namespace Game.Cube.Tests
             var body = go.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f;
             body.freezeRotation = true;
-            go.AddComponent<CircleCollider2D>().radius = 0.4f;
+            go.AddComponent<CircleCollider2D>().radius = 0.4f * K;
             go.AddComponent<PlayerMover>();
             go.AddComponent<Inventory>();
             go.AddComponent<Health>();
@@ -102,9 +105,9 @@ namespace Game.Cube.Tests
         {
             foreach (Phenomenon kind in StormcallerItem.VariantOrder)
             {
-                Vector2 at = Origin + new Vector2((int)kind * 20f, 0f);
+                Vector2 at = Origin + new Vector2((int)kind * 20f * K, 0f);
                 GameObject player = Player(at);
-                GameObject block = Block(at + Vector2.down * 1.1f);
+                GameObject block = Block(at + Vector2.down * 1.1f * K);
                 PhenomenonGate gate = PhenomenonGate.Build(kind, block, wands[kind], false, null);
                 Assert.AreEqual(kind, gate.Kind);
                 Assert.AreEqual(PhenomenonGate.ArtOf(kind) == ArtKey.GateRockPillars, gate is RockPillarGate);
@@ -151,7 +154,7 @@ namespace Game.Cube.Tests
         public IEnumerator FrozenWater_IsWalkableOnceFrozen()
         {
             GameObject player = Player(Origin + new Vector2(200f, 0f));
-            GameObject block = Block(player.transform.position + Vector3.down * 1.1f);
+            GameObject block = Block(player.transform.position + Vector3.down * 1.1f * K);
             FrozenWaterGate gate = FrozenWaterGate.Build(block, wands[Phenomenon.Snow], false, null);
             yield return null;
             Swing(player, wands[Phenomenon.Snow]);
@@ -162,10 +165,10 @@ namespace Game.Cube.Tests
             Vector2 start = body.position;
             for (int i = 0; i < 25; i++)
             {
-                body.linearVelocity = Vector2.down * 4f;
+                body.linearVelocity = Vector2.down * 4f * K;
                 yield return new WaitForFixedUpdate();
             }
-            Assert.Less(body.position.y, start.y - 1.5f, "The player crossed the frozen water");
+            Assert.Less(body.position.y, start.y - 1.5f * K, "The player crossed the frozen water");
         }
 
         // ---------- Hazards ----------
@@ -177,23 +180,23 @@ namespace Game.Cube.Tests
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
             var mover = player.GetComponent<PlayerMover>();
-            WindBand band = Track(WindBand.Create(null, default, new Rect(at - new Vector2(6f, 1.5f), new Vector2(12f, 3f)), Vector2.right,
+            WindBand band = Track(WindBand.Create(null, default, new Rect(at - new Vector2(6f * K, 1.5f * K), new Vector2(12f * K, 3f * K)), Vector2.right,
                 EarthPlan.WindPush(EarthPlan.MaxLevel), null)).GetComponent<WindBand>();
             Track(band.gameObject);
             yield return Steps(10);
 
             float push = EarthPlan.WindPush(EarthPlan.MaxLevel) * mover.EffectiveSpeed;
             Assert.AreEqual(push, body.linearVelocity.x, 0.05f, "Pushed along the band at its strength");
-            Assert.AreEqual(0f, body.linearVelocity.y, 0.05f);
+            Assert.AreEqual(0f, body.linearVelocity.y, 0.05f * K);
             Assert.LessOrEqual(body.linearVelocity.magnitude, PlayerMover.MaxPushFraction * mover.EffectiveSpeed + 1e-3f, "A bounded push");
             Assert.AreEqual(TimeField.BasePlayerSpeed, mover.EffectiveSpeed, 1e-4f, "The hazard never changes EffectiveSpeed");
             Assert.Greater(body.position.x, at.x, "It moved with the wind");
 
             // A wall downwind: the player is pressed against it, never through it.
-            float wallX = body.position.x + 2f;
-            Block(new Vector2(wallX + 0.5f, at.y), new Vector2(1f, 4f));
+            float wallX = body.position.x + 2f * K;
+            Block(new Vector2(wallX + 0.5f * K, at.y), new Vector2(1f * K, 4f * K));
             yield return Steps(150);
-            Assert.Less(body.position.x, wallX - 0.35f, "Never pushed through the wall");
+            Assert.Less(body.position.x, wallX - 0.35f * K, "Never pushed through the wall");
         }
 
         [UnityTest]
@@ -202,7 +205,7 @@ namespace Game.Cube.Tests
             Vector2 at = Origin + new Vector2(400f, 0f);
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
-            Track(WindBand.Create(null, default, new Rect(at - new Vector2(8f, 1.5f), new Vector2(16f, 3f)), Vector2.left,
+            Track(WindBand.Create(null, default, new Rect(at - new Vector2(8f * K, 1.5f * K), new Vector2(16f * K, 3f * K)), Vector2.left,
                 EarthPlan.WindPush(EarthPlan.MaxLevel), null).gameObject);
             yield return null;
             Press(keyboard.dKey, queueEventOnly: true);
@@ -211,7 +214,7 @@ namespace Game.Cube.Tests
             yield return null; // input state is only valid in the dynamic update
             Release(keyboard.dKey, queueEventOnly: true);
             yield return null;
-            Assert.Greater(body.position.x, at.x + 1f, "Walking into the wind still gets somewhere");
+            Assert.Greater(body.position.x, at.x + 1f * K, "Walking into the wind still gets somewhere");
 
             // Pure: at every level and speed, against the strongest push a hazard may give, the walk still goes forward.
             foreach (float speed in new[] { 6f, 9f, 12f })
@@ -234,27 +237,27 @@ namespace Game.Cube.Tests
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
             var mover = player.GetComponent<PlayerMover>();
-            Track(SnowPatch.Create(null, default, new Rect(at - new Vector2(3f, 3f), new Vector2(6f, 6f)), EarthPlan.SnowGrip(EarthPlan.MaxLevel),
+            Track(SnowPatch.Create(null, default, new Rect(at - new Vector2(3f * K, 3f * K), new Vector2(6f * K, 6f * K)), EarthPlan.SnowGrip(EarthPlan.MaxLevel),
                 null).gameObject);
             yield return Steps(2);
             Assert.Less(mover.Modifier.Grip, 1f, "On snow");
 
             // Momentum: a velocity with no input only eases away.
-            body.linearVelocity = Vector2.right * 6f;
+            body.linearVelocity = Vector2.right * 6f * K;
             yield return Steps(5);
-            Assert.Greater(body.linearVelocity.x, 2f, "Still sliding a few steps after letting go");
+            Assert.Greater(body.linearVelocity.x, 2f * K, "Still sliding a few steps after letting go");
 
             // Steering off the patch gets the player out (and at full speed off it).
             yield return null; // never press right after a physics step
             Press(keyboard.aKey, queueEventOnly: true);
             yield return null;
             float end = Time.time + 6f;
-            while (Time.time < end && body.position.x > at.x - 3.6f) yield return new WaitForFixedUpdate();
+            while (Time.time < end && body.position.x > at.x - 3.6f * K) yield return new WaitForFixedUpdate();
             yield return Steps(20);
             yield return null; // input state is only valid in the dynamic update
             Release(keyboard.aKey, queueEventOnly: true);
             yield return null;
-            Assert.Less(body.position.x, at.x - 3.4f, "The player can always leave the patch");
+            Assert.Less(body.position.x, at.x - 3.4f * K, "The player can always leave the patch");
             Assert.IsTrue(mover.Modifier.IsNone, "Off the patch nothing slides");
 
             // Pure: with any grip a hazard may give, the velocity reaches the wanted one.
@@ -271,7 +274,7 @@ namespace Game.Cube.Tests
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
             var mover = player.GetComponent<PlayerMover>();
-            Track(FreezingRain.Create(null, default, new Rect(at - new Vector2(8f, 2f), new Vector2(16f, 4f)), EarthPlan.RainSpeed(EarthPlan.MaxLevel),
+            Track(FreezingRain.Create(null, default, new Rect(at - new Vector2(8f * K, 2f * K), new Vector2(16f * K, 4f * K)), EarthPlan.RainSpeed(EarthPlan.MaxLevel),
                 null).gameObject);
             Press(keyboard.dKey, queueEventOnly: true);
             yield return null;
@@ -280,8 +283,8 @@ namespace Game.Cube.Tests
             yield return null; // input state is only valid in the dynamic update
             Release(keyboard.dKey, queueEventOnly: true);
             yield return null;
-            Assert.AreEqual(EarthPlan.RainSpeed(EarthPlan.MaxLevel) * mover.EffectiveSpeed, speed, 0.05f, "Slower in the rain");
-            Assert.Less(speed, mover.EffectiveSpeed - 0.5f);
+            Assert.AreEqual(EarthPlan.RainSpeed(EarthPlan.MaxLevel) * mover.EffectiveSpeed, speed, 0.05f * K, "Slower in the rain");
+            Assert.Less(speed, mover.EffectiveSpeed - 0.5f * K);
             Assert.GreaterOrEqual(speed, PlayerMover.MinSpeedMultiplier * mover.EffectiveSpeed - 1e-3f, "Never below the minimum");
 
             // Pure: no modifier can slow below the minimum, and speed upgrades scale with it.
@@ -295,7 +298,7 @@ namespace Game.Cube.Tests
         public IEnumerator Crevice_IsSolid_AndExposesAFossil()
         {
             Vector2 at = Origin + new Vector2(700f, 0f);
-            QuakeCrevice crevice = QuakeCrevice.Create(null, default, new Rect(at + new Vector2(-1.5f, -1.3f), new Vector2(3f, 0.6f)), null);
+            QuakeCrevice crevice = QuakeCrevice.Create(null, default, new Rect(at + new Vector2(-1.5f * K, -1.3f * K), new Vector2(3f * K, 0.6f * K)), null);
             Track(crevice.gameObject);
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
@@ -305,10 +308,10 @@ namespace Game.Cube.Tests
             Assert.IsFalse(crevice.Solid.isTrigger);
             for (int i = 0; i < 40; i++)
             {
-                body.linearVelocity = Vector2.down * 4f;
+                body.linearVelocity = Vector2.down * 4f * K;
                 yield return new WaitForFixedUpdate();
             }
-            Assert.Greater(body.position.y, at.y - 1f, "Nobody walks through a crevice");
+            Assert.Greater(body.position.y, at.y - 1f * K, "Nobody walks through a crevice");
         }
 
         [UnityTest]
@@ -318,9 +321,9 @@ namespace Game.Cube.Tests
             GameObject player = Player(at);
             var body = player.GetComponent<Rigidbody2D>();
             var mover = player.GetComponent<PlayerMover>();
-            Track(WindBand.Create(null, default, new Rect(at - new Vector2(3f, 3f), new Vector2(6f, 6f)), Vector2.up, 0.3f, null).gameObject);
+            Track(WindBand.Create(null, default, new Rect(at - new Vector2(3f * K, 3f * K), new Vector2(6f * K, 6f * K)), Vector2.up, 0.3f, null).gameObject);
             yield return Steps(5);
-            Assert.Greater(body.linearVelocity.y, 1f, "With the receiver the wind pushes");
+            Assert.Greater(body.linearVelocity.y, 1f * K, "With the receiver the wind pushes");
 
             Object.Destroy(player.GetComponent<HazardReceiver>());
             yield return null;
@@ -339,8 +342,8 @@ namespace Game.Cube.Tests
             {
                 var go = Track(new GameObject("Earth Trial"));
                 var trial = go.AddComponent<EarthTrial>();
-                Vector2 at = Origin + new Vector2(900f + (int)kind * 30f, 0f);
-                var positions = Enumerable.Range(0, EarthTrial.PieceCount).Select(i => at + new Vector2(i * 4f, 0f)).ToList();
+                Vector2 at = Origin + new Vector2(900f + (int)kind * 30f * K, 0f);
+                var positions = Enumerable.Range(0, EarthTrial.PieceCount).Select(i => at + new Vector2(i * 4f * K, 0f)).ToList();
                 trial.Configure(kind, wands[kind], positions, EarthPlan.TrialCurrency, null);
                 var paid = new List<int>();
                 int resets = 0;
@@ -377,7 +380,7 @@ namespace Game.Cube.Tests
             var go = Track(new GameObject("Earth Trial"));
             var trial = go.AddComponent<EarthTrial>();
             Vector2 at = Origin + new Vector2(1300f, 0f);
-            var positions = Enumerable.Range(0, EarthTrial.PieceCount).Select(i => at + new Vector2(i * 4f, 0f)).ToList();
+            var positions = Enumerable.Range(0, EarthTrial.PieceCount).Select(i => at + new Vector2(i * 4f * K, 0f)).ToList();
             ItemDefinition wand = wands[Phenomenon.Quake];
             trial.Configure(Phenomenon.Quake, wand, positions, EarthPlan.TrialCurrency, null);
             yield return null;
@@ -400,7 +403,7 @@ namespace Game.Cube.Tests
 
             // Once the player steps off, it blocks again.
             var body = player.GetComponent<Rigidbody2D>();
-            body.position = positions[0] + new Vector2(0f, -2f);
+            body.position = positions[0] + new Vector2(0f, -2f * K);
             player.transform.position = body.position;
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
@@ -418,9 +421,9 @@ namespace Game.Cube.Tests
             {
                 ItemDefinition weakness = kind == EarthEnemyKind.Squall ? wands[Phenomenon.Rain] : crosser;
                 ItemDefinition notWeakness = kind == EarthEnemyKind.Squall ? other : wands[Phenomenon.Rain];
-                Enemy weak = EarthEnemies.Spawn(kind, weakness, Origin + new Vector2(1100f, (int)kind * 5f), new Rect(Origin, Vector2.one * 100f),
+                Enemy weak = EarthEnemies.Spawn(kind, weakness, Origin + new Vector2(1100f, (int)kind * 5f * K), new Rect(Origin, Vector2.one * 100f),
                     null, null, null);
-                Enemy plain = EarthEnemies.Spawn(kind, weakness, Origin + new Vector2(1110f, (int)kind * 5f), new Rect(Origin, Vector2.one * 100f),
+                Enemy plain = EarthEnemies.Spawn(kind, weakness, Origin + new Vector2(1110f, (int)kind * 5f * K), new Rect(Origin, Vector2.one * 100f),
                     null, null, null);
                 Track(weak.gameObject);
                 Track(plain.gameObject);

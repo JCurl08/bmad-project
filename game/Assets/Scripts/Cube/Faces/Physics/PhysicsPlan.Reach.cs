@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -25,7 +26,7 @@ namespace Game.Cube
                 nx = Mathf.FloorToInt(half.x * 2f / GridStep) + 1;
                 ny = Mathf.FloorToInt(half.y * 2f / GridStep) + 1;
                 free = new bool[nx * ny];
-                float r = Boulder.Radius + 0.02f;
+                float r = Boulder.Radius + 0.02f * ScreenMath.ContentScale;
                 for (int j = 0; j < ny; j++)
                     for (int i = 0; i < nx; i++)
                     {
@@ -91,15 +92,15 @@ namespace Game.Cube
             {
                 float near = TimeField.FieldRadius - NearMargin;
                 var placed = new List<Vector2>();
-                const float spacing = 2f * Boulder.Radius + 0.05f;
+                const float spacing = 2f * Boulder.Radius + 0.05f * ScreenMath.ContentScale;
                 for (int k = 0; k < free.Length; k++)
                 {
                     if (!reach[k]) continue;
                     Vector2 p = Pos(k % nx, k / nx);
                     if (Vector2.Distance(p, door.FieldLocal) > near) continue;
                     if (door.HasSwitch && DistanceToSegment(p, door.SwitchLocal, door.ThresholdLocal) <
-                        Boulder.Radius + TimeField.PlayerRadius + 0.1f) continue;
-                    if (Vector2.Distance(p, door.ThresholdLocal) < Boulder.Radius + TimeField.PlayerRadius + 0.1f) continue;
+                        Boulder.Radius + TimeField.PlayerRadius + 0.1f * ScreenMath.ContentScale) continue;
+                    if (Vector2.Distance(p, door.ThresholdLocal) < Boulder.Radius + TimeField.PlayerRadius + 0.1f * ScreenMath.ContentScale) continue;
                     bool clear = true;
                     foreach (Vector2 q in placed)
                         if (Vector2.Distance(p, q) < spacing) clear = false;

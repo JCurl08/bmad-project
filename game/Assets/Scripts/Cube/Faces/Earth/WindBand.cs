@@ -39,14 +39,14 @@ namespace Game.Cube
             // Arrows along the band, pointing the way it blows.
             bool horizontal = Mathf.Abs(direction.x) > Mathf.Abs(direction.y);
             float length = horizontal ? worldArea.width : worldArea.height;
-            int count = Mathf.Max(2, Mathf.FloorToInt(length / 2.5f));
+            int count = Mathf.Max(2, Mathf.FloorToInt(length / (2.5f * ScreenMath.ContentScale)));
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
             for (int i = 0; i < count; i++)
             {
                 float t = (i + 0.5f) / count - 0.5f;
                 Vector2 local = horizontal ? new Vector2(t * length, 0f) : new Vector2(0f, t * length);
                 SpriteRenderer arrow = ArtCatalog.AddShape(band.transform, $"Arrow {i + 1}", PartShape.Triangle, local,
-                    new Vector2(0.45f, 0.6f), ArrowColor, -7, material);
+                    new Vector2(0.45f, 0.6f) * ScreenMath.ContentScale, ArrowColor, -7, material);
                 arrow.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
             }
             return band;

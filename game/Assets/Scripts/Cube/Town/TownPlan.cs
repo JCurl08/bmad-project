@@ -62,16 +62,16 @@ namespace Game.Cube
         public const int IndexBase = 1000;
 
         /// <summary>Half the drawn NPC width (the torso is wider than the collider).</summary>
-        public const float HalfWidth = 0.35f;
+        public const float HalfWidth = 0.35f * ScreenMath.ContentScale;
 
         /// <summary>Clearance kept around an NPC's footprint from walls, lanes and the edge band.</summary>
-        public const float Margin = 0.15f;
+        public const float Margin = 0.15f * ScreenMath.ContentScale;
 
         /// <summary>Extra gap kept between two Town NPCs.</summary>
-        public const float Spacing = 0.6f;
+        public const float Spacing = 0.6f * ScreenMath.ContentScale;
 
         /// <summary>Candidate grid step (module-local units).</summary>
-        public const float GridStep = 0.25f;
+        public const float GridStep = 0.25f * ScreenMath.ContentScale;
 
         /// <summary>The five face races, one NPC each, in a fixed order.</summary>
         public static readonly Race[] FaceRaces = { Race.Finch, Race.Mushroom, Race.Alien, Race.Shape, Race.Dinosaur };

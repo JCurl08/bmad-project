@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -30,9 +31,9 @@ namespace Game.Cube
             var trigger = gameObject.AddComponent<BoxCollider2D>();
             trigger.isTrigger = true;
             trigger.size = r.size;
-            ArtCatalog.AddShape(transform, "Flag Pole", PartShape.Square, new Vector2(0f, 0.15f), new Vector2(0.06f, 0.7f),
+            ArtCatalog.AddShape(transform, "Flag Pole", PartShape.Square, new Vector2(0f, 0.15f) * ScreenMath.ContentScale, new Vector2(0.06f, 0.7f) * ScreenMath.ContentScale,
                 new Color(0.2f, 0.15f, 0.1f), -5, material);
-            ArtCatalog.AddShape(transform, "Flag", PartShape.Triangle, new Vector2(0.18f, 0.36f), new Vector2(0.34f, 0.28f), FlagColor,
+            ArtCatalog.AddShape(transform, "Flag", PartShape.Triangle, new Vector2(0.18f, 0.36f) * ScreenMath.ContentScale, new Vector2(0.34f, 0.28f) * ScreenMath.ContentScale, FlagColor,
                 -4, material).transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
         }
     }

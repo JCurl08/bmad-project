@@ -20,14 +20,14 @@ namespace Game.Cube
         {
             FreezingRain rain = Create<FreezingRain>("Freezing Rain", parent, screen, worldArea, speed, ArtKey.FreezingRain, Tint, material);
             // A few slanted drops over the patch.
-            int cols = Mathf.Max(2, Mathf.FloorToInt(worldArea.width / 1.5f));
-            int rows = Mathf.Max(2, Mathf.FloorToInt(worldArea.height / 1.5f));
+            int cols = Mathf.Max(2, Mathf.FloorToInt(worldArea.width / (1.5f * ScreenMath.ContentScale)));
+            int rows = Mathf.Max(2, Mathf.FloorToInt(worldArea.height / (1.5f * ScreenMath.ContentScale)));
             for (int j = 0; j < rows; j++)
                 for (int i = 0; i < cols; i++)
                 {
-                    Vector2 local = new Vector2(((i + 0.5f) / cols - 0.5f) * worldArea.width + (j % 2) * 0.35f,
+                    Vector2 local = new Vector2(((i + 0.5f) / cols - 0.5f) * worldArea.width + (j % 2) * 0.35f * ScreenMath.ContentScale,
                         ((j + 0.5f) / rows - 0.5f) * worldArea.height);
-                    SpriteRenderer drop = ArtCatalog.AddShape(rain.transform, "Drop", PartShape.Square, local, new Vector2(0.06f, 0.35f),
+                    SpriteRenderer drop = ArtCatalog.AddShape(rain.transform, "Drop", PartShape.Square, local, new Vector2(0.06f, 0.35f) * ScreenMath.ContentScale,
                         DropColor, -7, material);
                     drop.transform.localRotation = Quaternion.Euler(0f, 0f, 15f);
                 }

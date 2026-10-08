@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Game.Cube;
+using Game.Tracer;
 using UnityEditor;
 using UnityEngine;
 
@@ -40,12 +41,17 @@ public static class ModuleLibraryBuilder
         public Vector2 Centre, Size;
         public Block(float x, float y, float w, float h)
         {
-            Centre = new Vector2(x, y);
-            Size = new Vector2(w, h);
+            // Authored in the first 16x10 screens' units, scaled to the screen (4.1).
+            Centre = new Vector2(x, y) * ScreenMath.ContentScale;
+            Size = new Vector2(w, h) * ScreenMath.ContentScale;
         }
     }
 
-    /// <summary>One hand-placed layout, in local coordinates with the screen centre at the origin (screen is 16x10).</summary>
+    /// <summary>
+    /// One hand-placed layout, in local coordinates with the screen centre at the origin, authored for the first 16x10
+    /// screens: every position and size is multiplied by ScreenMath.ContentScale when the module is built (Block scales
+    /// itself; gates, hidden items and core entrances are scaled where they are used, through Scaled).
+    /// </summary>
     private sealed class Design
     {
         public string Name;
@@ -57,12 +63,18 @@ public static class ModuleLibraryBuilder
         public Vector2[] CoreEntrances;
     }
 
-    // Alcove geometry (module-local units). The opening (gate) sits at |y| = AlcoveOpeningY, just outside
-    // the horizontal centre lane; the pocket runs outward to the edge band.
+    // Alcove geometry. The opening (gate) sits at |y| = AlcoveOpeningY (authored units, like the Designs' gate positions),
+    // just outside the horizontal centre lane; the pocket runs outward to AlcoveOuterY (scaled).
     private const float AlcoveOpeningY = 1.4f;
     private const float AlcoveInnerWidth = GateSlot.GateWidth;
     private const float AlcoveWall = GateSlot.GateThickness;
-    private const float AlcoveOuterY = 3.45f; // just inside the edge band (screen half height - EdgeClearance = 3.5)
+    private const float AlcoveOuterY = 3.45f * ScreenMath.ContentScale; // the first screens' 3.45 (just inside their edge band), scaled
+
+    /// <summary>How far inside the screen edge the exit slot markers sit.</summary>
+    private const float ExitInset = 0.5f * ScreenMath.ContentScale;
+
+    /// <summary>A design's authored point (gate, hidden item, core entrance), mirrored and scaled to the screen.</summary>
+    private static Vector2 Scaled(Vector2 authored, Vector2 mirror) => Vector2.Scale(authored, mirror) * ScreenMath.ContentScale;
 
     private static readonly Design[] Designs =
     {
@@ -287,7 +299,7 @@ public static class ModuleLibraryBuilder
             var alcoveRects = new List<Rect>();
             for (int i = 0; i < design.Gates.Length; i++)
             {
-                Vector2 gate = Vector2.Scale(design.Gates[i], mirror);
+                Vector2 gate = Scaled(design.Gates[i], mirror);
                 Transform alcove = Child($"Alcove {i}", alcoves, Vector2.zero);
                 Rect footprint = AlcoveFootprint(gate);
                 foreach (Rect a in alcoveRects)
@@ -308,7 +320,7 @@ public static class ModuleLibraryBuilder
             }
 
             if (town)
-                AddRuins(name, root.transform, townIndex, obstacleRects, alcoveRects, Vector2.Scale(design.HiddenItem, mirror),
+                AddRuins(name, root.transform, townIndex, obstacleRects, alcoveRects, Scaled(design.HiddenItem, mirror),
                     sprite, round, material);
 
             Transform slots = Child("Slots", root.transform, Vector2.zero);
@@ -316,25 +328,25 @@ public static class ModuleLibraryBuilder
             foreach (Facing facing in new[] { Facing.North, Facing.East, Facing.South, Facing.West })
             {
                 Vector2 dir = facing.ToVector();
-                Vector2 at = new Vector2(dir.x * (half.x - 0.5f), dir.y * (half.y - 0.5f));
+                Vector2 at = new Vector2(dir.x * (half.x - ExitInset), dir.y * (half.y - ExitInset));
                 Child($"Exit {facing}", slots, at).gameObject.AddComponent<ExitSlot>().Facing = facing;
             }
             for (int i = 0; i < design.Gates.Length; i++)
             {
-                Vector2 gate = Vector2.Scale(design.Gates[i], mirror);
+                Vector2 gate = Scaled(design.Gates[i], mirror);
                 var slot = Child($"Gate {i}", slots, gate).gameObject.AddComponent<GateSlot>();
                 float outward = Mathf.Sign(gate.y);
                 slot.Opening = outward > 0f ? Facing.South : Facing.North;
                 slot.PocketOffset = new Vector2(0f, outward * (PocketCentreY(gate) - Mathf.Abs(gate.y)));
             }
-            Vector2 hidden = Vector2.Scale(design.HiddenItem, mirror);
+            Vector2 hidden = Scaled(design.HiddenItem, mirror);
             CheckOutsideAlcoves(name, "hidden item", hidden, alcoveRects);
             Child("Hidden Item", slots, hidden).gameObject.AddComponent<HiddenItemSlot>();
             if (withCore)
             {
                 for (int i = 0; i < design.CoreEntrances.Length; i++)
                 {
-                    Vector2 core = Vector2.Scale(design.CoreEntrances[i], mirror);
+                    Vector2 core = Scaled(design.CoreEntrances[i], mirror);
                     CheckOutsideAlcoves(name, $"core entrance {i}", core, alcoveRects);
                     Child($"Core Entrance {i}", slots, core).gameObject.AddComponent<CoreEntranceSlot>();
                 }
@@ -367,7 +379,7 @@ public static class ModuleLibraryBuilder
             foreach (Facing facing in new[] { Facing.North, Facing.East, Facing.South, Facing.West })
             {
                 Vector2 dir = facing.ToVector();
-                Vector2 at = new Vector2(dir.x * (half.x - 0.5f), dir.y * (half.y - 0.5f));
+                Vector2 at = new Vector2(dir.x * (half.x - ExitInset), dir.y * (half.y - ExitInset));
                 Child($"Exit {facing}", slots, at).gameObject.AddComponent<ExitSlot>().Facing = facing;
             }
             string path = $"{EnsureFolder(theme.ToString())}/{name}.prefab";
@@ -384,8 +396,10 @@ public static class ModuleLibraryBuilder
     /// <summary>Shapes of the visual-only ruin pieces in town.</summary>
     private enum RuinShape { Pillar = 0, Arch = 1, Stone = 2, Tile = 3, Broken = 4 }
 
-    /// <summary>Bounding size of each ruin shape (module-local units).</summary>
-    private static Vector2 RuinSize(RuinShape shape)
+    /// <summary>Bounding size of each ruin shape (module-local units: authored for the first screens, scaled).</summary>
+    private static Vector2 RuinSize(RuinShape shape) => AuthoredRuinSize(shape) * ScreenMath.ContentScale;
+
+    private static Vector2 AuthoredRuinSize(RuinShape shape)
     {
         switch (shape)
         {
@@ -398,7 +412,7 @@ public static class ModuleLibraryBuilder
     }
 
     /// <summary>Gap kept between a ruin piece and walls, alcoves, other pieces and the hidden-item slot.</summary>
-    private const float RuinGap = 0.15f;
+    private const float RuinGap = 0.15f * ScreenMath.ContentScale;
 
     /// <summary>
     /// One ruin piece per science face, in that face's colour, with the shape rotating per module so
@@ -410,7 +424,7 @@ public static class ModuleLibraryBuilder
     {
         Transform ruins = Child("Ruins", root, Vector2.zero);
         var placed = new List<Rect>();
-        var hiddenRect = new Rect(hidden - new Vector2(0.4f, 0.4f), new Vector2(0.8f, 0.8f));
+        var hiddenRect = new Rect(hidden - Vector2.one * (0.4f * ScreenMath.ContentScale), Vector2.one * (0.8f * ScreenMath.ContentScale));
         for (int k = 0; k < ScienceThemes.Length; k++)
         {
             Theme theme = ScienceThemes[k];
@@ -450,7 +464,7 @@ public static class ModuleLibraryBuilder
         List<Rect> placed, Rect hidden, out Vector2 at)
     {
         Vector2 half = CubeWorld.ScreenSize / 2f;
-        const float step = 0.25f;
+        const float step = 0.25f * ScreenMath.ContentScale;
         int nx = Mathf.FloorToInt(half.x / step), ny = Mathf.FloorToInt(half.y / step);
         for (int q = 0; q < 4; q++)
         {
@@ -548,9 +562,10 @@ public static class ModuleLibraryBuilder
     private static void AddPiece(Transform parent, string name, Vector2 at, Vector2 size, float angle, Color color,
         int sortingOrder, Sprite sprite, Material material)
     {
-        Transform t = Child(name, parent, at);
+        // Placeholder pieces are authored for the first screens: scaled like everything else.
+        Transform t = Child(name, parent, at * ScreenMath.ContentScale);
         t.localRotation = Quaternion.Euler(0f, 0f, angle);
-        AddVisual(t, size, color, sortingOrder, sprite, material);
+        AddVisual(t, size * ScreenMath.ContentScale, color, sortingOrder, sprite, material);
     }
 
     private static Rect Grow(Rect r, float by) => Rect.MinMaxRect(r.xMin - by, r.yMin - by, r.xMax + by, r.yMax + by);

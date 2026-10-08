@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,10 +12,10 @@ namespace Game.Cube
     public static class FaceContent
     {
         /// <summary>NPCs and enemies spawn at least this far beyond a gate front or a hidden-item or core-entrance slot.</summary>
-        public const float SlotKeepOut = 1.2f;
+        public const float SlotKeepOut = 1.2f * ScreenMath.ContentScale;
 
         /// <summary>Radii of the slot marks ClearOfSlots keeps spawns off (a gate's front, a hidden item, a core entrance).</summary>
-        public const float HiddenSlotRadius = 0.45f, CoreSlotRadius = 0.6f;
+        public const float HiddenSlotRadius = 0.45f * ScreenMath.ContentScale, CoreSlotRadius = 0.6f * ScreenMath.ContentScale;
 
         /// <summary>
         /// The spots on a module's screen (local) that spawns keep clear of: the front of every gate slot (whatever gate

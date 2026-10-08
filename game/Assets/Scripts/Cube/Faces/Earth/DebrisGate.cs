@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -24,7 +25,7 @@ namespace Game.Cube
         {
             base.OnOpened();
             if (Visual != null) Visual.enabled = false; // the debris is gone, not just faded
-            Swirl = BeakGate.AddSprite(transform, "Swirl", PartShape.Diamond, ArtCentre, new Vector2(0.7f, 0.7f), SwirlColor, AboveArt,
+            Swirl = BeakGate.AddSprite(transform, "Swirl", PartShape.Diamond, ArtCentre, new Vector2(0.7f, 0.7f) * ScreenMath.ContentScale, SwirlColor, AboveArt,
                 swirlMaterial);
             Swirl.transform.localRotation = Quaternion.Euler(0f, 0f, 20f);
         }

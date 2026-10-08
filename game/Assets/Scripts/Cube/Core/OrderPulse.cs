@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -9,10 +10,10 @@ namespace Game.Cube
     /// </summary>
     public class OrderPulse : MonoBehaviour
     {
-        public const float Radius = 0.3f;
+        public const float Radius = 0.3f * ScreenMath.ContentScale;
 
         /// <summary>The player's collider radius in the Cube scene (contact distance = Radius + this).</summary>
-        public const float PlayerRadius = 0.4f;
+        public const float PlayerRadius = 0.4f * ScreenMath.ContentScale;
 
         private Health target;
         private Rect bounds;

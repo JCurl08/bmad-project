@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -19,6 +20,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class CubeMapSceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
 
         private Keyboard keyboard;
@@ -133,7 +137,7 @@ namespace Game.Cube.Tests
             yield return WaitRealSeconds(0.3f);
             Release(keyboard.dKey, queueEventOnly: true);
             yield return null;
-            Assert.Greater(((Vector2)navigator.transform.position - before).magnitude, 0.2f, "movement resumes after closing");
+            Assert.Greater(((Vector2)navigator.transform.position - before).magnitude, 0.2f * K, "movement resumes after closing");
         }
 
         [UnityTest]
@@ -312,7 +316,7 @@ namespace Game.Cube.Tests
             foreach (NpcTalker townsfolk in Object.FindObjectsByType<NpcTalker>(FindObjectsSortMode.None))
                 if (townsfolk != target) townsfolk.gameObject.SetActive(false);
             if (target.TryGetComponent(out NpcMover npcMover)) npcMover.enabled = false;
-            Vector2 at = (Vector2)navigator.transform.position + new Vector2(1f, 0f);
+            Vector2 at = (Vector2)navigator.transform.position + new Vector2(1f * K, 0f);
             target.GetComponent<Rigidbody2D>().position = at;
             target.transform.position = at;
             yield return new WaitForFixedUpdate();
@@ -350,7 +354,7 @@ namespace Game.Cube.Tests
             navigator.GetComponent<Inventory>().Add(mitt.Item);
             navigator.GetComponent<Equipment>().Equip(mitt.Item);
             Assert.IsTrue(mitt.IsEquipped);
-            Boulder boulder = Boulder.Create(null, (Vector2)navigator.transform.position + new Vector2(1.2f, 0f), null, null);
+            Boulder boulder = Boulder.Create(null, (Vector2)navigator.transform.position + new Vector2(1.2f * K, 0f), null, null);
             yield return new WaitForFixedUpdate();
             yield return null;
 

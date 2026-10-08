@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -68,27 +69,47 @@ namespace Game.Cube
     /// </summary>
     public sealed class IslandLayout
     {
-        /// <summary>The lattice: island spots' x (five columns) and y (three rows), local to the screen centre.</summary>
-        public static readonly float[] Columns = { -5.6f, -2.8f, 0f, 2.8f, 5.6f };
-        public static readonly float[] Rows = { -2.7f, 0f, 2.7f };
+        /// <summary>
+        /// The lattice: island spots' x (five columns) and y (three rows), local to the screen centre (4.1). The columns
+        /// spread over the water area, the outer ones at 0.8 of its half-width as on the first 16x10 screens, so the islands
+        /// fill the wider screen (4.6 apart). The rows keep the first screens' 2.7, scaled (4.05 apart): the south doorway's
+        /// island must still hold the open pickup at CubeWorld.OpenPickupOffset, and the doorway islands grow into the
+        /// extra height the thinner walls leave instead.
+        /// </summary>
+        public static readonly float[] Columns = Lattice(WaterArea.xMax * 0.8f, 2);
+        public static readonly float[] Rows = Lattice(2.7f * ScreenMath.ContentScale, 1);
+
+        private static float[] Lattice(float outer, int perSide)
+        {
+            var at = new float[2 * perSide + 1];
+            for (int i = 0; i < at.Length; i++) at[i] = outer * (i - perSide) / perSide;
+            return at;
+        }
 
         /// <summary>An inner island's size (a doorway's island is bigger: it reaches the doorway).</summary>
-        public const float InnerWidth = 1.4f, InnerHeight = 1.3f;
+        public const float InnerWidth = 1.4f * ScreenMath.ContentScale, InnerHeight = 1.3f * ScreenMath.ContentScale;
 
-        /// <summary>A doorway island's half-width across its doorway (a little over the doorway's) and its depth into the screen.</summary>
-        public const float DoorIslandHalfWidth = 1.3f, DoorIslandDepth = 1.9f, SideDoorIslandDepth = 2f;
+        /// <summary>A doorway island's half-width across its doorway (a little over the doorway's).</summary>
+        public const float DoorIslandHalfWidth = 1.3f * ScreenMath.ContentScale;
 
-        /// <summary>A plank's width (the player is 0.8 across).</summary>
-        public const float PlankWidth = 1.2f;
+        /// <summary>How far a doorway island reaches past its lattice spot's line, into the screen.</summary>
+        public const float DoorIslandReach = 0.6f * ScreenMath.ContentScale;
 
-        /// <summary>A broken span's gap: one floor square, what the gap-crosser* spans.</summary>
-        public const float GapLength = 1f;
+        /// <summary>A doorway island's depth into the screen: from the wall to just past its lattice spot (DoorIslandReach).</summary>
+        public static float DoorIslandDepth(Facing side) =>
+            side.IsHorizontal() ? WaterArea.xMax - Columns[Columns.Length - 1] + DoorIslandReach : WaterArea.yMax - Rows[Rows.Length - 1] + DoorIslandReach;
+
+        /// <summary>A plank's width (the player is 1.2 across).</summary>
+        public const float PlankWidth = 1.2f * ScreenMath.ContentScale;
+
+        /// <summary>A broken span's gap: what the gap-crosser* spans (one square of the first screens, scaled).</summary>
+        public const float GapLength = 1f * ScreenMath.ContentScale;
 
         /// <summary>Plank left on each side of a gap, at least.</summary>
-        public const float MinPlankEnd = 0.2f;
+        public const float MinPlankEnd = 0.2f * ScreenMath.ContentScale;
 
         /// <summary>Open water kept between two islands that no plank joins (so they read as separate land).</summary>
-        public const float MinWater = 0.6f;
+        public const float MinWater = 0.6f * ScreenMath.ContentScale;
 
         /// <summary>Attempts at a layout before giving up.</summary>
         private const int Attempts = 64;
@@ -193,10 +214,10 @@ namespace Game.Cube
                 float w = DoorIslandHalfWidth;
                 switch (door.Value)
                 {
-                    case Facing.North: return Rect.MinMaxRect(-w, water.yMax - DoorIslandDepth, w, water.yMax);
-                    case Facing.South: return Rect.MinMaxRect(-w, water.yMin, w, water.yMin + DoorIslandDepth);
-                    case Facing.East: return Rect.MinMaxRect(water.xMax - SideDoorIslandDepth, -w, water.xMax, w);
-                    default: return Rect.MinMaxRect(water.xMin, -w, water.xMin + SideDoorIslandDepth, w);
+                    case Facing.North: return Rect.MinMaxRect(-w, water.yMax - DoorIslandDepth(Facing.North), w, water.yMax);
+                    case Facing.South: return Rect.MinMaxRect(-w, water.yMin, w, water.yMin + DoorIslandDepth(Facing.South));
+                    case Facing.East: return Rect.MinMaxRect(water.xMax - DoorIslandDepth(Facing.East), -w, water.xMax, w);
+                    default: return Rect.MinMaxRect(water.xMin, -w, water.xMin + DoorIslandDepth(Facing.West), w);
                 }
             }
             Vector2 c = SpotCentre(spot);
@@ -240,9 +261,12 @@ namespace Game.Cube
             return -1;
         }
 
-        /// <summary>Where a doorway's arriving player stands (local): just inside the wall, on the doorway's line.</summary>
+        /// <summary>
+        /// Where a doorway's arriving player stands (local): on the doorway's line, CubeNavigator.EntryInset inside the edge,
+        /// exactly where a face crossing puts the player.
+        /// </summary>
         public static Vector2 Arrival(Facing side) =>
-            Vector2.Scale(side.ToVector(), ScreenEdges.Half) - (Vector2)side.ToVector() * (ScreenEdges.EdgeWallThickness + 0.3f);
+            Vector2.Scale(side.ToVector(), ScreenEdges.Half) - (Vector2)side.ToVector() * CubeNavigator.EntryInset;
 
         /// <summary>The middle of the trial island (local), or the screen centre without one.</summary>
         public Vector2 TrialSpot => HasTrial ? islands[TrialIsland].center : Vector2.zero;
@@ -354,7 +378,7 @@ namespace Game.Cube
                 Rect r = islands[i];
                 if (r.xMin < water.xMin - 1e-4f || r.xMax > water.xMax + 1e-4f || r.yMin < water.yMin - 1e-4f || r.yMax > water.yMax + 1e-4f)
                     problems.Add($"{what}: island {i} reaches into a wall");
-                if (Mathf.Min(r.width, r.height) < 2f * TimeField.PlayerRadius + 0.2f) problems.Add($"{what}: island {i} is too small to stand on");
+                if (Mathf.Min(r.width, r.height) < 2f * TimeField.PlayerRadius + 0.2f * ScreenMath.ContentScale) problems.Add($"{what}: island {i} is too small to stand on");
                 for (int j = i + 1; j < islands.Length; j++)
                 {
                     if (spots[i] == spots[j]) problems.Add($"{what}: islands {i} and {j} share a spot");
@@ -372,8 +396,8 @@ namespace Game.Cube
                 Vector2Int d = spots[b.B] - spots[b.A];
                 if (Mathf.Abs(d.x) + Mathf.Abs(d.y) != 1) problems.Add($"{what}: plank {k} joins islands that are not neighbours");
                 if (b.Plank != PlankRect(spots[b.A], spots[b.B])) problems.Add($"{what}: plank {k} does not run shore to shore");
-                if (b.Across < 2f * TimeField.PlayerRadius + 0.2f) problems.Add($"{what}: plank {k} is too narrow");
-                if (b.Span < 0.5f) problems.Add($"{what}: plank {k} spans no real water");
+                if (b.Across < 2f * TimeField.PlayerRadius + 0.2f * ScreenMath.ContentScale) problems.Add($"{what}: plank {k} is too narrow");
+                if (b.Span < 0.5f * ScreenMath.ContentScale) problems.Add($"{what}: plank {k} spans no real water");
                 for (int i = 0; i < islands.Length; i++)
                     if (i != b.A && i != b.B && Overlaps(b.Plank, islands[i])) problems.Add($"{what}: plank {k} runs over island {i}");
                 for (int j = k + 1; j < bridges.Length; j++)

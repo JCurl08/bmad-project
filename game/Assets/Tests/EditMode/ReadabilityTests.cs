@@ -128,9 +128,9 @@ namespace Game.Cube.Tests
                 var shades = new HashSet<float>();
                 foreach (ScreenAddress screen in model.AllScreens())
                 {
-                    for (int y = 0; y < 10; y++)
+                    for (int y = 0; y < (int)CubeWorld.ScreenSize.y; y++)
                     {
-                        for (int x = 0; x < 16; x++)
+                        for (int x = 0; x < (int)CubeWorld.ScreenSize.x; x++)
                         {
                             float s = FloorPattern.Shade(theme, screen, new Vector2Int(x, y));
                             Assert.AreEqual(s, FloorPattern.Shade(theme, screen, new Vector2Int(x, y)), "The same every time");
@@ -151,7 +151,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(1f, sprite.pixelsPerUnit);
             Assert.AreEqual(Vector2.zero, sprite.rect.position);
             Assert.AreEqual((Vector2)(CubeWorld.ScreenSize * FloorPattern.FloorFraction), (Vector2)sprite.bounds.size);
-            Assert.AreEqual(new Vector2(16, 10), new Vector2(sprite.texture.width, sprite.texture.height));
+            Assert.AreEqual(CubeWorld.ScreenSize, new Vector2(sprite.texture.width, sprite.texture.height)); // one texel per floor tile (24 x 15)
             // Two screens of a face differ.
             Assert.AreNotEqual(
                 Enumerable.Range(0, 160).Select(i => FloorPattern.Shade(Theme.Math, new ScreenAddress(FaceId.Top, 0, 0), new Vector2Int(i % 16, i / 16))).ToList(),

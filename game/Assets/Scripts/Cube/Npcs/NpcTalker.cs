@@ -15,7 +15,7 @@ namespace Game.Cube
     /// </summary>
     public class NpcTalker : MonoBehaviour
     {
-        public const float DefaultRange = 1.75f;
+        public const float DefaultRange = 1.75f * ScreenMath.ContentScale;
 
         private static readonly Color HostileTint = new Color(1f, 0.25f, 0.2f);
 

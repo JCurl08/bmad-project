@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -21,6 +22,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class ChemistrySceneTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private const string SceneName = "Cube";
         private const float Timeout = 6f;
 
@@ -154,12 +158,12 @@ namespace Game.Cube.Tests
             {
                 Vector2 plate = door.Plate.transform.position;
                 Facing toward = plate.x >= world.ScreenCenter(spec.Screen).x ? Facing.East : Facing.West;
-                yield return StrikeFrom(spec.Screen, plate, toward, 0.9f);
+                yield return StrikeFrom(spec.Screen, plate, toward, 0.9f * K);
             }
             else
             {
                 GateSlot slot = world.ModuleAt(spec.Screen).Gates[spec.Slot];
-                yield return StrikeFrom(spec.Screen, slot.transform.position, slot.Opening.Opposite(), 1.0f);
+                yield return StrikeFrom(spec.Screen, slot.transform.position, slot.Opening.Opposite(), 1.0f * K);
             }
         }
 
@@ -173,7 +177,7 @@ namespace Game.Cube.Tests
 
         private static Facing FromLane(Vector2 local)
         {
-            if (Mathf.Abs(Mathf.Abs(local.y) - BiologyTrial.LaneSideOffset) < 0.01f)
+            if (Mathf.Abs(Mathf.Abs(local.y) - BiologyTrial.LaneSideOffset) < 0.01f * K)
                 return local.y >= 0f ? Facing.North : Facing.South;
             return local.x >= 0f ? Facing.East : Facing.West;
         }
@@ -283,7 +287,7 @@ namespace Game.Cube.Tests
             {
                 Assert.AreEqual(ChemistryTrial.KindFor(stage), piece.Kind);
                 Vector2 local = (Vector2)piece.transform.position - centre;
-                yield return StrikeFrom(plan.TrialScreen, piece.transform.position, FromLane(local), 0.9f);
+                yield return StrikeFrom(plan.TrialScreen, piece.transform.position, FromLane(local), 0.9f * K);
                 Assert.IsTrue(piece.Done, $"Trial target {piece.Index + 1} struck with the {stone}");
             }
             Assert.IsTrue(trial.IsComplete);
@@ -359,7 +363,7 @@ namespace Game.Cube.Tests
             }
 
             NpcTalker talker = chemistry.Mushrooms[0];
-            Vector2 near = (Vector2)talker.transform.position + Vector2.left * 0.9f;
+            Vector2 near = (Vector2)talker.transform.position + Vector2.left * 0.9f * K;
             navigator.TeleportTo(ScreenOf(talker.transform.position, face), Facing.East);
             body.position = near;
             navigator.transform.position = new Vector3(near.x, near.y, navigator.transform.position.z);

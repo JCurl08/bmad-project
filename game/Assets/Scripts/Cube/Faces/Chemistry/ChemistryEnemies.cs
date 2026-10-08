@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -21,7 +22,7 @@ namespace Game.Cube
     {
         public const float RadicalHealth = 6f;
         public const float MiteHealth = 8f;
-        public const float SightRadius = 4f;
+        public const float SightRadius = 4f * ScreenMath.ContentScale;
 
         public static readonly Color RadicalColor = new Color(0.95f, 0.95f, 0.3f);
         public static readonly Color MiteColor = new Color(0.6f, 0.32f, 0.18f);
@@ -56,7 +57,7 @@ namespace Game.Cube
             }
             Color mark = weakness != null ? weakness.PlaceholderColor : Color.white;
             ArtCatalog.AddShape(enemy.transform, "Weakness Mark", PartShape.Circle, Enemy.MarkOffset,
-                new Vector2(0.28f, 0.28f), mark, Enemy.SortingOrder + 1, material);
+                new Vector2(0.28f, 0.28f) * ScreenMath.ContentScale, mark, Enemy.SortingOrder + 1, material);
             enemy.gameObject.AddComponent<ChemistryEnemy>().Kind = kind;
             return enemy;
         }

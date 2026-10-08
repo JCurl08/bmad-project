@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
@@ -19,6 +20,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class ChemistryComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-9000f, -7000f);
 
         private readonly List<Object> created = new List<Object>();
@@ -60,7 +64,7 @@ namespace Game.Cube.Tests
             var body = go.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f;
             body.freezeRotation = true;
-            go.AddComponent<CircleCollider2D>().radius = 0.4f;
+            go.AddComponent<CircleCollider2D>().radius = 0.4f * K;
             go.AddComponent<Game.Tracer.PlayerMover>();
             go.AddComponent<Inventory>();
             go.AddComponent<Health>();
@@ -125,7 +129,7 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator Pickup_AddsTheStoneOnce_EquipsIt_ShowsThePopup_AndNothingRespawns()
         {
-            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f));
+            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f * K));
             var body = isotope.GetComponent<Rigidbody2D>();
             ItemPickup pickup = Pickup(Origin, wild);
             int added = 0;
@@ -146,7 +150,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(1, added);
 
             // Already held: a second pickup of the same stone does nothing.
-            body.position = Origin + new Vector2(0f, 3f);
+            body.position = Origin + new Vector2(0f, 3f * K);
             yield return TestInput.PhysicsSteps();
             ItemPickup again = Pickup(Origin, wild);
             body.position = Origin;
@@ -159,7 +163,7 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator Pickup_WhileHoldingABeak_EquipsTheStone()
         {
-            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f));
+            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f * K));
             var body = isotope.GetComponent<Rigidbody2D>();
             ItemDefinition beak = Track(BiologyBeaks.CreateItem(BeakKind.Thick));
             isotope.Inventory.Add(beak);
@@ -180,7 +184,7 @@ namespace Game.Cube.Tests
         public IEnumerator Glowing_LightsADarkRoomGate_WhenSwungAtIt_OtherItemsOrABareSwingDoNothing()
         {
             Isotope isotope = MakePlayer(Origin);
-            IsotopeGate gate = BuildGate(IsotopeStage.Glow, glow, Origin + Vector2.down * 1.1f);
+            IsotopeGate gate = BuildGate(IsotopeStage.Glow, glow, Origin + Vector2.down * 1.1f * K);
             int opened = 0;
             gate.Opened += _ => opened++;
             yield return null;
@@ -206,7 +210,7 @@ namespace Game.Cube.Tests
         public IEnumerator Unstable_BlastsACrackedWall_WhenSwungAtIt_OtherItemsDoNothing()
         {
             Isotope isotope = MakePlayer(Origin);
-            var gate = (CrackedWallGate)BuildGate(IsotopeStage.Unstable, wild, Origin + Vector2.down * 1.1f);
+            var gate = (CrackedWallGate)BuildGate(IsotopeStage.Unstable, wild, Origin + Vector2.down * 1.1f * K);
             yield return null;
 
             isotope.Inventory.Add(wild);
@@ -227,15 +231,15 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator Lead_WeighsAPlateDown_WhenSwungAtIt_ItsDoorOpens_AndTheStoneIsKept()
         {
-            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f));
+            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 3f * K));
             var body = isotope.GetComponent<Rigidbody2D>();
-            var gate = (LeadPlateGate)BuildGate(IsotopeStage.Lead, lead, Origin + new Vector2(20f, 0f));
-            gate.Plate.transform.position = Origin + Vector2.down * 1.1f;
+            var gate = (LeadPlateGate)BuildGate(IsotopeStage.Lead, lead, Origin + new Vector2(20f * K, 0f));
+            gate.Plate.transform.position = Origin + Vector2.down * 1.1f * K;
             yield return TestInput.PhysicsSteps();
 
             // Stepping onto the plate holding the Leadstone* does nothing: it is used by swinging.
             isotope.Inventory.Add(lead);
-            body.position = Origin + Vector2.down * 1.1f;
+            body.position = Origin + Vector2.down * 1.1f * K;
             yield return TestInput.PhysicsSteps();
             Assert.IsFalse(gate.IsOpen, "Stepping on the plate does nothing");
             body.position = Origin;
@@ -262,7 +266,7 @@ namespace Game.Cube.Tests
         {
             Isotope isotope = MakePlayer(Origin);
             // 8 stage gates on a 3x3 face: two swings (one per 7 gates beyond the first).
-            IsotopeGate gate = BuildGate(IsotopeStage.Unstable, wild, Origin + Vector2.down * 1.1f, 8);
+            IsotopeGate gate = BuildGate(IsotopeStage.Unstable, wild, Origin + Vector2.down * 1.1f * K, 8);
             var struck = new List<int>();
             gate.Struck += (_, n) => struck.Add(n);
             yield return null;
@@ -306,7 +310,7 @@ namespace Game.Cube.Tests
             var go = Track(new GameObject("Chemistry Trial"));
             go.transform.position = Origin;
             var trial = go.AddComponent<ChemistryTrial>();
-            trial.Configure(stage, Stone(stage), new[] { Origin, Origin + new Vector2(5f, 0f), Origin + new Vector2(10f, 0f) }, 25, null);
+            trial.Configure(stage, Stone(stage), new[] { Origin, Origin + new Vector2(5f * K, 0f), Origin + new Vector2(10f * K, 0f) }, 25, null);
             return trial;
         }
 
@@ -361,13 +365,13 @@ namespace Game.Cube.Tests
         [UnityTest]
         public IEnumerator Trial_RealSwings_HitOneTargetEach()
         {
-            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 0.9f)); // above target 1, facing down
+            Isotope isotope = MakePlayer(Origin + new Vector2(0f, 0.9f * K)); // above target 1, facing down
             ChemistryTrial trial = MakeTrial(IsotopeStage.Lead);
             var body = isotope.GetComponent<Rigidbody2D>();
             yield return TestInput.PhysicsSteps();
             for (int i = 0; i < ChemistryTrial.PieceCount; i++)
             {
-                body.position = (Vector2)trial.Pieces[i].transform.position + new Vector2(0f, 0.9f);
+                body.position = (Vector2)trial.Pieces[i].transform.position + new Vector2(0f, 0.9f * K);
                 yield return TestInput.PhysicsSteps();
                 Assert.AreEqual(1, Swing(isotope, lead), $"One swing reaches target {i + 1}");
                 Assert.IsTrue(trial.Pieces[i].Done);
@@ -382,9 +386,9 @@ namespace Game.Cube.Tests
             foreach (ChemistryEnemyKind kind in new[] { ChemistryEnemyKind.FreeRadical, ChemistryEnemyKind.RustMite })
             {
                 ItemDefinition weakness = kind == ChemistryEnemyKind.FreeRadical ? glow : beak;
-                Enemy weak = ChemistryEnemies.Spawn(kind, weakness, Origin + new Vector2(50f, (int)kind * 5f), new Rect(Origin, Vector2.one * 100f),
+                Enemy weak = ChemistryEnemies.Spawn(kind, weakness, Origin + new Vector2(50f * K, (int)kind * 5f * K), new Rect(Origin, Vector2.one * 100f),
                     null, null, null);
-                Enemy plain = ChemistryEnemies.Spawn(kind, weakness, Origin + new Vector2(60f, (int)kind * 5f), new Rect(Origin, Vector2.one * 100f),
+                Enemy plain = ChemistryEnemies.Spawn(kind, weakness, Origin + new Vector2(60f * K, (int)kind * 5f * K), new Rect(Origin, Vector2.one * 100f),
                     null, null, null);
                 Track(weak.gameObject);
                 Track(plain.gameObject);

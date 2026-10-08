@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -11,16 +12,16 @@ namespace Game.Cube
     [RequireComponent(typeof(Rigidbody2D))]
     public class Particle : MonoBehaviour, IAttackReceiver
     {
-        public const float Radius = 0.3f;
-        public const float KnockSpeed = 9f;
-        public const float DriftSpeed = 0.35f;
-        public const float DriftAcceleration = 1.2f;
+        public const float Radius = 0.3f * ScreenMath.ContentScale;
+        public const float KnockSpeed = 9f * ScreenMath.ContentScale;
+        public const float DriftSpeed = 0.35f * ScreenMath.ContentScale;
+        public const float DriftAcceleration = 1.2f * ScreenMath.ContentScale;
         public const float Damping = 1f;
         public const float Mass = 0.3f;
         public const float DriftChangeSeconds = 2f;
 
         /// <summary>Within this distance of an outer wall the drift turns back inward.</summary>
-        public const float WallShy = 1f;
+        public const float WallShy = 1f * ScreenMath.ContentScale;
 
         /// <summary>After a knock, drift and the Demon leave the particle alone this long.</summary>
         public const float KnockedSeconds = 0.8f;

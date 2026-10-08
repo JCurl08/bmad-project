@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -19,7 +20,7 @@ namespace Game.Cube
         public const string ThickName = "Thick Beak*";
 
         /// <summary>Swing reach with the thin beak equipped (the default reach is 0.85).</summary>
-        public const float ThinReach = 2.5f;
+        public const float ThinReach = 2.5f * ScreenMath.ContentScale;
 
         public static readonly Color ThinColor = new Color(0.55f, 0.95f, 0.85f);
         public static readonly Color ThickColor = new Color(0.85f, 0.6f, 0.3f);

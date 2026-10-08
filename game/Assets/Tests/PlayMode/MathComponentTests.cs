@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Game.Tracer;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
@@ -20,6 +21,9 @@ namespace Game.Cube.Tests
     /// </summary>
     public class MathComponentTests : InputTestFixture
     {
+        /// <summary>Lengths and speeds below are in the first 16x10 screens' units, scaled like the game's (4.1).</summary>
+        private const float K = ScreenMath.ContentScale;
+
         private static readonly Vector2 Origin = new Vector2(-9000f, 7000f);
 
         private readonly List<Object> created = new List<Object>();
@@ -54,7 +58,7 @@ namespace Game.Cube.Tests
             var body = go.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f;
             body.freezeRotation = true;
-            go.AddComponent<CircleCollider2D>().radius = 0.4f;
+            go.AddComponent<CircleCollider2D>().radius = 0.4f * K;
             go.AddComponent<Game.Tracer.PlayerMover>();
             go.AddComponent<Inventory>();
             go.AddComponent<Health>();
@@ -108,7 +112,7 @@ namespace Game.Cube.Tests
             float end = Time.time + seconds;
             while (Time.time < end)
             {
-                body.linearVelocity = direction * 6f;
+                body.linearVelocity = direction * 6f * K;
                 yield return new WaitForFixedUpdate();
             }
             body.linearVelocity = Vector2.zero;
@@ -129,7 +133,7 @@ namespace Game.Cube.Tests
             yield return new WaitForFixedUpdate();
 
             // South doorway's island, up the planks to the north doorway's island.
-            yield return Push(body, Vector2.up, 1.1f);
+            yield return Push(body, Vector2.up, 1.2f); // 1.2 s since 4.1: the half-tile walls put the south arrival further out
             Assert.AreEqual(0, layout.IslandAt(body.position - Origin), $"Walked the planks up to the north island (at {body.position - Origin})");
 
             // Back to the middle island, then west into the water: the shore stops it.
@@ -137,13 +141,13 @@ namespace Game.Cube.Tests
             Assert.AreEqual(4, layout.IslandAt(body.position - Origin), $"On the middle island (at {body.position - Origin})");
             Vector2 middle = body.position;
             yield return Push(body, Vector2.left, 1f);
-            Assert.Greater(body.position.x - Origin.x, layout.Islands[4].xMin - 0.05f, "The water stops the player at the shore");
-            yield return Push(body, Vector2.right, (middle.x - body.position.x) / 6f);
+            Assert.Greater(body.position.x - Origin.x, layout.Islands[4].xMin - 0.05f * K, "The water stops the player at the shore");
+            yield return Push(body, Vector2.right, (middle.x - body.position.x) / (6f * K));
 
             // East over the broken span: the gap stops it.
             yield return Push(body, Vector2.right, 1f);
             BrokenSpan gap = screen.Gaps[0];
-            Assert.Less(body.position.x, gap.transform.position.x - layout.Bridges[gap.Bridge].Gap.width / 2f + 0.01f, "The gap stops the player");
+            Assert.Less(body.position.x, gap.transform.position.x - layout.Bridges[gap.Bridge].Gap.width / 2f + 0.01f * K, "The gap stops the player");
             Assert.IsFalse(gap.IsMended);
 
             // Swings: bare and another item do nothing; the gap-crosser* lays the plank.
@@ -191,7 +195,7 @@ namespace Game.Cube.Tests
             yield return new WaitForFixedUpdate();
 
             // South doorway's island, up the planks to the north one: both planks light up, once each.
-            yield return Push(body, Vector2.up, 1.1f);
+            yield return Push(body, Vector2.up, 1.2f);
             Assert.AreEqual(0, layout.IslandAt(body.position - Origin));
             int[] walked = Enumerable.Range(0, layout.Bridges.Count).Where(k => !layout.Bridges[k].Broken && layout.Bridges[k].Joins(4)
                 && !layout.Bridges[k].Joins(5)).ToArray();
@@ -234,7 +238,7 @@ namespace Game.Cube.Tests
         public IEnumerator GapGate_TheGapCrosserSwungAtIt_LaysACrossingAndOpensIt_OtherItemsOrBareDoNothing()
         {
             GameObject player = Player(Origin);
-            GameObject block = Block(Origin + Vector2.down * 1.1f);
+            GameObject block = Block(Origin + Vector2.down * 1.1f * K);
             GapGate gate = GapGate.Build(block, crosser, null);
             int opened = 0;
             gate.Opened += _ => opened++;
@@ -300,9 +304,9 @@ namespace Game.Cube.Tests
             {
                 ItemDefinition weakness = kind == MathEnemyKind.DeadEnd ? crosser : mitt;
                 ItemDefinition notWeakness = kind == MathEnemyKind.DeadEnd ? other : crosser;
-                Enemy weak = MathEnemies.Spawn(kind, weakness, Origin + new Vector2(50f, (int)kind * 5f), new Rect(Origin, Vector2.one * 100f),
+                Enemy weak = MathEnemies.Spawn(kind, weakness, Origin + new Vector2(50f * K, (int)kind * 5f * K), new Rect(Origin, Vector2.one * 100f),
                     null, null, null);
-                Enemy plain = MathEnemies.Spawn(kind, weakness, Origin + new Vector2(60f, (int)kind * 5f), new Rect(Origin, Vector2.one * 100f),
+                Enemy plain = MathEnemies.Spawn(kind, weakness, Origin + new Vector2(60f * K, (int)kind * 5f * K), new Rect(Origin, Vector2.one * 100f),
                     null, null, null);
                 Track(weak.gameObject);
                 Track(plain.gameObject);

@@ -19,8 +19,8 @@ namespace Game.Cube
         [SerializeField] private string attackActionPath = "Player/Attack";
         [SerializeField, Min(0f)] private float baseDamage = CombatMath.BaseAttack;
         [SerializeField, Min(0f)] private float cooldown = 0.35f;
-        [SerializeField, Min(0f)] private float reach = 0.85f;
-        [SerializeField] private Vector2 hitboxSize = new Vector2(1.1f, 1.1f);
+        [SerializeField, Min(0f)] private float reach = 0.85f * ScreenMath.ContentScale;
+        [SerializeField] private Vector2 hitboxSize = new Vector2(1.1f, 1.1f) * ScreenMath.ContentScale;
         [SerializeField, Min(0f)] private float swingVisibleSeconds = 0.12f;
 
         private InputAction attack;

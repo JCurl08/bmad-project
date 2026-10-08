@@ -8,9 +8,11 @@ namespace Game.Tracer.Tests
         private static readonly Vector2 Size = new Vector2(16f, 10f);
 
         [Test]
-        public void DefaultScreenSize_Is16By10()
+        public void DefaultScreenSize_Is24By15_AndContentScalesFromTheFirst16By10()
         {
-            Assert.AreEqual(new Vector2(16f, 10f), ScreenMath.DefaultScreenSize);
+            Assert.AreEqual(new Vector2(24f, 15f), ScreenMath.DefaultScreenSize);
+            Assert.AreEqual(ScreenMath.DefaultScreenSize.x / 16f, ScreenMath.ContentScale, 1e-6f);
+            Assert.AreEqual(ScreenMath.DefaultScreenSize.y / 10f, ScreenMath.ContentScale, 1e-6f);
         }
 
         [TestCase(8f, 5f, 0, 0)]     // centre of screen A
@@ -42,7 +44,7 @@ namespace Game.Tracer.Tests
         [Test]
         public void ScreenIndex_DefaultOverload_UsesDefaultSize()
         {
-            Assert.AreEqual(new Vector2Int(1, 0), ScreenMath.ScreenIndex(new Vector2(20f, 3f)));
+            Assert.AreEqual(new Vector2Int(1, 0), ScreenMath.ScreenIndex(new Vector2(30f, 3f)));
         }
 
         [TestCase(0, 0, 8f, 5f)]

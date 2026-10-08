@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -227,17 +228,17 @@ namespace Game.Cube
             // Field ring, mass pips, timer bar.
             gate.field = BeakGate.AddSprite(block.transform, "Time Field", PartShape.Circle, thresholdGo.transform.localPosition,
                 new Vector2(TimeField.FieldRadius * 2f, TimeField.FieldRadius * 2f), FieldColor, -9, material);
-            float spacing = Mathf.Min(0.32f, width / (gate.required + 1));
+            float spacing = Mathf.Min(0.32f * ScreenMath.ContentScale, width / (gate.required + 1));
             for (int i = 0; i < gate.required; i++)
             {
                 Vector2 at = along * ((i - (gate.required - 1) / 2f) * spacing);
                 gate.pips.Add(BeakGate.AddSprite(block.transform, $"Mass Pip {i}", PartShape.Circle, at,
-                    new Vector2(0.16f, 0.16f), PipOff, -3, material));
+                    new Vector2(0.16f, 0.16f) * ScreenMath.ContentScale, PipOff, -3, material));
             }
-            gate.timerBarSize = new Vector2(width * 0.9f, 0.08f); // rotated to lie along a sideways door
+            gate.timerBarSize = new Vector2(width * 0.9f, 0.08f * ScreenMath.ContentScale); // rotated to lie along a sideways door
             var barGo = new GameObject("Timer Bar");
             barGo.transform.SetParent(block.transform, false);
-            barGo.transform.localPosition = opening * (thickness / 2f + 0.12f);
+            barGo.transform.localPosition = opening * (thickness / 2f + 0.12f * ScreenMath.ContentScale);
             if (!across) barGo.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
             gate.timerBar = barGo.AddComponent<SpriteRenderer>();
             gate.timerBar.sprite = ArtCatalog.Shape(PartShape.Square);

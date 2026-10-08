@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -99,8 +100,8 @@ namespace Game.Cube
             Wall(root, "Side Wall R", new Vector2(f.xMax - wall / 2f, f.center.y), new Vector2(wall, f.height), centre, material);
             float backY = side > 0f ? f.yMax - wall / 2f : f.yMin + wall / 2f;
             Wall(root, "Back Wall", new Vector2(f.center.x, backY), new Vector2(f.width - 2f * wall, wall), centre, material);
-            pads.Add(ArtCatalog.AddSprite(root, "Goal Pad", ArtKey.GoalPad, Vector2.zero + new Vector2(0f, side * 0.05f),
-                new Vector2(0.7f, 0.7f), PadColor, -6, material));
+            pads.Add(ArtCatalog.AddSprite(root, "Goal Pad", ArtKey.GoalPad, Vector2.zero + new Vector2(0f, side * 0.05f * ScreenMath.ContentScale),
+                new Vector2(0.7f, 0.7f) * ScreenMath.ContentScale, PadColor, -6, material));
 
             var block = new GameObject("Booth Door");
             block.transform.SetParent(root, false);

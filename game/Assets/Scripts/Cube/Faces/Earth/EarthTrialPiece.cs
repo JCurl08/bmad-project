@@ -1,3 +1,4 @@
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -10,7 +11,7 @@ namespace Game.Cube
     /// </summary>
     public class EarthTrialPiece : MonoBehaviour, IAttackReceiver
     {
-        public const float Size = 0.7f;
+        public const float Size = 0.7f * ScreenMath.ContentScale;
 
         [SerializeField] private EarthTrial trial;
         [SerializeField] private Phenomenon kind;
@@ -108,8 +109,8 @@ namespace Game.Cube
             piece.body = ArtCatalog.AddSprite(go.transform, "Body", PhenomenonGate.ArtOf(kind), Vector2.zero, new Vector2(Size, Size),
                 piece.baseColor, -2, material, tiled: false, fallback: PartShape.Square);
             for (int p = 0; p <= index; p++)
-                BeakGate.AddSprite(go.transform, $"Pip {p + 1}", PartShape.Circle, new Vector2((p - index / 2f) * 0.18f, Size / 2f + 0.15f),
-                    new Vector2(0.12f, 0.12f), StormcallerItem.ColorOf(kind), -1, material);
+                BeakGate.AddSprite(go.transform, $"Pip {p + 1}", PartShape.Circle, new Vector2((p - index / 2f) * 0.18f * ScreenMath.ContentScale, Size / 2f + 0.15f * ScreenMath.ContentScale),
+                    new Vector2(0.12f, 0.12f) * ScreenMath.ContentScale, StormcallerItem.ColorOf(kind), -1, material);
             return piece;
         }
     }

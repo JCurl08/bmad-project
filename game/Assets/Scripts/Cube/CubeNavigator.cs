@@ -21,8 +21,11 @@ namespace Game.Cube
     public class CubeNavigator : MonoBehaviour
     {
         [SerializeField] private CubeWorld world;
-        [Tooltip("How far inside the entry edge the player is placed after crossing (world units).")]
-        [SerializeField, Min(0.05f)] private float entryInset = 0.75f;
+        /// <summary>
+        /// How far inside the entry edge the player's centre is placed after a face crossing (world units). Shared with
+        /// IslandLayout.Arrival, so the sweep's island checks use the real arrival point.
+        /// </summary>
+        public const float EntryInset = 0.75f * ScreenMath.ContentScale;
 
         private Rigidbody2D body;
 
@@ -159,12 +162,12 @@ namespace Game.Cube
                 Vector2 velocity = body != null ? body.linearVelocity : Vector2.zero;
                 if (direction.IsHorizontal())
                 {
-                    clamped.x = Mathf.Clamp(local.x, entryInset, extent.x - entryInset);
+                    clamped.x = Mathf.Clamp(local.x, EntryInset, extent.x - EntryInset);
                     velocity.x = 0f;
                 }
                 else
                 {
-                    clamped.y = Mathf.Clamp(local.y, entryInset, extent.y - entryInset);
+                    clamped.y = Mathf.Clamp(local.y, EntryInset, extent.y - EntryInset);
                     velocity.y = 0f;
                 }
                 SetPosition(origin + clamped);
@@ -197,10 +200,10 @@ namespace Game.Cube
             float alongY = Mathf.Clamp(t * extent.y, margin, extent.y - margin);
             switch (facing)
             {
-                case Facing.East: return new Vector2(entryInset, alongY);
-                case Facing.West: return new Vector2(extent.x - entryInset, alongY);
-                case Facing.North: return new Vector2(alongX, entryInset);
-                default: return new Vector2(alongX, extent.y - entryInset);
+                case Facing.East: return new Vector2(EntryInset, alongY);
+                case Facing.West: return new Vector2(extent.x - EntryInset, alongY);
+                case Facing.North: return new Vector2(alongX, EntryInset);
+                default: return new Vector2(alongX, extent.y - EntryInset);
             }
         }
 

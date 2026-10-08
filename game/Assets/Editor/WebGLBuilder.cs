@@ -43,7 +43,7 @@ public static class WebGLBuilder
         // itch.io serves Gzip builds reliably when the decompression fallback is on.
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
         PlayerSettings.WebGL.decompressionFallback = true;
-        // 16:10 canvas so the page shows exactly one 16x10 screen.
+        // 16:10 canvas so the page shows exactly one 24x15 screen.
         PlayerSettings.defaultWebScreenWidth = 960;
         PlayerSettings.defaultWebScreenHeight = 600;
         AssetDatabase.SaveAssets();

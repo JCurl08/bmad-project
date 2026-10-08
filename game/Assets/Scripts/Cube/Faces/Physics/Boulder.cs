@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Tracer;
 using UnityEngine;
 
 namespace Game.Cube
@@ -16,10 +17,10 @@ namespace Game.Cube
     [RequireComponent(typeof(Rigidbody2D), typeof(CircleCollider2D))]
     public class Boulder : MonoBehaviour, IAttackReceiver
     {
-        public const float Radius = 0.4f;
+        public const float Radius = 0.4f * ScreenMath.ContentScale;
 
         /// <summary>Gap kept between a moving boulder and what it bumps into.</summary>
-        private const float Skin = 0.02f;
+        private const float Skin = 0.02f * ScreenMath.ContentScale;
 
         /// <summary>The boulder art's tint, at rest and while the Mass Mitt holds it.</summary>
         public static readonly Color StoneColor = new Color(0.92f, 0.9f, 0.88f);
@@ -192,7 +193,7 @@ namespace Game.Cube
                     ignoring.RemoveAt(i);
                     continue;
                 }
-                if (!force && Circle.enabled && c.enabled && Physics2D.Distance(Circle, c).distance < 0.02f) continue; // still overlapping
+                if (!force && Circle.enabled && c.enabled && Physics2D.Distance(Circle, c).distance < 0.02f * ScreenMath.ContentScale) continue; // still overlapping
                 if (Circle != null) Physics2D.IgnoreCollision(Circle, c, false);
                 ignoring.RemoveAt(i);
             }
