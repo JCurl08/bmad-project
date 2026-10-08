@@ -53,6 +53,7 @@ namespace Game.Cube.Tests
             foreach (string line in CubeMap.AllTexts()) yield return ("CubeMap", line);
             yield return ("IslandScreen", IslandScreen.MendedText);
             yield return ("IslandScreen", IslandScreen.LoneText);
+            yield return ("IslandScreen", IslandScreen.SolvedText);
             yield return ("IceScreen", IceScreen.GoalText);
             yield return ("IceSlider", IceSlider.FallText);
             yield return ("WindScreen", WindScreen.GoalText);

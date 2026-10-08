@@ -189,3 +189,7 @@ Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per
 ## Drawn in code (4.11): the wind screens
 
 `WindArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: sky (deep blue, some tiles with a soft cloud wisp; the tile under land shows the island's rocky underside, so islands float), the ring path (pale flagstones round the screen, where every doorway opens), island grass, a wall (a grey rock on grass, splitting twin islands), a stream (a lighter blue lane with a white chevron, turned to the stream's way per tile), a grip anchor (a small floating rock on the stream), the goal pad (grass ringed in gold, under the reward chest) and the cliffs (dark stone, round the grid). `WindScreen` animates white streaks flowing along every stream. The `WindBand` key stays in the catalog unused since the wind hazard is gone.
+
+## Drawn in code (4.12): the island puzzle
+
+`IslandScreen` adds simple shapes, no new catalog key: a dark plank (`PlankBridge` tinted dark wood) lights under a glow in Math's yellow once crossed, and every plank of the lit network flashes red for 0.45 s when a lit one is crossed again; a mended span keeps the gap-crosser*'s gold; an island whose network planks are all lit gets a yellow rim on every water edge. The reward roadblock is a dark round plinth under the chest with one small lamp per network plank round its edge (dark, then yellow as planks light) and three iron bars with a top bar over the chest; solving sends a chain of yellow dots from the last plank to the chest, then the bars go.

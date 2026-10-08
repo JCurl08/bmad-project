@@ -60,12 +60,16 @@ namespace Game.Cube
     /// A Math island screen as pure data (1.25), local to the screen centre: the whole screen inside its edge walls is
     /// solid water dotted with islands (axis-aligned land on a 5 x 3 lattice of spots), joined here and there by planks.
     /// Every doorway lands on its own island (DoorIsland: the island reaching from the doorway into the screen), so the
-    /// player can always walk back out the way it came. Planks only join lattice neighbours, so they never cross and are
-    /// spread over the whole screen. Some planks are broken spans: a one-square gap only the gap-crosser* spans.
-    /// The graph is deliberately not fully connected (Generate): two doorways are joined by whole planks; a third reaches
-    /// them only over a broken span (it needs the gap-crosser*); the fourth joins nothing else on the screen (the player
-    /// must come round through another screen). The trial screen's trial island hangs off the joined islands by a broken
-    /// span. Problems checks all of it; Components gives what joins with or without the gap-crosser*.
+    /// player can always walk back out the way it came. Planks join spots in one row or column, neighbours or (4.12) two
+    /// apart over an empty middle spot, so they never cross and are spread over the whole screen. Some planks are broken
+    /// spans: a one-square gap only the gap-crosser* spans.
+    /// 4.12 "light every plank": the lit network is every whole plank of the reward island's whole-plank component
+    /// (IslandSolver); every open doorway but one sits on it, the third one dealt (the gap doorway) reaches it only over a
+    /// broken span and carries the tier's red herrings (lookout planks off the network), and the trial island hangs off the
+    /// network by a broken span. Lighting every network plank, never crossing a lit one twice, opens the reward roadblock on
+    /// the reward island (GoalSpot; a region of its own for DoorwayReach, joined when every doorway can solve the screen).
+    /// Generate searches the design for the tier (IslandGenerator), with a hand-checked template per tier past the budget.
+    /// Problems checks all of it; Components gives what joins with or without the gap-crosser*.
     /// </summary>
     public sealed class IslandLayout : IScreenRegions
     {
@@ -111,13 +115,11 @@ namespace Game.Cube
         /// <summary>Open water kept between two islands that no plank joins (so they read as separate land).</summary>
         public const float MinWater = 0.6f * ScreenMath.ContentScale;
 
-        /// <summary>Attempts at a layout before giving up.</summary>
-        private const int Attempts = 64;
-
         private readonly Vector2Int[] spots;
         private readonly Rect[] islands;
         private readonly IslandBridge[] bridges;
         private readonly int[] doorIslands;
+        private IslandSolver solver;
 
         /// <summary>The water inside the edge walls (local rect): everything here that is not island or plank is water.</summary>
         public static Rect WaterArea
@@ -153,9 +155,26 @@ namespace Game.Cube
             }
         }
 
+        /// <summary>The island the reward roadblock stands on (4.12), or -1 for a layout with no lit network.</summary>
+        public int RewardIsland { get; }
+
+        /// <summary>The difficulty tier the layout was made for (4.12).</summary>
+        public PuzzleTier Tier { get; }
+
+        /// <summary>True when the layout has a lit network and a reward roadblock (every generated layout since 4.12).</summary>
+        public bool HasPuzzle => RewardIsland >= 0;
+
+        /// <summary>True when the hand-checked template stood in for the search (the sweep reports it).</summary>
+        public bool FromTemplate { get; private set; }
+
+        /// <summary>Search steps the generation took (the sweep reports the mean).</summary>
+        public int SearchSteps { get; private set; }
+
         public IslandLayout(IEnumerable<Vector2Int> islandSpots, IEnumerable<(int a, int b, bool broken)> links, int[] doorIslandBySide,
-            int trialIsland = -1)
+            int trialIsland = -1, int rewardIsland = -1, PuzzleTier tier = PuzzleTier.Early)
         {
+            RewardIsland = rewardIsland;
+            Tier = tier;
             spots = new List<Vector2Int>(islandSpots).ToArray();
             islands = new Rect[spots.Length];
             for (int i = 0; i < spots.Length; i++) islands[i] = IslandRect(spots[i]);
@@ -171,15 +190,37 @@ namespace Game.Cube
         /// <summary>The island a doorway lands on (-1 for a side with no doorway).</summary>
         public int DoorIsland(Facing side) => doorIslands[(int)side];
 
-        // IScreenRegions (DoorwayReach): each island is a region, joined by its planks (broken spans only with the gap-crosser*).
-        public int RegionCount => islands.Length;
+        // IScreenRegions (DoorwayReach): each island is a region, joined by its planks (broken spans only with the gap-crosser*);
+        // 4.12: the reward roadblock is one more region (GoalRegion), joined to the reward island while every doorway can light
+        // the network, as 4.10's goal pads are.
+        public int RegionCount => islands.Length + (HasPuzzle ? 1 : 0);
         public int DoorRegion(Facing side) => DoorIsland(side);
-        public int RegionAt(Vector2 local) => IslandAt(local);
+
+        public int RegionAt(Vector2 local)
+        {
+            if (HasPuzzle && (local - GoalSpot).sqrMagnitude <= GoalRadius * GoalRadius) return GoalRegion;
+            return IslandAt(local);
+        }
+
+        /// <summary>The reward roadblock's region (after the islands), or -1 without a puzzle.</summary>
+        public int GoalRegion => HasPuzzle ? islands.Length : -1;
+
+        /// <summary>How near GoalSpot a point counts as the roadblock's region (the chest's reach).</summary>
+        public const float GoalRadius = RewardChest.Radius;
+
+        /// <summary>Where the reward roadblock (its chest) stands (local): the reward island's middle.</summary>
+        public Vector2 GoalSpot => HasPuzzle ? islands[RewardIsland].center : Vector2.zero;
 
         public IEnumerable<int> Joins(int region, bool gapCrosser)
         {
+            if (HasPuzzle && region == GoalRegion)
+            {
+                if (Solvable) yield return RewardIsland;
+                yield break;
+            }
             foreach (IslandBridge b in bridges)
                 if (b.Joins(region) && (!b.Broken || gapCrosser)) yield return b.Other(region);
+            if (HasPuzzle && region == RewardIsland && Solvable) yield return GoalRegion;
         }
 
         /// <summary>The doorway side of an island, or null for an inner island.</summary>
@@ -262,8 +303,6 @@ namespace Game.Cube
             return span >= GapLength + 2f * MinPlankEnd - 1e-4f && (a.x == b.x || a.y == b.y);
         }
 
-        private static readonly Vector2Int[] Steps = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-
         /// <summary>The island a point (local) stands on, else -1 (water, or a plank).</summary>
         public int IslandAt(Vector2 local)
         {
@@ -330,6 +369,82 @@ namespace Game.Cube
             return true;
         }
 
+        // ------------------------------------------------------------------ The lit network (4.12)
+
+        /// <summary>The layout as the pure solver's design (spots as lattice ids).</summary>
+        public IslandDesign Design()
+        {
+            var d = new IslandDesign { Trial = TrialIsland, Reward = RewardIsland };
+            foreach (Vector2Int s in spots) d.Spots.Add(IslandLattice.Spot(s.x, s.y));
+            foreach (IslandBridge b in bridges) d.Links.Add((b.A, b.B, b.Broken));
+            for (int f = 0; f < 4; f++) d.DoorIslands[f] = doorIslands[f];
+            return d;
+        }
+
+        /// <summary>The solver over this layout (island middles for its walking distances, the player's base walking speed).</summary>
+        public IslandSolver Solver
+        {
+            get
+            {
+                if (solver != null) return solver;
+                Rect[] land = islands;
+                solver = new IslandSolver(Design(), i => (land[i].center.x, land[i].center.y), WalkSpeed);
+                return solver;
+            }
+        }
+
+        /// <summary>The player's base walking speed (PlayerMover's default) the retry cost is measured at.</summary>
+        public const float WalkSpeed = 6f * ScreenMath.ContentScale;
+
+        /// <summary>True for a plank of the lit network (a whole plank of the reward island's component): only these light.</summary>
+        public bool IsNetworkPlank(int plank) => HasPuzzle && Solver.Bit(plank) >= 0;
+
+        /// <summary>The lit network's planks, in plank order.</summary>
+        public IReadOnlyList<int> NetworkPlanks => HasPuzzle ? Solver.Network : (IReadOnlyList<int>)Array.Empty<int>();
+
+        /// <summary>True for an island of the lit network.</summary>
+        public bool OnNetwork(int island) => HasPuzzle && Solver.OnNetwork(island);
+
+        /// <summary>What a doorway's player meets (the solver's measure against the tier's targets).</summary>
+        public IslandMetrics Measure(Facing side) => Solver.Measure((int)side, f => doorIslands[f] >= 0);
+
+        /// <summary>The tier's targets.</summary>
+        public IslandTargets Targets => IslandTargets.For(Tier);
+
+        /// <summary>True when a doorway's island is not on the network (it reaches it over a broken span): the gap doorway.</summary>
+        public bool HasGapDoor
+        {
+            get
+            {
+                for (int f = 0; f < 4; f++)
+                    if (doorIslands[f] >= 0 && !OnNetwork(doorIslands[f])) return true;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// True when every doorway that reaches the network can light all of it (a clean start it can make, the network one
+        /// trail): the reward roadblock's region joins the reward island then.
+        /// </summary>
+        public bool Solvable => solvable ?? (solvable = ComputeSolvable()).Value;
+
+        private bool? solvable;
+
+        private bool ComputeSolvable()
+        {
+            if (!HasPuzzle || Solver.Network.Count == 0) return false;
+            bool any = false;
+            for (int f = 0; f < 4; f++)
+            {
+                if (doorIslands[f] < 0) continue;
+                IslandMetrics m = Measure((Facing)f);
+                if (!m.Connected) continue;
+                if (!m.Solvable) return false;
+                any = true;
+            }
+            return any;
+        }
+
         // ------------------------------------------------------------------ Validation
 
         private static bool Overlaps(Rect a, Rect b, float eps = 1e-4f) =>
@@ -345,10 +460,11 @@ namespace Game.Cube
         /// <summary>
         /// Problems with the layout for a screen whose doorways are hasDoorway (empty when all is well): every doorway lands
         /// on its own island, which reaches the doorway (so the arriving player stands on land and can always walk back
-        /// out); islands are separate land in the water; every plank joins two lattice neighbours shore to shore, over water
-        /// only, and a broken one is long enough for its gap; every island joins some doorway (with the gap-crosser*); and the
-        /// graph is not fully connected: with three or more doorways, a pair of doorways joins only over a broken span and
-        /// a doorway joins no other even with the gap-crosser*. A trial island is reached only over a broken span.
+        /// out); islands are separate land in the water; every plank joins two spots in line (neighbours, or two apart over
+        /// an empty spot) shore to shore, over water only, never crossing another, and a broken one is long enough for its
+        /// gap; every island joins some doorway (with the gap-crosser*); with three or more doorways a pair joins over whole
+        /// planks and one joins only over a broken span (4.12: no doorway is left alone). A trial island is reached only over
+        /// a broken span. With a puzzle, its rules too (PuzzleProblems).
         /// </summary>
         public List<string> Problems(string what, Func<Facing, bool> hasDoorway)
         {
@@ -404,8 +520,10 @@ namespace Game.Cube
                     problems.Add($"{what}: plank {k} is malformed");
                     continue;
                 }
-                Vector2Int d = spots[b.B] - spots[b.A];
-                if (Mathf.Abs(d.x) + Mathf.Abs(d.y) != 1) problems.Add($"{what}: plank {k} joins islands that are not neighbours");
+                if (!IslandLattice.InLine(IslandLattice.Spot(spots[b.A].x, spots[b.A].y), IslandLattice.Spot(spots[b.B].x, spots[b.B].y), out int middle))
+                    problems.Add($"{what}: plank {k} joins islands that are not in line, one or two spots apart");
+                else if (middle >= 0 && Array.IndexOf(spots, new Vector2Int(IslandLattice.X(middle), IslandLattice.Y(middle))) >= 0)
+                    problems.Add($"{what}: long plank {k} passes over an island");
                 if (b.Plank != PlankRect(spots[b.A], spots[b.B])) problems.Add($"{what}: plank {k} does not run shore to shore");
                 if (b.Across < 2f * TimeField.PlayerRadius + 0.2f * ScreenMath.ContentScale) problems.Add($"{what}: plank {k} is too narrow");
                 if (b.Span < 0.5f * ScreenMath.ContentScale) problems.Add($"{what}: plank {k} spans no real water");
@@ -425,224 +543,182 @@ namespace Game.Cube
                 if (DoorsReaching(i, true).Count == 0) problems.Add($"{what}: island {i} joins no doorway, even with the gap-crosser*");
             if (doorways >= 3)
             {
+                // 4.12: every doorway joins the others (no lone doorway), but one only over a broken span (the gap doorway).
                 var doorList = new List<int>();
                 for (int f = 0; f < 4; f++)
                     if (doorIslands[f] >= 0) doorList.Add(doorIslands[f]);
-                bool needsGap = false, alone = false, wholePair = false;
+                bool needsGap = false, wholePair = false;
                 foreach (int a in doorList)
-                {
-                    bool joinsAny = false;
                     foreach (int b in doorList)
                     {
                         if (a == b) continue;
-                        if (all[a] == all[b]) joinsAny = true;
                         if (all[a] == all[b] && whole[a] != whole[b]) needsGap = true;
                         if (whole[a] == whole[b]) wholePair = true;
                     }
-                    if (!joinsAny) alone = true;
-                }
                 if (!wholePair) problems.Add($"{what}: no two doorways join over whole planks");
                 if (!needsGap) problems.Add($"{what}: no doorways join only over a broken span");
-                if (!alone) problems.Add($"{what}: every doorway joins another (the screen is fully connected)");
             }
+            if (doorways >= 2)
+                for (int f = 0; f < 4; f++)
+                {
+                    int a = doorIslands[f];
+                    if (a < 0) continue;
+                    bool joins = false;
+                    for (int g = 0; g < 4; g++)
+                        if (g != f && doorIslands[g] >= 0 && all[doorIslands[g]] == all[a]) joins = true;
+                    if (!joins) problems.Add($"{what}: the {(Facing)f} doorway joins no other (a lone doorway)");
+                }
             if (HasTrial)
             {
                 if (TrialIsland >= islands.Length || DoorOf(TrialIsland).HasValue) problems.Add($"{what}: the trial is not on an inner island");
                 else if (DoorsReaching(TrialIsland, false).Count > 0) problems.Add($"{what}: the trial island is reached without the gap-crosser*");
+            }
+            if (HasPuzzle) problems.AddRange(PuzzleProblems(what));
+            return problems;
+        }
+
+        /// <summary>
+        /// The puzzle's rules (4.12): the reward roadblock stands on an inner island of the lit network, the trial island is
+        /// off it, and from every doorway the network meets every target of the tier (IslandTargets.Misses: lit from a clean
+        /// start the doorway can reach, the tier's planks, parity and P_rand, the crossing cheaper than the reward route).
+        /// </summary>
+        public List<string> PuzzleProblems(string what)
+        {
+            var problems = new List<string>();
+            if (RewardIsland >= islands.Length || DoorOf(RewardIsland).HasValue) problems.Add($"{what}: the reward roadblock is not on an inner island");
+            else if (Solver.Network.Count == 0) problems.Add($"{what}: the reward island has no lit plank");
+            if (HasTrial && OnNetwork(TrialIsland)) problems.Add($"{what}: the trial island is on the lit network");
+            // Every doorway but one (the gap doorway, with three or more) stands on the lit network (4.12 review).
+            int doorways = 0, off = 0;
+            for (int f = 0; f < 4; f++)
+            {
+                if (doorIslands[f] < 0) continue;
+                doorways++;
+                if (!OnNetwork(doorIslands[f])) off++;
+            }
+            int wantOff = doorways >= 3 ? 1 : 0;
+            if (off != wantOff) problems.Add($"{what}: {off} doorways off the lit network (want {wantOff}: every doorway but the gap one on it)");
+            if (problems.Count > 0) return problems;
+            bool gap = HasGapDoor;
+            for (int f = 0; f < 4; f++)
+            {
+                if (doorIslands[f] < 0) continue;
+                foreach (string miss in Targets.Misses(Measure((Facing)f), gap))
+                    problems.Add($"{what}: from the {(Facing)f} doorway ({Tier}), {miss}");
             }
             return problems;
         }
 
         // ------------------------------------------------------------------ Generation
 
+        /// <summary>The geometry the pure generator works with: a broken span fits between two spots (lattice ids).</summary>
+        public static bool CanBreakSpots(int a, int b) =>
+            CanBreak(new Vector2Int(IslandLattice.X(a), IslandLattice.Y(a)), new Vector2Int(IslandLattice.X(b), IslandLattice.Y(b)));
+
+        /// <summary>The middle of a spot's island (lattice id).</summary>
+        public static (double X, double Y) SpotCentreOf(int spot)
+        {
+            Vector2 c = IslandRect(new Vector2Int(IslandLattice.X(spot), IslandLattice.Y(spot))).center;
+            return (c.x, c.y);
+        }
+
+        /// <summary>A layout from the pure design, for a tier.</summary>
+        public static IslandLayout FromDesign(IslandDesign d, PuzzleTier tier)
+        {
+            var list = new List<Vector2Int>();
+            foreach (int s in d.Spots) list.Add(new Vector2Int(IslandLattice.X(s), IslandLattice.Y(s)));
+            return new IslandLayout(list, d.Links, d.DoorIslands, d.Trial, d.Reward, tier);
+        }
+
         /// <summary>
-        /// A seeded island screen for a screen whose doorways are hasDoorway, or null when none was found. The doorways are
-        /// shuffled into roles: the first two are joined over whole planks (a route of islands between them, mostly by way of
-        /// a seeded inner spot so routes wander over the whole screen); the third reaches that network only over a broken
-        /// span (its own route, one long link of it broken); the fourth stands alone, sometimes with a lookout island or two.
-        /// With trial, a trial island hangs off the joined network by a broken span. With fewer doorways the roles are dealt
-        /// in the same order.
+        /// A seeded island screen of a tier (4.12) for a screen whose doorways are hasDoorway: IslandGenerator's search,
+        /// kept only with no Problems. Past the search's budget the tier's hand-checked template stands in (a screen with all
+        /// four doorways; FromTemplate, the sweep reports it), so it never returns an unsolved layout. Null when neither fits
+        /// (a screen with fewer doorways the search found no design for; MathPlan.Problems reports it).
         /// </summary>
-        public static IslandLayout Generate(SeededRng rng, Func<Facing, bool> hasDoorway, bool trial)
+        public static IslandLayout Generate(SeededRng rng, PuzzleTier tier, Func<Facing, bool> hasDoorway, bool trial)
         {
             if (rng == null) throw new ArgumentNullException(nameof(rng));
-            for (int attempt = 0; attempt < Attempts; attempt++)
+            var doors = new bool[4];
+            for (int f = 0; f < 4; f++) doors[f] = hasDoorway((Facing)f);
+            IslandLayout kept = null;
+            IslandGenerator.Generate(rng, tier, doors, trial, CanBreakSpots, SpotCentreOf, d =>
             {
-                IslandLayout layout = TryGenerate(rng, hasDoorway, trial);
-                if (layout != null && layout.Problems("generated", hasDoorway).Count == 0) return layout;
+                IslandLayout layout = FromDesign(d, tier);
+                if (layout.Problems("generated", hasDoorway).Count > 0) return false;
+                kept = layout;
+                return true;
+            }, out int steps);
+            if (kept != null)
+            {
+                kept.SearchSteps = steps;
+                return kept;
             }
-            return null;
+            IslandLayout template = Template(tier, hasDoorway, trial);
+            if (template == null) return null;
+            template.SearchSteps = steps;
+            template.FromTemplate = true;
+            return template;
         }
 
-        private static IslandLayout TryGenerate(SeededRng rng, Func<Facing, bool> hasDoorway, bool trial)
+        /// <summary>
+        /// One hand-checked design per tier (the gap doorway on the east, a trial island behind a broken span), found by the
+        /// generator and checked by IslandTests against every target. Format: spots "x,y" | links "a-b" (x: broken) | the
+        /// doorway islands N,E,S,W, the trial island and the reward island.
+        /// </summary>
+        public static readonly string[] Templates =
         {
-            var sides = new List<Facing>();
+            "0,0 2,0 0,1 2,1 0,2 1,2 2,2 4,1 1,1 | 0-1 0-2 1-3 2-4 3-6 4-5 5-6 7-3x 3-8x | doors 6,7,1,2 trial 8 reward 3",
+            "2,0 3,0 0,1 1,1 2,1 3,1 1,2 2,2 4,1 4,0 1,0 | 0-1 0-4 1-5 2-3 3-4 3-6 4-5 4-7 6-7 8-5x 8-9 3-10x | doors 7,8,0,2 trial 10 reward 3",
+            "0,0 1,0 2,0 3,0 0,1 1,1 2,1 3,1 1,2 2,2 3,2 4,1 4,2 4,0 | 0-1 0-4 1-5 2-3 2-6 3-7 4-5 5-6 5-8 6-7 6-9 7-10 8-9 11-7x 11-12 3-13x | doors 9,11,2,4 trial 13 reward 10",
+        };
+
+        /// <summary>A design from its Templates string.</summary>
+        public static IslandDesign ParseDesign(string text)
+        {
+            string[] parts = text.Split('|');
+            var d = new IslandDesign();
+            foreach (string spot in parts[0].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] xy = spot.Split(',');
+                d.Spots.Add(IslandLattice.Spot(int.Parse(xy[0]), int.Parse(xy[1])));
+            }
+            foreach (string link in parts[1].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                bool broken = link.EndsWith("x");
+                string[] ab = link.TrimEnd('x').Split('-');
+                d.Links.Add((int.Parse(ab[0]), int.Parse(ab[1]), broken));
+            }
+            string[] words = parts[2].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] doors = words[1].Split(',');
+            for (int f = 0; f < 4; f++) d.DoorIslands[f] = int.Parse(doors[f]);
+            d.Trial = int.Parse(words[3]);
+            d.Reward = int.Parse(words[5]);
+            return d;
+        }
+
+        /// <summary>The design without its trial island (and the span to it).</summary>
+        public static IslandDesign WithoutTrial(IslandDesign d)
+        {
+            if (d.Trial < 0) return d;
+            var e = new IslandDesign();
+            int Map(int i) => i < d.Trial ? i : i - 1;
+            for (int i = 0; i < d.Spots.Count; i++)
+                if (i != d.Trial) e.Spots.Add(d.Spots[i]);
+            foreach ((int a, int b, bool broken) in d.Links)
+                if (a != d.Trial && b != d.Trial) e.Links.Add((Map(a), Map(b), broken));
+            for (int f = 0; f < 4; f++) e.DoorIslands[f] = d.DoorIslands[f] < 0 ? -1 : Map(d.DoorIslands[f]);
+            e.Reward = Map(d.Reward);
+            return e;
+        }
+
+        /// <summary>The tier's template for a screen with all four doorways (with the trial when trial), else null.</summary>
+        public static IslandLayout Template(PuzzleTier tier, Func<Facing, bool> hasDoorway, bool trial)
+        {
             for (int f = 0; f < 4; f++)
-                if (hasDoorway((Facing)f)) sides.Add((Facing)f);
-            if (sides.Count == 0) return null;
-            rng.Shuffle(sides);
-
-            var spotList = new List<Vector2Int>();
-            var index = new Dictionary<Vector2Int, int>();
-            var links = new List<(int a, int b, bool broken)>();
-            var doorIslands = new[] { -1, -1, -1, -1 };
-            int Add(Vector2Int s)
-            {
-                if (index.TryGetValue(s, out int i)) return i;
-                index[s] = spotList.Count;
-                spotList.Add(s);
-                return spotList.Count - 1;
-            }
-            foreach (Facing side in sides) doorIslands[(int)side] = Add(DoorSpot(side));
-
-            // Spots a path may not pass: other doorways' islands (except its own ends).
-            var doorSpots = new HashSet<Vector2Int>();
-            foreach (Facing side in sides) doorSpots.Add(DoorSpot(side));
-
-            var joined = new HashSet<Vector2Int> { DoorSpot(sides[0]) };
-            if (sides.Count >= 2)
-            {
-                // 1. Two doorways joined over whole planks.
-                Vector2Int goal = DoorSpot(sides[1]);
-                List<Vector2Int> path = Route(rng, DoorSpot(sides[0]), s => s == goal, s => !doorSpots.Contains(s) || s == goal, index);
-                if (path == null) return null;
-                for (int k = 0; k + 1 < path.Count; k++) links.Add((Add(path[k]), Add(path[k + 1]), false));
-                foreach (Vector2Int s in path) joined.Add(s);
-            }
-            if (sides.Count >= 3)
-            {
-                // 2. A third doorway reaches them only over a broken span.
-                Vector2Int start = DoorSpot(sides[2]);
-                List<Vector2Int> path = Route(rng, start, joined.Contains, s => joined.Contains(s) || (!doorSpots.Contains(s) && !index.ContainsKey(s)), index);
-                if (path == null) return null;
-                var breakable = new List<int>();
-                for (int k = 0; k + 1 < path.Count; k++)
-                    if (CanBreak(path[k], path[k + 1])) breakable.Add(k);
-                if (breakable.Count == 0) return null;
-                int broken = breakable[rng.NextInt(breakable.Count)];
-                for (int k = 0; k + 1 < path.Count; k++) links.Add((Add(path[k]), Add(path[k + 1]), k == broken));
-            }
-            if (sides.Count >= 4 && rng.NextInt(3) != 0)
-            {
-                // 3. The lone doorway, sometimes with a lookout island of its own.
-                Vector2Int lone = DoorSpot(sides[3]);
-                var free = new List<Vector2Int>();
-                foreach (Vector2Int step in Steps)
-                {
-                    Vector2Int s = lone + step;
-                    if (OnLattice(s) && !index.ContainsKey(s) && !doorSpots.Contains(s) && Clear(s, index)) free.Add(s);
-                }
-                if (free.Count > 0)
-                {
-                    Vector2Int lookout = free[rng.NextInt(free.Count)];
-                    links.Add((doorIslands[(int)sides[3]], Add(lookout), false));
-                    // Sometimes one more island out along the lookout's row or column.
-                    Vector2Int further = lookout + (lookout - lone);
-                    if (rng.NextInt(2) == 0 && OnLattice(further) && !index.ContainsKey(further) && !doorSpots.Contains(further) && Clear(further, index))
-                        links.Add((index[lookout], Add(further), false));
-                }
-            }
-            int trialIsland = -1;
-            if (trial)
-            {
-                // 4. The trial island: off the joined network, over a broken span.
-                var options = new List<(Vector2Int from, Vector2Int to)>();
-                foreach (Vector2Int j in joined)
-                    foreach (Vector2Int step in Steps)
-                    {
-                        Vector2Int s = j + step;
-                        if (OnLattice(s) && !index.ContainsKey(s) && !doorSpots.Contains(s) && CanBreak(j, s) && Clear(s, index))
-                            options.Add((j, s));
-                    }
-                if (options.Count == 0) return null;
-                (Vector2Int from, Vector2Int to) = options[rng.NextInt(options.Count)];
-                trialIsland = Add(to);
-                links.Add((index[from], trialIsland, true));
-            }
-            return new IslandLayout(spotList, links, doorIslands, trialIsland);
-        }
-
-        /// <summary>
-        /// A route from start to a goal spot: two times in three by way of a free inner spot (the first, in a seeded order,
-        /// that two legs sharing no spot can reach), else, or when none can, a shortest one.
-        /// </summary>
-        private static List<Vector2Int> Route(SeededRng rng, Vector2Int start, Func<Vector2Int, bool> goal, Func<Vector2Int, bool> passable,
-            Dictionary<Vector2Int, int> placed)
-        {
-            if (rng.NextInt(3) != 0)
-            {
-                var waypoints = new List<Vector2Int>();
-                for (int x = 0; x < Columns.Length; x++)
-                    for (int y = 0; y < Rows.Length; y++)
-                    {
-                        var s = new Vector2Int(x, y);
-                        if (s != start && !goal(s) && !placed.ContainsKey(s) && DoorAt(s) == null && passable(s)) waypoints.Add(s);
-                    }
-                rng.Shuffle(waypoints);
-                foreach (Vector2Int via in waypoints)
-                {
-                    List<Vector2Int> first = ShortestPath(rng, start, s => s == via, s => passable(s) && !goal(s), placed);
-                    if (first != null)
-                    {
-                        var used = new HashSet<Vector2Int>(first);
-                        used.Remove(via);
-                        List<Vector2Int> second = ShortestPath(rng, via, goal, s => passable(s) && !used.Contains(s), placed);
-                        if (second != null)
-                        {
-                            first.AddRange(second.GetRange(1, second.Count - 1));
-                            return first;
-                        }
-                    }
-                }
-            }
-            return ShortestPath(rng, start, goal, passable, placed);
-        }
-
-        /// <summary>True when a new island on the spot keeps MinWater from every island already placed.</summary>
-        private static bool Clear(Vector2Int spot, Dictionary<Vector2Int, int> placed)
-        {
-            Rect r = IslandRect(spot);
-            foreach (Vector2Int s in placed.Keys)
-                if (Gap(r, IslandRect(s)) < MinWater - 1e-4f) return false;
-            return true;
-        }
-
-        /// <summary>
-        /// A shortest lattice path from start to a goal spot through passable spots (new spots must keep clear of placed
-        /// islands), random among the shortest (neighbours tried in a seeded order); null when there is none.
-        /// </summary>
-        private static List<Vector2Int> ShortestPath(SeededRng rng, Vector2Int start, Func<Vector2Int, bool> goal,
-            Func<Vector2Int, bool> passable, Dictionary<Vector2Int, int> placed)
-        {
-            var previous = new Dictionary<Vector2Int, Vector2Int> { [start] = start };
-            var queue = new Queue<Vector2Int>();
-            queue.Enqueue(start);
-            while (queue.Count > 0)
-            {
-                Vector2Int at = queue.Dequeue();
-                if (at != start && goal(at))
-                {
-                    var path = new List<Vector2Int> { at };
-                    while (at != start)
-                    {
-                        at = previous[at];
-                        path.Add(at);
-                    }
-                    path.Reverse();
-                    return path;
-                }
-                var order = new List<Vector2Int>(Steps);
-                rng.Shuffle(order);
-                foreach (Vector2Int step in order)
-                {
-                    Vector2Int next = at + step;
-                    if (!OnLattice(next) || previous.ContainsKey(next) || !passable(next)) continue;
-                    if (!placed.ContainsKey(next) && !goal(next) && !Clear(next, placed)) continue;
-                    previous[next] = at;
-                    queue.Enqueue(next);
-                }
-            }
-            return null;
+                if (!hasDoorway((Facing)f)) return null;
+            IslandDesign d = ParseDesign(Templates[(int)tier]);
+            return FromDesign(trial ? d : WithoutTrial(d), tier);
         }
 
         public string Signature()
@@ -655,10 +731,12 @@ namespace Game.Cube
             sb.Append(" planks");
             foreach (IslandBridge b in bridges) sb.Append(' ').Append(b.A).Append('-').Append(b.B).Append(b.Broken ? "x" : "");
             if (HasTrial) sb.Append(" trial ").Append(TrialIsland);
+            if (HasPuzzle) sb.Append(" reward ").Append(RewardIsland).Append(' ').Append(Tier).Append(FromTemplate ? " template" : "");
             return sb.ToString();
         }
 
         public override string ToString() =>
-            $"{islands.Length} islands, {bridges.Length} planks{(HasBroken ? " (some broken)" : "")}{(HasTrial ? ", a trial island" : "")}";
+            $"{islands.Length} islands, {bridges.Length} planks{(HasBroken ? " (some broken)" : "")}{(HasTrial ? ", a trial island" : "")}" +
+            (HasPuzzle ? $", {NetworkPlanks.Count} to light ({Tier})" : "");
     }
 }

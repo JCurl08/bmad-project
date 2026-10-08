@@ -289,6 +289,25 @@ public static class CubeSceneBuilder
         report += $"Math: {islandScreens} island screens ({islands} islands, {planks} planks, {brokenSpans} broken spans, " +
                   $"{lookouts} lone doorways with a lookout island); {gapGates} gap gates ({offHomeGaps} off-home); the Math trial " +
                   $"island on {mathTrials} seeds; the gap-crosser* on an island on {mathPickupsOnIslands} seeds.\n";
+        // 4.12: the island screens' "light every plank" puzzles, solver-checked from every doorway, with their difficulty per tier.
+        var islandStats = new IslandStats();
+        var islandTiers = new int[3];
+        int islandSeeds = 0, islandFailing = 0;
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.Islands == null) continue;
+            islandSeeds++;
+            if (r.IslandProblems != null && r.IslandProblems.Count > 0) islandFailing++;
+            foreach (IslandScreenSpec s in r.Islands.Screens)
+            {
+                islandStats.Add(s);
+                if (s.Layout != null) islandTiers[(int)s.Layout.Tier]++;
+            }
+        }
+        report += $"Islands: {islandStats.Screens} island screens on {islandSeeds} seeds ({islandTiers[0]} early, {islandTiers[1]} mid, " +
+                  $"{islandTiers[2]} late), {islandStats.Missing} without a puzzle, {islandStats.Templates} from the fallback template, " +
+                  $"{islandFailing} seeds failing, {islandStats.Outside} doorway checks outside a target; every doorway solver-checked; " +
+                  $"{(islandStats.Screens > 0 ? islandStats.Steps / islandStats.Screens : 0)} search steps a screen on average.\n" + islandStats.Describe();
         List<Phenomenon> wandKinds = StormcallerItem.VariantKinds(items);
         var rolledWands = new int[StormcallerItem.VariantCount];
         int earthGates = 0, offHomeEarth = 0, optionalEarth = 0, earthTrials = 0;

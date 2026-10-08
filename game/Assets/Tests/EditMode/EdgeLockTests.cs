@@ -31,10 +31,11 @@ namespace Game.Cube.Tests
             HiddenCurrencyPlacement hidden = HiddenCurrencyPlacement.Generate(model, layout, library);
             IcePlan ice = IcePlan.Create(model, layout); // 4.10: the ice goals, as ForRun makes them
             WindPlan wind = WindPlan.Create(model, layout); // 4.11: and the wind goals
-            List<PuzzleGoal> goals = PuzzleScreens.Goals(ice, wind);
+            IslandPlan islands = IslandPlan.Create(model, layout); // 4.12: and Math's island roadblocks
+            List<PuzzleGoal> goals = PuzzleScreens.Goals(ice, wind, islands);
             RewardPlacement rewards = RewardPlacement.Generate(model, layout, items, hidden, library, goals);
             MathPlan math = MathPlan.Create(model, items, SeedSweep.ModuleLookup(layout, library));
-            return new LockWorld(model, layout, items, rewards, PuzzleScreens.RegionsAt(math, ice, wind), goals);
+            return new LockWorld(model, layout, items, rewards, PuzzleScreens.RegionsAt(math, ice, wind, islands), goals);
         }
 
         [Test]

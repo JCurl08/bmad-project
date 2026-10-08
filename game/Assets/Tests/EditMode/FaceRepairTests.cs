@@ -43,6 +43,7 @@ namespace Game.Cube.Tests
             public MathPlan Math;
             public IcePlan Ice;
             public WindPlan Wind;
+            public IslandPlan Islands;
         }
 
         private static Run Make(int seed, DieNumbers dice = null)
@@ -56,14 +57,15 @@ namespace Game.Cube.Tests
             run.Dice = dice ?? DieNumbers.Roll(run.Model);
             run.Ice = IcePlan.Create(run.Model, run.Layout, run.Dice);
             run.Wind = WindPlan.Create(run.Model, run.Layout, run.Dice);
-            run.Rewards = RewardPlacement.Generate(run.Model, run.Layout, run.Items, run.Hidden, library, PuzzleScreens.Goals(run.Ice, run.Wind), run.Dice);
-            run.Math = MathPlan.Create(run.Model, run.Items, SeedSweep.ModuleLookup(run.Layout, library));
+            run.Islands = IslandPlan.Create(run.Model, run.Layout, run.Dice);
+            run.Rewards = RewardPlacement.Generate(run.Model, run.Layout, run.Items, run.Hidden, library, PuzzleScreens.Goals(run.Ice, run.Wind, run.Islands), run.Dice);
+            run.Math = MathPlan.Create(run.Model, run.Items, SeedSweep.ModuleLookup(run.Layout, library), dice: run.Dice);
             return run;
         }
 
         private static List<string> Problems(Run run, RewardPlacement rewards = null) =>
             RewardPlacement.FindProblems(run.Model, run.Layout, run.Items, run.Hidden, rewards ?? run.Rewards, Library(),
-                PuzzleScreens.RegionsAt(run.Math, run.Ice, run.Wind), PuzzleScreens.Goals(run.Ice, run.Wind), run.Dice);
+                PuzzleScreens.RegionsAt(run.Math, run.Ice, run.Wind, run.Islands), PuzzleScreens.Goals(run.Ice, run.Wind, run.Islands), run.Dice);
 
         // ---------- Die numbers ----------
 

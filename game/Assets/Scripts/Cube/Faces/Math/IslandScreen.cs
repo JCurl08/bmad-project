@@ -10,25 +10,55 @@ namespace Game.Cube
     /// edge walls (WaterRects: solid colliders, so nobody walks or wades it), the islands as land, plank bridges over the
     /// water between some of them, and the broken spans' gaps (BrokenSpan: solid until the gap-crosser* is swung at them,
     /// which lays the missing plank for good). Every doorway lands on its own island, so the player can always walk back
-    /// out the way it came.
-    /// 1.26 (visual only): the islands are the region's own floor showing through the water (no pads), each with a
-    /// shoreline (a foam line and a band of wet sand) where it meets the water; a plank lights up the first time the player
-    /// stands on it and a broken span changes colour when it is mended (PlankLights); and the island of a lone doorway (one
-    /// whose islands join no other doorway, IslandLayout.IsLone) carries a lookout sign pointing back out of its doorway,
-    /// and says "go round" when the player arrives on it.
+    /// out the way it came. 1.26: the islands are the region's own floor showing through the water (no pads), each with a
+    /// shoreline (a foam line and a band of wet sand) where it meets the water; a lone doorway's island (IslandLayout.IsLone,
+    /// none in 4.12's layouts) carries a lookout sign and says "go round".
+    /// 4.12 "light every plank" (PlankLights, PlankWalker): crossing a dark plank of the lit network lights it Math's
+    /// yellow; crossing a lit one again flashes every plank red and snuffs them all; an island whose network planks are all
+    /// lit glows round its rim; the reward roadblock (the chest CubeWorld hands over, on the reward island, under bars, on a
+    /// plinth with one lamp per plank) shows the count; lighting the last plank sends a chain of light from that plank to
+    /// the roadblock, whose bars then lift (it is the chest's guard). Leaving the screen snuffs an unsolved network; a solved
+    /// one stays lit for the run. Broken spans light nothing: mended, they show the gap-crosser*'s gold.
     /// </summary>
-    public class IslandScreen : MonoBehaviour
+    public class IslandScreen : MonoBehaviour, IPuzzleRewardHost, IRewardGuard
     {
         public static readonly Color WaterColor = new Color(0.22f, 0.45f, 0.8f, 1f);
 
-        /// <summary>A plank no one has walked yet: a shade dimmer than a lit one.</summary>
-        public static readonly Color PlankColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+        /// <summary>A dark plank (unlit, or off the network): dark wood.</summary>
+        public static readonly Color PlankColor = new Color(0.62f, 0.55f, 0.5f, 1f);
 
-        /// <summary>A lit plank (walked, or mended) shows its art at full brightness under its glow.</summary>
+        /// <summary>A lit plank (or a mended span) shows its art at full brightness under its glow.</summary>
         public static readonly Color LitPlankColor = Color.white;
 
-        /// <summary>The glow over a walked plank (soft green).</summary>
-        public static readonly Color WalkedGlow = new Color(0.45f, 1f, 0.5f, 0.42f);
+        /// <summary>The glow over a lit plank: Math's own yellow (CubeWorld.ThemeColor).</summary>
+        public static readonly Color LitGlow = new Color(1f, 0.95f, 0.25f, 0.55f);
+
+        /// <summary>Every network plank flashes this red when a lit one is crossed again, then goes dark.</summary>
+        public static readonly Color SnuffGlow = new Color(1f, 0.2f, 0.15f, 0.65f);
+
+        /// <summary>How long the red flash lasts.</summary>
+        public const float FlashSeconds = 0.45f;
+
+        /// <summary>The rim of an island whose network planks are all lit.</summary>
+        public static readonly Color RimColor = new Color(1f, 0.92f, 0.3f, 0.95f);
+        public const float RimWidth = 0.14f * ScreenMath.ContentScale;
+
+        /// <summary>A lamp on the roadblock: dark, or lit for a lit plank.</summary>
+        public static readonly Color LampOff = new Color(0.25f, 0.24f, 0.22f, 1f);
+        public static readonly Color LampOn = new Color(1f, 0.95f, 0.35f, 1f);
+        public static readonly Color PlinthColor = new Color(0.32f, 0.3f, 0.36f, 1f);
+        public static readonly Color BarColor = new Color(0.2f, 0.2f, 0.24f, 1f);
+
+        /// <summary>The plinth under the reward chest (its radius), with the lamps on a ring just inside its edge.</summary>
+        public const float PlinthRadius = 0.62f * ScreenMath.ContentScale;
+        public const float LampSize = 0.13f * ScreenMath.ContentScale;
+
+        /// <summary>The light chain's run from the last plank to the roadblock, before its bars lift.</summary>
+        public const float ChainSeconds = 0.8f;
+        public const int ChainLinks = 10;
+
+        /// <summary>Said when the light chain reaches the roadblock.</summary>
+        public const string SolvedText = "Every plank lit. The chest is free.";
 
         /// <summary>The glow over a mended span (the gap-crosser*'s gold).</summary>
         public static readonly Color MendedGlow = new Color(1f, 0.8f, 0.15f, 0.55f);
@@ -61,12 +91,41 @@ namespace Game.Cube
         private readonly List<Collider2D> water = new List<Collider2D>();
         private readonly List<GameObject> signs = new List<GameObject>();
         private readonly Dictionary<int, List<SpriteRenderer>> plankArt = new Dictionary<int, List<SpriteRenderer>>();
+        private readonly List<SpriteRenderer> lamps = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> bars = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> chain = new List<SpriteRenderer>();
         private SpriteRenderer[] glows = Array.Empty<SpriteRenderer>();
+        private GameObject[] rims = Array.Empty<GameObject>();
         private bool[] lone = Array.Empty<bool>();
         private int lastIsland = -1;
+        private bool onScreen;
+        private float flashLeft;
+        private float chainAge = -1f;
+        private Vector2 chainFrom;
+        private Transform roadblock;
         private Transform player;
         private float nextPlayerSearch;
         private Material material;
+
+        /// <summary>Every enabled island screen (CubeNavigator tells them all when the player is put somewhere new).</summary>
+        public static readonly List<IslandScreen> Active = new List<IslandScreen>();
+
+        private void OnEnable()
+        {
+            if (!Active.Contains(this)) Active.Add(this);
+        }
+
+        private void OnDisable() => Active.Remove(this);
+
+        /// <summary>
+        /// The player was put somewhere new (a teleport, any CubeNavigator placement; 4.12 review): every screen's walker
+        /// forgets its last island and plank, so a teleport is never read as a crossing. The lights are left as they are.
+        /// </summary>
+        public static void ForgetSteps()
+        {
+            foreach (IslandScreen s in Active)
+                if (s != null && s.Walker != null) s.Walker.Leave();
+        }
 
         public IslandLayout Layout { get; private set; }
 
@@ -79,8 +138,40 @@ namespace Game.Cube
         /// <summary>The solid water pieces.</summary>
         public IReadOnlyList<Collider2D> Water => water;
 
-        /// <summary>The planks' lights (walked, mended).</summary>
+        /// <summary>The planks' lights (lit, mended) and the puzzle's state (solved).</summary>
         public PlankLights Lights { get; private set; }
+
+        /// <summary>Turns the player's steps into plank crossings.</summary>
+        public PlankWalker Walker { get; private set; }
+
+        /// <summary>The reward chest on the roadblock (null until CubeWorld hands it over).</summary>
+        public RewardChest Chest { get; private set; }
+
+        /// <summary>True once the light chain has reached the roadblock and its bars lifted: the chest can be taken.</summary>
+        public bool RoadblockOpen { get; private set; }
+
+        bool IRewardGuard.IsOpen => RoadblockOpen;
+
+        /// <summary>The roadblock's lamps, one per network plank (lit while that many planks are lit).</summary>
+        public IReadOnlyList<SpriteRenderer> Lamps => lamps;
+
+        /// <summary>The roadblock's bars over the chest (shown until it opens).</summary>
+        public IReadOnlyList<SpriteRenderer> Bars => bars;
+
+        /// <summary>True while the network flashes red after a snuff.</summary>
+        public bool Flashing => flashLeft > 0f;
+
+        /// <summary>True while the light chain runs to the roadblock.</summary>
+        public bool ChainRunning => chainAge >= 0f;
+
+        /// <summary>The glowing rim of an island (shown while all its network planks are lit), or null for an island off the network.</summary>
+        public GameObject Rim(int island) => island >= 0 && island < rims.Length ? rims[island] : null;
+
+        /// <summary>Raised on every crossing that changed the puzzle (lit, snuffed, solved), with the plank's index.</summary>
+        public event Action<IslandScreen, int, CrossResult> Crossed;
+
+        /// <summary>Raised when the light chain reaches the roadblock and it opens.</summary>
+        public event Action<IslandScreen> Opened;
 
         /// <summary>The lookout signs on lone doorways' islands.</summary>
         public IReadOnlyList<GameObject> Signs => signs;
@@ -95,15 +186,13 @@ namespace Game.Cube
         /// <summary>Raised when the gap-crosser* mends a broken span, with the plank's index.</summary>
         public event Action<IslandScreen, int> Mended;
 
-        /// <summary>Raised when a plank lights up under the player's first step on it, with the plank's index.</summary>
-        public event Action<IslandScreen, int> Lit;
 
         /// <summary>The world position of an island's middle.</summary>
         public Vector2 IslandWorld(int island) => Centre + Layout.Islands[island].center;
 
         /// <summary>The colour a plank's glow shows for a light (clear while unlit).</summary>
         public static Color GlowFor(PlankLight light) =>
-            light == PlankLight.Walked ? WalkedGlow : light == PlankLight.Mended ? MendedGlow : Color.clear;
+            light == PlankLight.Lit ? LitGlow : light == PlankLight.Mended ? MendedGlow : Color.clear;
 
         /// <summary>The glow over a plank (its renderer; disabled while unlit).</summary>
         public SpriteRenderer Glow(int plank) => glows[plank];
@@ -286,8 +375,18 @@ namespace Game.Cube
             water.Clear();
             signs.Clear();
             plankArt.Clear();
+            lamps.Clear();
+            bars.Clear();
+            chain.Clear();
             Lights = new PlankLights(layout);
+            Walker = new PlankWalker(layout);
             lastIsland = -1;
+            onScreen = false;
+            flashLeft = 0f;
+            chainAge = -1f;
+            RoadblockOpen = false;
+            Chest = null;
+            roadblock = null;
 
             List<Rect> waterRects = WaterRects(layout);
             for (int i = 0; i < waterRects.Count; i++)
@@ -341,6 +440,33 @@ namespace Game.Cube
                 int door = layout.DoorIsland((Facing)f);
                 if (door >= 0 && lone[door]) signs.Add(BuildSign((Facing)f, material));
             }
+            // 4.12: a glowing rim round each network island, shown once all its network planks are lit.
+            rims = new GameObject[layout.Islands.Count];
+            for (int i = 0; i < layout.Islands.Count; i++)
+            {
+                if (!layout.OnNetwork(i)) continue;
+                var rim = new GameObject($"Rim {i}").transform;
+                rim.SetParent(transform, false);
+                foreach (Rect r in RimRects(layout.Islands[i]))
+                    ArtCatalog.AddShape(rim, "Rim", PartShape.Square, r.center, r.size, RimColor, ShoreOrder + 1, material);
+                rim.gameObject.SetActive(false);
+                rims[i] = rim.gameObject;
+            }
+            for (int k = 0; k < layout.Bridges.Count; k++) ShowLight(k);
+        }
+
+        /// <summary>The rim of an island (local rects): a band along every edge that meets the water, on the island itself.</summary>
+        public static List<Rect> RimRects(Rect island)
+        {
+            Rect area = IslandLayout.WaterArea;
+            const float eps = 1e-4f;
+            var rects = new List<Rect>();
+            float w = RimWidth;
+            if (island.yMin > area.yMin + eps) rects.Add(Rect.MinMaxRect(island.xMin, island.yMin, island.xMax, island.yMin + w));
+            if (island.yMax < area.yMax - eps) rects.Add(Rect.MinMaxRect(island.xMin, island.yMax - w, island.xMax, island.yMax));
+            if (island.xMin > area.xMin + eps) rects.Add(Rect.MinMaxRect(island.xMin, island.yMin, island.xMin + w, island.yMax));
+            if (island.xMax < area.xMax - eps) rects.Add(Rect.MinMaxRect(island.xMax - w, island.yMin, island.xMax, island.yMax));
+            return rects;
         }
 
         private SpriteRenderer Plank(int bridge, string name, Rect r, bool vertical, Material material)
@@ -376,18 +502,31 @@ namespace Game.Cube
         private void ShowLight(int bridge)
         {
             PlankLight light = Lights[bridge];
+            bool flash = flashLeft > 0f && Layout.IsNetworkPlank(bridge);
             if (plankArt.TryGetValue(bridge, out List<SpriteRenderer> list))
                 foreach (SpriteRenderer r in list)
-                    if (r != null) r.color = light == PlankLight.Unlit ? PlankColor : LitPlankColor;
+                    if (r != null) r.color = light == PlankLight.Unlit && !flash ? PlankColor : LitPlankColor;
             SpriteRenderer glow = glows[bridge];
             if (glow == null) return;
-            glow.color = GlowFor(light);
-            glow.enabled = light != PlankLight.Unlit;
+            glow.color = flash ? SnuffGlow : GlowFor(light);
+            glow.enabled = flash || light != PlankLight.Unlit;
+        }
+
+        /// <summary>Every plank's light, every rim and every lamp from the puzzle's state.</summary>
+        private void ShowAll()
+        {
+            for (int k = 0; k < Layout.Bridges.Count; k++) ShowLight(k);
+            for (int i = 0; i < rims.Length; i++)
+                if (rims[i] != null) rims[i].SetActive(Lights.IslandComplete(i));
+            for (int i = 0; i < lamps.Count; i++)
+                if (lamps[i] != null) lamps[i].color = i < Lights.LitCount ? LampOn : LampOff;
         }
 
         /// <summary>
-        /// The player standing at a world point: a plank under it lights up (first step only), and arriving on a lone
-        /// doorway's islands from anywhere else says "go round". Off the screen it forgets the last island.
+        /// The player standing at a world point (4.12): a crossing of a network plank (PlankWalker) lights it, snuffs every
+        /// plank (a lit one crossed again: a red flash) or solves the network (the light chain starts); arriving on a lone
+        /// doorway's islands from anywhere else says "go round". Off the screen it forgets where the player was, and an
+        /// unsolved network goes dark.
         /// </summary>
         public void Visit(Vector2 world)
         {
@@ -395,15 +534,12 @@ namespace Game.Cube
             Vector2 half = ScreenEdges.Half;
             if (Mathf.Abs(local.x) > half.x || Mathf.Abs(local.y) > half.y)
             {
-                lastIsland = -1;
+                if (onScreen) Leave();
                 return;
             }
-            int lit = Lights.Walk(local);
-            if (lit >= 0)
-            {
-                ShowLight(lit);
-                Lit?.Invoke(this, lit);
-            }
+            onScreen = true;
+            Walker.Step(local, out _, out _);
+            foreach ((int plank, _, _) in Walker.Crossings) Cross(plank);
             int island = Layout.IslandAt(local);
             if (island < 0) return;
             if (lone[island] && (lastIsland < 0 || !lone[lastIsland]))
@@ -411,9 +547,122 @@ namespace Game.Cube
             lastIsland = island;
         }
 
+        /// <summary>The player crossed a plank (from one island onto the other): the puzzle's response, shown.</summary>
+        public CrossResult Cross(int plank)
+        {
+            CrossResult result = Lights.Cross(plank);
+            if (result == CrossResult.None) return result;
+            if (result == CrossResult.Snuffed) flashLeft = FlashSeconds;
+            if (result == CrossResult.Solved)
+            {
+                chainFrom = Centre + Layout.Bridges[plank].Plank.center;
+                StartChain();
+            }
+            ShowAll();
+            Crossed?.Invoke(this, plank, result);
+            return result;
+        }
+
+        /// <summary>The player left the screen: forget where it stood; an unsolved network goes dark (no flash).</summary>
+        public void Leave()
+        {
+            onScreen = false;
+            lastIsland = -1;
+            Walker.Leave();
+            if (!Lights.Reset()) return;
+            flashLeft = 0f;
+            ShowAll();
+        }
+
+        // ------------------------------------------------------------------ The reward roadblock (4.12)
+
+        /// <summary>
+        /// Takes the reward chest CubeWorld built on the goal (IPuzzleRewardHost): it stands on a plinth with one lamp per
+        /// network plank round its edge, under bars, and stays shut (this screen is its guard) until the network is solved and
+        /// the light chain has reached it.
+        /// </summary>
+        public void AttachReward(RewardChest chest)
+        {
+            if (chest == null) return;
+            Chest = chest;
+            chest.Guard = this;
+            if (roadblock != null) Destroy(roadblock.gameObject);
+            lamps.Clear();
+            bars.Clear();
+            roadblock = new GameObject("Reward Roadblock").transform;
+            roadblock.SetParent(transform, false);
+            roadblock.position = chest.transform.position;
+            ArtCatalog.AddShape(roadblock, "Plinth", PartShape.Circle, Vector2.zero, Vector2.one * 2f * PlinthRadius, PlinthColor, 3, material);
+            int count = Layout.NetworkPlanks.Count;
+            float ring = PlinthRadius - LampSize * 0.8f;
+            for (int i = 0; i < count; i++)
+            {
+                float angle = Mathf.PI / 2f - 2f * Mathf.PI * i / Mathf.Max(1, count);
+                var at = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * ring;
+                lamps.Add(ArtCatalog.AddShape(roadblock, $"Lamp {i}", PartShape.Circle, at, Vector2.one * LampSize, LampOff, 4, material));
+            }
+            float h = RewardChest.Size * 0.62f;
+            for (int i = -1; i <= 1; i++)
+                bars.Add(ArtCatalog.AddShape(roadblock, $"Bar {i + 1}", PartShape.Square, new Vector2(i * RewardChest.Size * 0.32f, 0f),
+                    new Vector2(0.07f * ScreenMath.ContentScale, 2f * h), BarColor, 7, material));
+            bars.Add(ArtCatalog.AddShape(roadblock, "Bar Top", PartShape.Square, new Vector2(0f, h),
+                new Vector2(RewardChest.Size * 0.8f, 0.08f * ScreenMath.ContentScale), BarColor, 7, material));
+            if (Lights.Solved && !ChainRunning) OpenRoadblock(false);
+            ShowAll();
+        }
+
+        private void StartChain()
+        {
+            chainAge = 0f;
+            foreach (SpriteRenderer r in chain)
+                if (r != null) Destroy(r.gameObject);
+            chain.Clear();
+            Vector2 to = Chest != null ? (Vector2)Chest.transform.position : Centre + Layout.GoalSpot;
+            for (int i = 0; i < ChainLinks; i++)
+            {
+                Vector2 at = Vector2.Lerp(chainFrom, to, (i + 1f) / ChainLinks);
+                SpriteRenderer dot = ArtCatalog.AddShape(transform, $"Light Chain {i}", PartShape.Circle, at - Centre,
+                    Vector2.one * 0.22f * ScreenMath.ContentScale, LampOn, 8, material);
+                dot.enabled = false;
+                chain.Add(dot);
+            }
+        }
+
+        /// <summary>The bars lift and the chest can be taken (after the chain).</summary>
+        private void OpenRoadblock(bool say)
+        {
+            if (RoadblockOpen) return;
+            RoadblockOpen = true;
+            chainAge = -1f;
+            foreach (SpriteRenderer b in bars)
+                if (b != null) b.enabled = false;
+            foreach (SpriteRenderer r in chain)
+                if (r != null) Destroy(r.gameObject);
+            chain.Clear();
+            if (say) PickupPopup.Show(Centre + Layout.GoalSpot, SolvedText, LoneTextColor);
+            Opened?.Invoke(this);
+        }
+
         private void Update()
         {
             if (Layout == null) return;
+            if (flashLeft > 0f)
+            {
+                flashLeft -= Time.deltaTime;
+                if (flashLeft <= 0f)
+                {
+                    flashLeft = 0f;
+                    ShowAll();
+                }
+            }
+            if (chainAge >= 0f)
+            {
+                chainAge += Time.deltaTime;
+                int shown = Mathf.Clamp(Mathf.CeilToInt(chainAge / ChainSeconds * ChainLinks), 0, ChainLinks);
+                for (int i = 0; i < chain.Count; i++)
+                    if (chain[i] != null) chain[i].enabled = i < shown;
+                if (chainAge >= ChainSeconds) OpenRoadblock(true);
+            }
             if (player == null)
             {
                 if (Time.unscaledTime < nextPlayerSearch) return;

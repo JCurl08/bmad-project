@@ -52,8 +52,10 @@ namespace Game.Cube
     /// join, so a doorway reaches only some of the screen and the player works out a route round through the other screens
     /// (DoorwayReach). The trial stands on an island of one island screen that only a broken span reaches; an open pickup
     /// on an island screen stands on its south doorway's island (CubeWorld.OpenPickupOffset).
+    /// 4.12: each island screen is a "light every plank" puzzle (IslandLayout, IslandPlan): every doorway but one lands on
+    /// its lit network, the other reaches it over a broken span, and lighting every network plank opens the reward roadblock.
     /// FindProblems checks all of it for the seed sweep, collecting every item doorway by doorway.
-    /// Uses its own SeededRng stream; each island screen draws from that stream with its screen in the seed.
+    /// Uses its own SeededRng stream for the trial's screen; the layouts are IslandPlan's (RngStreams.IslandPuzzles).
     /// </summary>
     public sealed class MathPlan
     {
@@ -190,13 +192,12 @@ namespace Game.Cube
         /// buttons, flowers and plates are known to Math's population (MarksOn; null: none).
         /// </summary>
         public static MathPlan Create(CubeModel model, ItemPlacement placement, Func<ScreenAddress, ScreenModule> moduleAt = null,
-            IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null)
+            IReadOnlyList<BeakKind> biologyVariantKinds = null, IReadOnlyList<IsotopeStage> chemistryVariantKinds = null, DieNumbers dice = null)
         {
             if (model == null) throw new ArgumentNullException(nameof(model));
             if (placement == null || !placement.TryGetPickup(Theme.Math, out _)) return null;
             FaceId face = model.FaceOf(Theme.Math);
             int n = model.FaceSize;
-            var rng = new SeededRng(unchecked((ulong)(uint)model.Seed), RngStream);
 
             var specs = new List<MathGateSpec>();
             foreach (GatePlacement g in placement.Gates)
@@ -211,15 +212,13 @@ namespace Game.Cube
                         ScreenModule module = moduleAt(s);
                         if (module != null && module.IsIslandScreen) islandScreens.Add(s);
                     }
-            int trial = islandScreens.Count > 0 ? rng.NextInt(islandScreens.Count) : -1;
+            // The trial's screen: the plan stream's first draw (as since 1.25). 4.12: each layout is IslandPlan's (its own stream,
+            // Math's tier, cached), so the game, the sweep and the lock check see the same screens.
+            int trial = IslandPlan.TrialIndex(model.Seed, islandScreens.Count);
+            PuzzleTier tier = islandScreens.Count > 0 ? IslandPlan.TierOf(model, dice) : PuzzleTier.Early;
             var islands = new List<IslandScreenSpec>();
             for (int i = 0; i < islandScreens.Count; i++)
-            {
-                ScreenAddress s = islandScreens[i];
-                var layoutRng = new SeededRng(ScreenSeed(model.Seed, s, 7), RngStream);
-                IslandLayout layout = IslandLayout.Generate(layoutRng, side => model.TryStep(s, side, out _, out _), i == trial);
-                islands.Add(new IslandScreenSpec(s, layout));
-            }
+                islands.Add(new IslandScreenSpec(islandScreens[i], IslandPlan.LayoutFor(model, islandScreens[i], tier, i == trial)));
             Dictionary<ScreenAddress, List<ScreenMark>> others = moduleAt != null
                 ? OtherFaceMarks(model, placement, moduleAt, biologyVariantKinds, chemistryVariantKinds)
                 : null;
@@ -282,9 +281,6 @@ namespace Game.Cube
         /// <summary>The marks Math's population keeps clear of on a screen (other faces' interactables and the module's slots).</summary>
         public IReadOnlyList<ScreenMark> MarksOn(ScreenAddress screen) =>
             marks != null ? Marks(marks, screen, moduleAt(screen)) : (IReadOnlyList<ScreenMark>)Array.Empty<ScreenMark>();
-
-        private static ulong ScreenSeed(int seed, ScreenAddress s, int use) =>
-            ((ulong)(uint)seed << 32) | (uint)(((int)s.Face * 64 + s.Cell.x * 8 + s.Cell.y) | (use << 16));
 
         /// <summary>
         /// The marks other content must keep clear of for Math's content (PhysicsPlan's boulders and switches, Math's own
@@ -366,6 +362,7 @@ namespace Game.Cube
                         continue;
                     }
                     if (s.HasTrial) trials++;
+                    if (!s.Layout.HasPuzzle) problems.Add($"{s}: no lit network");
                     ScreenAddress screen = s.Screen;
                     problems.AddRange(s.Layout.Problems(s.ToString(), side => model.TryStep(screen, side, out _, out _)));
                 }

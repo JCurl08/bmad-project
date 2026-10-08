@@ -262,10 +262,11 @@ namespace Game.Cube
             DieNumbers dice = DieNumbers.Roll(model);
             IcePlan ice = IcePlan.Create(model, layout, dice);
             WindPlan wind = WindPlan.Create(model, layout, dice);
-            List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice, wind);
+            IslandPlan islands = IslandPlan.Create(model, layout, dice);
+            List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice, wind, islands);
             RewardPlacement rewards = RewardPlacement.Generate(model, layout, placement, hidden, library, puzzles, dice);
-            MathPlan math = MathPlan.Create(model, placement, SeedSweep.ModuleLookup(layout, library));
-            return Generate(new LockWorld(model, layout, placement, rewards, PuzzleScreens.RegionsAt(math, ice, wind), puzzles));
+            MathPlan math = MathPlan.Create(model, placement, SeedSweep.ModuleLookup(layout, library), dice: dice);
+            return Generate(new LockWorld(model, layout, placement, rewards, PuzzleScreens.RegionsAt(math, ice, wind, islands), puzzles));
         }
     }
 

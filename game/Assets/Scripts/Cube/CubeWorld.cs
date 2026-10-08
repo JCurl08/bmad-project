@@ -164,7 +164,10 @@ namespace Game.Cube
         /// <summary>The run's Earth wind-stream screens (4.11, WindPlan); null until the reveal (or without a layout).</summary>
         public WindPlan Wind { get; private set; }
 
-        /// <summary>The run's puzzle goals (4.10: the ice screens' goal pads), as RewardPlacement got them; empty until the reveal.</summary>
+        /// <summary>The run's Math island screens (4.12, IslandPlan); null until the reveal (or without a layout).</summary>
+        public IslandPlan Islands { get; private set; }
+
+        /// <summary>The run's puzzle goals (4.10: the ice screens' goal pads; 4.11 wind; 4.12 the island roadblocks), as RewardPlacement got them; empty until the reveal.</summary>
         public List<PuzzleGoal> PuzzleGoals { get; private set; } = new List<PuzzleGoal>();
 
         /// <summary>Per-run hostility flags per race (NPCs of a hostile race refuse to talk). Reset on every rebuild.</summary>
@@ -242,6 +245,7 @@ namespace Game.Cube
             Layout = null;
             Ice = null;
             Wind = null;
+            Islands = null;
             PuzzleGoals = new List<PuzzleGoal>();
             ItemPlacement = null;
             PlannedGateLooks = null;
@@ -280,7 +284,14 @@ namespace Game.Cube
             else Debug.LogWarning("CubeWorld: no ModuleLibrary assigned; science faces revealed without modules.");
             Ice = IcePlan.Create(Model, Layout, Dice);
             Wind = WindPlan.Create(Model, Layout, Dice);
-            PuzzleGoals = PuzzleScreens.Goals(Ice, Wind);
+            Islands = IslandPlan.Create(Model, Layout, Dice);
+            PuzzleGoals = PuzzleScreens.Goals(Ice, Wind, Islands);
+            if (Islands != null)
+            {
+                List<string> islandProblems = Islands.Problems(Model, library != null && library.IslandModuleIndex(Theme.Math) >= 0);
+                if (islandProblems.Count > 0)
+                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s island screens miss their targets: {string.Join("; ", islandProblems)}");
+            }
             if (Wind != null)
             {
                 List<string> windProblems = Wind.Problems(Model, library != null && library.WindModuleIndex(Theme.EarthAtmosphere) >= 0);

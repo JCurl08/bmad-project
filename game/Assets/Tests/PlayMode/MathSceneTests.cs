@@ -237,10 +237,14 @@ namespace Game.Cube.Tests
             Assert.AreEqual(next, navigator.Current, $"Walked out of {screenAt} by its {to} doorway");
 
             // The water is solid: from the doorway's island, walking into the water stops at the shore.
-            yield return PutPlayerAt(screenAt, centre + IslandLayout.SpotCentre(layout.Spots[layout.DoorIsland(from)]));
-            int door = layout.DoorIsland(from);
-            Facing across = sides.First(d => d != from && !layout.Bridges.Any(b => b.Joins(door) &&
-                layout.Spots[b.Other(door)] == layout.Spots[door] + d.ToVector()));
+            // (4.12: a plank may run two spots out, over an empty one, so any plank leaving that way counts; the denser
+            // networks can fill every side of one doorway's island, so the first doorway island with a side of open water.)
+            bool PlankThatWay(int island, Facing d) => layout.Bridges.Any(b => b.Joins(island) &&
+                Vector2.Dot(((Vector2)(layout.Spots[b.Other(island)] - layout.Spots[island])).normalized, d.ToVector()) > 0.9f);
+            Facing doorSide = sides.First(ds => layout.DoorIsland(ds) >= 0 && sides.Any(d => d != ds && !PlankThatWay(layout.DoorIsland(ds), d)));
+            int door = layout.DoorIsland(doorSide);
+            Facing across = sides.First(d => d != doorSide && !PlankThatWay(door, d));
+            yield return PutPlayerAt(screenAt, centre + IslandLayout.SpotCentre(layout.Spots[door]));
             yield return WalkTo(body.position + (Vector2)across.ToVector() * 3f * K, 1f);
             Assert.AreEqual(door, layout.IslandAt(body.position - centre), $"The water stopped the player at the shore ({across})");
 

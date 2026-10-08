@@ -16,8 +16,10 @@ namespace Game.Cube.Tests
     /// gap-crosser* is swung at the gap (other items and bare swings do nothing), after which it walks over; a gap gate
     /// opens when the gap-crosser* is swung at it (a crossing is laid), and other items, bare swings and touches do
     /// nothing; stepping onto the trial island fires the trial once; Math enemies take markedly more damage from their
-    /// weakness; and (1.26) a plank lights up when walked, a mended span changes colour, and a lone doorway's island has a
-    /// lookout sign and says go round.
+    /// weakness; (4.12) crossing a network plank lights it, crossing a lit one again snuffs every plank with a red flash, a
+    /// mended span shows gold and lights nothing, an island whose planks are all lit glows round its rim, and leaving the
+    /// screen snuffs an unsolved network; and (1.26) a lone doorway's island (hand-made: generated layouts have none since
+    /// 4.12) has a lookout sign and says go round.
     /// </summary>
     public class MathComponentTests : InputTestFixture
     {
@@ -91,20 +93,28 @@ namespace Game.Cube.Tests
 
         private static readonly Vector2Int N = IslandLayout.DoorSpot(Facing.North), E = IslandLayout.DoorSpot(Facing.East),
             S = IslandLayout.DoorSpot(Facing.South), W = IslandLayout.DoorSpot(Facing.West), C = new Vector2Int(2, 1),
-            EastOfC = new Vector2Int(3, 1), WestOfC = new Vector2Int(1, 1);
+            EastOfC = new Vector2Int(3, 1), WestOfC = new Vector2Int(1, 1), SouthWest = new Vector2Int(0, 0);
 
-        /// <summary>N, C and S joined; E reaches C over a broken span (via the island east of C); W alone; maybe a trial west of C.</summary>
-        private static IslandLayout Layout(bool trial)
+        /// <summary>
+        /// N, C and S joined; W joins S by way of the south-west island (a long plank under the empty spot between); E reaches
+        /// C over a broken span (via the island east of C); maybe a trial west of C. With puzzle (4.12) C is the reward island,
+        /// so its whole-plank component is the lit network: N-C, C-S, S-SW and SW-W (a trail from N or W).
+        /// </summary>
+        private static IslandLayout Layout(bool trial, bool puzzle = false)
         {
-            var spots = new List<Vector2Int> { N, E, S, W, C, EastOfC };
-            var links = new List<(int, int, bool)> { (0, 4, false), (4, 2, false), (1, 5, false), (5, 4, true) };
+            var spots = new List<Vector2Int> { N, E, S, W, C, EastOfC, SouthWest };
+            var links = new List<(int, int, bool)> { (0, 4, false), (4, 2, false), (1, 5, false), (5, 4, true), (2, 6, false), (6, 3, false) };
             if (trial)
             {
                 spots.Add(WestOfC);
-                links.Add((4, 6, true));
+                links.Add((4, 7, true));
             }
-            return new IslandLayout(spots, links, new[] { 0, 1, 2, 3 }, trial ? 6 : -1);
+            return new IslandLayout(spots, links, new[] { 0, 1, 2, 3 }, trial ? 7 : -1, puzzle ? 4 : -1);
         }
+
+        /// <summary>1.25's shape with a lone west doorway (no plank): only hand-made since 4.12.</summary>
+        private static IslandLayout LoneLayout() =>
+            new IslandLayout(new[] { N, E, S, W, C, EastOfC }, new[] { (0, 4, false), (4, 2, false), (1, 5, false), (5, 4, true) }, new[] { 0, 1, 2, 3 });
 
         /// <summary>Drives the player's body one way for a while (the mover is off, so nothing else steers it), then stops it.</summary>
         private static IEnumerator Push(Rigidbody2D body, Vector2 direction, float seconds)
@@ -169,60 +179,93 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator IslandScreen_APlankLightsUpWhenWalked_AMendedSpanChangesColour_AndTheLoneDoorwaySaysGoRound()
+        public IEnumerator IslandScreen_ACrossedPlankLights_ALitOneCrossedAgainSnuffsAllWithARedFlash_ASpanShowsGold_AndLeavingResets()
         {
-            IslandLayout layout = Layout(false);
+            IslandLayout layout = Layout(false, true);
+            Assert.AreEqual(4, layout.NetworkPlanks.Count, "N-C, C-S, S-SW and SW-W light; the span and nothing else");
             IslandScreen screen = Track(IslandScreen.Create("Test Islands", null, layout, Origin, null).gameObject).GetComponent<IslandScreen>();
-            // The lone west doorway's island carries the lookout sign; no pads, the islands are the floor.
-            Assert.AreEqual(1, screen.Signs.Count);
-            Assert.AreEqual(layout.DoorIsland(Facing.West), layout.IslandAt((Vector2)screen.Signs[0].transform.position - Origin));
             Assert.IsFalse(screen.GetComponentsInChildren<SpriteRenderer>().Any(r => r.name.StartsWith("Island")), "No island pads");
             Assert.AreEqual(layout.Islands.Count, screen.transform.Cast<Transform>().Count(t => t.name.StartsWith("Shore ")), "A shoreline per island");
+            Assert.IsEmpty(screen.Signs, "No lone doorway, no sign");
 
             GameObject player = Player(Origin + IslandLayout.Arrival(Facing.South));
             player.GetComponent<Game.Tracer.PlayerMover>().enabled = false;
             var body = player.GetComponent<Rigidbody2D>();
             screen.Player = player.transform;
-            var lit = new List<int>();
-            screen.Lit += (_, k) => lit.Add(k);
-            int whole = Enumerable.Range(0, layout.Bridges.Count).Count(k => !layout.Bridges[k].Broken);
+            var events = new List<(int Plank, CrossResult Result)>();
+            screen.Crossed += (_, k, r) => events.Add((k, r));
             for (int k = 0; k < layout.Bridges.Count; k++)
             {
                 Assert.AreEqual(PlankLight.Unlit, screen.Lights[k]);
-                Assert.IsFalse(screen.Glow(k).enabled, $"Plank {k} starts unlit");
+                Assert.IsFalse(screen.Glow(k).enabled, $"Plank {k} starts dark");
             }
-            int lone = PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText);
             yield return new WaitForFixedUpdate();
+            yield return null;
 
-            // South doorway's island, up the planks to the north one: both planks light up, once each.
+            // South doorway's island, up over C to the north one: the two planks crossed light up, Math's yellow.
             yield return Push(body, Vector2.up, 1.2f);
+            yield return null;
             Assert.AreEqual(0, layout.IslandAt(body.position - Origin));
-            int[] walked = Enumerable.Range(0, layout.Bridges.Count).Where(k => !layout.Bridges[k].Broken && layout.Bridges[k].Joins(4)
-                && !layout.Bridges[k].Joins(5)).ToArray();
-            Assert.AreEqual(2, walked.Length);
-            CollectionAssert.AreEquivalent(walked, lit, "The two planks walked lit up, each once");
-            foreach (int k in walked)
+            int sc = layout.Bridges.ToList().FindIndex(b => b.Joins(2) && b.Joins(4)), cn = layout.Bridges.ToList().FindIndex(b => b.Joins(0) && b.Joins(4));
+            CollectionAssert.AreEqual(new[] { (sc, CrossResult.Lit), (cn, CrossResult.Lit) }, events, "S-C then C-N lit");
+            foreach (int k in new[] { sc, cn })
             {
-                Assert.AreEqual(PlankLight.Walked, screen.Lights[k]);
+                Assert.AreEqual(PlankLight.Lit, screen.Lights[k]);
                 Assert.IsTrue(screen.Glow(k).enabled);
-                Assert.AreEqual(IslandScreen.WalkedGlow, screen.Glow(k).color);
+                Assert.AreEqual(IslandScreen.LitGlow, screen.Glow(k).color);
             }
-            yield return Push(body, Vector2.down, 0.9f);
-            Assert.AreEqual(2, lit.Count, "Walking them again lights nothing more");
-            Assert.AreEqual(whole - 2, Enumerable.Range(0, layout.Bridges.Count).Count(k => screen.Lights[k] == PlankLight.Unlit && !layout.Bridges[k].Broken),
-                "The plank nobody walked stays unlit");
+            Assert.AreEqual(2, screen.Lights.LitCount);
+            Assert.IsTrue(screen.Rim(layout.DoorIsland(Facing.North)).activeSelf, "The north island's only plank is lit: its rim glows");
+            Assert.IsTrue(screen.Rim(4).activeSelf, "C's planks (N and S) are all lit: its rim glows");
+            Assert.IsFalse(screen.Rim(layout.DoorIsland(Facing.South)).activeSelf, "The south island still has a dark plank (to the south-west)");
 
-            // The broken span changes colour when mended.
+            // Back down over C-N: a lit plank crossed again snuffs every plank with a red flash.
+            yield return Push(body, Vector2.down, 0.45f);
+            yield return null;
+            Assert.AreEqual(4, layout.IslandAt(body.position - Origin), $"Back on C (at {body.position - Origin})");
+            Assert.AreEqual((cn, CrossResult.Snuffed), events.Last());
+            Assert.AreEqual(0, screen.Lights.LitCount);
+            Assert.IsTrue(screen.Flashing);
+            foreach (int k in layout.NetworkPlanks) Assert.AreEqual(IslandScreen.SnuffGlow, screen.Glow(k).color, $"plank {k} flashes red");
+            Assert.IsFalse(screen.Rim(4).activeSelf);
+            yield return new WaitForSeconds(IslandScreen.FlashSeconds + 0.1f);
+            foreach (int k in layout.NetworkPlanks) Assert.IsFalse(screen.Glow(k).enabled, $"plank {k} dark after the flash");
+
+            // A mended span shows the gap-crosser*'s gold and never lights or snuffs.
             int broken = Enumerable.Range(0, layout.Bridges.Count).First(k => layout.Bridges[k].Broken);
-            Assert.IsFalse(screen.Glow(broken).enabled);
+            Assert.IsFalse(layout.IsNetworkPlank(broken));
             Assert.IsTrue(screen.Mend(broken));
             Assert.AreEqual(PlankLight.Mended, screen.Lights[broken]);
-            Assert.IsTrue(screen.Glow(broken).enabled);
             Assert.AreEqual(IslandScreen.MendedGlow, screen.Glow(broken).color);
-            Assert.AreNotEqual(IslandScreen.WalkedGlow, IslandScreen.MendedGlow);
-            Assert.AreEqual(lone, PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText), "No 'go round' on joined islands");
+            Assert.AreEqual(CrossResult.None, screen.Cross(broken), "Crossing the mended span changes nothing");
+            Assert.AreNotEqual(IslandScreen.LitGlow, IslandScreen.MendedGlow);
 
-            // Arriving on the lone doorway's island: "go round", once per arrival.
+            // Down to the south island again (C-S lights), then off the screen: the unsolved network goes dark.
+            yield return Push(body, Vector2.down, 0.6f);
+            yield return null;
+            Assert.AreEqual(1, screen.Lights.LitCount, $"C-S lit (at {body.position - Origin})");
+            body.position = Origin + new Vector2(0f, -ScreenEdges.Half.y - 2f * K);
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.AreEqual(0, screen.Lights.LitCount, "Leaving the screen snuffs an unsolved network");
+            Assert.IsFalse(screen.Flashing, "No flash for leaving");
+        }
+
+        [UnityTest]
+        public IEnumerator IslandScreen_ALoneDoorway_HasItsLookoutSign_AndSaysGoRound()
+        {
+            IslandLayout layout = LoneLayout();
+            IslandScreen screen = Track(IslandScreen.Create("Test Islands", null, layout, Origin, null).gameObject).GetComponent<IslandScreen>();
+            Assert.AreEqual(1, screen.Signs.Count);
+            Assert.AreEqual(layout.DoorIsland(Facing.West), layout.IslandAt((Vector2)screen.Signs[0].transform.position - Origin));
+            GameObject player = Player(Origin + IslandLayout.Arrival(Facing.South));
+            player.GetComponent<Game.Tracer.PlayerMover>().enabled = false;
+            var body = player.GetComponent<Rigidbody2D>();
+            screen.Player = player.transform;
+            int lone = PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText);
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            Assert.AreEqual(lone, PickupPopup.Active.Count(p => p != null && p.Text == IslandScreen.LoneText), "No 'go round' on joined islands");
             body.position = Origin + IslandLayout.Arrival(Facing.West);
             yield return new WaitForFixedUpdate();
             yield return null;

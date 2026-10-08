@@ -147,8 +147,9 @@ namespace Game.Cube.Tests
                     }
                     else if (spot.Where.Kind == RoadblockKind.Puzzle)
                     {
-                        // 4.10, 4.11: an ice or wind screen's chest stands on its goal pad, shut until the pad is reached.
-                        Assert.IsTrue(chest.Guard is IceScreen || chest.Guard is WindScreen, $"{where}: guarded by its puzzle");
+                        // 4.10, 4.11: an ice or wind screen's chest stands on its goal pad, shut until the pad is reached;
+                        // 4.12: an island screen's on its reward island, shut until every plank is lit.
+                        Assert.IsTrue(chest.Guard is IceScreen || chest.Guard is WindScreen || chest.Guard is IslandScreen, $"{where}: guarded by its puzzle");
                         Assert.IsFalse(chest.Guard.IsOpen, where);
                         Vector2 goal = world.ScreenCenter(spot.Where.Screen) + world.PuzzleGoals[spot.Where.Slot].Local;
                         Assert.Less(Vector2.Distance(goal, chest.transform.position), 0.01f, where);

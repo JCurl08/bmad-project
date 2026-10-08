@@ -175,12 +175,12 @@ namespace Game.Cube
     public static class PuzzleScreens
     {
         /// <summary>The regions of every puzzle screen (null for an ordinary screen), for DoorwayReach.</summary>
-        public static Func<ScreenAddress, IScreenRegions> RegionsAt(MathPlan math, IcePlan ice, WindPlan wind = null)
+        public static Func<ScreenAddress, IScreenRegions> RegionsAt(MathPlan math, IcePlan ice, WindPlan wind = null, IslandPlan islandPlan = null)
         {
-            if (math == null && ice == null && wind == null) return null;
+            if (math == null && ice == null && wind == null && islandPlan == null) return null;
             return screen =>
             {
-                IScreenRegions islands = math?.IslandAt(screen);
+                IScreenRegions islands = (IScreenRegions)math?.IslandAt(screen) ?? islandPlan?.At(screen);
                 if (islands != null) return islands;
                 IScreenRegions slides = ice?.At(screen);
                 if (slides != null) return slides;
@@ -188,11 +188,15 @@ namespace Game.Cube
             };
         }
 
-        /// <summary>Every puzzle screen's reward roadblock (4.7 PuzzleGoals), for RewardPlacement: the ice goals, then the wind ones.</summary>
-        public static List<PuzzleGoal> Goals(IcePlan ice, WindPlan wind = null)
+        /// <summary>
+        /// Every puzzle screen's reward roadblock (4.7 PuzzleGoals), for RewardPlacement: the ice goals, then the wind ones,
+        /// then (4.12) Math's island ones, so Earth's goals keep their numbers.
+        /// </summary>
+        public static List<PuzzleGoal> Goals(IcePlan ice, WindPlan wind = null, IslandPlan islands = null)
         {
             var goals = ice != null ? ice.Goals() : new List<PuzzleGoal>();
             if (wind != null) goals.AddRange(wind.Goals());
+            if (islands != null) goals.AddRange(islands.Goals());
             return goals;
         }
     }

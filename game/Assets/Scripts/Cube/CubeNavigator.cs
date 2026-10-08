@@ -263,6 +263,7 @@ namespace Game.Cube
             // 4.10: any placement (a teleport, a crossing) ends an ice move under way; the slider settles afresh.
             if (TryGetComponent(out IceSlider ice)) ice.Clear();
             if (TryGetComponent(out WindRider wind)) wind.Clear(); // 4.11: and a ride
+            IslandScreen.ForgetSteps(); // 4.12 review: and no island walk reads a teleport as a plank crossing
             if (body != null)
             {
                 body.interpolation = RigidbodyInterpolation2D.None;

@@ -631,10 +631,13 @@ namespace Game.Cube
             "Round head, pointy body, sturdy legs. " + Spanwell + " says we are built for planks. Hence the legs.",
         };
 
-        /// <summary>How the island screens work, as the shape people tell it (true for every run: the mechanics).</summary>
+        /// <summary>
+        /// How the island screens work, as the shape people tell it (true for every run: the mechanics, 4.12): every plank
+        /// lights when crossed, a lit one crossed again puts them all out, all lit frees the chest, and the parity hint.
+        /// </summary>
         public const string IslandLine =
-            "On the islands, a doorway takes you only to the islands its planks reach. If you cannot get across, " +
-            "then go round and come in by another doorway.";
+            "On the islands, a plank lights when crossed. If you cross a lit one again, then every lamp goes out. " +
+            "Light them all to free the chest. Count each island's planks: odd ones make good beginnings.";
 
         /// <summary>How the gap-crosser* works, as the shape people tell it (true for every run: the mechanics).</summary>
         public const string GapCrosserLine =

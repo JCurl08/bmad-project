@@ -94,6 +94,12 @@ namespace Game.Cube
             /// <summary>Wind screen problems (WindPlan.Problems: solvable from every doorway inside its tier's targets); null when not checked.</summary>
             public List<string> WindProblems;
 
+            /// <summary>Math's island screens that were checked (4.12); null when there was no layout.</summary>
+            public IslandPlan Islands;
+
+            /// <summary>Island screen problems (IslandPlan.Problems: lit from every doorway inside its tier's targets); null when not checked.</summary>
+            public List<string> IslandProblems;
+
             public bool CoreChecked => CoreProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
@@ -101,6 +107,7 @@ namespace Game.Cube
             public bool LocksChecked => LockProblems != null;
             public bool IceChecked => IceProblems != null;
             public bool WindChecked => WindProblems != null;
+            public bool IslandsChecked => IslandProblems != null;
 
             public bool Passed => Unreachable.Count == 0 && (CoreProblems == null || CoreProblems.Count == 0) &&
                                   (ItemProblems == null || ItemProblems.Count == 0) &&
@@ -108,7 +115,8 @@ namespace Game.Cube
                                   (RewardProblems == null || RewardProblems.Count == 0) &&
                                   (LockProblems == null || LockProblems.Count == 0) &&
                                   (IceProblems == null || IceProblems.Count == 0) &&
-                                  (WindProblems == null || WindProblems.Count == 0);
+                                  (WindProblems == null || WindProblems.Count == 0) &&
+                                  (IslandProblems == null || IslandProblems.Count == 0);
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -371,8 +379,12 @@ namespace Game.Cube
                     WindPlan wind = WindPlan.Create(model, layout);
                     result.Wind = wind;
                     result.WindProblems = wind != null ? wind.Problems(model, catalog.WindModuleIndex(Theme.EarthAtmosphere) >= 0) : new List<string>();
-                    List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice, wind);
-                    Func<ScreenAddress, IScreenRegions> regionsAt = PuzzleScreens.RegionsAt(null, ice, wind);
+                    // 4.12: and Math's island screens, lit from every doorway against their tier's targets.
+                    IslandPlan islandPlan = IslandPlan.Create(model, layout);
+                    result.Islands = islandPlan;
+                    result.IslandProblems = islandPlan != null ? islandPlan.Problems(model, catalog.IslandModuleIndex(Theme.Math) >= 0) : new List<string>();
+                    List<PuzzleGoal> puzzles = PuzzleScreens.Goals(ice, wind, islandPlan);
+                    Func<ScreenAddress, IScreenRegions> regionsAt = PuzzleScreens.RegionsAt(null, ice, wind, islandPlan);
                     if (catalog is IGateSlotCatalog gateCatalog)
                     {
                         List<Theme> items = ItemPlacement.RunItems(layout, itemThemes);
@@ -380,7 +392,7 @@ namespace Game.Cube
                         result.Placement = placement;
                         Func<ScreenAddress, ScreenModule> moduleAt = catalog is ModuleLibrary library ? ModuleLookup(layout, library) : null;
                         islands = moduleAt != null ? MathPlan.Create(model, placement, moduleAt) : null;
-                        regionsAt = PuzzleScreens.RegionsAt(islands, ice, wind);
+                        regionsAt = PuzzleScreens.RegionsAt(islands, ice, wind, islandPlan);
                         result.ItemProblems = FindItemProblems(model, placement, items, regionsAt);
                         foreach (string problem in BiologyPlan.FindProblems(model, placement, biologyVariantKinds))
                             result.ItemProblems.Add("biology: " + problem);
@@ -535,7 +547,7 @@ namespace Game.Cube
         {
             var failures = new StringBuilder();
             int total = 0, failed = 0;
-            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false, windChecked = false;
+            bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false, windChecked = false, islandsChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -546,6 +558,7 @@ namespace Game.Cube
                 locksChecked |= r.LocksChecked;
                 iceChecked |= r.IceChecked && r.Ice != null && r.Ice.Screens.Count > 0;
                 windChecked |= r.WindChecked && r.Wind != null && r.Wind.Screens.Count > 0;
+                islandsChecked |= r.IslandsChecked && r.Islands != null && r.Islands.Screens.Count > 0;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -572,6 +585,9 @@ namespace Game.Cube
                 if (r.WindProblems != null && r.WindProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": wind ")
                         .AppendLine(string.Join("; ", r.WindProblems));
+                if (r.IslandProblems != null && r.IslandProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": islands ")
+                        .AppendLine(string.Join("; ", r.IslandProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -580,8 +596,8 @@ namespace Game.Cube
                 what += ", every item collectable with no softlocks, optional gates guarding nothing required, " +
                         "the rolled stone opening a gate on another face, the Chemistry trial fitting, " +
                         "every timed door with enough reachable boulders on its screen, the Physics trial fitting, " +
-                        "the gap-crosser* opening a gate on another face, Math's island screens never fully joined yet never " +
-                        "stranding the player, every item collected doorway by doorway, the Math trial island reachable, the rolled Stormcaller* opening a gate on another face, hazards that never " +
+                        "the gap-crosser* opening a gate on another face, Math's island screens joining every doorway (one only over a " +
+                        "broken span) yet never stranding the player, every item collected doorway by doorway, the Math trial island reachable, the rolled Stormcaller* opening a gate on another face, hazards that never " +
                         "block a way or trap the player, the calm eye at the centre, the Earth trial fitting, every face's centre its " +
                         "town with no gate, pickup, core portal, puzzle screen, trial, flower or hidden spot on it";
             if (hiddenChecked)
@@ -591,6 +607,9 @@ namespace Game.Cube
                         "and the other faces 2-6, every face numbered k holding fragments 1..k, its key and boost) and no empty screen";
             if (iceChecked)
                 what += ", every Earth ice screen solvable from each of its doorways inside its tier's targets with no hard traps";
+            if (islandsChecked)
+                what += ", every Math island screen lit from each of its doorways inside its tier's targets (light every plank: a clean " +
+                        "start reachable, the tier's planks, parity and P_rand), its reward roadblock open only once solved";
             if (windChecked)
                 what += ", every Earth wind screen solvable from each of its doorways inside every built target of its tier (fan switches not built) with no hard traps";
             if (locksChecked)
