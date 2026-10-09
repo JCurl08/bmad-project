@@ -84,8 +84,7 @@ namespace Game.Cube
         RuinTile = 93,
         RuinBroken = 94,
 
-        WindBand = 100,
-        SnowPatch = 101,
+        // 100 and 101 were the wind band and the snow patch (hazards replaced by 4.10-4.11's puzzle screens); never reused.
         FreezingRain = 102,
         Crevice = 103,
         Fossil = 104,
@@ -150,8 +149,6 @@ namespace Game.Cube
             if (v >= 60 && v < 70) return ArtCategory.Enemy;
             switch (key)
             {
-                case ArtKey.WindBand:
-                case ArtKey.SnowPatch:
                 case ArtKey.FreezingRain:
                 case ArtKey.Crevice: return ArtCategory.Hazard;
                 case ArtKey.Fossil: return ArtCategory.Prop;

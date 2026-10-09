@@ -55,8 +55,7 @@ namespace Game.Cube
         /// <summary>True when the player's centre has walked out through the exit (below its line, inside the vestibule).</summary>
         public bool IsPastExit(Vector2 world)
         {
-            Vector2 local = world - Centre;
-            return local.y < TownInterior.ExitLine && Mathf.Abs(local.x) <= TownInterior.ExitHalfWidth + 0.5f;
+            return TownInterior.IsPastExit(world - Centre);
         }
 
         /// <summary>Builds a face's lair room at a centre (world), its prisoners talking to player.</summary>

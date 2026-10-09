@@ -185,8 +185,7 @@ namespace Game.Cube
     {
         public const ulong RngStream = RngStreams.Temples;
 
-        private static readonly Dictionary<(int, FaceId, Theme), TemplePuzzle> Cache = new Dictionary<(int, FaceId, Theme), TemplePuzzle>();
-        private const int CacheLimit = 128;
+        private static readonly BoundedCache<(int, FaceId, Theme), TemplePuzzle> Cache = new BoundedCache<(int, FaceId, Theme), TemplePuzzle>(128);
 
         /// <summary>Forgets every cached puzzle (timing tests measure a cold generation).</summary>
         public static void ClearCache() => Cache.Clear();
@@ -225,8 +224,7 @@ namespace Game.Cube
             var key = (seed, face, theme);
             if (Cache.TryGetValue(key, out TemplePuzzle cached)) return cached;
             TemplePuzzle made = Make(seed, face, theme);
-            if (Cache.Count >= CacheLimit) Cache.Clear();
-            Cache[key] = made;
+            Cache.Add(key, made);
             return made;
         }
 
@@ -326,10 +324,10 @@ namespace Game.Cube
         public static Rect AltarRect => new Rect(AltarSpot - new Vector2(1.1f, 0.9f), new Vector2(2.2f, 1.8f));
 
         /// <summary>A face's temple room screen: a row below the lair rooms, every other column.</summary>
-        public static Vector2Int RoomScreen(FaceId face) => new Vector2Int(2 * (int)face, RoomRow);
+        public static Vector2Int RoomScreen(FaceId face) => SubScreens.RoomScreen(RoomRow, face);
 
         /// <summary>A face's temple room centre (world).</summary>
-        public static Vector2 RoomCentre(FaceId face) => ScreenMath.ScreenCenter(RoomScreen(face), ScreenMath.DefaultScreenSize);
+        public static Vector2 RoomCentre(FaceId face) => SubScreens.RoomCentre(RoomRow, face);
 
         /// <summary>Where the player arrives (local): just inside the south doorway, as a walk in through it.</summary>
         public static Vector2 EntryPoint => IslandLayout.Arrival(Facing.South);

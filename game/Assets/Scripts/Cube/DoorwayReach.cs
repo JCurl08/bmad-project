@@ -58,9 +58,6 @@ namespace Game.Cube
         /// <summary>The regions of a screen, or null for an ordinary screen.</summary>
         public IScreenRegions RegionsOn(ScreenAddress screen) => regionsAt?.Invoke(screen);
 
-        /// <summary>The island layout of a screen, or null (an ordinary screen, or another kind of puzzle).</summary>
-        public IslandLayout IslandsOn(ScreenAddress screen) => RegionsOn(screen) as IslandLayout;
-
         /// <summary>The region a doorway of a screen lands on (0 on an ordinary screen; -1 for a side with no doorway).</summary>
         public int RegionOfDoor(ScreenAddress screen, Facing side)
         {

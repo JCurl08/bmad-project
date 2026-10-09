@@ -2,7 +2,7 @@
 
 ## Lore
 - Long ago, every race lived mixed together. **The Partition**, the doing of the Demon (inspired by Maxwell's Demon; never named that in game), split them onto separate faces.
-- The Town face's town, built in ancient ruins that mix every face's style, is the last unpartitioned place. It is busy, mismatched and friendly. Every other face has a town of its own race, led by a leader who can repair the face once its fragments are brought back.
+- The Town face's town, built in ancient ruins that mix every face's style, is the last unpartitioned place. It is busy, mismatched and friendly. Every other face has a town of its own race, led by a leader who unseals the face's temple once its fragments are brought back; solving the temple mends them into the face's gem.
 - Underground beneath the core, the demon's lair holds trapped people who whisper hints about the Demon and the repairs.
 - The player is the embodiment of entropy and fights to undo the Partition. Entropy is the *positive* force: mixing means living together, and order means separation.
 - The world's arc runs from order to chaos. The cube starts out ordered, like a solved Rubik's cube, and grows more chaotic as the player wins.

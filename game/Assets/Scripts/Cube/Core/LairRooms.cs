@@ -18,7 +18,7 @@ namespace Game.Cube
     /// entered and lasts for the run; a rebuild removes them all. Entering marks the room visited (CubeWorld.LairProgress),
     /// and talking to the prisoner who names the real portal's region makes it known; both show on the map.
     /// </summary>
-    public class LairRooms : MonoBehaviour
+    public class LairRooms : SubScreenRooms<LairRoomView>
     {
         /// <summary>The lair rooms' row of screens below the faces (the core arena is at y = -3, the town rooms at -6).</summary>
         public const int RoomRow = -9;
@@ -32,50 +32,16 @@ namespace Game.Cube
         /// <summary>The least gap (4.13 review) between the player at the return point and the portal's trigger, whichever way out.</summary>
         public const float ReturnClearance = 0.5f;
 
-        [SerializeField] private CubeWorld world;
-        [SerializeField] private CubeNavigator navigator;
-
-        private readonly Dictionary<FaceId, LairRoomView> rooms = new Dictionary<FaceId, LairRoomView>();
-        private Transform root;
-        private CubeWorld subscribed;
-
-        /// <summary>Raised when the player goes down into a room, and when they come out.</summary>
-        public event Action<LairRoomView> Entered, Left;
-
-        public CubeWorld World
-        {
-            get => world;
-            set
-            {
-                world = value;
-                Subscribe();
-            }
-        }
-
-        public CubeNavigator Navigator
-        {
-            get => navigator;
-            set => navigator = value;
-        }
-
-        /// <summary>The room the player is in, or null.</summary>
-        public LairRoomView Current { get; private set; }
-
         /// <summary>The portal the player came down by (world), while in a room.</summary>
         public Vector2 CurrentPortal { get; private set; }
 
-        /// <summary>The rooms built this run, by face.</summary>
-        public IReadOnlyDictionary<FaceId, LairRoomView> Rooms => rooms;
-
-        /// <summary>Times the player went down, and came out on foot (or by F8), this run.</summary>
-        public int Entries { get; private set; }
-        public int Exits { get; private set; }
+        protected override string RootName => "Lair Rooms";
 
         /// <summary>A face's lair room screen: a row below the town rooms, every other column.</summary>
-        public static Vector2Int RoomScreen(FaceId face) => new Vector2Int(2 * (int)face, RoomRow);
+        public static Vector2Int RoomScreen(FaceId face) => SubScreens.RoomScreen(RoomRow, face);
 
         /// <summary>A face's lair room centre (world).</summary>
-        public static Vector2 RoomCentre(FaceId face) => ScreenMath.ScreenCenter(RoomScreen(face), ScreenMath.DefaultScreenSize);
+        public static Vector2 RoomCentre(FaceId face) => SubScreens.RoomCentre(RoomRow, face);
 
         /// <summary>Where a player walking out of a lair room is put (world): from the portal towards its screen's centre.</summary>
         public static Vector2 ReturnPoint(Vector2 portal, Vector2 screenCentre)
@@ -93,34 +59,6 @@ namespace Game.Cube
             return away.y >= 0f ? Facing.North : Facing.South;
         }
 
-        private void Awake()
-        {
-            if (world == null) world = GetComponent<CubeWorld>();
-        }
-
-        private void OnEnable() => Subscribe();
-
-        private void OnDisable()
-        {
-            if (subscribed == null) return;
-            subscribed.Rebuilt -= Clear;
-            subscribed = null;
-        }
-
-        private void Subscribe()
-        {
-            if (!isActiveAndEnabled || world == null || subscribed == world) return;
-            OnDisable();
-            subscribed = world;
-            world.Rebuilt += Clear;
-        }
-
-        private CubeNavigator ResolveNavigator()
-        {
-            if (navigator == null) navigator = FindAnyObjectByType<CubeNavigator>();
-            return navigator;
-        }
-
         private void FixedUpdate()
         {
             CubeNavigator player = ResolveNavigator();
@@ -131,13 +69,11 @@ namespace Game.Cube
                 Current = null;
                 return;
             }
-            Rigidbody2D body = player.GetComponent<Rigidbody2D>();
-            Vector2 p = body != null ? body.position : (Vector2)player.transform.position;
-            if (Current.IsPastExit(p)) Leave();
+            if (Current.IsPastExit(SubScreens.PlayerPosition(player))) Leave();
         }
 
         /// <summary>True when a portal on a face leads down into a lair room this run (not the real one).</summary>
-        public bool LeadsToLair(FaceId face) => world != null && world.Lair != null && world.Lair.IsLair(face);
+        public bool LeadsToLair(FaceId face) => World != null && World.Lair != null && World.Lair.IsLair(face);
 
         /// <summary>
         /// Goes down through a portal (on a screen) into its face's lair room: builds the room the first time, then moves the
@@ -146,8 +82,9 @@ namespace Game.Cube
         public bool Enter(Vector2 portal, ScreenAddress screen, CubeNavigator player = null)
         {
             player = player != null ? player : ResolveNavigator();
+            CubeWorld world = World;
             if (player == null || world == null || world.Model == null || !LeadsToLair(screen.Face)) return false;
-            navigator = player;
+            Navigator = player;
             LairRoomView room = RoomOf(screen);
             if (room == null) return false;
             Current = room;
@@ -158,7 +95,7 @@ namespace Game.Cube
             if (player.TryGetComponent(out PlayerMover mover)) mover.StopUntilFreshPress();
             Entries++;
             world.LairProgress.Visit(screen.Face);
-            Entered?.Invoke(room);
+            RaiseEntered(room);
             return true;
         }
 
@@ -173,13 +110,11 @@ namespace Game.Cube
             }
             LairRoomView room = Current;
             Current = null;
-            Vector2 centre = world.ScreenCenter(room.PortalScreen);
-            player.PlaceOn(room.PortalScreen, ReturnPoint(CurrentPortal, centre), ReturnFacing(CurrentPortal, centre));
-            if (player.TryGetComponent(out Rigidbody2D body)) body.linearVelocity = Vector2.zero;
+            Vector2 centre = World.ScreenCenter(room.PortalScreen);
             // And back on the face, a key still held from walking out (S) never carries them into the portal again.
-            if (player.TryGetComponent(out PlayerMover mover)) mover.StopUntilFreshPress();
+            SubScreens.PlaceOut(player, room.PortalScreen, ReturnPoint(CurrentPortal, centre), ReturnFacing(CurrentPortal, centre), true);
             Exits++;
-            Left?.Invoke(room);
+            RaiseLeft(room);
             return true;
         }
 
@@ -187,14 +122,11 @@ namespace Game.Cube
         public LairRoomView RoomOf(ScreenAddress screen)
         {
             if (!LeadsToLair(screen.Face)) return null;
-            if (rooms.TryGetValue(screen.Face, out LairRoomView room) && room != null) return room;
-            if (root == null)
-            {
-                root = new GameObject("Lair Rooms").transform;
-                root.SetParent(transform, false);
-                root.position = Vector3.zero;
-            }
+            LairRoomView room = Standing(screen.Face);
+            if (room != null) return room;
+            Transform root = RoomRoot();
             CubeNavigator player = ResolveNavigator();
+            CubeWorld world = World;
             room = LairRoomView.Build(world, world.Lair, screen.Face, screen, RoomCentre(screen.Face), root,
                 player != null ? player.transform : null);
             CubeWorld owner = world;
@@ -202,28 +134,8 @@ namespace Game.Cube
             {
                 if (prisoner.Hint == PrisonerHint.RealPortal && owner != null) owner.LairProgress.LearnRealPortal();
             };
-            rooms[screen.Face] = room;
+            Keep(screen.Face, room);
             return room;
-        }
-
-        /// <summary>Removes every room (a new run). The player, if inside, is taken out by the rebuild's teleport.</summary>
-        public void Clear()
-        {
-            foreach (LairRoomView room in rooms.Values)
-            {
-                if (room == null) continue;
-                room.gameObject.SetActive(false);
-                Destroy(room.gameObject);
-            }
-            rooms.Clear();
-            Current = null;
-            Entries = 0;
-            Exits = 0;
-        }
-
-        private void OnDestroy()
-        {
-            if (root != null) Destroy(root.gameObject);
         }
     }
 }

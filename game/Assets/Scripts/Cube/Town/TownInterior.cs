@@ -114,6 +114,9 @@ namespace Game.Cube
         /// <summary>The player's centre below this line (local y, the south wall's outer face) has walked out through the exit.</summary>
         public static float ExitLine => -RoomHalf.y - WallThickness;
 
+        /// <summary>True when the player's centre (local to the room's centre) has walked out through the exit (below its line, inside the vestibule).</summary>
+        public static bool IsPastExit(Vector2 local) => local.y < ExitLine && Mathf.Abs(local.x) <= ExitHalfWidth + 0.5f;
+
         /// <summary>The lane from the exit to just past the arrival point, kept free of furniture and people.</summary>
         public static Rect ExitLane => Rect.MinMaxRect(-ExitHalfWidth - TimeField.PlayerRadius, -RoomHalf.y, ExitHalfWidth + TimeField.PlayerRadius,
             EntryPoint.y + TimeField.PlayerRadius + 0.6f);

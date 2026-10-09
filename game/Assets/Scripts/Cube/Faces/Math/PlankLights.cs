@@ -53,14 +53,6 @@ namespace Game.Cube
         /// <summary>The planks to light.</summary>
         public int NetworkCount => layout.NetworkPlanks.Count;
 
-        /// <summary>The plank a point (local to the screen centre) stands on, or -1 (an island, the water).</summary>
-        public int PlankAt(Vector2 local)
-        {
-            for (int k = 0; k < states.Length; k++)
-                if (layout.Bridges[k].Plank.Contains(local)) return k;
-            return -1;
-        }
-
         /// <summary>The player crossed a plank from one island to the other (PlankWalker): lights it, snuffs all, or solves.</summary>
         public CrossResult Cross(int plank)
         {

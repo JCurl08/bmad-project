@@ -402,15 +402,15 @@ namespace Game.Cube.Tests
             Assert.IsEmpty(plan.Problems(model, placement));
             int rain = plan.Hazards.ToList().FindIndex(h => h.Kind == HazardKind.FreezingRain);
             HazardSpec w = plan.Hazards[rain];
-            var onEye = new HazardSpec(plan.Eye, HazardKind.FreezingRain, w.Area, w.Direction, w.Strength);
+            var onEye = new HazardSpec(plan.Eye, HazardKind.FreezingRain, w.Area, w.Strength);
             Assert.IsTrue(plan.WithHazard(rain, onEye).Problems(model, placement).Any(p => p.Contains("calm eye")), "A hazard on the eye");
-            var standstill = new HazardSpec(w.Screen, HazardKind.FreezingRain, w.Area, w.Direction, 0.01f);
+            var standstill = new HazardSpec(w.Screen, HazardKind.FreezingRain, w.Area, 0.01f);
             Assert.IsTrue(plan.WithHazard(rain, standstill).Problems(model, placement).Any(p => p.Contains("minimum speed")), "Rain too slow");
             int crevice = plan.Hazards.ToList().FindIndex(h => h.Kind == HazardKind.Crevice);
             if (crevice >= 0)
             {
                 HazardSpec c = plan.Hazards[crevice];
-                var inLane = new HazardSpec(c.Screen, HazardKind.Crevice, Rect.MinMaxRect(-1.5f, -0.3f, 1.5f, 0.3f), Vector2.zero, 0f);
+                var inLane = new HazardSpec(c.Screen, HazardKind.Crevice, Rect.MinMaxRect(-1.5f, -0.3f, 1.5f, 0.3f), 0f);
                 Assert.IsTrue(plan.WithHazard(crevice, inLane).Problems(model, placement).Any(p => p.Contains("exit lane")), "A crevice in a lane");
             }
             int required = plan.Gates.ToList().FindIndex(g => !g.Optional);

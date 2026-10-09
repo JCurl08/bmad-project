@@ -252,9 +252,6 @@ namespace Game.Cube
         public event Action<IslandScreen, int> Mended;
 
 
-        /// <summary>The world position of an island's middle.</summary>
-        public Vector2 IslandWorld(int island) => Centre + Layout.Islands[island].center;
-
         /// <summary>The colour a plank's glow shows for a light (clear while unlit).</summary>
         public static Color GlowFor(PlankLight light) =>
             light == PlankLight.Lit ? LitGlow : light == PlankLight.Mended ? MendedGlow : Color.clear;

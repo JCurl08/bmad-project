@@ -50,8 +50,6 @@ namespace Game.Cube
 
         public int Other(int island) => A == island ? B : A;
 
-        public IslandBridge AsBroken(bool broken) => new IslandBridge(A, B, Plank, broken, Vertical);
-
         /// <summary>The plank's width across (what the player walks on).</summary>
         public float Across => Vertical ? Plank.width : Plank.height;
     }

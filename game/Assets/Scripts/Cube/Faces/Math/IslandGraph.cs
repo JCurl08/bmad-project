@@ -85,26 +85,6 @@ namespace Game.Cube
             return Spots.Count - 1;
         }
 
-        /// <summary>A copy mirrored left to right (mirrorX) and/or top to bottom (mirrorY); doorway sides swap with their spots.</summary>
-        public IslandDesign Mirrored(bool mirrorX, bool mirrorY)
-        {
-            var d = new IslandDesign { Trial = Trial, Reward = Reward };
-            foreach (int s in Spots)
-            {
-                int x = IslandLattice.X(s), y = IslandLattice.Y(s);
-                d.Spots.Add(IslandLattice.Spot(mirrorX ? IslandLattice.Columns - 1 - x : x, mirrorY ? IslandLattice.Rows - 1 - y : y));
-            }
-            d.Links.AddRange(Links);
-            for (int f = 0; f < 4; f++)
-            {
-                int side = f;
-                if (mirrorX && (f == 1 || f == 3)) side = 4 - f;
-                if (mirrorY && (f == 0 || f == 2)) side = 2 - f;
-                d.DoorIslands[side] = DoorIslands[f];
-            }
-            return d;
-        }
-
         public string Signature()
         {
             var sb = new StringBuilder();

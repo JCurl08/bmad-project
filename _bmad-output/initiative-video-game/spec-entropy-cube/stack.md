@@ -13,5 +13,7 @@
 - **One "commitment" mechanic is reused** for the town-draft hostility, one-way gates (e.g. lowering down a cliff you can't climb back up) and rival-race lockouts (CAP-21).
 - **Gates are data:** each gate type is bound to the item that opens it.
 - **Puzzle generators validate solvability** with a solver and meet per-generator difficulty targets. The seed sweep checks every screen, fragment, locked edge and the real core portal are reachable, with no softlocks.
+- **Any seed, not only the swept ones:** an EditMode test runs the sweep's checks, plus no template and no lock fallback, over seeds 1–500, and the game logs one error at reveal if a run's plans have any problem.
+- **Verification** runs through `tools/verify.sh`: EditMode, the PlayMode tests in class batches, and the sweep with the determinism fixture check, one Unity process at a time. A test fails when a PlayMode test class is in no batch.
 - **Debug tools from day 1:** an overlay with the face, screen and seed; a reroll-seed command; jump to any screen.
 - **Upgrades change how the player traverses**, not just raw power.

@@ -72,9 +72,6 @@ namespace Game.Cube
             Apply();
         }
 
-        /// <summary>True while the given menu holds the pause.</summary>
-        public static bool IsHeld(string menu) => menu != null && menus.Contains(menu);
-
         /// <summary>A conversation opens (owner: its dialogue box): time stops, the player waits.</summary>
         public static void BeginTalk(object owner)
         {

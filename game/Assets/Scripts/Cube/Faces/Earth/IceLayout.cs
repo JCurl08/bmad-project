@@ -171,13 +171,6 @@ namespace Game.Cube
 
         public IceTile TileAt(int cell) => (IceTile)tiles[cell];
 
-        /// <summary>True for the cells a slide stops on or rests in that are grip of some kind (grip, goal, lane, camp).</summary>
-        public bool IsGripLike(int cell)
-        {
-            var t = (IceTile)tiles[cell];
-            return t == IceTile.Grip || t == IceTile.Goal || t == IceTile.Landing || t == IceTile.Camp;
-        }
-
         /// <summary>True for a cell nothing can stand on (a rock or a bank) or one off the grid.</summary>
         public bool IsSolid(Vector2Int p) => !InGrid(p) || tiles[Index(p)] == (byte)IceTile.Rock || tiles[Index(p)] == (byte)IceTile.Bank;
 
@@ -199,9 +192,6 @@ namespace Game.Cube
 
         /// <summary>The resting place a cell belongs to (its lane's mouth, the camp's centre, or itself).</summary>
         public int NodeOf(int cell) => rep[cell];
-
-        /// <summary>True for the clear lines from the lanes to the camp (no rock, pit, grip or goal may stand there).</summary>
-        public bool IsCrossLine(int cell) => cross[cell];
 
         public int CountOf(IceTile tile)
         {

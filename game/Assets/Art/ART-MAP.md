@@ -164,8 +164,6 @@ its generated placeholder shape, so nothing renders invisible.
 | TrialLamp | D 29 | flame banner: a lamp to light (the Glowstone* trial's lamps) |
 | GoalPad | D 60 | corner brackets: a target zone for boulders |
 | Fossil | T 92 | a mound of dug-up earth where a quake crevice laid the ground bare (1.24: was the key tile, which read as a pickup) |
-| WindBand | D 62 | white diagonal streaks: a wind band (generated arrows show which way it blows) |
-| SnowPatch | T 121 | pale speckled ground, tinted white: a snow patch you slide on |
 | FreezingRain | T 77 | grey-blue slush, tinted icy blue: freezing rain that slows you (generated drops fall over it) |
 | Crevice | D 2 | a dark drop under a stone lip: a quake crevice you go round |
 | Portal | T 104 | blue well in an arch: the way into the core |
@@ -197,11 +195,11 @@ Tile numbers are the files `Tiles/tile_NNNN.png` of each pack (row-major, 12 per
 
 ## Drawn in code (4.10): the ice screens
 
-`IceArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: ice (pale blue, a glint and a seam at each tile edge), rock (a grey boulder on ice), pit (a dark hole with a pale jagged rim), grip (crunchy off-white snow with grit; also the landing lanes and the camp, whose centre has a small fire), goal pad (grip ringed in gold, under the reward chest) and snowbank (drifts with a blue shadow, round the grid). The `SnowPatch` key stays in the catalog unused since the snow hazard is gone.
+`IceArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: ice (pale blue, a glint and a seam at each tile edge), rock (a grey boulder on ice), pit (a dark hole with a pale jagged rim), grip (crunchy off-white snow with grit; also the landing lanes and the camp, whose centre has a small fire), goal pad (grip ringed in gold, under the reward chest) and snowbank (drifts with a blue shadow, round the grid).
 
 ## Drawn in code (4.11): the wind screens
 
-`WindArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: sky (deep blue, some tiles with a soft cloud wisp; the tile under land shows the island's rocky underside, so islands float), the ring path (pale flagstones round the screen, where every doorway opens), island grass, a wall (a grey rock on grass, splitting twin islands), a stream (a lighter blue lane with a white chevron, turned to the stream's way per tile), a grip anchor (a small floating rock on the stream), the goal pad (grass ringed in gold, under the reward chest) and the cliffs (dark stone, round the grid). `WindScreen` animates white streaks flowing along every stream. The `WindBand` key stays in the catalog unused since the wind hazard is gone.
+`WindArt` draws 16-pixel tiles (one unit each, point filtered), no Kenney tile: sky (deep blue, some tiles with a soft cloud wisp; the tile under land shows the island's rocky underside, so islands float), the ring path (pale flagstones round the screen, where every doorway opens), island grass, a wall (a grey rock on grass, splitting twin islands), a stream (a lighter blue lane with a white chevron, turned to the stream's way per tile), a grip anchor (a small floating rock on the stream), the goal pad (grass ringed in gold, under the reward chest) and the cliffs (dark stone, round the grid). `WindScreen` animates white streaks flowing along every stream.
 
 ## Drawn in code (4.12): the island puzzle
 

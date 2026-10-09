@@ -49,8 +49,7 @@ namespace Game.Cube
     /// <summary>
     /// One hazard on an Earth screen (local to the screen centre). Freezing rain is an area the player walks through (it only
     /// changes how the player moves, through PlayerMover's modifier hook); a crevice is a solid strip the player goes round.
-    /// Strength: the rain's speed multiplier; 0 for a crevice. Direction is kept for the hazard data (zero since 4.11's wind
-    /// bands went).
+    /// Strength: the rain's speed multiplier; 0 for a crevice.
     /// </summary>
     public sealed class HazardSpec
     {
@@ -60,17 +59,13 @@ namespace Game.Cube
         /// <summary>The hazard's area (or the crevice's strip), local to the screen centre; empty for an unplaced crevice.</summary>
         public Rect Area { get; }
 
-        /// <summary>A direction (zero for every kind since 4.11: only the old wind bands had one).</summary>
-        public Vector2 Direction { get; }
-
         public float Strength { get; }
 
-        public HazardSpec(ScreenAddress screen, HazardKind kind, Rect area, Vector2 direction, float strength)
+        public HazardSpec(ScreenAddress screen, HazardKind kind, Rect area, float strength)
         {
             Screen = screen;
             Kind = kind;
             Area = area;
-            Direction = direction;
             Strength = strength;
         }
 
@@ -438,7 +433,7 @@ namespace Game.Cube
                     if (moduleAt == null || strip.width > 0f)
                     {
                         if (!dealt) owed--;
-                        hazards.Add(new HazardSpec(s, HazardKind.Crevice, strip, Vector2.zero, 0f));
+                        hazards.Add(new HazardSpec(s, HazardKind.Crevice, strip, 0f));
                         continue;
                     }
                     // No room for a crevice on this screen: freezing rain there instead (it never blocks anything).
@@ -504,7 +499,7 @@ namespace Game.Cube
         {
             float strength = StrengthOf(kind, level);
             Vector2 centre = LanePatchCentre(rng, 3f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale);
-            return new HazardSpec(s, kind, Clip(CentredOn(centre, RainSize)), Vector2.zero, strength);
+            return new HazardSpec(s, kind, Clip(CentredOn(centre, RainSize)), strength);
         }
 
         /// <summary>A patch centre on one of the four half-lanes (so the patch lies across a way through the screen).</summary>

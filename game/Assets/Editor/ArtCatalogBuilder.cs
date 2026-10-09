@@ -109,8 +109,6 @@ public static class ArtCatalogBuilder
         new Pick(ArtKey.GoalPad, Dungeon, 60, "corner brackets: a target zone for boulders"),
         new Pick(ArtKey.Fossil, Town, 92, "a mound of dug-up earth: where a quake crevice laid the ground bare (not the key tile, which read as a pickup)"),
 
-        new Pick(ArtKey.WindBand, Dungeon, 62, "white diagonal streaks: a wind band (arrows show which way it blows)"),
-        new Pick(ArtKey.SnowPatch, Town, 121, "pale speckled ground, tinted white: a snow patch you slide on"),
         new Pick(ArtKey.FreezingRain, Town, 77, "grey-blue slush, tinted icy blue: freezing rain that slows you"),
         new Pick(ArtKey.Crevice, Dungeon, 2, "a dark drop under a stone lip: a quake crevice you go round"),
 

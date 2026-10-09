@@ -37,10 +37,8 @@ namespace Game.Cube
         /// <summary>PCG32 stream for the ice screens (see RngStreams).</summary>
         public const ulong RngStream = RngStreams.IceScreens;
 
-        private static readonly Dictionary<(int, int, FaceId, Vector2Int, PuzzleTier, int), IceLayout> Cache =
-            new Dictionary<(int, int, FaceId, Vector2Int, PuzzleTier, int), IceLayout>();
-
-        private const int CacheLimit = 256;
+        private static readonly BoundedCache<(int, int, FaceId, Vector2Int, PuzzleTier, int), IceLayout> Cache =
+            new BoundedCache<(int, int, FaceId, Vector2Int, PuzzleTier, int), IceLayout>();
 
         /// <summary>Forgets every cached layout (timing tests measure a cold generation).</summary>
         public static void ClearCache() => Cache.Clear();
@@ -92,20 +90,14 @@ namespace Game.Cube
         /// <summary>A screen's layout (generated once per seed, screen and tier, then cached).</summary>
         public static IceLayout LayoutFor(CubeModel model, ScreenAddress screen, PuzzleTier tier)
         {
-            int doors = 0;
-            for (int f = 0; f < 4; f++)
-                if (model.TryStep(screen, (Facing)f, out _, out _)) doors |= 1 << f;
+            int doors = PuzzleScreenLayouts.DoorMask(model, screen);
             var key = (model.Seed, model.FaceSize, screen.Face, screen.Cell, tier, doors);
             if (Cache.TryGetValue(key, out IceLayout cached)) return cached;
-            var rng = new SeededRng(ScreenSeed(model.Seed, screen), RngStream);
-            IceLayout layout = IceLayout.Generate(rng, tier, side => (doors & (1 << (int)side)) != 0);
-            if (Cache.Count >= CacheLimit) Cache.Clear();
-            Cache[key] = layout;
+            var rng = new SeededRng(PuzzleScreenLayouts.ScreenSeed(model.Seed, screen), RngStream);
+            IceLayout layout = IceLayout.Generate(rng, tier, PuzzleScreenLayouts.HasDoor(doors));
+            Cache.Add(key, layout);
             return layout;
         }
-
-        private static ulong ScreenSeed(int seed, ScreenAddress s) =>
-            ((ulong)(uint)seed << 32) | (uint)((int)s.Face * 64 + s.Cell.x * 8 + s.Cell.y);
 
         /// <summary>The ice layout of a screen, or null for any other screen.</summary>
         public IceLayout At(ScreenAddress screen)

@@ -18,7 +18,7 @@ namespace Game.Cube
     /// time. A solved temple stays solved. Inside Physics' temple the player's MassMitt has the temple's grip. A rebuild
     /// (a new run) clears every room.
     /// </summary>
-    public class TempleRooms : MonoBehaviour
+    public class TempleRooms : SubScreenRooms<TempleView>
     {
         /// <summary>How far in front of the door (beyond touching it) a player walking out is put (as TownInteriors).</summary>
         public const float ReturnGap = TownInteriors.ReturnGap;
@@ -26,86 +26,26 @@ namespace Game.Cube
         /// <summary>Real seconds between two "sealed" popups at the same door.</summary>
         public const float SealedPopupSeconds = 3f;
 
-        [SerializeField] private CubeWorld world;
-        [SerializeField] private CubeNavigator navigator;
-
-        private readonly Dictionary<FaceId, TempleView> rooms = new Dictionary<FaceId, TempleView>();
-        private Transform root;
-        private CubeWorld subscribed;
         private float sealedPopupAt = float.NegativeInfinity;
-
-        public event Action<TempleView> Entered, Left;
-
-        public CubeWorld World
-        {
-            get => world;
-            set
-            {
-                world = value;
-                Subscribe();
-            }
-        }
-
-        public CubeNavigator Navigator
-        {
-            get => navigator;
-            set => navigator = value;
-        }
-
-        /// <summary>The temple the player is in, or null.</summary>
-        public TempleView Current { get; private set; }
 
         /// <summary>The door the player went in by (null outside).</summary>
         public TempleDoor CurrentDoor { get; private set; }
 
-        /// <summary>The temple rooms standing now (solved ones, and the one the player is in), by face.</summary>
-        public IReadOnlyDictionary<FaceId, TempleView> Rooms => rooms;
-
-        public int Entries { get; private set; }
-        public int Exits { get; private set; }
-
         /// <summary>Times a sealed door turned the player away (with its popup).</summary>
         public int SealedBumps { get; private set; }
 
+        protected override string RootName => "Temple Rooms";
+
         /// <summary>Where a player walking out of a temple's door is put (world): in front of it, facing away.</summary>
-        public static Vector2 ReturnPoint(TempleDoor door) => door.Sill + (Vector2)door.Facing.ToVector() * (TimeField.PlayerRadius + ReturnGap);
+        public static Vector2 ReturnPoint(TempleDoor door) => TownInteriors.ReturnPoint(door.Sill, door.Facing);
 
         /// <summary>Where a player walking out of a temple's door is put, local to its town's centre.</summary>
-        public static Vector2 ReturnPointLocal(TownBuilding temple) =>
-            temple.Door + (Vector2)temple.DoorFacing.ToVector() * (TimeField.PlayerRadius + ReturnGap);
-
-        private void Awake()
-        {
-            if (world == null) world = GetComponent<CubeWorld>();
-        }
-
-        private void OnEnable() => Subscribe();
-
-        private void OnDisable()
-        {
-            if (subscribed == null) return;
-            subscribed.Rebuilt -= Clear;
-            subscribed = null;
-        }
-
-        private void Subscribe()
-        {
-            if (!isActiveAndEnabled || world == null || subscribed == world) return;
-            OnDisable();
-            subscribed = world;
-            world.Rebuilt += Clear;
-        }
-
-        private CubeNavigator ResolveNavigator()
-        {
-            if (navigator == null) navigator = FindAnyObjectByType<CubeNavigator>();
-            return navigator;
-        }
+        public static Vector2 ReturnPointLocal(TownBuilding temple) => TownInteriors.ReturnPoint(temple.Door, temple.DoorFacing);
 
         private void FixedUpdate()
         {
             CubeNavigator player = ResolveNavigator();
-            if (world == null || world.Model == null || player == null) return;
+            if (World == null || World.Model == null || player == null) return;
             if (Current != null && !player.InTemple)
             {
                 // Taken out some other way (a teleport, a new run): the temple resets unless solved.
@@ -114,8 +54,7 @@ namespace Game.Cube
                 CurrentDoor = null;
                 Gone(was);
             }
-            Rigidbody2D body = player.GetComponent<Rigidbody2D>();
-            Vector2 p = body != null ? body.position : (Vector2)player.transform.position;
+            Vector2 p = SubScreens.PlayerPosition(player);
             if (Current != null)
             {
                 if (Current.IsPastExit(p)) Leave();
@@ -138,6 +77,7 @@ namespace Game.Cube
         /// <summary>The temple door of the town on a screen, or null (no town there, or not built).</summary>
         public TempleDoor DoorAt(ScreenAddress screen)
         {
+            CubeWorld world = World;
             if (world == null || world.Model == null || !TownSquare.IsTown(screen, world.FaceSize)) return null;
             TownSquareView view = world.TownViewOf(screen.Face);
             return view != null ? view.TempleDoor : null;
@@ -150,6 +90,7 @@ namespace Game.Cube
         public bool Enter(TempleDoor door)
         {
             CubeNavigator player = ResolveNavigator();
+            CubeWorld world = World;
             if (door == null || !door.Unsealed || player == null || world == null || world.Model == null) return false;
             if (!world.TryScreenAt(door.Sill, out ScreenAddress town)) return false;
             TempleView room = RoomOf(town);
@@ -161,7 +102,7 @@ namespace Game.Cube
             if (room.Puzzle.Kind == TemplePuzzleKind.Booths && player.TryGetComponent(out MassMitt mitt)) mitt.TempleGrip = true;
             Entries++;
             room.ShowRule();
-            Entered?.Invoke(room);
+            RaiseEntered(room);
             return true;
         }
 
@@ -179,9 +120,7 @@ namespace Game.Cube
             TempleDoor door = CurrentDoor;
             Current = null;
             CurrentDoor = null;
-            player.PlaceOn(room.Town, ReturnPoint(door), door.Facing);
-            if (player.TryGetComponent(out Rigidbody2D body)) body.linearVelocity = Vector2.zero;
-            if (player.TryGetComponent(out PlayerMover mover)) mover.StopUntilFreshPress();
+            SubScreens.PlaceOut(player, room.Town, ReturnPoint(door), door.Facing, true);
             Exits++;
             Gone(room);
             return true;
@@ -192,53 +131,28 @@ namespace Game.Cube
         {
             CubeNavigator player = ResolveNavigator();
             if (player != null && player.TryGetComponent(out MassMitt mitt)) mitt.TempleGrip = false;
-            if (room != null && !room.IsSolved)
-            {
-                rooms.Remove(room.Face);
-                room.gameObject.SetActive(false);
-                Destroy(room.gameObject);
-            }
-            Left?.Invoke(room);
+            if (room != null && !room.IsSolved) Discard(room.Face, room);
+            RaiseLeft(room);
         }
 
         /// <summary>The temple room of a town (built if it is not standing), or null for a screen that is no town.</summary>
         public TempleView RoomOf(ScreenAddress town)
         {
+            CubeWorld world = World;
             if (world == null || world.Model == null || !TownSquare.IsTown(town, world.FaceSize)) return null;
-            if (rooms.TryGetValue(town.Face, out TempleView room) && room != null) return room;
-            if (root == null)
-            {
-                root = new GameObject("Temple Rooms").transform;
-                root.SetParent(transform, false);
-                root.position = Vector3.zero;
-            }
-            room = TempleView.Build(world, town.Face, town, TempleRoom.RoomCentre(town.Face), root);
-            rooms[town.Face] = room;
+            TempleView room = Standing(town.Face);
+            if (room != null) return room;
+            room = TempleView.Build(world, town.Face, town, TempleRoom.RoomCentre(town.Face), RoomRoot());
+            Keep(town.Face, room);
             return room;
         }
 
-        /// <summary>Removes every room (a new run). The player, if inside, is taken out by the rebuild's teleport.</summary>
-        public void Clear()
+        protected override void Cleared()
         {
-            foreach (TempleView room in rooms.Values)
-            {
-                if (room == null) continue;
-                room.gameObject.SetActive(false);
-                Destroy(room.gameObject);
-            }
-            rooms.Clear();
-            Current = null;
             CurrentDoor = null;
-            Entries = 0;
-            Exits = 0;
             SealedBumps = 0;
             CubeNavigator player = ResolveNavigator();
             if (player != null && player.TryGetComponent(out MassMitt mitt)) mitt.TempleGrip = false;
-        }
-
-        private void OnDestroy()
-        {
-            if (root != null) Destroy(root.gameObject);
         }
     }
 }

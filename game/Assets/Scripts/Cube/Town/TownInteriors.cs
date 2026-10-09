@@ -18,7 +18,7 @@ namespace Game.Cube
     /// out (Leave). Interiors hold no gates, rewards or enemies; the shop's counter is decor with a talkative keeper, a hook
     /// for later stories (spending stays on the between-runs screen).
     /// </summary>
-    public class TownInteriors : MonoBehaviour, IHintDensityTarget
+    public class TownInteriors : SubScreenRooms<TownInteriorView>, IHintDensityTarget
     {
         /// <summary>How far off the door's centre line (x) the player may be and still go in.</summary>
         public const float DoorAim = 0.75f;
@@ -35,33 +35,9 @@ namespace Game.Cube
         /// <summary>The rooms' row of screens below the faces (the core arena is at y = -3).</summary>
         public const int RoomRow = -6;
 
-        [SerializeField] private CubeWorld world;
-        [SerializeField] private CubeNavigator navigator;
         [SerializeField] private HintDensity hintDensity = HintGenerator.FirstRunDensity;
 
-        private readonly Dictionary<FaceId, TownInteriorView> rooms = new Dictionary<FaceId, TownInteriorView>();
         private readonly Dictionary<ScreenModule, TownSquareView> views = new Dictionary<ScreenModule, TownSquareView>();
-        private Transform root;
-        private CubeWorld subscribed;
-
-        /// <summary>Raised when the player goes into a room, and when they come out.</summary>
-        public event Action<TownInteriorView> Entered, Left;
-
-        public CubeWorld World
-        {
-            get => world;
-            set
-            {
-                world = value;
-                Subscribe();
-            }
-        }
-
-        public CubeNavigator Navigator
-        {
-            get => navigator;
-            set => navigator = value;
-        }
 
         public HintDensity HintDensity
         {
@@ -69,76 +45,38 @@ namespace Game.Cube
             set => hintDensity = value;
         }
 
-        /// <summary>The room the player is in, or null.</summary>
-        public TownInteriorView Current { get; private set; }
-
         /// <summary>The marked door the player went in by (null outside).</summary>
         public TownDoor CurrentDoor { get; private set; }
 
-        /// <summary>The rooms built this run, by face.</summary>
-        public IReadOnlyDictionary<FaceId, TownInteriorView> Rooms => rooms;
-
-        /// <summary>Times the player went in, and came out on foot (or by F8), this run.</summary>
-        public int Entries { get; private set; }
-        public int Exits { get; private set; }
+        protected override string RootName => "Town Interiors";
 
         /// <summary>A face's room screen: in a row below the faces, every other column, clear of the core arena's screen.</summary>
-        public static Vector2Int RoomScreen(FaceId face) => new Vector2Int(2 * (int)face, RoomRow);
+        public static Vector2Int RoomScreen(FaceId face) => SubScreens.RoomScreen(RoomRow, face);
 
         /// <summary>A face's room centre (world).</summary>
-        public static Vector2 RoomCentre(FaceId face) => ScreenMath.ScreenCenter(RoomScreen(face), ScreenMath.DefaultScreenSize);
+        public static Vector2 RoomCentre(FaceId face) => SubScreens.RoomCentre(RoomRow, face);
+
+        /// <summary>Where a player walking out of a door (by its sill and facing) is put: in front of it, facing away.</summary>
+        public static Vector2 ReturnPoint(Vector2 sill, Facing facing) =>
+            sill + (Vector2)facing.ToVector() * (TimeField.PlayerRadius + ReturnGap);
 
         /// <summary>Where a player walking out of a town's marked door is put, local to the town's centre (ReturnPoint).</summary>
-        public static Vector2 ReturnPointLocal(TownBuilding building) =>
-            building.Door + (Vector2)building.DoorFacing.ToVector() * (TimeField.PlayerRadius + ReturnGap);
+        public static Vector2 ReturnPointLocal(TownBuilding building) => ReturnPoint(building.Door, building.DoorFacing);
 
         /// <summary>Where a player walking out of a door is put (world): in front of it, facing away.</summary>
-        public static Vector2 ReturnPoint(TownDoor door)
-        {
-            Vector2 away = door.Facing.ToVector();
-            return door.Sill + away * (TimeField.PlayerRadius + ReturnGap);
-        }
-
-        private void Awake()
-        {
-            if (world == null) world = GetComponent<CubeWorld>();
-        }
-
-        private void OnEnable() => Subscribe();
-
-        private void OnDisable()
-        {
-            if (subscribed == null) return;
-            subscribed.Rebuilt -= Clear;
-            subscribed = null;
-        }
-
-        private void Subscribe()
-        {
-            if (!isActiveAndEnabled || world == null || subscribed == world) return;
-            OnDisable();
-            subscribed = world;
-            world.Rebuilt += Clear;
-        }
-
-        private CubeNavigator ResolveNavigator()
-        {
-            if (navigator == null) navigator = FindAnyObjectByType<CubeNavigator>();
-            return navigator;
-        }
+        public static Vector2 ReturnPoint(TownDoor door) => ReturnPoint(door.Sill, door.Facing);
 
         private void FixedUpdate()
         {
             CubeNavigator player = ResolveNavigator();
-            if (world == null || world.Model == null || player == null) return;
+            if (World == null || World.Model == null || player == null) return;
             if (Current != null && !player.InInterior)
             {
                 // Taken out some other way (a teleport, a new run, the core).
                 Current = null;
                 CurrentDoor = null;
             }
-            Rigidbody2D body = player.GetComponent<Rigidbody2D>();
-            Vector2 p = body != null ? body.position : (Vector2)player.transform.position;
+            Vector2 p = SubScreens.PlayerPosition(player);
             if (Current != null)
             {
                 if (Current.IsPastExit(p)) Leave();
@@ -153,6 +91,7 @@ namespace Game.Cube
         /// <summary>The marked door of the town on a screen, or null (no town there, or not built).</summary>
         public TownDoor DoorAt(ScreenAddress screen)
         {
+            CubeWorld world = World;
             if (world == null || world.Model == null || !TownSquare.IsTown(screen, world.FaceSize)) return null;
             ScreenModule module = world.ModuleAt(screen);
             if (module == null || !module.IsTownScreen) return null;
@@ -192,6 +131,7 @@ namespace Game.Cube
         public bool Enter(TownDoor door)
         {
             CubeNavigator player = ResolveNavigator();
+            CubeWorld world = World;
             if (door == null || player == null || world == null || world.Model == null) return false;
             if (!world.TryScreenAt(door.Sill, out ScreenAddress town)) return false;
             TownInteriorView room = RoomOf(town);
@@ -200,7 +140,7 @@ namespace Game.Cube
             CurrentDoor = door;
             player.EnterInterior(town, door.Sill, room.EntryPoint, door.Facing.Opposite());
             Entries++;
-            Entered?.Invoke(room);
+            RaiseEntered(room);
             return true;
         }
 
@@ -221,51 +161,31 @@ namespace Game.Cube
             TownDoor door = CurrentDoor;
             Current = null;
             CurrentDoor = null;
-            player.PlaceOn(room.Town, ReturnPoint(door), door.Facing);
-            if (player.TryGetComponent(out Rigidbody2D body)) body.linearVelocity = Vector2.zero;
+            SubScreens.PlaceOut(player, room.Town, ReturnPoint(door), door.Facing, false);
             Exits++;
-            Left?.Invoke(room);
+            RaiseLeft(room);
             return true;
         }
 
         /// <summary>The room of a town (built the first time it is asked for), or null for a screen that is no town.</summary>
         public TownInteriorView RoomOf(ScreenAddress town)
         {
+            CubeWorld world = World;
             if (world == null || world.Model == null || !TownSquare.IsTown(town, world.FaceSize)) return null;
-            if (rooms.TryGetValue(town.Face, out TownInteriorView room) && room != null) return room;
-            if (root == null)
-            {
-                root = new GameObject("Town Interiors").transform;
-                root.SetParent(transform, false);
-                root.position = Vector3.zero;
-            }
+            TownInteriorView room = Standing(town.Face);
+            if (room != null) return room;
+            Transform root = RoomRoot();
             CubeNavigator player = ResolveNavigator();
             room = TownInteriorView.Build(world, town.Face, town, RoomCentre(town.Face), root, player != null ? player.transform : null,
                 hintDensity);
-            rooms[town.Face] = room;
+            Keep(town.Face, room);
             return room;
         }
 
-        /// <summary>Removes every room (a new run). The player, if inside, is taken out by the rebuild's teleport.</summary>
-        public void Clear()
+        protected override void Cleared()
         {
-            foreach (TownInteriorView room in rooms.Values)
-            {
-                if (room == null) continue;
-                room.gameObject.SetActive(false);
-                Destroy(room.gameObject);
-            }
-            rooms.Clear();
             views.Clear();
-            Current = null;
             CurrentDoor = null;
-            Entries = 0;
-            Exits = 0;
-        }
-
-        private void OnDestroy()
-        {
-            if (root != null) Destroy(root.gameObject);
         }
     }
 }

@@ -42,7 +42,7 @@ Tier tags follow `scope-tiers.md`. Face, race, town and benefit detail is in `fa
   - **intent:** On the Physics face (Einstein), boulders moved near a timed door slow time, so the door stays open longer. More mass slows time further.
   - **success:** A door that can't be passed with no boulders becomes passable with the required number of boulders next to it.
 - **CAP-7** [Must]
-  - **intent:** The Math face (Euler) has island screens: water with islands, doorways on different islands, and spread-out bridges. Crossing a bridge lights it, the gap-crosser mends broken spans, and meeting the bridge goal (e.g. lighting every bridge) opens a reward roadblock.
+  - **intent:** The Math face (Euler) has island screens: water with islands, doorways on different islands, and spread-out bridges. Crossing a bridge lights it in a colour unlike land, planks that can never light look grey, each doorway's island shows the rule, the gap-crosser mends broken spans, and meeting the bridge goal (e.g. lighting every bridge) opens a reward roadblock.
   - **success:** Every generated island screen is solver-checked as solvable from each connected doorway, its roadblock opens only when the goal is met, and its difficulty is within the puzzle research's targets.
 - **CAP-8** [Must]
   - **intent:** The Earth & Atmosphere face has whole-screen weather puzzles. On sliding-ice screens the player slides straight until blocked, into a pit (back to the entry) or onto a grip tile. On wind-stream screens streams push the player one way until they leave the stream. Quake crevices and freezing rain stay or fold in. The centre is the calm hurricane eye. Its item is a weather wand that controls one phenomenon at first and gains more with upgrades.
@@ -72,8 +72,8 @@ Tier tags follow `scope-tiers.md`. Face, race, town and benefit detail is in `fa
   - **intent:** Each face's centre screen is a town: buildings in its race's style, a statue, at least one enterable building (an interior with people or a shop counter), more people than other screens, no enemies, and one leader who gives that region's quest.
   - **success:** On every seed each face's centre is a town with all of these, and entering then leaving a building returns the player to its door.
 - **CAP-29** [Must]
-  - **intent:** Each run gives the faces die numbers: Town 1, the others 2–6 shuffled. The face numbered k holds k numbered fragments. Bringing all of a face's fragments to its leader repairs the face and grants one boss benefit.
-  - **success:** On seeds 1–50 every fragment is reachable, Town is always 1 and the other numbers vary between seeds, the HUD and map show fragments, and a repaired face's benefit applies in the arena.
+  - **intent:** Each run gives the faces die numbers: Town 1, the others 2–6 shuffled. The face numbered k holds k numbered fragments; Town's one fragment comes from a lost-and-found side quest. Bringing all of a face's fragments to its leader unseals the face's temple. Solving the temple's hard version of the face's own puzzle mends the fragments into the face's gem, which grants the face's boss benefit.
+  - **success:** On seeds 1–50 every fragment is reachable and Town's trail can be completed, Town is always 1 and the other numbers vary between seeds, every temple is solver-checked solvable from its doorway with no template, the HUD and map show fragments, open temples and gems, and a gem's benefit applies in the arena.
 - **CAP-30** [Must]
   - **intent:** Every gate, optional gate and hidden spot hides a reward: coins, equipment, an upgrade, a key or a fragment. Items no longer lie loose on the ground. Every screen holds a puzzle, enemies or an object.
   - **success:** The sweep on seeds 1–50 finds no reward outside a roadblock and no empty screen.
@@ -83,6 +83,9 @@ Tier tags follow `scope-tiers.md`. Face, race, town and benefit detail is in `fa
 - **CAP-32** [Must]
   - **intent:** Each race has its own culture, heard in its manner of speech (voices in `faces-and-races.md`), and every character has a meaningful name.
   - **success:** Every NPC line and hint is written in its race's voice, no character name carries a placeholder `*`, and the subtle-science text scan still passes.
+- **CAP-33** [Must]
+  - **intent:** Every quest given (a leader's fragments and temple, Town's lost-and-found, each town's one errand) joins a quest log the player can open, with its giver, step and progress, and is marked done when finished. No two people on a face give the same quest.
+  - **success:** Every quest joins the log when given, updates and is marked done, and on seeds 1–50 each face has one errand and no duplicate quest-givers.
 - **CAP-9** [Should]
   - **intent:** Each race's NPCs are assembled from swappable parts: the head carries knowledge and hints, the torso the role, and the legs the movement. They speak campy dialogue. The parts are a variety layer on top of the per-race designs.
   - **success:** NPC parts vary between seeds, and each part slot visibly affects what that NPC does or says.
@@ -133,6 +136,7 @@ Tier tags follow `scope-tiers.md`. Face, race, town and benefit detail is in `fa
 - Character names are chosen and carry no `*`. Region and item names keep a trailing `*` until a naming brainstorm replaces them.
 - Region colours follow a Rubik's cube: Town white, Biology green, Chemistry red, Physics blue, Math yellow, Earth & Atmosphere orange.
 - Audience is pre-teens to adults, like *Ocarina of Time*. Camp humour only, no explicit innuendo (`lore-and-tone.md`).
+- A conversation freezes the world: while a dialogue box is open, the player, NPCs, enemies, timers and the arena hold, and the press that closes it is never also a swing or a grab.
 - The game never says "sort". The demon's order is shown through abstract imagery and named "the Partition".
 - The order the player talks to races in town is the only player influence on the shuffle.
 - Puzzle and adventure come first. Combat is never a pure skill gate.
@@ -147,18 +151,16 @@ Tier tags follow `scope-tiers.md`. Face, race, town and benefit detail is in `fa
 
 ## Success signal
 
-- A new player starts a fresh seed in the Town face's town, explores all 5 science faces of a 3×3 cube through locked edge gates with the help of the map, meets each face's town and leader, earns rewards from roadblocks, gathers fragments to repair faces, finds the real portal past the lair, and beats the core boss or walks out of the arena. The sweep passes on 50 of 50 seeds with no softlocks, and two different seeds visibly route the player through the faces in different orders.
+- A new player starts a fresh seed in the Town face's town, explores all 5 science faces of a 3×3 cube through locked edge gates with the help of the map, meets each face's town and leader, earns rewards from roadblocks, gathers fragments to unseal temples and wins their gems, finds the real portal past the lair, and beats the core boss or walks out of the arena. The sweep passes on 50 of 50 seeds with no softlocks, generation passes the same checks on seeds 1–500 with no template or fallback, and two different seeds visibly route the player through the faces in different orders.
 
 ## Assumptions
 
 - Meta progression is saved locally: browser storage on WebGL, or the local disk on desktop.
 - Run currency (CAP-24) is cut for now. If it returns, it is spent at merchant-role NPCs.
 - An "improved" re-collected ability (CAP-17) is improved relative to its version in the previous run.
-- Fragments and face repairs replace the playtest-2 idea that a temple item gives a boss benefit. Temples are optional and the user may drop or reshape them.
 
 ## Open Questions
 
 - What is the final title? "Entropy Cube" is a working title.
-- Which face grants which boss benefit: seeded per run or fixed? (decided in story 4.8's plan)
 - Should Anning and Richter be locked in as the earth-face deities? (deferred)
 - What are the friendship threshold values? (deferred to playtesting)

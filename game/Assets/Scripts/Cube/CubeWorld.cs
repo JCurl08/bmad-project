@@ -329,24 +329,6 @@ namespace Game.Cube
             Wind = WindPlan.Create(Model, Layout, Dice);
             Islands = IslandPlan.Create(Model, Layout, Dice);
             PuzzleGoals = PuzzleScreens.Goals(Ice, Wind, Islands);
-            if (Islands != null)
-            {
-                List<string> islandProblems = Islands.Problems(Model, library != null && library.IslandModuleIndex(Theme.Math) >= 0);
-                if (islandProblems.Count > 0)
-                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s island screens miss their targets: {string.Join("; ", islandProblems)}");
-            }
-            if (Wind != null)
-            {
-                List<string> windProblems = Wind.Problems(Model, library != null && library.WindModuleIndex(Theme.EarthAtmosphere) >= 0);
-                if (windProblems.Count > 0)
-                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s wind screens miss their targets: {string.Join("; ", windProblems)}");
-            }
-            if (Ice != null)
-            {
-                List<string> iceProblems = Ice.Problems(Model, library != null && library.IslandModuleIndex(Theme.EarthAtmosphere) >= 0);
-                if (iceProblems.Count > 0)
-                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s ice screens miss their targets: {string.Join("; ", iceProblems)}");
-            }
 
             for (int f = 0; f < CubeSettings.FaceCount; f++)
             {
@@ -364,6 +346,16 @@ namespace Game.Cube
             PlaceItems();
             PlaceHiddenCurrency();
             PlaceRewards();
+            // 4.15: the reveal-time guard, one error naming every problem of the run's plans (the sweep's checks, any seed). It
+            // makes the temples' puzzles early (cold: about 145 ms a reveal, up to 345 ms), so only the editor and development builds run it.
+            if (Application.isEditor || Debug.isDebugBuild)
+            {
+                MathFace mathFace = GetComponent<MathFace>();
+                List<string> planProblems = RunPlanCheck.Problems(Model, Layout, library, itemCatalog != null ? itemCatalog.Themes() : null,
+                    ItemPlacement, HiddenCurrency, Rewards, Ice, Wind, Islands, Locks?.Plan, Lair, Dice, mathFace != null ? mathFace.Plan : null);
+                if (planProblems.Count > 0)
+                    Debug.LogError($"CubeWorld: seed {Model.Seed}'s generated plans have {planProblems.Count} problem(s): {string.Join("; ", planProblems)}");
+            }
 
             Revealed?.Invoke();
             return true;

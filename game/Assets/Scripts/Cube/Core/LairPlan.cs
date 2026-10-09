@@ -97,14 +97,6 @@ namespace Game.Cube
         /// <summary>True when the face's portal leads to the arena.</summary>
         public bool IsReal(FaceId face) => face == RealFace;
 
-        /// <summary>The order of a lair face among the run's lair rooms (0..), or -1.</summary>
-        public int LairIndex(FaceId face)
-        {
-            for (int i = 0; i < LairFaces.Count; i++)
-                if (LairFaces[i] == face) return i;
-            return -1;
-        }
-
         /// <summary>A lair room's prisoners (empty for a face with no lair).</summary>
         public IReadOnlyList<PrisonerPlan> PrisonersOf(FaceId face) =>
             prisoners.TryGetValue(face, out List<PrisonerPlan> list) ? list : (IReadOnlyList<PrisonerPlan>)Array.Empty<PrisonerPlan>();

@@ -264,13 +264,6 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>The region index of a cell (-1 for sky, a wall or a stream).</summary>
-        public int RegionOf(int cell)
-        {
-            Analyse();
-            return region[cell];
-        }
-
         /// <summary>The resting place (a region's smallest cell) of a walkable cell, or -1.</summary>
         public int NodeOf(int cell)
         {
