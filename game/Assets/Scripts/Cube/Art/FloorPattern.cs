@@ -31,13 +31,45 @@ namespace Game.Cube
         /// </summary>
         public static readonly Color PhysicsTileAverage = new Color(0.541f, 0.597f, 0.690f);
 
-        /// <summary>How much of a theme's floor the glaze covers (0: none). Only the Weightlands* has one.</summary>
-        public static float GlazeAlpha(Theme theme) => theme == Theme.Physics ? 0.5f : 0f;
+        /// <summary>
+        /// Town's glaze colour (4.18: "white face should be more white than grey"): a warm white laid over Town's pale
+        /// blue-grey stone, so the floor reads white while its checker and texture still show.
+        /// </summary>
+        public static readonly Color TownGlazeColor = new Color(0.98f, 0.97f, 0.94f);
+
+        /// <summary>
+        /// How much of a theme's floor the glaze covers (0: none): the Weightlands* (its own average, calming its lines) and
+        /// Town (4.18: warm white, so the floor reads white, not grey).
+        /// </summary>
+        public static float GlazeAlpha(Theme theme) => theme == Theme.Physics ? 0.5f : theme == Theme.Town ? 0.7f : 0f;
 
         /// <summary>The glaze over a theme's floor drawn in blockColor (the floor's tint, checker shade included).</summary>
-        public static Color Glaze(Theme theme, Color blockColor) =>
-            new Color(PhysicsTileAverage.r * blockColor.r, PhysicsTileAverage.g * blockColor.g, PhysicsTileAverage.b * blockColor.b,
-                GlazeAlpha(theme));
+        public static Color Glaze(Theme theme, Color blockColor)
+        {
+            Color glaze = theme == Theme.Town ? TownGlazeColor : PhysicsTileAverage;
+            return new Color(glaze.r * blockColor.r, glaze.g * blockColor.g, glaze.b * blockColor.b, GlazeAlpha(theme));
+        }
+
+        /// <summary>
+        /// How much darker every other screen of a face is drawn (CubeWorld.BuildFloor's checker): 15 %, but only 6 % on Town
+        /// (4.18), whose white floor would otherwise read grey on every other screen.
+        /// </summary>
+        public static float CheckerShade(Theme? theme) => theme == Theme.Town ? 0.06f : 0.15f;
+
+        /// <summary>
+        /// The colour a region floor reads as on screen: its tile (tileAverage) under its tint (ArtKeys.FloorTint), on a light
+        /// or a dark checker screen (CheckerShade), with its glaze over it. What the readability tests compare against.
+        /// </summary>
+        public static Color Seen(Theme theme, Color tileAverage, bool darkScreen)
+        {
+            Color block = ArtKeys.FloorTint(theme);
+            if (darkScreen) block = Color.Lerp(block, Color.black, CheckerShade(theme));
+            var floor = new Color(tileAverage.r * block.r, tileAverage.g * block.g, tileAverage.b * block.b, 1f);
+            Color glaze = Glaze(theme, block);
+            Color seen = Color.Lerp(floor, glaze, glaze.a);
+            seen.a = 1f;
+            return seen;
+        }
 
         /// <summary>Patch size in tiles: the coarse grid the soft patches are interpolated from.</summary>
         private const int PatchTiles = 3;

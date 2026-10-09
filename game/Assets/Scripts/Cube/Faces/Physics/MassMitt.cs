@@ -133,7 +133,7 @@ namespace Game.Cube
             // After every Update, so a press that opened or closed a conversation this frame (whatever the script
             // order) is seen as the conversation's and never also grabs or lets go of a boulder.
             if (interact == null || !interact.WasPressedThisFrame()) return;
-            if (GamePause.Active) return; // the map is open: gameplay is paused
+            if (GamePause.InputBlocked) return; // the map, the quest log or a conversation is open: gameplay is paused
             DialogueBox box = DialogueBox.Shared;
             if (box != null && (box.IsOpen || box.OpenedFrame == Time.frameCount || box.ClosedFrame == Time.frameCount)) return;
             Interact();

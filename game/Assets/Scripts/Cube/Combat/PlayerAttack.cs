@@ -126,7 +126,7 @@ namespace Game.Cube
         {
             if (swing != null && swing.enabled && Time.time >= swingHideAt) swing.enabled = false;
             if (attack == null || !attack.WasPressedThisFrame()) return;
-            if (GamePause.Active) return; // the map is open: gameplay is paused
+            if (GamePause.InputBlocked) return; // the map, the quest log or a conversation is open: gameplay is paused
             // A conversation owns Interact, not Attack, but swinging mid-dialogue would still be odd.
             if (DialogueOpen()) return;
             TryAttack();

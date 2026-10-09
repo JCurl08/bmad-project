@@ -29,11 +29,22 @@ namespace Game.Cube
         {
             public string Wares;
             public string Metal;
+            /// <summary>The face's one errand (4.18, Errands): carry a word to {name}, another resident of the town.</summary>
             public string Errand;
+
+            /// <summary>
+            /// What a quest-giver who does not give the face's errand says (4.18: one errand per face): they have none, but
+            /// {name} (the face's errand-giver) here in town has one, then gossip ({rumour}). True whether or not the errand
+            /// was given yet.
+            /// </summary>
+            public string SpareQuest;
+
+            /// <summary>The same when no errand-giver is known (a debug spawn): they have no errand, then gossip.</summary>
+            public string SpareQuestPlain;
             public string[] Rumours;
             public string[] Greetings;
 
-            /// <summary>Role lines in this voice. Tokens: {Wares}/{wares}, {metal}, {errand}, {rumour}.</summary>
+            /// <summary>Role lines in this voice. Tokens: {Wares}/{wares}, {metal}, {errand} (with its {name}), {rumour}.</summary>
             public Dictionary<NpcRole, string[]> Roles;
         }
 
@@ -52,7 +63,9 @@ namespace Game.Cube
             {
                 Wares = "odds and ends from every face",
                 Metal = "mystery metal from the ruins",
-                Errand = "say hello to everyone in town. Everyone! It's what we do here",
+                Errand = "say hello to {name} for me. Everyone says hello here! It's what we do",
+                SpareQuest = "No errand from me, but {name} here in town has one! Meanwhile, gossip: {rumour}",
+                SpareQuestPlain = "No errands from me today, I'm afraid. Have some gossip instead: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -98,7 +111,9 @@ namespace Game.Cube
             {
                 Wares = "seeds most fine",
                 Metal = "beak-polish",
-                Errand = "discover why my cousin's beak hath grown so *thick* of late",
+                Errand = "carry my fond greetings to {name}, who doth perch here in our town",
+                SpareQuest = "Alas, I have no errand, but {name} here in town hath one. Take gossip instead: {rumour}",
+                SpareQuestPlain = "Alas, I have no errand for thee. Take gossip instead: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -144,7 +159,9 @@ namespace Game.Cube
             {
                 Wares = "spores",
                 Metal = "lead",
-                Errand = "fetch me a nice damp log. I *need* one! ...Sorry. I'm calm now",
+                Errand = "tell {name} I'm *sorry* about the spores! ...Or that I'm not! Ugh, just say hi for me",
+                SpareQuest = "Ugh, I have *nothing* for you! But {name} here in town does! Fine, gossip: {rumour}",
+                SpareQuestPlain = "Ugh, I have *nothing* for you today! Fine, gossip: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -190,7 +207,9 @@ namespace Game.Cube
             {
                 Wares = "floaty socks",
                 Metal = "clockwork",
-                Errand = "slow time near the big door, so I may finish my nap. Or does the nap finish me, I wonder?",
+                Errand = "ask {name} what the time is, then tell me. Is time even theirs to tell, I wonder?",
+                SpareQuest = "I have no errand, perhaps, but {name} here in town has one. Instead: {rumour}",
+                SpareQuestPlain = "An errand? Perhaps another day. Instead: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -236,7 +255,9 @@ namespace Game.Cube
             {
                 Wares = "slightly used angles",
                 Metal = "right angles",
-                Errand = "reach the island with the flag and wave at me from it. Then we are both satisfied",
+                Errand = "tell {name} that the corner is square. Then we are both satisfied",
+                SpareQuest = "I have no errand. {name} here in town has one, therefore ask there. Gossip: {rumour}",
+                SpareQuestPlain = "I have no errand. Therefore, gossip: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -282,7 +303,9 @@ namespace Game.Cube
             {
                 Wares = "trail rations and old bones",
                 Metal = "volcano rock",
-                Errand = "haul a rock up that ridge for me. A big one. Builds character",
+                Errand = "tell {name} the trail up the ridge is clear. They'll want to know",
+                SpareQuest = "No errand from me, but {name} round the campfire here has one. Camp gossip: {rumour}",
+                SpareQuestPlain = "No errands out on the trail today. Camp gossip instead: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -328,7 +351,9 @@ namespace Game.Cube
             {
                 Wares = "feathers, lightly windblown",
                 Metal = "storm-glass",
-                Errand = "count the raindrops on my head. All of them. I'll wait right here in the breeze",
+                Errand = "tell {name} there's rain on the wind. I can feel it in my feathers",
+                SpareQuest = "Nothing on the wind from me, but {name} here in town has an errand. Gossip: {rumour}",
+                SpareQuestPlain = "Nothing on the wind for you today. Here's a breeze of gossip: {rumour}",
                 Roles = new Dictionary<NpcRole, string[]>
                 {
                     [NpcRole.Merchant] = new[]
@@ -404,10 +429,17 @@ namespace Game.Cube
         };
 
         /// <summary>
-        /// The Mayor's quest (4.8): Town lost one fragment, and the Mayor hands it over on the spot (LeaderQuest grants it);
-        /// talking again hands it back and mends Town.
+        /// The Mayor's quest with no run to read (4.18): Town's one fragment has gone missing, so ask around. In a run the
+        /// Mayor names who had it last (QuestLines.MayorLostLine, Town's lost-and-found trail: TownTrail); the last person on
+        /// the trail hands it over, and handing it to the Mayor mends Town.
         /// </summary>
-        public const string MayorGiftLine = "Here's the job, friend: every face is coming apart. Town lost just one fragment, and look, I found it! Hold on to it, then hand it back to me and we'll mend Town!";
+        public const string MayorGiftLine = "Here's the job, friend: every face is coming apart, and Town's one fragment has gone missing! Ask around town, somebody saw it. Bring it back and we'll mend Town!";
+
+        /// <summary>
+        /// The Mayor's fallback (4.8's gift) when Town's lost-and-found trail cannot run (4.18 review: its people did not all
+        /// find a spot): he found Town's one fragment and hands it over; talking again hands it back and mends Town.
+        /// </summary>
+        public const string MayorFoundLine = "Here's the job, friend: every face is coming apart. Town lost just one fragment, and look, I found it! Hold on to it, then hand it back to me and we'll mend Town!";
 
         /// <summary>
         /// What each leader says on taking all {count} fragments (4.8): the face is mended, and how it will help in the core
@@ -486,6 +518,8 @@ namespace Game.Cube
             if (race == Race.Townsfolk)
             {
                 yield return MayorGiftLine;
+                yield return MayorFoundLine;
+                foreach (string line in QuestLines.MayorLines()) yield return line;
                 yield return RepairLine(race, 1);
             }
             else
@@ -716,18 +750,19 @@ namespace Game.Cube
         /// The whole conversation for an NPC in a run: its flavour line, then its first hint (in its voice). A leader (4.5)
         /// gives its greeting and its region's quest hook instead (LeaderConversation).
         /// </summary>
-        public static List<string> For(NpcSpec spec, RunFacts facts, HintDensity density) =>
-            Lines(spec, spec != null && spec.IsLeader ? null : HintGenerator.For(spec, facts, density));
+        public static List<string> For(NpcSpec spec, RunFacts facts, HintDensity density, string errandGiver = null) =>
+            Lines(spec, spec != null && spec.IsLeader ? null : HintGenerator.For(spec, facts, density), errandGiver);
 
         /// <summary>
         /// The conversation from given hints: the flavour line (the role line), then the first hint. A leader (4.5) always gives
         /// LeaderConversation (its greeting, then its quest hook), whatever the hints: the one source of a leader's lines.
         /// </summary>
-        public static List<string> Lines(NpcSpec spec, IReadOnlyList<Hint> hints) =>
-            spec.IsLeader ? LeaderConversation(spec.Race) : Conversation(FlavourLine(spec), hints);
+        public static List<string> Lines(NpcSpec spec, IReadOnlyList<Hint> hints, string errandGiver = null) =>
+            spec.IsLeader ? LeaderConversation(spec.Race) : Conversation(FlavourLine(spec, errandGiver), hints);
 
         /// <summary>A generic NPC's flavour line (its first line): a leader's greeting (LeaderConversation's first), else its role line.</summary>
-        public static string FlavourLine(NpcSpec spec) => spec.IsLeader ? LeaderConversation(spec.Race)[0] : RoleLine(spec);
+        public static string FlavourLine(NpcSpec spec, string errandGiver = null) =>
+            spec.IsLeader ? LeaderConversation(spec.Race)[0] : RoleLine(spec, errandGiver);
 
         /// <summary>A conversation: the flavour line, then the first hint (if any). Never more than MaxLines.</summary>
         public static List<string> Conversation(string flavour, IReadOnlyList<Hint> hints)
@@ -743,15 +778,37 @@ namespace Game.Cube
             return table[(int)(spec.Salt % (uint)table.Length)];
         }
 
-        public static string RoleLine(NpcSpec spec)
+        /// <summary>
+        /// A generic NPC's role line in its voice. A quest-giver says its voice's SpareQuest line (no errand from them, but
+        /// errandGiver, the face's errand-giver, has one; then gossip), or SpareQuestPlain with no errand-giver known: each
+        /// face has one errand (4.18, Errands), and only its errand-giver says it (ErrandLine).
+        /// </summary>
+        public static string RoleLine(NpcSpec spec, string errandGiver = null)
         {
             RaceFlavour flavour = Flavours[spec.Voice];
+            if (spec.Role == NpcRole.QuestGiver)
+                return errandGiver != null ? Fill(flavour.SpareQuest, flavour, spec.Salt, errandGiver) : Fill(flavour.SpareQuestPlain, flavour, spec.Salt);
             string[] table = flavour.Roles[spec.Role];
             string template = table[(int)(spec.Salt / 5u % (uint)table.Length)];
             return Fill(template, flavour, spec.Salt);
         }
 
-        private static string Fill(string template, RaceFlavour flavour, uint salt)
+        /// <summary>
+        /// The errand a face's one errand-giver (4.18, Errands) gives in its voice: one of its voice's quest-giver lines, with
+        /// the errand naming targetName (another resident of the town), picked by its salt.
+        /// </summary>
+        public static string ErrandLine(NpcSpec giver, string targetName)
+        {
+            RaceFlavour flavour = Flavours[giver.Voice];
+            string[] table = flavour.Roles[NpcRole.QuestGiver];
+            string template = table[(int)(giver.Salt / 5u % (uint)table.Length)];
+            return Fill(template, flavour, giver.Salt, targetName);
+        }
+
+        /// <summary>The name the text scans fill an errand with (the first of the voice's pool, so the voice tests strip it).</summary>
+        public static string SampleName(Voice voice) => NpcNames.Pool(voice)[0];
+
+        private static string Fill(string template, RaceFlavour flavour, uint salt, string name = null)
         {
             string wares = flavour.Wares;
             string capital = wares.Length > 0 ? char.ToUpperInvariant(wares[0]) + wares.Substring(1) : wares;
@@ -766,7 +823,8 @@ namespace Game.Cube
                 .Replace("{wares}", wares)
                 .Replace("{metal}", flavour.Metal)
                 .Replace("{errand}", flavour.Errand)
-                .Replace("{rumour}", rumour);
+                .Replace("{rumour}", rumour)
+                .Replace("{name}", name ?? "someone in town");
         }
 
         /// <summary>
@@ -779,8 +837,14 @@ namespace Game.Cube
             foreach (string[] table in f.Roles.Values)
                 foreach (string template in table)
                     for (int r = 0; r < f.Rumours.Length; r++)
-                        yield return Fill(template, f, (uint)(r * 13));
+                        yield return Fill(template, f, (uint)(r * 13), SampleName(voice));
+            for (int r = 0; r < f.Rumours.Length; r++)
+            {
+                yield return Fill(f.SpareQuest, f, (uint)(r * 13), SampleName(voice));
+                yield return Fill(f.SpareQuestPlain, f, (uint)(r * 13));
+            }
             foreach (string line in f.Greetings) yield return line;
+            foreach (string line in QuestLines.SpokenLines(voice)) yield return line; // 4.18: errands and Town's trail
             foreach (string line in KeeperLineTable[voice]) yield return line;
             foreach (string line in LairText.SpokenLines(voice)) yield return line; // 4.13: the lair's prisoners
         }
@@ -795,6 +859,8 @@ namespace Game.Cube
                 yield return f.Wares;
                 yield return f.Metal;
                 yield return f.Errand;
+                yield return f.SpareQuest;
+                yield return f.SpareQuestPlain;
                 foreach (string line in f.Rumours) yield return line;
                 foreach (string line in f.Greetings) yield return line;
             }
@@ -823,6 +889,7 @@ namespace Game.Cube
             yield return HazardLine;
             yield return GripLine;
             foreach (string line in LairText.AllFixedText()) yield return line;
+            foreach (string line in QuestLines.AllFixedText()) yield return line;
         }
     }
 }

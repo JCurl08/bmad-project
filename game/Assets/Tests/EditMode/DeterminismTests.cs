@@ -81,6 +81,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("windScreens", WindPlan.RngStream),
             new KeyValuePair<string, ulong>("islandPuzzles", IslandPlan.RngStream),
             new KeyValuePair<string, ulong>("lair", LairPlan.RngStream),
+            new KeyValuePair<string, ulong>("townTrail", TownTrail.RngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -138,6 +139,8 @@ namespace Game.Cube.Tests
             Add("locks", EdgeLocks.ForRun(model, library, catalog.Themes(), catalog.VariantCounts()).Signature());
             // 4.13: the boss lair (the real portal, each lair room's prisoners and their hints).
             Add("lair", LairPlan.ForRun(model)?.Signature());
+            // 4.18: Town's lost-and-found trail (its people, the favour step and the helper).
+            Add("townTrail", TownTrail.For(seed, model.FaceSize)?.Signature() ?? "none");
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
             if (biology != null)

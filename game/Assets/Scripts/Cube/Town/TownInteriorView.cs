@@ -135,19 +135,28 @@ namespace Game.Cube
         {
             Race race = TownSquare.RaceOf(Interior.Theme);
             RunFacts facts = RunFacts.Of(world);
+            // The face's errand-giver, whom a spare quest-giver points to (4.18).
+            ErrandPlan errand = Interior.Theme == Theme.Town
+                ? (FindAnyObjectByType<TownPopulation>() is TownPopulation town && town != null ? town.Errand : null)
+                : Errands.For(world.Seed, world.FaceSize, Face, Interior.Theme);
+            string errandGiver = errand?.Giver.Name;
+            // Town's people never turn hostile (4.18 review: Town is where everyone still mixes).
+            RaceRelations relations = Interior.Theme == Theme.Town ? null : world.Relations;
             for (int i = 0; i < Interior.Stands.Count; i++)
             {
                 InteriorStand stand = Interior.Stands[i];
-                NpcSpec spec = NpcFactory.ChooseParts(world.Seed, race, TownInterior.IndexBase + i);
+                // 4.18: Town's own building is run by folk of every race, like its square (only the greeter and the Mayor look Town's own).
+                Race person = Interior.Theme == Theme.Town ? TownPlan.InteriorRace(world.Seed, i) : race;
+                NpcSpec spec = NpcFactory.ChooseParts(world.Seed, person, TownInterior.IndexBase + i);
                 List<string> lines;
                 if (stand.Keeper)
                 {
-                    spec = spec.Named(spec.Name, $"{NpcSpec.RaceName(race, spec.Variant).ToLowerInvariant()} shopkeeper");
+                    spec = spec.Named(spec.Name, $"{NpcSpec.RaceName(person, spec.Variant).ToLowerInvariant()} shopkeeper");
                     lines = Dialogue.KeeperLines(spec.Voice);
                 }
-                else lines = Dialogue.For(spec, facts, density);
+                else lines = Dialogue.For(spec, facts, density, errandGiver);
                 var bounds = new Rect(Centre + stand.Bounds.position, stand.Bounds.size);
-                NpcTalker npc = NpcFactory.Spawn(spec, lines, Centre + stand.Feet, bounds, world.Relations, player, transform, world.Material);
+                NpcTalker npc = NpcFactory.Spawn(spec, lines, Centre + stand.Feet, bounds, relations, player, transform, world.Material);
                 npc.name = $"Interior {(stand.Keeper ? "Keeper" : "Person")} {Face} {i} {spec.DisplayName}";
                 people.Add(npc);
                 if (stand.Keeper) Keeper = npc;

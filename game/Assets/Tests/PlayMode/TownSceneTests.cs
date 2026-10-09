@@ -58,6 +58,19 @@ namespace Game.Cube.Tests
             Assert.AreEqual(world.Seed, town.PopulatedSeed);
         }
 
+        /// <summary>
+        /// What a Town NPC says before anyone talks (with these facts): its usual lines (Dialogue.For), the greeter's welcome,
+        /// or, for Town's one errand-giver (4.18), the errand (the target's reply only replaces its lines as it is talked to).
+        /// </summary>
+        private List<string> ExpectedLines(NpcTalker npc, RunFacts facts)
+        {
+            List<string> expected = Dialogue.For(npc.Spec, facts, HintGenerator.FirstRunDensity, town.Errand?.Giver.Name);
+            if (TownPlan.IsGreeter(npc.Spec)) expected = TownSign.GreeterLines(expected);
+            ErrandQuest errand = npc.GetComponent<ErrandQuest>();
+            if (errand != null && errand.IsGiver) expected = Errands.GiverLines(errand.Plan, expected);
+            return expected;
+        }
+
         private List<TownSpot> ExpectedSpots(int seed) =>
             TownPlan.Spots(seed, world.FaceSize, TownPlan.Specs(seed, world.FaceSize).Count,
                 cell => TownPlan.BlockedRects(world.Library.TownModule(cell, world.FaceSize)));
@@ -72,10 +85,13 @@ namespace Game.Cube.Tests
 
             IReadOnlyList<NpcTalker> npcs = town.Npcs;
             foreach (Race race in TownPlan.FaceRaces)
-                Assert.AreEqual(1, npcs.Count(n => n.Race == race), $"Town has exactly one {race}");
-            int townsfolk = npcs.Count(n => n.Race == Race.Townsfolk);
+                Assert.AreEqual(1, npcs.Count(n => n.Race == race && n.Spec.Index == TownPlan.IndexBase), $"Town has exactly one {race} visitor");
+            // 4.18: Town's residents are a mix of every face race; only the greeter is a Townsperson (and the Mayor, not in Npcs).
+            Assert.AreEqual(1, npcs.Count(n => n.Race == Race.Townsfolk), "only the greeter looks Town's own");
+            foreach (Race race in TownPlan.FaceRaces)
+                Assert.Greater(npcs.Count(n => n.Race == race && n.Spec.Index != TownPlan.IndexBase), 0, $"Town has {race} residents too");
+            int townsfolk = npcs.Count - TownPlan.FaceRaces.Length;
             Assert.That(townsfolk, Is.InRange(TownPlan.MinTownsfolk(world.FaceSize), TownPlan.MaxTownsfolk(world.FaceSize)));
-            Assert.AreEqual(TownPlan.FaceRaces.Length + townsfolk, npcs.Count);
             CollectionAssert.AreEqual(TownPlan.Specs(world.Seed, world.FaceSize).Select(s => s.Signature()), npcs.Select(n => n.Spec.Signature()));
             CollectionAssert.AreEqual(ExpectedSpots(world.Seed), town.Spots, "Spawn spots are the seed's pure spots");
 
@@ -129,14 +145,17 @@ namespace Game.Cube.Tests
             for (int i = 0; i < npcs.Count; i++)
             {
                 NpcTalker target = npcs[i];
-                List<string> expected = Dialogue.For(target.Spec, facts, HintGenerator.FirstRunDensity);
+                List<string> expected = ExpectedLines(target, facts);
                 bool greeter = TownPlan.IsGreeter(target.Spec);
                 Assert.AreEqual(i == 0, greeter, "The greeter is the first Town NPC");
-                if (greeter) expected = TownSign.GreeterLines(expected);
                 CollectionAssert.AreEqual(expected, target.Lines, target.Spec.ToString());
                 Assert.AreEqual(Dialogue.MaxLines, target.Lines.Count, "A flavour line, then the hint");
-                Assert.AreEqual(greeter ? TownSign.WelcomeLines[0] : Dialogue.RoleLine(target.Spec), target.Lines[0],
-                    "The greeter welcomes; everyone else says their race- and role-flavoured line");
+                ErrandQuest errand = target.GetComponent<ErrandQuest>();
+                string first = greeter ? TownSign.WelcomeLines[0]
+                    : errand != null && errand.IsGiver ? Dialogue.ErrandLine(errand.Plan.Giver, errand.Plan.Target.Name)
+                    : Dialogue.RoleLine(target.Spec, town.Errand?.Giver.Name);
+                Assert.AreEqual(first, target.Lines[0],
+                    "The greeter welcomes; Town's one errand-giver gives the errand; everyone else says their race- and role-flavoured line");
                 List<Hint> hints = HintGenerator.For(target.Spec, facts, HintDensity.Sparse);
                 Assert.AreEqual(HintGenerator.SparseCount, hints.Count);
                 Assert.IsTrue(hints.All(h => !h.Precise), "First-run hints are sparse");
@@ -241,8 +260,15 @@ namespace Game.Cube.Tests
                     Assert.AreEqual(TownSquare.RaceOf(model.ThemeOf(face)), leader.Spec.Race, context);
                     Assert.IsTrue(world.TryScreenAt(leader.transform.position, out ScreenAddress leaderAt) && leaderAt == townScreen, $"{context}: the leader is in the town");
                     Assert.Less(Vector2.Distance(leader.transform.position, view.Statue.transform.position), TownLayout.LeaderReach + 1f, $"{context}: near the statue");
-                    // Its quest names its face's fragments (4.8): the die number, none found yet.
-                    CollectionAssert.AreEqual(Dialogue.QuestConversation(leader.Spec.Race, world.Dice.Of(face), 0), leader.Lines, context);
+                    // Its quest names its face's fragments (4.8): the die number, none found yet. The Mayor (4.18) says Town's
+                    // went missing and who had it last (Town's lost-and-found trail).
+                    if (face == CubeModel.StartFace)
+                    {
+                        CollectionAssert.AreEqual(leader.GetComponent<LeaderQuest>().Preview(), leader.Lines, context);
+                        StringAssert.Contains("gone missing", leader.Lines[1], context);
+                        StringAssert.Contains(TownPlan.Specs(world.Seed, world.FaceSize)[world.TownTrail.Steps[0]].Name, leader.Lines[1], context);
+                    }
+                    else CollectionAssert.AreEqual(Dialogue.QuestConversation(leader.Spec.Race, world.Dice.Of(face), 0), leader.Lines, context);
                     Assert.IsNotNull(leader.GetComponent<LeaderQuest>(), $"{context}: the leader carries the quest");
 
                     // The busiest screen of its face, and no enemy.
@@ -299,9 +325,7 @@ namespace Game.Cube.Tests
             RunFacts revealed = RunFacts.Of(world);
             for (int i = 0; i < town.Npcs.Count; i++)
             {
-                List<string> expected = Dialogue.For(town.Npcs[i].Spec, revealed, HintGenerator.FirstRunDensity);
-                if (TownPlan.IsGreeter(town.Npcs[i].Spec)) expected = TownSign.GreeterLines(expected);
-                CollectionAssert.AreEqual(expected, town.Npcs[i].Lines);
+                CollectionAssert.AreEqual(ExpectedLines(town.Npcs[i], revealed), town.Npcs[i].Lines);
             }
         }
     }

@@ -187,6 +187,12 @@ public static class CubeSceneBuilder
         map.Navigator = navigator;
         map.Tracker = tracker;
         map.Loop = loop;
+        // The quest log (Q, 4.18): every quest given this run, on its own pause panel.
+        var quests = mapObject.AddComponent<QuestLogView>();
+        quests.World = world;
+        quests.Navigator = navigator;
+        quests.Map = map;
+        quests.Loop = loop;
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
         {
@@ -390,8 +396,26 @@ public static class CubeSceneBuilder
         int towns = results.Sum(r => r.TownsChecked);
         report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
                   "module, slot-free, with a sound layout; no gate, pickup, core portal, puzzle screen, trial, flower or hidden spot on it).\n";
+        report += QuestReportLine(results);
         if (results.All(r => r.Passed)) Debug.Log(report);
         else Debug.LogError(report);
+    }
+
+    /// <summary>The sweep's quest line (4.18): Town's trail completable per seed, its lengths and favours, and the errands.</summary>
+    private static string QuestReportLine(List<SeedSweep.SeedResult> results)
+    {
+        int seeds = 0, passed = 0, two = 0, three = 0;
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.QuestProblems == null) continue;
+            seeds++;
+            if (r.QuestProblems.Count == 0) passed++;
+            if (r.TownTrail != null && r.TownTrail.Steps.Count == 2) two++;
+            if (r.TownTrail != null && r.TownTrail.Steps.Count == 3) three++;
+        }
+        if (seeds == 0) return "Quests: not checked.\n";
+        return $"Quests: Town's lost-and-found trail completable on {passed}/{seeds} seeds ({two} of 2 townsfolk, {three} of 3, each " +
+               "with one favour), and one errand in every town.\n";
     }
 
     /// <summary>

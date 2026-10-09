@@ -12,7 +12,7 @@ using static Game.Cube.Tests.TestInput;
 namespace Game.Cube.Tests
 {
     /// <summary>
-    /// Fragments and face repair in the real Cube scene (4.8): the Mayor gives Town's one fragment, then takes it back and
+    /// Fragments and face repair in the real Cube scene (4.8): the Mayor says Town's one fragment went missing (4.18), then takes it back and
     /// mends Town (lit statue and banners, the map's gold town, the HUD's die, +1 heart in the next fight, taken back on
     /// leaving); a science face numbered k has its k fragment chests with die-pip badges (no badge on the slots above k),
     /// its leader names the count and refuses a short hand-in, and mends the face once all k are held; a new run forgets
@@ -86,7 +86,7 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheMayor_GivesTownsFragment_ThenMendsTown_LitInTownOnTheMapAndHud_AndAHeartForTheFight()
+        public IEnumerator TheMayor_MissesTownsFragment_ThenMendsTownOnceFound_LitInTownOnTheMapAndHud_AndAHeartForTheFight()
         {
             yield return Load();
             NoFaceEnemies();
@@ -99,14 +99,33 @@ namespace Game.Cube.Tests
 
             NpcTalker mayor = Mayor();
             Assert.IsNotNull(mayor.GetComponent<LeaderQuest>(), "The Mayor carries Town's quest");
-            CollectionAssert.AreEqual(Dialogue.QuestConversation(Race.Townsfolk, 1, 0), mayor.Lines);
+            TownTrail trail = world.TownTrail;
+            string firstName = TownPlan.Specs(world.Seed, world.FaceSize)[trail.Steps[0]].Name;
+            StringAssert.Contains("gone missing", mayor.Lines[1], "the Mayor says Town's fragment went missing");
+            StringAssert.Contains(firstName, mayor.Lines[1], "and names the trail's first person");
             bool talked = false;
             yield return Talk(mayor, t => talked = t);
             Assert.IsTrue(talked, "The Mayor can be talked to");
             DialogueBox box = mayor.Box;
-            CollectionAssert.AreEqual(new[] { Dialogue.LeaderLine(Race.Townsfolk), Dialogue.MayorGiftLine }, box.Lines);
-            Assert.IsTrue(rewards.HasFragment(CubeModel.StartFace, 1), "The Mayor hands over Town's fragment");
-            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == RewardText.FragmentPopup(Theme.Town, 1, 1)), "with a popup");
+            // 4.18: Town's fragment went missing; the Mayor names who had it last (Town's lost-and-found trail, walked in
+            // QuestSceneTests). Here the fragment is simply found.
+            Assert.AreEqual(Dialogue.LeaderLine(Race.Townsfolk), box.Lines[0]);
+            StringAssert.Contains("gone missing", box.Lines[1]);
+            Assert.IsFalse(rewards.HasFragment(CubeModel.StartFace, 1), "The Mayor no longer hands it over");
+            // Walk the trail through its API (QuestSceneTests walks it with real presses): each step, the favour first.
+            TownTrailQuest trailQuest = Object.FindAnyObjectByType<TownPopulation>().Trail;
+            for (int s = 0; s < trail.Steps.Count; s++)
+            {
+                if (s == trail.FavourStep)
+                {
+                    trailQuest.Talk(trail.Steps[s], true);
+                    trailQuest.Talk(trail.Helper, true);
+                }
+                Assert.IsFalse(rewards.HasFragment(CubeModel.StartFace, 1), $"not before the last step ({s})");
+                trailQuest.Talk(trail.Steps[s], true);
+            }
+            Assert.IsTrue(rewards.HasFragment(CubeModel.StartFace, 1), "the trail's last person hands it over");
+            Assert.IsTrue(world.Quests.Trail.FragmentGiven);
             Assert.IsFalse(world.Repairs.IsRepaired(CubeModel.StartFace), "Not mended until handed back");
             Assert.AreEqual("Fragments: Town 1/1", hud.FragmentsText);
 
@@ -153,7 +172,11 @@ namespace Game.Cube.Tests
             Assert.IsEmpty(rewards.Fragments);
             Assert.AreEqual(BossBenefit.None, arena.RunBenefits);
             Assert.IsFalse(world.TownViewOf(CubeModel.StartFace).Repaired);
-            CollectionAssert.AreEqual(Dialogue.QuestConversation(Race.Townsfolk, 1, 0), Mayor().Lines);
+            yield return null;
+            StringAssert.Contains("gone missing", Mayor().Lines[1], "Town's fragment is lost again in the new run");
+            StringAssert.Contains(TownPlan.Specs(world.Seed, world.FaceSize)[world.TownTrail.Steps[0]].Name, Mayor().Lines[1],
+                "naming the new run's first trail person");
+            Assert.AreEqual(0, world.Quests.Entries.Count, "and the quest log starts empty");
         }
 
         [UnityTest]

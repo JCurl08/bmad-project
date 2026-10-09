@@ -92,5 +92,8 @@ namespace Game.Cube
 
         /// <summary>The boss lair (LairPlan, 4.13): which core portal is the real way down, and each lair room's prisoners and hints.</summary>
         public const ulong Lair = 29;
+
+        /// <summary>Town's lost-and-found side quest (TownTrail, 4.18): the trail's length, its people and who wants the favour.</summary>
+        public const ulong TownTrail = 30;
     }
 }

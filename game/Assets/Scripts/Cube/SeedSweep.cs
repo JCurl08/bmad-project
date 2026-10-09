@@ -106,7 +106,17 @@ namespace Game.Cube
             /// <summary>Lair problems (LairPlan.FindProblems: one portal to the arena, on a reachable screen, every other into a lair room with its hint-givers); null when not checked.</summary>
             public List<string> LairProblems;
 
+            /// <summary>Town's lost-and-found trail that was checked (4.18); null when not checked.</summary>
+            public TownTrail TownTrail;
+
+            /// <summary>
+            /// Quest problems (4.18: Town's trail completable, TownTrail.FindProblems, and every town's one errand sound); null
+            /// when not checked.
+            /// </summary>
+            public List<string> QuestProblems;
+
             public bool CoreChecked => CoreProblems != null;
+            public bool QuestsChecked => QuestProblems != null;
             public bool ItemsChecked => ItemProblems != null;
             public bool HiddenChecked => HiddenProblems != null;
             public bool RewardsChecked => RewardProblems != null;
@@ -124,7 +134,45 @@ namespace Game.Cube
                                   (IceProblems == null || IceProblems.Count == 0) &&
                                   (WindProblems == null || WindProblems.Count == 0) &&
                                   (IslandProblems == null || IslandProblems.Count == 0) &&
-                                  (LairProblems == null || LairProblems.Count == 0);
+                                  (LairProblems == null || LairProblems.Count == 0) &&
+                                  (QuestProblems == null || QuestProblems.Count == 0);
+        }
+
+        /// <summary>
+        /// Quest problems of a run (4.18; empty when all is well): Town's trail (TownTrail.FindProblems against the Town
+        /// population's planned spots: 2-3 people on different screens off the square, a helper, every line in the rules),
+        /// its people all on screens reachable from the start, and every town's errand (Town's and each laid-out face's): a
+        /// giver and a different target, both among the town's people, with lines in the rules.
+        /// </summary>
+        public static List<string> FindQuestProblems(CubeModel model, ModuleLibrary library, out TownTrail trail)
+        {
+            var problems = new List<string>();
+            int n = model.FaceSize;
+            trail = TownTrail.For(model.Seed, n);
+            List<NpcSpec> specs = TownPlan.Specs(model.Seed, n);
+            List<TownSpot> spots = TownPlan.Spots(model.Seed, n, specs.Count, cell => TownPlan.BlockedRects(library.TownModule(cell, n)));
+            foreach (string p in TownTrail.FindProblems(model.Seed, n, trail, spots)) problems.Add("trail: " + p);
+            if (trail != null)
+            {
+                HashSet<ScreenAddress> reachable = FindReachable(model);
+                foreach (int index in new List<int>(trail.Steps) { trail.Helper })
+                    if (index < spots.Count && spots[index].Found && !reachable.Contains(spots[index].Screen))
+                        problems.Add($"trail: person {index} on unreachable {spots[index].Screen}");
+            }
+            Dictionary<FaceId, ErrandPlan> errands = Errands.ForRun(model);
+            if (!errands.ContainsKey(CubeModel.StartFace)) problems.Add("errand: Town has none");
+            foreach (KeyValuePair<FaceId, ErrandPlan> e in errands)
+            {
+                ErrandPlan plan = e.Value;
+                if (plan.GiverIndex == plan.TargetIndex) problems.Add($"errand: {e.Key}'s giver is its target");
+                if (plan.Giver.Role != NpcRole.QuestGiver && plan.Giver.KindOverride == null) problems.Add($"errand: {e.Key}'s giver is not labelled");
+                foreach (string line in new[] { Dialogue.ErrandLine(plan.Giver, plan.Target.Name), QuestLines.DeliveredLine(plan.Target.Voice, plan.Giver.Name) })
+                {
+                    if (line.Length > Dialogue.MaxLineLength) problems.Add($"errand: too long ({line.Length}): {line}");
+                    foreach (string p in InWorldText.Problems(line)) problems.Add($"errand: {p}: {line}");
+                }
+            }
+            return problems;
         }
 
         /// <summary>Every screen reachable from the start screen.</summary>
@@ -381,6 +429,9 @@ namespace Game.Cube
                     // 4.13: one portal to the arena, the rest into the lair, each room with its hint-givers.
                     result.Lair = LairPlan.ForRun(model);
                     result.LairProblems = LairPlan.FindProblems(model, layout, result.Lair, FindReachable(model));
+                    // 4.18: Town's lost-and-found trail is completable, and every town has one sound errand.
+                    if (catalog is ModuleLibrary questLibrary && TownSquare.HasTown(faceSize))
+                        result.QuestProblems = FindQuestProblems(model, questLibrary, out result.TownTrail);
                     MathPlan islands = null;
                     // 4.10: Earth's ice screens, solved from every doorway against their tier's targets.
                     IcePlan ice = IcePlan.Create(model, layout);
@@ -559,7 +610,7 @@ namespace Game.Cube
             var failures = new StringBuilder();
             int total = 0, failed = 0;
             bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false, windChecked = false, islandsChecked = false;
-            bool lairChecked = false;
+            bool lairChecked = false, questsChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -572,6 +623,7 @@ namespace Game.Cube
                 windChecked |= r.WindChecked && r.Wind != null && r.Wind.Screens.Count > 0;
                 islandsChecked |= r.IslandsChecked && r.Islands != null && r.Islands.Screens.Count > 0;
                 lairChecked |= r.LairChecked;
+                questsChecked |= r.QuestsChecked;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -604,6 +656,9 @@ namespace Game.Cube
                 if (r.LairProblems != null && r.LairProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": lair ")
                         .AppendLine(string.Join("; ", r.LairProblems));
+                if (r.QuestProblems != null && r.QuestProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": quests ")
+                        .AppendLine(string.Join("; ", r.QuestProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -634,6 +689,9 @@ namespace Game.Cube
             if (lairChecked)
                 what += ", exactly one core portal (the real one, on a reachable screen) leading to the arena and every other into a lair " +
                         "room whose prisoners give a fight hint, benefit hints and the real portal's region, all in the text rule";
+            if (questsChecked)
+                what += ", Town's lost-and-found trail completable (2-3 townsfolk on different reachable screens off the square, a favour " +
+                        "helper, every line in the text rule) and one sound errand in every town";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

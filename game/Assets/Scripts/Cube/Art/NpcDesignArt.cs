@@ -4,8 +4,11 @@ using UnityEngine;
 
 namespace Game.Cube
 {
-    /// <summary>The hand-drawn NPC designs: one per race (dinosaurs have a ground and an avian one), each with a leader variant.</summary>
-    public enum NpcLook { Townsfolk = 0, Finch = 1, Chemistry = 2, Physics = 3, Shape = 4, GroundDino = 5, AvianDino = 6 }
+    /// <summary>
+    /// The hand-drawn NPC designs: one per race (dinosaurs have a ground and an avian one), each with a leader variant, plus
+    /// Town's greeter (4.18: only she and the Mayor, the Townsfolk leader, keep a Town look of their own).
+    /// </summary>
+    public enum NpcLook { Townsfolk = 0, Finch = 1, Chemistry = 2, Physics = 3, Shape = 4, GroundDino = 5, AvianDino = 6, Greeter = 7 }
 
     /// <summary>
     /// The NPC designs (4.3): one hand-drawn 16x16 pixel sprite per race in the player's style (the Kenney Tiny Dungeon hero,
@@ -67,7 +70,8 @@ namespace Game.Cube
         /// <summary>Each look's accent pairs (light, dark), picked per NPC by its salt; a leader always takes the first.</summary>
         private static readonly Dictionary<NpcLook, string[]> Accents = new Dictionary<NpcLook, string[]>
         {
-            { NpcLook.Townsfolk, new[] { "0099db124e89", "e43b44a22633", "63c74d3e8948" } },  // tunic: blue, red, green
+            { NpcLook.Townsfolk, new[] { "5a69883a4466", "bd6c4a763b36", "25956a3e8948" } },  // cloak: slate, brown, green
+            { NpcLook.Greeter, new[] { "0099db124e89", "e43b44a22633", "63c74d3e8948" } },  // dress: blue, red, green
             { NpcLook.Finch, new[] { "bd6c4a763b36", "8b9bb45a6988", "f77622bd6c4a" } },      // plumage: brown, slate, rust
             { NpcLook.Chemistry, new[] { "d176d09b4ca3", "2ce8f50099db", "63c74d3e8948" } },  // cap: lilac, cyan, green
             { NpcLook.Physics, new[] { "c0cbdc8b9bb4", "d176d09b4ca3", "feae34f77622" } },    // suit: silver, lilac, amber
@@ -78,46 +82,67 @@ namespace Game.Cube
 
         // ------------------------------------------------------------------------------------------ the designs
 
-        // A townsperson: a straw hat over brown hair, a tunic in the accent, brown trousers.
+        // A townsperson passing through (Sage Conkwell, a Town captive): a hooded travelling cloak in the accent, a satchel strap, boots. Not a farmer (4.18).
         private static readonly string[] Townsfolk =
         {
             "................",
             "................",
-            "......yYYy......",
-            ".....yYYYYy.....",
-            "...yyyyyyyyyy...",
-            "....cbbbbbbc....",
-            "....bffffffb....",
-            "....ffkffkff....",
-            "....ffkffkff....",
-            "....giffffig....",
-            "....g2ffff2g....",
-            "...1111111111...",
-            "..ff21111112ff..",
-            "..ffOccccccOff..",
-            ".....bb..bb.....",
+            "......1111......",
+            ".....111111.....",
+            "....11222211....",
+            "....12ffff21....",
+            "....12kffk21....",
+            "....12ffff21....",
+            "....112gg211....",
+            "...1111111b11...",
+            "...11111b1111...",
+            "..f1111b11112f..",
+            "..f11b1111112f..",
+            "...1111111112...",
+            "...1111111112...",
             ".....cc..cc.....",
         };
 
-        // The town's leader: a gold crown on white hair and beard, a royal purple robe with a gold hem and a staff.
+        // Mayor Muddleton (4.18): a royal purple top hat with a gold band and brim, a grand white moustache, a dark suit with the gold chain of office and a red sash.
         private static readonly string[] TownsfolkLeader =
         {
             "................",
-            ".....Y.YY.Y.....",
-            ".....YYYYYY..t..",
-            "....yyrryyyy.Y..",
-            "....ssssssss.c..",
-            "....sffffffs.c..",
-            "....ffkffkff.c..",
-            "....ffkffkff.c..",
-            "....sgssssgs.c..",
-            "....Psssssss.c..",
-            "...PVVsssVVPfc..",
-            "..PVVVVYYVVVfc..",
-            "..ffVVVYYVVVPc..",
-            "..ffOVVYYVVOPc..",
-            "...PyyyyyyyyPc..",
-            ".....cc..cc..c..",
+            "......PPPP......",
+            "......PPPP......",
+            ".....YYYYYY.....",
+            "...YPPPPPPPPY...",
+            "....ffffffff....",
+            "....ffkffkff....",
+            "....gssffssg....",
+            ".....ssssss.....",
+            "......ffff......",
+            "...NNNYwwYNNN...",
+            "..fNNNrYYNNNNf..",
+            "..fNNNNrNNNNNf..",
+            "...NNNNNrNNNN...",
+            "...NNNNNNrNNN...",
+            ".....cc..cc.....",
+        };
+
+        // Hattie Hullo, Town's greeter (4.18): an auburn bun with a flower, a cheery wave, a dress in the accent under a white apron.
+        private static readonly string[] Greeter =
+        {
+            "................",
+            "................",
+            "......RRR.......",
+            ".....RrrrR...f..",
+            "....RRRRRRvY.f..",
+            "....RffffffR.f..",
+            "....ffkffkff.f..",
+            "....ffkffkff.f..",
+            "....iffOOffi.1..",
+            ".....ffffff..1..",
+            "....1111111111..",
+            "...f11wwww11....",
+            "...f11wwww11....",
+            "...111wwww111...",
+            "...2222222222...",
+            ".....cc..cc.....",
         };
 
         // A finch: a round fluffy bird in the accent plumage, big glinting eyes, an orange beak, a cream breast, blushing.
@@ -246,46 +271,46 @@ namespace Game.Cube
             ".....NN..NN.....",
         };
 
-        // A shape person: a round face, a triangular body in the accent, rectangular legs.
+        // A shape person (4.18: less human, Humpty-Dumpty style): an egg-shaped body in the accent (light left, dark right) with the face on it, a belt with a gold buckle, little stick arms with white gloves, little legs.
         private static readonly string[] Shape =
         {
             "................",
             "................",
-            "......ffff......",
-            ".....ffffff.....",
-            "....ffffffff....",
-            "....ffkffkff....",
-            "....ffkffkff....",
-            "....giffffig....",
-            ".....gffffg.....",
-            ".......12.......",
+            "................",
             "......1122......",
             ".....111222.....",
-            "...f11112222f...",
-            "...1111122222...",
-            ".....NN..NN.....",
-            ".....NN..NN.....",
+            "....11111222....",
+            "....1wk11wk2....",
+            "...11kk11kk22...",
+            "...11i1OO1i22...",
+            "..N1111111222N..",
+            "..wkkkkYkkkkkw..",
+            "...1111112222...",
+            "....11111222....",
+            ".....111222.....",
+            "......N..N......",
+            ".....kk..kk.....",
         };
 
-        // The shape people's leader: a crown of three gold triangles, a royal purple triangle with a gold hem, a ruler staff.
+        // The shape people's leader: a royal purple egg under a crown of three gold triangles, a gold belt and a ruler staff.
         private static readonly string[] ShapeLeader =
         {
             "................",
-            ".....Y..Y..Y....",
-            ".....YY.YY.YY.t.",
-            ".....yyyyyyyy.Y.",
-            "....ffffffff..c.",
-            "....ffkffkff..c.",
-            "....ffkffkff..c.",
-            "....giffffig..c.",
-            ".....gffffg...c.",
-            ".......VP.....c.",
-            "......VVPP....c.",
-            ".....VVYYPP...c.",
-            "...fVVVYYPPPf.c.",
-            "...VVVVYYPPPP.c.",
-            "...yyyyyyyyyy.c.",
-            ".....NN..NN...c.",
+            ".....Y.YY.Y.....",
+            ".....YYYYYY..t..",
+            "......VVPP...c..",
+            ".....VVVPPP..c..",
+            "....VVVVVPPP.c..",
+            "....VwkVVwkP.c..",
+            "...VVkkVVkkPPc..",
+            "...VViVOOViPPc..",
+            "..NVVVVVVVPPPc..",
+            "..wYYYYYYYYYYw..",
+            "...VVVVVVPPPPc..",
+            "....VVVVVPPP.c..",
+            ".....VVVPPP..c..",
+            "......N..N...c..",
+            ".....kk..kk..c..",
         };
 
         // A ground dinosaur: a green, toothy, big-snouted head with back spikes, a cream belly, a bandana in the accent.
@@ -330,46 +355,46 @@ namespace Game.Cube
             "...ww......ww...",
         };
 
-        // An avian dinosaur: a blue feathered raptor with a crest in the accent, a gold beak and folded wings.
+        // An avian dinosaur (4.18: a feathered raptor, not a penguin), seen side-on facing right: a blue head with a crest in the accent, a hooked gold beak, a long feathered tail with accent tips, a wing of dark feathers, a cream throat and long gold legs with clawed feet.
         private static readonly string[] AvianDino =
         {
             "................",
-            "......1..1......",
-            ".....121121.....",
-            ".....uuuuuu.....",
-            "....uuuuuuuu....",
-            "....ukwuukwu....",
-            "....uuuyyuuu....",
-            "....uuyooyuu....",
-            ".....uuyyuu.....",
-            "..21UuhhhhuU12..",
-            "..21UuhhhhuU12..",
-            "...2UuhhhhuU2...",
-            "....UuhhhhuU....",
-            ".....uuhhuu.....",
-            ".....y....y.....",
-            "....yyy..yyy....",
+            "................",
+            "........1.1.....",
+            ".......21uuu....",
+            ".......2uuwku...",
+            "........uuuuuu..",
+            "........uuwOwO..",
+            ".......uuuuu....",
+            "..1uuuuuuuuhh...",
+            "...2uuuUUUuhh...",
+            "......uU1U1uh...",
+            "......uuUUuu....",
+            ".......uuuu.....",
+            ".......y..y.....",
+            "......yy..yy....",
+            ".....yyy.yyy....",
         };
 
-        // The avian dinosaurs' leader: crowned among long crest plumes, a royal purple mantle with a gold hem.
+        // The avian dinosaurs' leader: crowned among long crest plumes, a royal purple mantle with a gold hem over the wings.
         private static readonly string[] AvianDinoLeader =
         {
             "................",
-            "...1..Y..Y..1...",
-            "...21.YYYY.12...",
-            "....21yrry12....",
-            "....uuuuuuuu....",
-            "....ukwuukwu....",
-            "....uuuyyuuu....",
-            "....uuyooyuu....",
-            ".....uuyyuu.....",
-            "..PPUuhhhhuUPP..",
-            "..PVUuhhhhuUVP..",
-            "..PVVuhhhhuVVP..",
-            "..PVVuhhhhuVVP..",
-            "..PYYYuhhuYYYP..",
-            ".....y....y.....",
-            "....yyy..yyy....",
+            "........Y.Y.Y...",
+            "....11..YYYYY...",
+            ".....2221uuu....",
+            ".......2uuwku...",
+            "........uuuuuu..",
+            "........uuwOwO..",
+            ".......uuuuu....",
+            "..1uuuPPPPPhh...",
+            "...2uuPVVVPhh...",
+            "......PVVVPuh...",
+            "......PYYYPu....",
+            ".....PPPPPP.....",
+            ".......y..y.....",
+            "......yy..yy....",
+            ".....yyy.yyy....",
         };
 
         // ------------------------------------------------------------------------------------------ lookups
@@ -390,8 +415,8 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>The design of an NPC spec.</summary>
-        public static NpcLook LookOf(NpcSpec spec) => LookOf(spec.Race, spec.Variant);
+        /// <summary>The design of an NPC spec: its race's, or the greeter's own (4.18, TownPlan.IsGreeter).</summary>
+        public static NpcLook LookOf(NpcSpec spec) => TownPlan.IsGreeter(spec) && !spec.IsLeader ? NpcLook.Greeter : LookOf(spec.Race, spec.Variant);
 
         /// <summary>
         /// The accent an NPC wears, from its salt (hashed, so it does not follow the salt's other uses; no random draw, so
@@ -413,6 +438,7 @@ namespace Game.Cube
                 case NpcLook.Shape: return leader ? ShapeLeader : Shape;
                 case NpcLook.GroundDino: return leader ? GroundDinoLeader : GroundDino;
                 case NpcLook.AvianDino: return leader ? AvianDinoLeader : AvianDino;
+                case NpcLook.Greeter: return leader ? TownsfolkLeader : Greeter;
                 default: return leader ? TownsfolkLeader : Townsfolk;
             }
         }

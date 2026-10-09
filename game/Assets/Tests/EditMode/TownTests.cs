@@ -40,11 +40,29 @@ namespace Game.Cube.Tests
             for (int seed = 1; seed <= 50; seed++)
             {
                 List<NpcSpec> specs = TownPlan.Specs(seed, N);
-                foreach (Race race in TownPlan.FaceRaces)
-                    Assert.AreEqual(1, specs.Count(s => s.Race == race), $"seed {seed}: {race}");
-                int townsfolk = specs.Count(s => s.Race == Race.Townsfolk);
+                // The face visitors: one of each face race at Town's base index, right after the greeter.
+                for (int r = 0; r < TownPlan.FaceRaces.Length; r++)
+                {
+                    Assert.AreEqual(TownPlan.FaceRaces[r], specs[1 + r].Race, $"seed {seed}: visitor {r}");
+                    Assert.AreEqual(TownPlan.IndexBase, specs[1 + r].Index, $"seed {seed}: visitor {r}");
+                }
+                // 4.18: the residents (everyone after the greeter and the visitors) are a mix of every face race, in turn;
+                // only the greeter is a Townsperson.
+                int townsfolk = specs.Count - TownPlan.FaceRaces.Length;
                 Assert.That(townsfolk, Is.InRange(TownPlan.MinTownsfolk(N), TownPlan.MaxTownsfolk(N)), $"seed {seed}");
-                Assert.AreEqual(TownPlan.FaceRaces.Length + townsfolk, specs.Count);
+                Assert.AreEqual(1, specs.Count(s => s.Race == Race.Townsfolk), $"seed {seed}: only the greeter looks Town's own");
+                List<NpcSpec> residents = specs.Skip(1 + TownPlan.FaceRaces.Length).ToList();
+                foreach (Race race in TownPlan.FaceRaces)
+                    Assert.That(residents.Count(s => s.Race == race), Is.InRange(residents.Count / TownPlan.FaceRaces.Length,
+                        residents.Count / TownPlan.FaceRaces.Length + 1), $"seed {seed}: residents of every race, evenly ({race})");
+                for (int i = 0; i < residents.Count; i++)
+                {
+                    Assert.AreEqual(TownPlan.ResidentRace(seed, i + 1), residents[i].Race, $"seed {seed}: resident {i + 1}");
+                    Assert.AreEqual(TownPlan.IndexBase + i + 1, residents[i].Index, $"seed {seed}: resident {i + 1}");
+                    Assert.AreEqual(residents[i].Race == Race.Dinosaur ? Voices.Of(Race.Dinosaur, residents[i].Variant) : Voices.Of(residents[i].Race),
+                        residents[i].Voice, "A resident speaks in their own race's voice");
+                }
+                Assert.AreEqual(specs.Count, specs.Select(s => s.Name).Distinct().Count(), $"seed {seed}: every name in Town is different");
                 Assert.AreEqual(Race.Townsfolk, specs[0].Race, "The greeter comes first");
                 Assert.IsTrue(TownPlan.IsGreeter(specs[0]), "The greeter comes first");
                 Assert.AreEqual(1, specs.Count(TownPlan.IsGreeter), "Exactly one greeter");

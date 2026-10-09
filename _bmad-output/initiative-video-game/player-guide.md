@@ -1,6 +1,6 @@
 # Player guide: how a run works
 
-This describes the game as of story 4.13 (commit `3f3a938`). Names ending in `*` are placeholders until the naming brainstorm.
+This describes the game as of story 4.18 (playtest 4 polish, on top of commit `2c22a74`). Names ending in `*` are placeholders until the naming brainstorm.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
@@ -15,6 +15,9 @@ You don't have to do everything. A full run means getting out of Town, collectin
 | Talk, open, interact | E |
 | Switch held item | 1 (previous) / 2 (next) |
 | Map (pauses the game) | M or Tab |
+| Quest log (pauses the game) | Q (also from the map; Q or Esc closes it) |
+
+**Talking pauses everything.** While a conversation is open you can't move, swing or switch items, and nothing else moves either: other people, enemies, hazards, timed doors, wind and ice, and the boss fight all wait. E pages through the lines; Esc skips to the end.
 
 Your **swing uses the item you're holding**. Most puzzles and gates are solved by holding the right item and swinging at the thing.
 
@@ -22,8 +25,13 @@ Your **swing uses the item you're holding**. Most puzzles and gates are solved b
 
 ### 1. Start in Town (the white face)
 - You start on Town's centre screen, in the town square, with **1 key**.
-- **Talk to everyone (E).** People give hints about where items are, in their own voice. Hints always tell the truth.
-- **Talk to Mayor Muddleton** (crown, by the statue). He hands you **Town's fragment**. Talk to him again and he mends Town, which gives you **+1 heart in the boss fight**.
+- **Talk to everyone (E).** People give hints about where items are, in their own voice. Hints always tell the truth. Town's folk come from every face, so each speaks in their own race's voice; only Hattie Hullo (the greeter, waving) and the Mayor have Town's own look. Nobody in Town ever turns hostile: it's the one place everyone still mixes.
+- **Talk to Mayor Muddleton** (purple top hat, by the statue). **Town's fragment has gone missing**, and he tells you who had it last. That starts **Town's lost-and-found side quest**:
+  - Find that person on another Town screen (the Mayor says which, e.g. "on Town's north-east screen"). They passed it on, and tell you who to ask next.
+  - Somewhere along the trail of 2 or 3 townsfolk, one of them wants a **favour** first: carry a word to someone else in Town, then come back with the answer.
+  - The last person hands you the fragment. Take it back to the Mayor and he mends Town, which gives you **+1 heart in the boss fight**.
+- **Errands:** in each town, one person has an errand: carry a word to someone else in that town. Other would-be quest-givers just gossip.
+- **Quest log (Q):** every quest someone gives you is added: each leader's fragment quest (with how many you've found), Town's side quest (with your next step) and each town's errand. Finished ones are marked Done.
 - The building with a rug and lantern at its door can be entered: walk straight north into the door.
 
 ### 2. Leave Town through a gate
@@ -71,7 +79,8 @@ Every science face has a colour and a race of people:
 ### 4. Mend faces for help against the boss
 - Each run, every face rolls a **die number**. Town is always 1; the other faces get 2–6.
 - **The face numbered k hides k fragments** behind its roadblocks. The HUD dice show how many you've found, and the map shows tags such as "2/4".
-- Bring all of a face's fragments to its **leader** (crowned, by the town statue on the centre screen). The face is mended, and its statue turns gold.
+- Bring all of a face's fragments to its **leader** (crowned, by the town statue on the centre screen). The face is mended, and its statue turns gold. Talking to a leader adds their quest to your quest log, which counts the fragments you hold.
+- Town's one fragment comes from Town's lost-and-found side quest (step 1), not from a chest.
 - Each mended face helps you in the boss fight:
 
 | Mended face | Help in the fight |
@@ -98,7 +107,7 @@ Every science face has a colour and a race of people:
 After you win or die, the between-runs screen shows what you earned. Spend Jumbles\* on permanent upgrades (Extra Heart, Thick Skin, Big Bonk, Zoomies), then **Continue** into a new, freshly shuffled run.
 
 ## A good first run
-1. Talk to the Mayor twice. That gives you Town's fragment and mends Town.
+1. Talk to the Mayor, follow the townsfolk trail to Town's lost fragment (check Q if you forget who's next), and bring it back. That mends Town.
 2. Spend your key on a Town arch.
 3. On that face, dig mounds and talk to people until you have its item and its 2 keys.
 4. Use keys and items to open more arches. Grab fragments and chests as you go.

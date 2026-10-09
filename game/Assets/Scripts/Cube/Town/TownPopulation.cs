@@ -25,6 +25,7 @@ namespace Game.Cube
         private readonly List<NpcTalker> npcs = new List<NpcTalker>();
         private readonly List<TownSpot> spots = new List<TownSpot>();
         private readonly List<NpcSpec> specs = new List<NpcSpec>();
+        private readonly Dictionary<int, int> byPlanIndex = new Dictionary<int, int>();
         private Transform root;
         private bool pending;
         private int pendingAfterFrame;
@@ -62,6 +63,18 @@ namespace Game.Cube
         /// the quest hook; null on a Town face without a town, or before the first population. Not in Npcs.
         /// </summary>
         public NpcTalker Leader { get; private set; }
+
+        /// <summary>The NPC spawned for TownPlan.Specs index i (null if it found no spot, or before the first population).</summary>
+        public NpcTalker NpcAt(int planIndex) => byPlanIndex.TryGetValue(planIndex, out int k) && k < npcs.Count ? npcs[k] : null;
+
+        /// <summary>Where the NPC for TownPlan.Specs index i stands (unfound if it found no spot).</summary>
+        public TownSpot SpotAt(int planIndex) => byPlanIndex.TryGetValue(planIndex, out int k) && k < spots.Count ? spots[k] : default;
+
+        /// <summary>Town's lost-and-found side quest in play (4.18), bound to every population (on this object).</summary>
+        public TownTrailQuest Trail { get; private set; }
+
+        /// <summary>Town's errand (4.18, Errands) this population, or null.</summary>
+        public ErrandPlan Errand { get; private set; }
 
         /// <summary>The seed the current population was built for, or null before the first population.</summary>
         public int? PopulatedSeed { get; private set; }
@@ -119,6 +132,9 @@ namespace Game.Cube
             npcs.Clear();
             spots.Clear();
             specs.Clear();
+            byPlanIndex.Clear();
+            Errand = null;
+            if (Trail != null) Trail.Unbind();
             if (Leader != null)
             {
                 Leader.gameObject.SetActive(false);
@@ -141,6 +157,12 @@ namespace Game.Cube
             List<NpcSpec> planSpecs = TownPlan.Specs(seed, faceSize);
             List<TownSpot> planned = TownPlan.Spots(seed, faceSize, planSpecs.Count, BlockedFor,
                 (screen, local) => NpcFactory.IsClear(world.ScreenCenter(screen) + local, TownPlan.Margin), IsTownSquare);
+            // Town's errand-giver (4.18) is spawned labelled as a quest-giver (Errands.Dress), but only when both the giver
+            // and the target have a spot (4.18 review: never a giver without a receiver).
+            ErrandPlan errand = Errands.For(seed, faceSize, CubeModel.StartFace, Theme.Town);
+            if (errand != null && !(planned[errand.GiverIndex + 1].Found && planned[errand.TargetIndex + 1].Found)) errand = null;
+            if (errand != null) planSpecs[errand.GiverIndex + 1] = errand.Giver;
+            string errandGiver = errand?.Giver.Name;
             RunFacts facts = RunFacts.Of(world);
             Transform target = ResolvePlayer();
 
@@ -150,7 +172,7 @@ namespace Game.Cube
             {
                 NpcSpec mayor = TownSquare.LeaderSpec(seed, Theme.Town);
                 Leader = TownSquares.SpawnLeader(world, mayor, CubeModel.StartFace, world.ScreenCenter(square), TownLayout.For(Theme.Town).LeaderStand,
-                    target, root);
+                    target, root, peaceful: true);
                 Leader.name = $"Town Leader {mayor.DisplayName}";
             }
 
@@ -166,20 +188,52 @@ namespace Game.Cube
                 Vector2 centre = world.ScreenCenter(spot.Screen);
                 Rect quadrant = TownPlan.QuadrantBounds(spot.Local);
                 var bounds = new Rect(centre + quadrant.position, quadrant.size);
-                NpcTalker npc = NpcFactory.Spawn(spec, LinesFor(spec, facts), centre + spot.Local, bounds,
-                    world.Relations, target, root, world.Material);
+                // 4.18 review: Town is where everyone still mixes, so its people never turn hostile (no race relations).
+                NpcTalker npc = NpcFactory.Spawn(spec, LinesFor(spec, facts, errandGiver), centre + spot.Local, bounds,
+                    null, target, root, world.Material);
                 npc.name = $"Town NPC {i} {spec.DisplayName}";
+                byPlanIndex[i] = npcs.Count;
                 npcs.Add(npc);
                 spots.Add(spot);
                 specs.Add(spec);
             }
+            BindQuests(planSpecs);
             PopulatedSeed = seed;
             return npcs;
         }
 
-        private List<string> LinesFor(NpcSpec spec, RunFacts facts)
+        /// <summary>
+        /// Town's quests (4.18) on the new population: its one errand (Errands: a visitor on the square to another) and its
+        /// lost-and-found trail (TownTrail, bound to the townsfolk on Town's other screens), then the Mayor's lines again
+        /// (he names who had the fragment last).
+        /// </summary>
+        private void BindQuests(List<NpcSpec> planSpecs)
         {
-            List<string> lines = Dialogue.For(spec, facts, hintDensity);
+            if (world == null || world.Model == null || Leader == null) return;
+            Errand = Errands.For(world.Seed, world.FaceSize, CubeModel.StartFace, Theme.Town);
+            // The giver was only dressed when both had a spot (Populate); otherwise there is no errand this run.
+            if (Errand != null && (NpcAt(Errand.GiverIndex + 1) == null || NpcAt(Errand.TargetIndex + 1) == null)) Errand = null;
+            if (Errand != null)
+            {
+                // The errand people are TownPlan.Specs 1.. (the square after the greeter), so person k is plan index k + 1.
+                NpcTalker giver = NpcAt(Errand.GiverIndex + 1), target = NpcAt(Errand.TargetIndex + 1);
+                if (giver != null && target != null)
+                {
+                    ErrandQuest.Attach(giver, world, Errand, true, giver.Lines);
+                    ErrandQuest.Attach(target, world, Errand, false, target.Lines);
+                }
+                else Errand = null;
+            }
+            if (Trail == null) Trail = GetComponent<TownTrailQuest>();
+            if (Trail == null) Trail = gameObject.AddComponent<TownTrailQuest>();
+            Trail.Bind(world, world.TownTrail, planSpecs, NpcAt, SpotAt);
+            LeaderQuest mayor = Leader.GetComponent<LeaderQuest>();
+            if (mayor != null) Leader.SetLines(mayor.Preview());
+        }
+
+        private List<string> LinesFor(NpcSpec spec, RunFacts facts, string errandGiver)
+        {
+            List<string> lines = Dialogue.For(spec, facts, hintDensity, errandGiver);
             return TownPlan.IsGreeter(spec) ? TownSign.GreeterLines(lines) : lines;
         }
 

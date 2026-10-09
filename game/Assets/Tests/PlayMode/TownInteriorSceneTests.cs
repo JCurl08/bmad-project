@@ -116,9 +116,11 @@ namespace Game.Cube.Tests
 
             Race race = TownSquare.RaceOf(theme);
             Assert.AreEqual(TownInterior.PeopleCount, room.People.Count(p => p != null), $"{context}: people inside");
-            foreach (NpcTalker person in room.People)
+            for (int k = 0; k < room.People.Count; k++)
             {
-                Assert.AreEqual(race, person.Race, $"{context}: {person.name} is of the town's race");
+                NpcTalker person = room.People[k];
+                // 4.18: Town's shop is run by folk of every race (TownPlan.InteriorRace); the other towns' rooms by their own.
+                Assert.AreEqual(theme == Theme.Town ? TownPlan.InteriorRace(world.Seed, k) : race, person.Race, $"{context}: {person.name} is of the town's race");
                 Assert.IsTrue(room.Inner.Contains(person.transform.position), $"{context}: {person.name} is in the room");
                 Assert.Greater(person.Lines.Count, 0, $"{context}: {person.name} talks");
             }
@@ -126,8 +128,11 @@ namespace Game.Cube.Tests
             Assert.AreEqual(shop, room.Keeper != null, $"{context}: a keeper only in a shop");
             if (shop) CollectionAssert.AreEqual(Dialogue.KeeperLines(room.Keeper.Spec.Voice), room.Keeper.Lines, $"{context}: the keeper talks shop");
             RunFacts facts = RunFacts.Of(world);
+            // A spare quest-giver points to the face's errand-giver (4.18): Town's in play, the plan's elsewhere.
+            ErrandPlan errand = face == CubeModel.StartFace ? Object.FindAnyObjectByType<TownPopulation>().Errand
+                : Errands.For(world.Seed, world.FaceSize, face, theme);
             foreach (NpcTalker person in room.People.Where(p => p != room.Keeper))
-                CollectionAssert.AreEqual(Dialogue.For(person.Spec, facts, interiors.HintDensity), person.Lines,
+                CollectionAssert.AreEqual(Dialogue.For(person.Spec, facts, interiors.HintDensity, errand?.Giver.Name), person.Lines,
                     $"{context}: {person.name} talks like the town's residents");
             // No enemies: building the room adds none (its people's dormant hostile parts aside), and none stands inside.
             Assert.AreEqual(enemiesBefore, Enemies().Length, $"{context}: {(firstVisit ? "building" : "entering")} the room adds no enemy");

@@ -17,7 +17,7 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 
 | Voice | Who | How they talk | Every line has (tested) | Example |
 |---|---|---|---|---|
-| Town | Townsfolk | A friendly, campy, gossipy mix | (no marker) | "Howdy, neighbour! Lovely mess today, isn't it?" |
+| Town | Town's own people: the greeter, the Mayor, Sage Conkwell, Town captives | A friendly, campy, gossipy mix | (no marker) | "Howdy, neighbour! Lovely mess today, isn't it?" |
 | Finch | Biology finches | Near-Shakespearean and proper, but readable | an archaic form: thee, thou, thy, prithee, 'tis, doth, hath, verily, forsooth, hark, good morrow... (not "mine" or "pray") | "Hast thou heard? The thin-beaks think themselves above us all." |
 | Mushroom | Chemistry folk | Emotionally reactive: they flare up, fizz, calm down and bond quickly. Emphasis goes in \*stars\*; the only capitals-only shouts are CLANG and BOOM (RAWR and SKRAW for the dinosaurs). | an emotional word or swing (oh, ooh, ugh, argh, sob, sniff, gasp, eek, wow, love, happy, furious, thrilled, sad, bored...); a "!" alone is not enough | "Buy my spores! Or don't! See if I care! ...I care so much." |
 | Alien | Physics folk | Philosophical and abstract: they muse on time, weight and motion | a musing word (perhaps, wonder, ponder, muse, consider, truly, ask, thought...); a "?" alone is not enough | "Today I sell floaty socks. Tomorrow, perhaps, the floaty socks sell me." |
@@ -37,11 +37,23 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 **Who speaks in which voice:**
 - An NPC speaks in its own race's voice wherever it stands, including the Town's visitors from each face.
 - A dinosaur speaks by its kind: avian dinosaurs use Sky, the others Ground.
-- Townsfolk, the greeter and Sage Conkwell speak in the Town voice.
+- **Town's residents (4.18)** are folk of every face race, not Townsfolk: Town is the last place everyone still mixes. Resident *i* takes the five face races in turn from a seeded start (`TownPlan.ResidentRace`, one draw on the Town stream under its own key), so every race turns up evenly; Town's shop is run the same way (`TownPlan.InteriorRace`). Each is drawn, named and voiced as their own race.
+- The Town voice is now for Town's own people only: the greeter (Hattie Hullo), the Mayor, Sage Conkwell and any Townsfolk captive in a lair.
 
 **Leaders (4.5):** a leader greets the player (`Dialogue.LeaderLines`), then gives the region's quest hook in their voice (`Dialogue.QuestLines`): the region is coming apart, so bring back what was lost and help mend it. Chief Rockjaw's hook suits both dinosaur voices.
 
-**Fragments (4.8):** the quest now names the face's count in words and how many the player holds (`Dialogue.QuestTemplates`, "{count}" and "{found}", e.g. "broken into five fragments. You hold two."). Handing in all of them gets the leader's repair line (`RepairTemplates`), which says in voice what the mended face does in the core; after that the leader thanks the player (`MendedLines`). The Mayor's quest is `MayorGiftLine`: he found Town's one fragment and hands it over, and the next talk hands it back. Every variant (counts 2-6, found 0..count) is in the voice and length scans (`Dialogue.LeaderQuestLines`).
+**Fragments (4.8):** the quest now names the face's count in words and how many the player holds (`Dialogue.QuestTemplates`, "{count}" and "{found}", e.g. "broken into five fragments. You hold two."). Handing in all of them gets the leader's repair line (`RepairTemplates`), which says in voice what the mended face does in the core; after that the leader thanks the player (`MendedLines`). Every variant (counts 2-6, found 0..count) is in the voice and length scans (`Dialogue.LeaderQuestLines`).
+
+**Town's lost fragment (4.18, `QuestLines`):** the Mayor no longer hands Town's fragment over. In a run he says it went missing and who had it last (`MayorLost`: "{name} had it last, {where}"), then reminds who to ask next (`MayorReminder`); with no run to read, `MayorGiftLine` says to ask around. Along the trail (`TownTrail`), each townsperson speaks in their own voice:
+- `Pointer`: "I passed it to {name}, {where}";
+- `FavourAsk`: first, carry a word (an apology, a question) to {name}, {where};
+- `HelperReply`: the helper's answer for {name};
+- `FavourThanks`: thanks, then (the next line) the pointer or the hand-over;
+- `Give`: the last one hands the mayor's fragment over: "take it back to Mayor Muddleton".
+
+`{where}` is worded the same in every voice ("in the town square", "on Town's north-east screen", from `HintGenerator.ScreenPhrase`), so it is always true. Lines say "the mayor's fragment" in lower case: the text rule needs the whole name ("Mayor Muddleton") for a capital.
+
+**Errands (4.18):** each town has exactly one errand (`Errands`): one of its people asks the player to carry a word to another (each voice's `Errand`, now with "{name}", inside the voice's quest-giver lines). The target answers in their voice (`QuestLines.Delivered`, "{name}" the giver) and the giver thanks the player (`QuestLines.Thanks`). Every other quest-giver says their voice's `SpareQuest` line: they have no errand, but {name} (the face's errand-giver) here in town has one, then gossip. It is true before and after the errand is given. With no errand-giver known (a debug spawn) they say `SpareQuestPlain`. So no two people on a face give the same quest. If Town's trail cannot run (a trail person found no spot), the Mayor falls back to 4.8's gift (`MayorFoundLine`).
 
 **Shop keepers (4.6):** a shop's keeper (`Dialogue.KeeperLines`, one pair per voice) welcomes the player to a bare counter, then says Jumbles* (`InWorldText.Currency`) are spent between trips (spending stays on the between-runs screen). Their label reads "Name the <race> shopkeeper". Everyone else inside a building talks like the town's residents.
 

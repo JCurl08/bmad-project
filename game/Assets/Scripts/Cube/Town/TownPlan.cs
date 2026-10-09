@@ -86,8 +86,10 @@ namespace Game.Cube
 
         /// <summary>
         /// The Town NPCs of a run on a Town face of faceSize x faceSize screens: the greeter (Townsfolk 0) first, then
-        /// one of each face race, then the other Townsfolk. Face races take their own part sets; Townsfolk are already
-        /// mixed, so their head and torso come from any race's set (TownsfolkParts).
+        /// one of each face race, then the other residents. Town is the last place everyone still mixes, so since 4.18 its
+        /// residents are folk of every face race (ResidentRace), drawn, named and voiced as their race; only the greeter (and
+        /// the Mayor, TownPopulation.Leader) keep Town's own look and voice. The greeter's head and torso come from any race's
+        /// set (TownsfolkParts).
         /// </summary>
         public static List<NpcSpec> Specs(int seed, int faceSize)
         {
@@ -96,15 +98,44 @@ namespace Game.Cube
             foreach (Race race in FaceRaces)
                 specs.Add(NpcFactory.ChooseParts(seed, race, IndexBase));
             for (int i = 1; i < townsfolk; i++)
-                specs.Add(TownsfolkParts(seed, i));
+                specs.Add(ResidentSpec(seed, i));
             return specs;
+        }
+
+        /// <summary>
+        /// Town resident i (1 and up; 0 is the greeter): a person of ResidentRace, with that race's own parts, at Town's index
+        /// IndexBase + i (so never the face visitor of the same race at IndexBase), named from their voice's pool.
+        /// </summary>
+        public static NpcSpec ResidentSpec(int seed, int residentIndex) =>
+            NpcFactory.ChooseParts(seed, ResidentRace(seed, residentIndex), IndexBase + residentIndex);
+
+        /// <summary>
+        /// The race of Town resident i (4.18): the five face races in turn (FaceRaces), from a seeded start, so every race
+        /// turns up and none crowds the town. One draw on the TownPlan stream under its own key, so no other draw moves.
+        /// </summary>
+        public static Race ResidentRace(int seed, int residentIndex)
+        {
+            var rng = new SeededRng(((ulong)(uint)seed << 32) | 0x4D58u, RngStream); // "MX": the mix
+            int start = rng.NextInt(FaceRaces.Length);
+            return FaceRaces[(start + residentIndex - 1 + FaceRaces.Length * 4) % FaceRaces.Length];
+        }
+
+        /// <summary>
+        /// A race for the people of Town's own building (4.18: Town's shop is kept by folk of every race, like its square):
+        /// the face races in turn from a seeded start, by the person's stand.
+        /// </summary>
+        public static Race InteriorRace(int seed, int stand)
+        {
+            var rng = new SeededRng(((ulong)(uint)seed << 32) | 0x494Eu, RngStream); // "IN"
+            int start = rng.NextInt(FaceRaces.Length);
+            return FaceRaces[(start + stand) % FaceRaces.Length];
         }
 
         /// <summary>True for the greeter: Townsfolk 0, who adds the TownSign welcome.</summary>
         public static bool IsGreeter(NpcSpec spec) =>
             spec != null && spec.Race == Race.Townsfolk && spec.Index == IndexBase;
 
-        /// <summary>A Townsperson whose head and torso may come from any race's part set; legs are Townsfolk legs.</summary>
+        /// <summary>A Townsperson whose head and torso may come from any race's part set; legs are Townsfolk legs (the greeter).</summary>
         public static NpcSpec TownsfolkParts(int seed, int townsfolkIndex)
         {
             int index = IndexBase + townsfolkIndex;

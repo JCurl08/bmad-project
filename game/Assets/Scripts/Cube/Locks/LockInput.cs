@@ -23,7 +23,7 @@ namespace Game.Cube
 
         public static bool PressIsFree(Transform player)
         {
-            if (GamePause.Active || player == null) return false;
+            if (GamePause.InputBlocked || player == null) return false;
             DialogueBox box = DialogueBox.Shared;
             if (box != null && (box.IsOpen || box.OpenedFrame == Time.frameCount || box.ClosedFrame == Time.frameCount)) return false;
             Health health = player.GetComponentInParent<Health>();

@@ -40,10 +40,17 @@ its generated placeholder shape, so nothing renders invisible.
   player's own dark plum (added around each figure in code) and the feet on the tile's bottom edge. They are drawn at
   the player's size (one first-screen tile × `PeopleArtScale`) and white-tinted. The packs have no non-human people,
   so no Kenney tile is used; Tiny Town has no characters at all.
-  - Townsfolk: a straw hat, brown hair, a tunic. Finches: a round fluffy bird with big glinting eyes, an orange beak,
-    a cream breast and blush. Chemistry folk: a spotted mushroom cap, a cream face, a white coat. Physics folk: a green,
-    big-eyed, two-antenna alien in a jumpsuit. Shape people: a round face, a triangular body, rectangular legs. Ground
-    dinosaurs: a green, toothy, spiky-backed snout with a bandana. Avian dinosaurs: a blue feathered raptor with a crest.
+  - Townsfolk (4.18: no farm look; Town's residents are now folk of every race, so this design is only for the odd
+    townsperson elsewhere, such as Sage Conkwell and Town captives): a hooded travelling cloak, a satchel strap, boots.
+    Town's greeter, Hattie Hullo, has her own design (`NpcLook.Greeter`): an auburn bun with a flower, a cheery wave, a
+    dress under a white apron. Finches: a round fluffy bird with big glinting eyes, an orange beak, a cream breast and
+    blush. Chemistry folk: a spotted mushroom cap, a cream face, a white coat. Physics folk: a green, big-eyed,
+    two-antenna alien in a jumpsuit. Shape people (4.18, Humpty-Dumpty style): an egg-shaped body with the face on it, a
+    belt with a gold buckle, little stick arms with white gloves and little legs. Ground dinosaurs: a green, toothy,
+    spiky-backed snout with a bandana. Avian dinosaurs (4.18): a blue feathered raptor seen side-on, a crest, a toothed
+    beak, a dark-feathered wing, a long tail and long clawed gold legs (no longer a front-facing penguin shape).
+  - The Mayor (the Townsfolk leader, 4.18): a royal purple top hat with a gold band, a white moustache, a dark suit with
+    the gold chain of office and a red sash.
   - Each NPC wears one of three seeded accent tints (tunic, plumage, cap, suit, body, bandana or crest; from its salt,
     no random draw).
   - Leaders (`NpcFactory.ChooseLeader`): a gold crown (gold circlet in a wild white mane for the Physics folk; among long
@@ -101,7 +108,7 @@ its generated placeholder shape, so nothing renders invisible.
 | WallSealed | D 14 | dark stone bricks for the edges into sealed faces |
 | ArenaWall | T 126 | grey castle bricks around the core arena |
 | DoorArch | T 78 | stone archway with an open middle: the gate where a screen's doorway leads onto another face (1.25; stretched, not tiled) |
-| FloorTown | T 109 | plain pale stone: the white ruins town |
+| FloorTown | T 109 | plain pale stone: the white ruins town (4.18: under a warm white glaze, `FloorPattern.GlazeAlpha` 0.7, and a lighter 6 % checker, so it reads white, not blue-grey) |
 | FloorBiology | T 1 | grass with tufts, a little greener: the green Greenwood* |
 | FloorChemistry | D 53 | plain sand, tinted deep red: the Ember Vale* |
 | FloorPhysics | D 37 | fine metal deck plates, tinted blue: the Weightlands* (1.24: calmer than the stone panels T 76, whose dark notches and borders read as noise) |

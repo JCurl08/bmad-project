@@ -11,6 +11,9 @@ namespace Game.Cube
     /// frame the box opened does not advance,
     /// and talkers ignore the press that closed it, so one press never both opens and skips.
     /// One shared box per scene (Shared creates it on demand).
+    /// While open it holds the talk pause (4.18, GamePause.BeginTalk): time stands still, so the player, every other NPC and
+    /// enemy, the hazards, timers, wind and ice drivers and the core arena all wait; the box reads presses every frame, so it
+    /// needs no time itself. Closing (or disabling) it lets go.
     /// </summary>
     public class DialogueBox : MonoBehaviour
     {
@@ -70,8 +73,13 @@ namespace Game.Cube
             interact = NpcInput.Find(interactActionPath, this);
         }
 
-        // The project-wide action is shared with every talker, so it is not disabled here.
-        private void OnDisable() => interact = null;
+        // The project-wide action is shared with every talker, so it is not disabled here. A box that goes away while open
+        // (a scene unload, a rebuild) closes, so it never leaves the talk pause held.
+        private void OnDisable()
+        {
+            interact = null;
+            Close();
+        }
 
         private void Update()
         {
@@ -100,6 +108,7 @@ namespace Game.Cube
             Index = 0;
             IsOpen = true;
             OpenedFrame = Time.frameCount;
+            GamePause.BeginTalk(this);
             Opened?.Invoke(this);
             return true;
         }
@@ -118,6 +127,7 @@ namespace Game.Cube
             IsOpen = false;
             Owner = null;
             ClosedFrame = Time.frameCount;
+            GamePause.EndTalk(this);
             Closed?.Invoke(this);
         }
 

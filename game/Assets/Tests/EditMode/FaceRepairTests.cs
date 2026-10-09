@@ -213,21 +213,24 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void TheMayor_GivesTownsOneFragment_ThenTakesItBack_AndMendsTown()
+        public void TheMayor_SaysTownsFragmentWentMissing_ThenTakesItBackOnceFound_AndMendsTown()
         {
+            // 4.18: the Mayor no longer hands the fragment over (Town's lost-and-found trail does, TownTrailQuest). Without
+            // it he only says it went missing; once the player holds it, handing it in mends Town.
             var go = new GameObject("Player");
             try
             {
                 RunRewards rewards = go.AddComponent<RunRewards>();
                 var repairs = new FaceRepairs();
                 const FaceId town = CubeModel.StartFace;
-                List<string> first = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep gave);
-                Assert.AreEqual(QuestStep.Gave, gave);
+                List<string> first = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep lost);
+                Assert.AreEqual(QuestStep.Lost, lost);
                 CollectionAssert.AreEqual(new[] { Dialogue.LeaderLine(Race.Townsfolk), Dialogue.MayorGiftLine }, first);
-                StringAssert.Contains("one fragment", Dialogue.MayorGiftLine, "The Mayor names the count");
-                Assert.IsTrue(rewards.HasFragment(town, 1), "Town's fragment is the player's");
-                Assert.IsFalse(repairs.IsRepaired(town), "Not mended until it is handed back");
+                StringAssert.Contains("missing", Dialogue.MayorGiftLine, "The Mayor says it went missing");
+                Assert.IsFalse(rewards.HasFragment(town, 1), "The Mayor never hands the fragment over");
+                Assert.IsFalse(repairs.IsRepaired(town));
 
+                Assert.IsTrue(rewards.Grant(Reward.Fragment(1), town), "Found on the trail");
                 List<string> second = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep handed);
                 Assert.AreEqual(QuestStep.Repaired, handed);
                 CollectionAssert.AreEqual(Dialogue.RepairConversation(Race.Townsfolk, 1), second);
@@ -235,6 +238,33 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(BossBenefit.ExtraHeart, repairs.Benefits(new CubeModel(3)));
                 LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep after);
                 Assert.AreEqual(QuestStep.Mended, after);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void WithNoReadyTrail_TheMayorFallsBack_ToHandingTownsFragmentOver()
+        {
+            // 4.18 review: if Town's trail cannot run (a trail person found no spot), the Mayor hands the fragment over (4.8).
+            var go = new GameObject("Player");
+            try
+            {
+                RunRewards rewards = go.AddComponent<RunRewards>();
+                var repairs = new FaceRepairs();
+                const FaceId town = CubeModel.StartFace;
+                List<string> preview = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, false, out QuestStep asked, false);
+                Assert.AreEqual(QuestStep.Asked, asked);
+                Assert.IsFalse(rewards.HasFragment(town, 1), "a preview never gives it");
+                List<string> first = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep gave, false);
+                Assert.AreEqual(QuestStep.Gave, gave);
+                CollectionAssert.AreEqual(new[] { Dialogue.LeaderLine(Race.Townsfolk), Dialogue.MayorFoundLine }, first);
+                CollectionAssert.AreEqual(preview, first);
+                Assert.IsTrue(rewards.HasFragment(town, 1));
+                LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep handed, false);
+                Assert.AreEqual(QuestStep.Repaired, handed, "the next talk mends Town");
             }
             finally
             {

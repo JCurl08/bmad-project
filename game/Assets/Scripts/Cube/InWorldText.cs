@@ -129,7 +129,7 @@ namespace Game.Cube
         public static readonly HashSet<string> NotNames = new HashSet<string>
         {
             "I", "I'm", "I'll", "I've", "I'd", "RAWR", "SKRAW", "VICTORY", "MAXED", "Lv", "Victories", "Buy", "Interact", "Esc",
-            "Enter", "Tab", "M",
+            "Enter", "Tab", "M", "Q",
             // Shouted interjections (4.4): the only capitals-only words allowed mid-sentence. Other emphasis uses *stars*.
             "CLANG", "BOOM",
         };

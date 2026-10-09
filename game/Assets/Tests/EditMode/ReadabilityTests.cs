@@ -470,9 +470,27 @@ namespace Game.Cube.Tests
             Assert.IsTrue(Has(NpcLook.Finch, "f77622"), "The finch has its orange beak");
             Assert.IsTrue(Has(NpcLook.Physics, "63c74d"), "The Physics folk are green");
             Assert.IsTrue(Has(NpcLook.AvianDino, "0099db"), "The avian dinosaur is blue");
-            Assert.IsTrue(Has(NpcLook.Townsfolk, "feae34"), "The townsperson wears a straw hat");
-            Assert.AreEqual(Looks.Length - 1, RaceExtensions.All.Select(r => NpcDesignArt.LookOf(r, DinoVariant.None)).Distinct().Count(),
-                "One design per race (the dinosaurs' two kinds add one)");
+            // 4.18: no farm look left. The passing townsperson wears a hooded cloak (no straw hat); the greeter has her auburn
+            // bun and white apron; the Mayor a royal purple top hat; the shape person is an egg with no human skin; the avian
+            // dinosaur is a raptor seen side-on (not a front-facing penguin: its silhouette is not mirror-symmetric).
+            Assert.IsFalse(Has(NpcLook.Townsfolk, "feae34"), "The townsperson no longer wears a straw hat");
+            Assert.IsTrue(Has(NpcLook.Greeter, "a22633") && Has(NpcLook.Greeter, "ffffff"), "The greeter has her auburn bun and apron");
+            Assert.IsTrue(NpcDesignArt.Pixels(NpcLook.Townsfolk, true, 0).Take(NpcDesignArt.Size * NpcDesignArt.Size).Skip(NpcDesignArt.Size * 12)
+                .Any(c => c.a > 0 && c.r == 0x68 && c.g == 0x38 && c.b == 0x6c), "The Mayor wears a purple top hat");
+            Assert.IsFalse(Has(NpcLook.Shape, "f7c282"), "The shape person has no human skin: an egg, Humpty-Dumpty style");
+            Assert.IsTrue(Has(NpcLook.Shape, "fee761"), "The shape person's belt has its gold buckle");
+            bool[] avian = Mask(NpcDesignArt.Pixels(NpcLook.AvianDino, false, 0));
+            int asymmetric = 0;
+            for (int y = 0; y < NpcDesignArt.Size; y++)
+            for (int x = 0; x < NpcDesignArt.Size / 2; x++)
+                if (avian[y * NpcDesignArt.Size + x] != avian[y * NpcDesignArt.Size + NpcDesignArt.Size - 1 - x]) asymmetric++;
+            Assert.GreaterOrEqual(asymmetric, 20, "The avian dinosaur is a raptor seen side-on, with a long tail (not a front-facing penguin)");
+            Assert.AreEqual(Looks.Length - 2, RaceExtensions.All.Select(r => NpcDesignArt.LookOf(r, DinoVariant.None)).Distinct().Count(),
+                "One design per race (the dinosaurs' two kinds add one, and the greeter has her own)");
+            NpcSpec greeter = TownPlan.Specs(7, 3)[0];
+            Assert.IsTrue(TownPlan.IsGreeter(greeter));
+            Assert.AreEqual(NpcLook.Greeter, NpcDesignArt.LookOf(greeter), "The greeter wears her own look");
+            Assert.AreEqual(NpcLook.Townsfolk, NpcDesignArt.LookOf(TownSquare.LeaderSpec(7, Theme.Town)), "The Mayor is the townsfolk's leader design");
 
             foreach (NpcLook look in Looks)
             {

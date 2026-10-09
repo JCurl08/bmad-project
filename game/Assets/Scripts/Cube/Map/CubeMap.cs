@@ -58,6 +58,7 @@ namespace Game.Cube
         {
             yield return Title;
             yield return CloseHint;
+            yield return QuestText.MapHint;
             yield return CoreLabel;
             foreach (string label in LegendLabels) yield return label;
             foreach (InteriorKind kind in new[] { InteriorKind.Shop, InteriorKind.LeadersHall, InteriorKind.Home })
@@ -73,6 +74,9 @@ namespace Game.Cube
         /// <summary>The title's and the close hint's places in the header, at a screen width.</summary>
         public static Rect TitleRect(float w) => new Rect(16f, 8f, 200f, 36f);
         public static Rect CloseHintRect(float w) => new Rect(w - 216f, 14f, 200f, 24f);
+
+        /// <summary>The quest log's key (4.18, QuestLogView), under the close hint.</summary>
+        public static Rect QuestHintRect(float w) => new Rect(w - 216f, 38f, 200f, 18f);
 
         /// <summary>The inside badge's width: room for the longest badge ("Inside the leader's hall") at 16 pt bold.</summary>
         public const float InsideBadgeWidth = 300f;
@@ -440,6 +444,7 @@ namespace Game.Cube
 
             GUI.Label(TitleRect(w), Title, titleStyle);
             GUI.Label(CloseHintRect(w), CloseHint, textStyle);
+            GUI.Label(QuestHintRect(w), QuestText.MapHint, textStyle);
             string inside = InsideLabel;
             if (inside != null)
             {

@@ -463,9 +463,10 @@ namespace Game.Cube.Tests
             Color wallTile = TileAverage(art, ArtKey.Wall);
             foreach (Theme theme in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere })
             {
-                Color floor = Tinted(TileAverage(art, ArtKeys.Floor(theme)), ArtKeys.FloorTint(theme));
-                // Both shades of the checkered floor (CubeWorld.BuildFloor darkens every other screen by 15 %).
-                foreach (Color shade in new[] { floor, Color.Lerp(floor, Color.black, 0.15f) })
+                // Both shades of the checkered floor as seen (CubeWorld.BuildFloor darkens every other screen, FloorPattern.CheckerShade,
+                // and Town and the Weightlands* carry a glaze: FloorPattern.Seen).
+                Color tile = TileAverage(art, ArtKeys.Floor(theme));
+                foreach (Color shade in new[] { FloorPattern.Seen(theme, tile, false), FloorPattern.Seen(theme, tile, true) })
                 {
                     var against = new List<(string Name, Color Colour)> { ("walls", Tinted(wallTile, ArtKeys.WallTint(theme))) };
                     if (theme == Theme.Town)
@@ -506,8 +507,8 @@ namespace Game.Cube.Tests
                 figure.a = 1f;
                 foreach (Theme theme in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere })
                 {
-                    Color floor = Tinted(TileAverage(art, ArtKeys.Floor(theme)), ArtKeys.FloorTint(theme));
-                    foreach (Color shade in new[] { floor, Color.Lerp(floor, Color.black, 0.15f) })
+                    Color tile = TileAverage(art, ArtKeys.Floor(theme));
+                    foreach (Color shade in new[] { FloorPattern.Seen(theme, tile, false), FloorPattern.Seen(theme, tile, true) })
                         if (!Distinct(shade, figure))
                             failures.Add($"{look}{(leader ? " leader" : "")} accent {accent} on {theme}: contrast {ContrastRatio(shade, figure):0.00}, ΔE {DeltaE(shade, figure):0.0}");
                 }
@@ -525,8 +526,33 @@ namespace Game.Cube.Tests
             Assert.AreEqual(tile.g, recorded.g, 0.01f);
             Assert.AreEqual(tile.b, recorded.b, 0.01f);
             Assert.That(FloorPattern.GlazeAlpha(Theme.Physics), Is.InRange(0.3f, 0.7f));
-            foreach (Theme other in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Math, Theme.EarthAtmosphere })
+            foreach (Theme other in new[] { Theme.Biology, Theme.Chemistry, Theme.Math, Theme.EarthAtmosphere })
                 Assert.AreEqual(0f, FloorPattern.GlazeAlpha(other), $"{other} has no glaze");
+            // The glaze leaves the Weightlands* colour as it was, on both checker shades.
+            foreach (bool dark in new[] { false, true })
+            {
+                Color seen = FloorPattern.Seen(Theme.Physics, tile, dark);
+                Color plain = Tinted(tile, ArtKeys.FloorTint(Theme.Physics));
+                if (dark) plain = Color.Lerp(plain, Color.black, FloorPattern.CheckerShade(Theme.Physics));
+                Assert.Less(DeltaE(seen, plain), 2f, $"the Weightlands* glaze keeps its colour (dark {dark})");
+            }
+        }
+
+        [Test]
+        public void TownFloor_ReadsWhite_NotGrey_OnBothCheckerShades()
+        {
+            // 4.18: "white face should be more white than grey". Town's pale stone gets a warm white glaze and a lighter
+            // checker, so both shades read near white (and neutral), still a little apart from each other.
+            ArtCatalog art = AssetDatabase.LoadAssetAtPath<ArtCatalog>("Assets/Resources/ArtCatalog.asset");
+            Color tile = TileAverage(art, ArtKeys.Floor(Theme.Town));
+            Color light = FloorPattern.Seen(Theme.Town, tile, false), dark = FloorPattern.Seen(Theme.Town, tile, true);
+            Assert.That(FloorPattern.GlazeAlpha(Theme.Town), Is.InRange(0.5f, 0.85f));
+            Assert.Greater(Luminance(light), 0.75f, $"Town's floor reads white ({light})");
+            Assert.Greater(Luminance(dark), 0.65f, $"Town's darker screens read white too ({dark})");
+            Assert.Greater(Luminance(light), Luminance(Tinted(tile, ArtKeys.FloorTint(Theme.Town))) + 0.1f, "whiter than the bare stone");
+            foreach (Color c in new[] { light, dark })
+                Assert.Less(Mathf.Max(c.r, c.g, c.b) - Mathf.Min(c.r, c.g, c.b), 0.06f, $"Town's floor is a neutral white, not blue-grey ({c})");
+            Assert.Greater(DeltaE(light, dark), 2f, "the checker still shows");
         }
 
         [Test]

@@ -23,6 +23,7 @@ namespace Game.Cube
 
         private readonly Dictionary<FaceId, NpcTalker> leaders = new Dictionary<FaceId, NpcTalker>();
         private readonly List<NpcTalker> residents = new List<NpcTalker>();
+        private readonly Dictionary<FaceId, ErrandPlan> errands = new Dictionary<FaceId, ErrandPlan>();
         private Transform root;
         private CubeWorld subscribed;
 
@@ -53,6 +54,9 @@ namespace Game.Cube
 
         /// <summary>Every science-face leader this run, by face.</summary>
         public IReadOnlyDictionary<FaceId, NpcTalker> Leaders => leaders;
+
+        /// <summary>Each science face's errand this run (4.18), by face.</summary>
+        public IReadOnlyDictionary<FaceId, ErrandPlan> FaceErrands => errands;
 
         /// <summary>A science face's leader, or null (no town, not revealed yet).</summary>
         public NpcTalker LeaderOf(FaceId face) => leaders.TryGetValue(face, out NpcTalker leader) ? leader : null;
@@ -92,6 +96,7 @@ namespace Game.Cube
                 Destroy(leader.gameObject);
             }
             leaders.Clear();
+            errands.Clear();
             FaceContent.DestroyAll(residents);
         }
 
@@ -120,15 +125,26 @@ namespace Game.Cube
                 leader.name = $"Town Leader {face} {leaderSpec.DisplayName}";
                 leaders[face] = leader;
 
+                // The face's one errand (4.18, Errands): one resident gives it, another receives it.
+                ErrandPlan errand = Errands.For(world.Seed, world.FaceSize, face, theme);
+                NpcTalker giver = null, receiver = null;
                 for (int i = 0; i < TownSquare.ResidentCount && i < layout.Stands.Count; i++)
                 {
-                    NpcSpec spec = TownSquare.ResidentSpec(world.Seed, theme, i);
+                    NpcSpec spec = errand != null && i == errand.GiverIndex ? errand.Giver : TownSquare.ResidentSpec(world.Seed, theme, i);
                     Vector2 feet = layout.Stands[i];
                     Rect quadrant = TownPlan.QuadrantBounds(feet);
-                    NpcTalker npc = NpcFactory.Spawn(spec, Dialogue.For(spec, facts, hintDensity), centre + feet,
+                    NpcTalker npc = NpcFactory.Spawn(spec, Dialogue.For(spec, facts, hintDensity, errand?.Giver.Name), centre + feet,
                         new Rect(centre + quadrant.position, quadrant.size), world.Relations, target, root, world.Material);
                     npc.name = $"Town Resident {face} {i} {spec.DisplayName}";
                     residents.Add(npc);
+                    if (errand != null && i == errand.GiverIndex) giver = npc;
+                    if (errand != null && i == errand.TargetIndex) receiver = npc;
+                }
+                if (giver != null && receiver != null)
+                {
+                    ErrandQuest.Attach(giver, world, errand, true, giver.Lines);
+                    ErrandQuest.Attach(receiver, world, errand, false, receiver.Lines);
+                    errands[face] = errand;
                 }
             }
         }
@@ -138,11 +154,13 @@ namespace Game.Cube
         /// 4.8): the greeting, then the quest naming the face's fragments; talking hands them in.
         /// </summary>
         public static NpcTalker SpawnLeader(CubeWorld world, NpcSpec spec, FaceId face, Vector2 screenCentre, Vector2 stand, Transform player,
-            Transform parent)
+            Transform parent, bool peaceful = false)
         {
             Vector2 at = screenCentre + stand;
             var bounds = new Rect(at - LeaderRoom, LeaderRoom * 2f);
-            NpcTalker leader = NpcFactory.Spawn(spec, TownSquare.LeaderLines(spec.Race), at, bounds, world.Relations, player, parent, world.Material);
+            // peaceful (the Mayor, 4.18 review): no race relations, so never hostile.
+            NpcTalker leader = NpcFactory.Spawn(spec, TownSquare.LeaderLines(spec.Race), at, bounds, peaceful ? null : world.Relations, player,
+                parent, world.Material);
             LeaderQuest.Attach(leader, world, face);
             return leader;
         }

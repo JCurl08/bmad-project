@@ -115,6 +115,12 @@ namespace Game.Cube
         /// <summary>The faces repaired this run (4.8; a fresh record on every rebuild). Repairing a face lights its town (TownViewOf).</summary>
         public FaceRepairs Repairs { get; private set; } = new FaceRepairs();
 
+        /// <summary>The run's quest log (4.18; a fresh one on every rebuild): every quest given, its progress, and Town's trail progress.</summary>
+        public QuestLog Quests { get; private set; } = new QuestLog();
+
+        /// <summary>Town's lost-and-found trail this run (4.18, TownTrail; null on a face too small for a town); rolled on every rebuild.</summary>
+        public TownTrail TownTrail { get; private set; }
+
         /// <summary>Raised when a face is repaired this run (after its town shows it).</summary>
         public event Action<FaceId> FaceRepaired;
 
@@ -250,6 +256,8 @@ namespace Game.Cube
                 : null);
             Locks.Opened += OnEdgeOpened;
             Repairs = new FaceRepairs();
+            Quests = new QuestLog();
+            TownTrail = TownTrail.For(newSeed, CubeSettings.DefaultFaceSize);
             Layout = null;
             Ice = null;
             Wind = null;
@@ -470,7 +478,7 @@ namespace Game.Cube
                 {
                     var address = new ScreenAddress(face, x, y);
                     // Checkerboard shading so neighbouring screens are distinguishable.
-                    Color color = !checkered || ((x + y) & 1) == 0 ? baseColor : Color.Lerp(baseColor, Color.black, 0.15f);
+                    Color color = !checkered || ((x + y) & 1) == 0 ? baseColor : Color.Lerp(baseColor, Color.black, FloorPattern.CheckerShade(pattern));
                     GameObject block = CreateBlock($"Screen {x},{y}", parent, ScreenCenter(address), ScreenSize * FloorPattern.FloorFraction, color, -10, false, art);
                     if (pattern.HasValue) AddFloorPattern(block.transform, pattern.Value, address, color);
                 }
@@ -479,7 +487,7 @@ namespace Game.Cube
 
         /// <summary>
         /// The floor texture over one screen (exactly the floor block, a one-unit texel on each floor tile, so it never
-        /// shows in the gap between screens and never straddles two tiles), and the Weightlands* glaze under it.
+        /// shows in the gap between screens and never straddles two tiles), and the glaze under it (the Weightlands*' and Town's).
         /// </summary>
         private void AddFloorPattern(Transform block, Theme theme, ScreenAddress address, Color blockColor)
         {
