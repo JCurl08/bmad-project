@@ -8,7 +8,8 @@ namespace Game.Cube
 {
     /// <summary>
     /// Debug overlay and commands (editor and development builds only):
-    /// F1 toggles the overlay (face, theme, cell, module, seed), F2 toggles slot markers (a sprite on
+    /// F1 toggles the overlay (4.19: two slim bars over the north and south wall bands, never over the floor: the seed and
+    /// where the player is on top, every key at the bottom; OverlayBars), F2 toggles slot markers (a sprite on
     /// every active slot of every module, with labels on the visible screen), F5 rerolls to a new random
     /// seed and rebuilds, F6 jumps to the next unsealed screen.
     /// F3 spawns one NPC of each race around the player (true hints for the run at hintDensity; Shift+F3 their leaders), F4 toggles
@@ -528,49 +529,107 @@ namespace Game.Cube
             return current;
         }
 
-        /// <summary>The overlay text: seed, then the face, theme, cell and module (or "Core arena" while in it), then hostility and keys.</summary>
-        public string OverlayText
+        /// <summary>
+        /// The overlay's first line (4.19: the top bar): the seed, then where the player is (the face, region, cell, entry
+        /// facing and module; or the core arena, a lair room, a temple or a town building), then hostility.
+        /// </summary>
+        public string LocationLine
         {
             get
             {
                 if (world == null || world.Model == null) return "";
                 CubeModel model = world.Model;
-                string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
-                string tail = $"Hostile races: {HostileText()}\n" +
-                              "F1 overlay   F2 slots   F3 NPCs (+Shift leaders)   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
-                              "F8 leave core/room (+Shift solve temple)   F9 rest (+Shift fragments)   F10 new run   F11 light map (+Shift unlock arches)   M map";
-                if (PlayerInCoreArena)
-                    return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
+                string head = $"Seed {model.Seed}  N={model.FaceSize}  {(world.ScienceRevealed ? "revealed" : "unrevealed")}  |  ";
+                string tail = $"  |  Hostile: {HostileText()}";
+                if (PlayerInCoreArena) return head + $"{CoreArenaLabel} (outside every face)" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
+                string region = InWorldText.Region(model.ThemeOf(here.Face));
                 if (PlayerInLair)
-                    return head + $"{LairText.OverlayLabel} Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}\n" +
-                           $"Portal cell ({here.Cell.x},{here.Cell.y})   (off the cube net)\n\n" + tail;
+                    return head + $"{LairText.OverlayLabel} Face {here.Face}  {region}  Portal cell ({here.Cell.x},{here.Cell.y})" + tail;
                 if (PlayerInTemple)
-                    return head + $"{TempleText.OverlayLabel} {InWorldText.Region(model.ThemeOf(here.Face))}   Face {here.Face}\n" +
-                           $"Town cell ({here.Cell.x},{here.Cell.y})   (off the cube net)   Shift+F8 solve\n\n" + tail;
+                    return head + $"{TempleText.OverlayLabel} {region}  Face {here.Face}  Town cell ({here.Cell.x},{here.Cell.y})  Shift+F8 solve" + tail;
                 if (PlayerInInterior)
                 {
                     string room = Interiors != null && Interiors.Current != null ? Interiors.Current.Interior.Name : "building";
-                    return head + $"{InteriorLabel} {room}   Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}\n" +
-                           $"Town cell ({here.Cell.x},{here.Cell.y})   (off the cube net)\n\n" + tail;
+                    return head + $"{InteriorLabel} {room}  Face {here.Face}  {region}  Town cell ({here.Cell.x},{here.Cell.y})" + tail;
                 }
                 string facing = navigator != null ? navigator.Facing.ToString() : "-";
                 ScreenModule module = world.ModuleAt(here);
                 string moduleText = module != null ? module.name.Replace(module.Theme.ToString(), InWorldText.Region(module.Theme)) : model.IsSealed(here.Face) ? "-" : "(unrevealed)";
-                return head +
-                       $"Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}{(model.IsSealed(here.Face) ? " (sealed)" : "")}\n" +
-                       $"Cell ({here.Cell.x},{here.Cell.y})   Entered facing {facing}\n" +
-                       $"Module {moduleText}\n" +
-                       tail;
+                return head + $"Face {here.Face}  {region}{(model.IsSealed(here.Face) ? " (sealed)" : "")}  Cell ({here.Cell.x},{here.Cell.y})  " +
+                       $"entered facing {facing}  |  {moduleText}" + tail;
             }
         }
+
+        /// <summary>The overlay's second line (4.19: the bottom bar): every debug key, compact.</summary>
+        public const string KeysLine =
+            "F1 bars  F2 slots  F3 NPCs/leaders  F4 hostile  F5 reroll  F6 next  F7 enemy  F8 leave/solve  F9 rest/fragments  " +
+            "F10 run  F11 map/arches  M map  Q quests  (x/y: Shift)";
+
+        /// <summary>The overlay text: the location line, then the keys line.</summary>
+        public string OverlayText => world == null || world.Model == null ? "" : LocationLine + "\n" + KeysLine;
+
+        /// <summary>
+        /// The wall band's height in pixels (4.19): the screen-edge wall (ScreenEdges.EdgeWallThickness) as drawn, the camera
+        /// framing the screen's height (ScreenCamera). 20 px at 960x600.
+        /// </summary>
+        public static float WallBandPixels(float screenHeight) =>
+            ScreenEdges.EdgeWallThickness / ScreenMath.DefaultScreenSize.y * screenHeight;
+
+        /// <summary>The overlay's font size at a screen height: about two thirds of the wall band, 11-20 px.</summary>
+        public static int OverlayFontSize(float screenHeight) => Mathf.Clamp(Mathf.FloorToInt(WallBandPixels(screenHeight) * 0.62f), 11, 20);
+
+        /// <summary>
+        /// 4.19 (playtest 5: "the overlay menu covers the screen"): the overlay's two slim bars, each one line, lying over the
+        /// screen's own wall bands (the north wall and the south wall), so no floor is covered: the top bar holds the
+        /// location line, the bottom bar the keys. (They were one 820x170 panel in the top-left corner.)
+        /// </summary>
+        public static void OverlayBars(float screenWidth, float screenHeight, out Rect top, out Rect bottom)
+        {
+            float band = WallBandPixels(screenHeight);
+            top = new Rect(0f, 0f, screenWidth, band);
+            bottom = new Rect(0f, screenHeight - band, screenWidth, band);
+        }
+
+        /// <summary>True when the keys bar is drawn: not while a dialogue is open (the box overlaps the bottom wall band).</summary>
+        public static bool BottomBarShown(bool dialogueOpen) => !dialogueOpen;
+
+        private static GUIStyle measureStyle;
+
+        /// <summary>
+        /// A line's width in the overlay's font at a size (pixels), measured with GUIStyle.CalcSize in Unity's built-in font
+        /// (what IMGUI labels use); 0 when no font can be loaded.
+        /// </summary>
+        public static float MeasuredWidth(string line, int fontSize)
+        {
+            if (measureStyle == null)
+            {
+                Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (font == null) return 0f;
+                measureStyle = new GUIStyle { font = font, wordWrap = false };
+            }
+            measureStyle.fontSize = fontSize;
+            return measureStyle.CalcSize(new GUIContent(line)).x;
+        }
+
+        /// <summary>The font size a bar draws a line at (the size for the screen, shrunk until it fits the bar, 10 px at least).</summary>
+        public static int FittedFontSize(string line, float screenWidth, float screenHeight)
+        {
+            int size = OverlayFontSize(screenHeight);
+            while (size > 10 && MeasuredWidth(line, size) > screenWidth - 16f) size--;
+            return size;
+        }
+
+        /// <summary>A safe width of a line in the overlay font (pixels): half the font size a character (Arial averages about 0.45 em on these lines).</summary>
+        public static float EstimatedWidth(string line, int fontSize) => line.Length * fontSize * 0.5f;
 
         private void OnGUI()
         {
             if (world == null || world.Model == null) return;
             if (style == null)
             {
-                style = new GUIStyle(GUI.skin.label) { fontSize = 18 };
+                style = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip, wordWrap = false };
+                style.padding = new RectOffset(0, 0, 0, 0);
                 style.normal.textColor = Color.white;
                 labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
                 labelStyle.normal.textColor = Color.white;
@@ -579,13 +638,24 @@ namespace Game.Cube
             if (slotMarkersVisible) DrawSlotLabels();
             if (!overlayVisible) return;
 
-            string text = OverlayText;
+            OverlayBars(Screen.width, Screen.height, out Rect top, out Rect bottom);
+            Bar(top, LocationLine);
+            // 4.19 review: the dialogue box reaches into the bottom wall band, so the keys bar steps aside while it is open.
+            if (BottomBarShown(DialogueBox.Shared != null && DialogueBox.Shared.IsOpen)) Bar(bottom, KeysLine);
+        }
 
-            var rect = new Rect(8, 8, 820, 170);
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        /// <summary>One bar: a dark strip over the wall band, the line in the largest font that fits its width (down to 10 px).</summary>
+        private void Bar(Rect rect, string text)
+        {
+            GUI.color = new Color(0f, 0f, 0f, 0.72f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(new Rect(rect.x + 8, rect.y + 4, rect.width - 16, rect.height - 8), text, style);
+            var inner = new Rect(rect.x + 8f, rect.y, rect.width - 16f, rect.height);
+            int size = OverlayFontSize(Screen.height);
+            var content = new GUIContent(text);
+            style.fontSize = size;
+            while (size > 10 && style.CalcSize(content).x > inner.width) style.fontSize = --size;
+            GUI.Label(inner, content, style);
         }
 
         private string HostileText()

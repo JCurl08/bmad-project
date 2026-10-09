@@ -17,8 +17,9 @@ namespace Game.Cube.Tests
     /// The temples (4.14) in the real Cube scene: a sealed temple door turns the player away, the leader's hand-in unseals
     /// it, walking in (W) goes down to its room off the net and walking out (S) comes back in front of its door facing away,
     /// with no bounce from a held key; leaving an unsolved temple resets its puzzle, a solved one stays solved. Each puzzle
-    /// family is solved with the real keys: an ordering temple (Town's tokens, Biology's seeds, Chemistry's stones against
-    /// their timer, a wrong strike putting all back), the ice and the wind (the solver's route, move by move), the island
+    /// family is solved with the real keys: 4.19's Town sliding crest (tile by tile from the gap, a stuck tile first),
+    /// Chemistry's crystals (the least strikes), Biology's finch song (round by round, a wrong note replaying it), the ice
+    /// and the wind (the solver's route, move by move), the island
     /// network (the solver's trail, plank by plank) and Physics' booths (a boulder grabbed with the temple's grip, then each
     /// door opened by its switch and a dash); solving plays the magic moment and gives the gem, which then helps in the core.
     /// </summary>
@@ -179,8 +180,15 @@ namespace Game.Cube.Tests
             SetKeys(keyboard);
             yield return null;
             yield return new WaitForFixedUpdate();
-            // The swing (once the last one's cooldown is over): Enter down for two frames, the keyboard's whole state in one
-            // event (as SetKeys moves).
+            yield return Swing();
+        }
+
+        /// <summary>
+        /// The swing (once the last one's cooldown is over): Enter down for two frames, the keyboard's whole state in one
+        /// event (as SetKeys moves).
+        /// </summary>
+        private IEnumerator Swing()
+        {
             PlayerAttack attack = navigator.GetComponent<PlayerAttack>();
             yield return WaitUntilOrGameTimeout(() => Time.time - lastSwing >= attack.Cooldown + 0.02f, 1f);
             int swings = attack.SwingCount;
@@ -247,11 +255,15 @@ namespace Game.Cube.Tests
             Assert.AreEqual(TempleRoom.RoomCentre(town), room.Centre);
             Assert.AreEqual(TownOf(town), navigator.Current, "the player's screen stays the town's");
             Assert.AreEqual(TempleRoom.RoomScreen(town), ScreenMath.ScreenIndex(screenCamera.transform.position), "the camera frames the temple");
-            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == TempleText.Rule(TemplePuzzleKind.TownOrder)), "the rule is said");
+            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == TempleText.Rule(TemplePuzzleKind.Sliding)), "the rule is said");
 
-            // One right strike, then out with S held: back in front of the door, facing away, staying put while S is held.
-            Assert.IsTrue(room.Targets.Strike(room.Targets.Targets[0]));
-            Assert.AreEqual(1, room.Targets.Progress);
+            // One slide, then out with S held: back in front of the door, facing away, staying put while S is held.
+            TempleSlidingBoard tiles = room.Tiles;
+            Assert.IsNotNull(tiles, "Town's temple: the sliding crest");
+            List<int> solution = TempleSliding.Solution(tiles.Spec.Tiles);
+            Assert.IsTrue(tiles.StrikeCell(solution[0]));
+            Assert.AreEqual(1, tiles.Moves);
+            CollectionAssert.AreNotEqual(tiles.Spec.Tiles.ToArray(), tiles.Tiles.ToArray(), "a tile slid");
             Press(keyboard.sKey, queueEventOnly: true);
             yield return WaitUntilOrTimeout(() => !navigator.InTemple, 6f);
             Assert.IsFalse(navigator.InTemple, "walked out of the doorway");
@@ -268,20 +280,21 @@ namespace Game.Cube.Tests
             // Back in: the puzzle starts afresh.
             yield return this.HoldUntil(keyboard.wKey, () => navigator.InTemple, 4f);
             Assert.IsTrue(navigator.InTemple);
-            Assert.AreEqual(0, temples.Current.Targets.Progress, "the puzzle reset");
-            Assert.IsTrue(temples.Current.Targets.Targets.All(t => !t.Done));
+            Assert.AreEqual(0, temples.Current.Tiles.Moves, "the puzzle reset");
+            CollectionAssert.AreEqual(temples.Current.Tiles.Spec.Tiles.ToArray(), temples.Current.Tiles.Tiles.ToArray(), "the scramble as dealt");
 
             // A teleport out (F6) resets it too; solve it, and it stays solved.
-            temples.Current.Targets.Strike(temples.Current.Targets.Targets[0]);
+            temples.Current.Tiles.StrikeCell(solution[0]);
             navigator.TeleportTo(world.Model.StartScreen, Facing.East);
             yield return PhysicsSteps(3);
             Assert.IsNull(temples.Current);
             Assert.IsFalse(temples.Rooms.ContainsKey(town));
             Assert.IsTrue(temples.Enter(door));
             TempleView fresh = temples.Current;
-            Assert.AreEqual(0, fresh.Targets.Progress);
-            foreach (TempleTarget t in fresh.Targets.Targets) fresh.Targets.Strike(t);
+            Assert.AreEqual(0, fresh.Tiles.Moves);
+            foreach (int cell in solution) Assert.IsTrue(fresh.Tiles.StrikeCell(cell));
             Assert.IsTrue(fresh.IsSolved);
+            Assert.IsTrue(fresh.Tiles.FinalPiece.enabled, "the last piece fills the gap");
             Assert.IsTrue(world.Repairs.HasGem(town));
             Assert.IsTrue(temples.Leave());
             yield return PhysicsSteps(2);
@@ -297,52 +310,178 @@ namespace Game.Cube.Tests
             Assert.IsFalse(world.TownViewOf(town).TempleDoor.Unsealed);
         }
 
-        // ---------------------------------------------------------------- the ordering temples, with the real keys
+        // ---------------------------------------------------------------- 4.19: the crest, the crystals and the finches, real keys
 
-        private IEnumerator SolveOrderWithKeys(FaceId face, bool wrongFirst)
+        /// <summary>
+        /// 4.19 review: the rule popup of a board temple stands still and low, its text (about 0.6 units a line at 20 px) wholly
+        /// below the lowest of the board's art (local y).
+        /// </summary>
+        private static void RuleStandsClear(TempleView room, float boardBottom)
         {
-            yield return WalkIn(face);
-            TempleView room = temples.Current;
-            TempleTargets targets = room.Targets;
-            Assert.IsNotNull(targets, $"{room.Puzzle.Kind}: a row of targets");
-            if (wrongFirst)
-            {
-                // A wrong strike (the second target first): every target goes back, no damage.
-                float hearts = navigator.GetComponent<Health>().Current;
-                yield return StrikeTarget(room.Centre + targets.Spec.Spots[1]);
-                Assert.AreEqual(1, targets.Resets, "a wrong strike puts every target back");
-                Assert.AreEqual(0, targets.Progress);
-                Assert.AreEqual(hearts, navigator.GetComponent<Health>().Current, "no damage");
-                Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == TempleText.WrongPopup));
-                // 4.14 review: a second wrong strike replaces the popup rather than stacking one more; the rule is not said again.
-                yield return StrikeTarget(room.Centre + targets.Spec.Spots[2]);
-                Assert.AreEqual(2, targets.Resets);
-                yield return null;
-                Assert.AreEqual(1, PickupPopup.Active.Count(p => p != null && p.Text == TempleText.WrongPopup), "one wrong-strike popup at a time");
-                Assert.LessOrEqual(PickupPopup.Active.Count(p => p != null && p.Text == TempleText.Rule(room.Puzzle.Kind)), 1, "the rule, once per attempt");
-            }
-            var magicSeen = false;
-            room.Solved += _ => magicSeen = true;
-            for (int i = 0; i < targets.Targets.Count; i++)
-            {
-                yield return StrikeTarget(room.Centre + targets.Spec.Spots[i]);
-                Assert.AreEqual(i + 1, targets.Progress, $"{room.Puzzle.Kind}: target {i + 1} struck in its turn");
-                Assert.IsTrue(targets.Targets[i].Done);
-            }
-            Assert.IsTrue(targets.IsSolved);
-            Assert.IsTrue(magicSeen && room.IsSolved, "solved");
+            PickupPopup rule = room.RulePopup;
+            Assert.IsNotNull(rule, "the rule is said");
+            Vector2 at = (Vector2)rule.Position - room.Centre;
+            Assert.AreEqual(TempleView.BoardRuleSpot.y, at.y, 0.01f, "the rule stands low");
+            float lines = rule.Text.Split('\n').Length;
+            Assert.Less(at.y + lines * 0.6f / 2f + 0.15f, boardBottom, "its text stays below the board");
+            Assert.Greater(at.y - lines * 0.6f / 2f, -ScreenEdges.Half.y, "and on the screen");
+        }
+
+        /// <summary>Strikes a tile beside the gap with the real keys: walks onto the gap, steps toward the tile (facing it), swings.</summary>
+        private IEnumerator SlideTile(TempleView room, int cell)
+        {
+            TempleSlidingBoard tiles = room.Tiles;
+            Vector2 gap = room.Centre + TempleSliding.CellLocal(tiles.Gap);
+            Vector2 tile = room.Centre + TempleSliding.CellLocal(cell);
+            yield return WalkToward(gap, 0.2f);
+            Vector2 d = tile - gap;
+            var dir = new Vector2Int(Mathf.Abs(d.x) > 0.1f ? Math.Sign(d.x) : 0, Mathf.Abs(d.y) > 0.1f ? Math.Sign(d.y) : 0);
+            Vector2 from = body.position;
+            SetKeys(keyboard, WasdKeys(dir));
+            yield return WaitUntilOrGameTimeout(() => Vector2.Distance(body.position, from) > 0.3f, 1f);
+            SetKeys(keyboard);
+            yield return null;
+            yield return new WaitForFixedUpdate();
+            yield return Swing();
+            yield return WaitUntilOrGameTimeout(() => false, TempleSlidingBoard.SlideSeconds + 0.05f);
         }
 
         [UnityTest]
-        public IEnumerator TheOrderingTemples_AreSolvedWithTheRealKeys_AndAWrongStrikePutsAllBack([Values(Theme.Town, Theme.Biology, Theme.Chemistry)] Theme theme)
+        public IEnumerator TheTownTemple_SlidingCrest_IsSolvedWithTheRealKeys_TileByTile_AndAStuckTileStays()
         {
             yield return Load();
-            yield return Rebuild(21, theme != Theme.Town);
-            FaceId face = world.Model.FaceOf(theme);
-            yield return SolveOrderWithKeys(face, true);
+            yield return Rebuild(21, false);
+            FaceId face = CubeModel.StartFace;
+            yield return WalkIn(face);
             TempleView room = temples.Current;
-            if (theme == Theme.Chemistry) Assert.Greater(room.Targets.Spec.TimerSeconds, 0f, "the stones run against a timer");
-            yield return MagicAndGem(room, face, theme);
+            TempleSlidingBoard tiles = room.Tiles;
+            Assert.IsNotNull(tiles, "Town's temple holds the sliding crest");
+            Assert.That(tiles.Spec.OptimalMoves, Is.InRange(TempleSliding.MinMoves, TempleSliding.MaxMoves));
+            RuleStandsClear(room, TempleSliding.BoardRect.yMin - 0.25f);
+
+            // A tile not beside the gap: struck from beside it, it stays (and says so), no damage.
+            float hearts = navigator.GetComponent<Health>().Current;
+            int far = Enumerable.Range(0, TempleSliding.Cells).First(c => c != tiles.Gap && !TempleSliding.Adjacent(c, tiles.Gap) &&
+                                                                          Enumerable.Range(0, 9).Any(n => n != tiles.Gap && TempleSliding.Adjacent(n, c)));
+            int[] before = tiles.Tiles.ToArray();
+            yield return StrikeTarget(room.Centre + TempleSliding.CellLocal(far));
+            Assert.AreEqual(0, tiles.Moves, "a tile away from the gap never slides");
+            Assert.AreEqual(1, tiles.StuckStrikes);
+            CollectionAssert.AreEqual(before, tiles.Tiles.ToArray());
+            Assert.IsTrue(PickupPopup.Active.Any(p => p != null && p.Text == TempleText.TileStuckPopup));
+            Assert.AreEqual(hearts, navigator.GetComponent<Health>().Current, "no damage");
+
+            var magicSeen = false;
+            room.Solved += _ => magicSeen = true;
+            List<int> solution = TempleSliding.Solution(tiles.Tiles);
+            Assert.AreEqual(tiles.Spec.OptimalMoves, solution.Count);
+            for (int i = 0; i < solution.Count; i++)
+            {
+                int gapBefore = tiles.Gap;
+                yield return SlideTile(room, solution[i]);
+                Assert.AreEqual(i + 1, tiles.Moves, $"slide {i + 1} of {solution.Count}: the struck tile slid");
+                Assert.AreEqual(solution[i], tiles.Gap, "into the gap, which moved to where it was");
+                Assert.AreNotEqual(gapBefore, tiles.Gap);
+            }
+            Assert.IsTrue(TempleSliding.IsSolved(tiles.Tiles));
+            Assert.IsTrue(magicSeen && room.IsSolved, "the crest mended solves the temple");
+            Assert.IsTrue(tiles.FinalPiece.enabled);
+            yield return MagicAndGem(room, face, Theme.Town);
+        }
+
+        [UnityTest]
+        public IEnumerator TheChemistryTemple_CrystalsAreLitWithTheRealKeys_EachStrikeFlippingItsNeighbours()
+        {
+            yield return Load();
+            yield return Rebuild(21, true);
+            FaceId face = world.Model.FaceOf(Theme.Chemistry);
+            yield return WalkIn(face);
+            TempleView room = temples.Current;
+            TempleCrystals crystals = room.Crystals;
+            Assert.IsNotNull(crystals, "Chemistry's temple holds the crystals");
+            RuleStandsClear(room, TempleLights.CrystalLocal(0).y + 0.2f - 1.0f);
+            List<int> solution = TempleLights.Solution(crystals.Board);
+            Assert.That(solution.Count, Is.InRange(TempleLights.MinStrikes, TempleLights.MaxStrikes));
+            var magicSeen = false;
+            room.Solved += _ => magicSeen = true;
+            for (int i = 0; i < solution.Count; i++)
+            {
+                int was = crystals.Board;
+                yield return StrikeTarget(room.Centre + TempleLights.CrystalLocal(solution[i]));
+                Assert.AreEqual(was ^ TempleLights.Flips(solution[i]), crystals.Board, $"strike {i + 1}: crystal {solution[i]} and its neighbours flipped");
+                for (int c = 0; c < TempleLights.Count; c++)
+                    Assert.AreEqual(crystals.IsLit(c) ? TempleArt.Crystal(true) : TempleArt.Crystal(false), crystals.Bodies[c].sprite, "drawn lit or dark");
+            }
+            Assert.AreEqual(TempleLights.AllLit, crystals.Board, "every crystal lit");
+            Assert.IsTrue(magicSeen && room.IsSolved);
+            yield return MagicAndGem(room, face, Theme.Chemistry);
+        }
+
+        [UnityTest]
+        public IEnumerator TheBiologyTemple_FinchSongIsStruckBackWithTheRealKeys_AndAWrongNoteReplaysTheRound()
+        {
+            yield return Load();
+            yield return Rebuild(21, true);
+            FaceId face = world.Model.FaceOf(Theme.Biology);
+            yield return WalkIn(face);
+            TempleView room = temples.Current;
+            TempleChoir choir = room.Choir;
+            Assert.IsNotNull(choir, "Biology's temple holds the finches");
+            IReadOnlyList<int> notes = choir.Spec.Notes;
+            // 4.19 review: the rule stands low and still, clear of the finches; the song waits for it, or for a first step.
+            RuleStandsClear(room, TempleSong.FinchLocal(2).y + 0.3f - 1.4f);
+            yield return WaitUntilOrGameTimeout(() => false, 1f);
+            Assert.AreEqual(TempleChoir.Phase.Waiting, choir.State, "no song while the rule is up and the player stands still");
+            yield return WalkToward(room.Centre + TempleSong.Perch, 0.3f);
+            yield return WaitUntilOrGameTimeout(() => choir.SingingNote >= 0, TempleSong.PauseSeconds + 1f);
+            Assert.GreaterOrEqual(choir.SingingNote, 0, "a first step starts the song");
+            int strikes = choir.Strikes;
+            Assert.IsFalse(choir.StrikeFinch(notes[0]), "a strike while they sing is ignored");
+            Assert.AreEqual(strikes, choir.Strikes, "and not counted");
+            Assert.AreEqual(notes[0], choir.Statues.Select((st, i) => (st, i)).First(x => x.st.sprite == TempleArt.Finch(x.i, true)).i,
+                "the first note's finch sings (its singing look)");
+            yield return WaitUntilOrGameTimeout(() => choir.Listening, TempleSong.SongSeconds(TempleSong.Length) + 2f);
+            Assert.IsTrue(choir.Listening, "the song ends: the player's turn");
+
+            // A wrong note first: the round's song plays again, the round is kept, no damage.
+            float hearts = navigator.GetComponent<Health>().Current;
+            int wrong = (notes[0] + 1) % TempleSong.Finches;
+            yield return StrikeTarget(room.Centre + TempleSong.FinchLocal(wrong));
+            Assert.AreEqual(1, choir.Replays, "a wrong note");
+            Assert.AreEqual(0, choir.Round, "the round is kept");
+            Assert.AreEqual(0, choir.Progress);
+            Assert.IsFalse(choir.Listening, "they sing it again");
+            Assert.IsTrue(PickupPopup.Active.Any(p => p != null && p.Text == TempleText.WrongNotePopup));
+            Assert.AreEqual(hearts, navigator.GetComponent<Health>().Current, "no damage");
+
+            // The listening stone (real keys) sings the round's song again: no wrong note, the round kept.
+            yield return WaitUntilOrGameTimeout(() => choir.Listening, TempleSong.SongSeconds(TempleSong.Length) + 2f);
+            int sung = choir.SongsSung;
+            yield return StrikeTarget(room.Centre + TempleSong.StoneSpot);
+            Assert.AreEqual(1, choir.StoneReplays, "the stone sings it again");
+            Assert.AreEqual(sung + 1, choir.SongsSung);
+            Assert.AreEqual(1, choir.Replays, "not a wrong note");
+            Assert.AreEqual(0, choir.Round);
+            Assert.IsFalse(choir.Listening);
+
+            var magicSeen = false;
+            room.Solved += _ => magicSeen = true;
+            for (int round = 0; round < TempleSong.Rounds; round++)
+            {
+                yield return WaitUntilOrGameTimeout(() => choir.Listening || choir.IsSolved, TempleSong.SongSeconds(TempleSong.Length) + 3f);
+                Assert.IsTrue(choir.Listening, $"round {round + 1}: sung, then the player's turn");
+                Assert.AreEqual(round, choir.Round);
+                for (int n = 0; n < TempleSong.RoundLength(round); n++)
+                {
+                    yield return StrikeTarget(room.Centre + TempleSong.FinchLocal(notes[n]));
+                    if (n < TempleSong.RoundLength(round) - 1) Assert.AreEqual(n + 1, choir.Progress, $"round {round + 1}, note {n + 1} struck back");
+                }
+            }
+            Assert.IsTrue(choir.IsSolved, "the whole song struck back");
+            Assert.AreEqual(1, choir.Replays, "no other wrong note");
+            Assert.AreEqual(TempleSong.Rounds + 2, choir.SongsSung, "a song a round, the wrong note's replay and the stone's");
+            Assert.IsTrue(magicSeen && room.IsSolved);
+            yield return MagicAndGem(room, face, Theme.Biology);
         }
 
         /// <summary>The magic moment: the fragments spiral in and mend, the gem flies to the player; the face is mended.</summary>
@@ -361,22 +500,6 @@ namespace Game.Cube.Tests
             Assert.IsTrue(room.Magic.Done, "the moment ends");
             Assert.IsTrue(room.Shards.All(s => !s.enabled), "the fragments mended into the gem");
             Assert.IsFalse(room.Magic.Gem.enabled, "and the gem flew to the player");
-        }
-
-        [UnityTest]
-        public IEnumerator TheStoneTemple_GoesDarkWhenItsTimerRunsOut()
-        {
-            yield return Load();
-            yield return Rebuild(21, true);
-            FaceId face = world.Model.FaceOf(Theme.Chemistry);
-            yield return WalkIn(face);
-            TempleTargets targets = temples.Current.Targets;
-            Assert.IsTrue(targets.Strike(targets.Targets[0]));
-            Assert.IsTrue(targets.TimerRunning);
-            yield return WaitUntilOrGameTimeout(() => !targets.TimerRunning, targets.Spec.TimerSeconds + 2f);
-            Assert.AreEqual(0, targets.Progress, "too slow: they all go dark");
-            Assert.AreEqual(1, targets.Resets);
-            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text.StartsWith(TempleText.TooSlowPopup)));
         }
 
         // ---------------------------------------------------------------- ice and wind
@@ -863,6 +986,147 @@ namespace Game.Cube.Tests
             }
             Assert.IsTrue(room.IsSolved, "both booths: the temple is solved");
             yield return MagicAndGem(room, face, Theme.Physics);
+        }
+
+        // ---------------------------------------------------------------- 4.19: a held boulder drops on E, whichever way
+
+        [UnityTest]
+        public IEnumerator AHeldBoulder_PinnedOverThePlayer_DropsOnInteract_InEveryFacing_AtAFreeSpot_EvenWithAPersonInTalkingRange()
+        {
+            yield return Load();
+            yield return Rebuild(7, true);
+            FaceId face = world.Model.FaceOf(Theme.Physics);
+            MassMitt mitt = navigator.GetComponent<MassMitt>();
+            yield return WalkIn(face);
+            TempleView room = temples.Current;
+            Boulder boulder = room.Booths.Boulders[0];
+            // The middle of the floor, clear of the booths and the other boulders.
+            room.Booths.Boulders[1].Teleport(room.Centre + new Vector2(-9f, -5.5f));
+            room.Booths.Boulders[2].Teleport(room.Centre + new Vector2(9f, -5.5f));
+            Vector2 middle = room.Centre + new Vector2(0f, -2.5f);
+            var ways = new[]
+            {
+                new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(1, 0), new Vector2Int(1, -1),
+                new Vector2Int(0, -1), new Vector2Int(-1, -1), new Vector2Int(-1, 0), new Vector2Int(-1, 1),
+            };
+            Rect bounds = boulder.Bounds.Value;
+            foreach (Vector2Int way in ways)
+            {
+                Vector2 dir = ((Vector2)way).normalized;
+                boulder.Teleport(middle + dir * 1.5f * K);
+                yield return PutPlayerAt(middle);
+                yield return PhysicsSteps(2);
+                yield return this.Tap(keyboard.eKey, 2);
+                Assert.AreSame(boulder, mitt.Held, $"{way}: grabbed");
+                // Turn to face the way (a short walk that way: the boulder comes along).
+                SetKeys(keyboard, WasdKeys(way));
+                yield return WaitUntilOrGameTimeout(() => false, 0.12f);
+                SetKeys(keyboard);
+                yield return PhysicsSteps(2);
+                Assert.AreEqual(dir.x, mover.Facing.x, 0.05f, $"{way}: facing that way");
+                Assert.AreEqual(dir.y, mover.Facing.y, 0.05f);
+                // Pinned: the boulder at the edge (or corner) of its bounds that way, half over the player (a held boulder
+                // ignores the player, and its bounds keep it from moving on), so where it stands is no place to drop it.
+                var pinned = new Vector2(way.x > 0 ? bounds.xMax : way.x < 0 ? bounds.xMin : middle.x,
+                    way.y > 0 ? bounds.yMax : way.y < 0 ? bounds.yMin : middle.y);
+                boulder.Body.position = pinned;
+                boulder.transform.position = pinned;
+                body.position = pinned - dir * 0.9f;
+                body.linearVelocity = Vector2.zero;
+                navigator.transform.position = body.position;
+                Physics2D.SyncTransforms();
+                yield return PhysicsSteps(1);
+                Assert.AreSame(boulder, mitt.Held, $"{way}: still held, pinned");
+                Assert.Less(Vector2.Distance(boulder.Position, body.position), 2f * TimeField.PlayerRadius, $"{way}: over the player");
+                Assert.IsFalse(MassMitt.FreeForBoulder(boulder, boulder.Position), $"{way}: its own spot is not free");
+                yield return this.Tap(keyboard.eKey, 2);
+                Assert.IsNull(mitt.Held, $"{way}: E drops it, whichever way the player faces");
+                Assert.AreEqual(mitt.LastDropSpot, boulder.Position, $"{way}: at the drop spot");
+                Assert.IsTrue(MassMitt.FreeForBoulder(boulder, boulder.Position), $"{way}: set down where nothing solid is, off the player");
+                Assert.GreaterOrEqual(Vector2.Distance(boulder.Position, body.position), 2f * TimeField.PlayerRadius - 0.05f, $"{way}: beside the player");
+                Assert.LessOrEqual(Vector2.Distance(boulder.Position, body.position), MassMitt.DropReach + 0.01f, $"{way}: round the player");
+                Assert.IsTrue(bounds.Contains(boulder.Position), $"{way}: inside its room");
+            }
+
+            // A swing drops it the same way (4.19 review).
+            boulder.Teleport(middle + Vector2.up * 1.5f * K);
+            yield return PutPlayerAt(middle);
+            yield return PhysicsSteps(2);
+            yield return this.Tap(keyboard.eKey, 2);
+            Assert.AreSame(boulder, mitt.Held);
+            Assert.IsTrue(mitt.SwingAt(boulder, null), "a swing at the held boulder");
+            Assert.IsNull(mitt.Held, "drops it");
+            Assert.AreEqual(mitt.LastDropSpot, boulder.Position);
+            Assert.IsTrue(MassMitt.FreeForBoulder(boulder, boulder.Position));
+
+            // A person in talking range: E still drops the boulder and opens no talk.
+            yield return PutPlayerAt(middle);
+            yield return PhysicsSteps(2);
+            boulder.Teleport(middle + Vector2.up * 1.5f * K);
+            yield return PhysicsSteps(2);
+            yield return this.Tap(keyboard.eKey, 2);
+            Assert.AreSame(boulder, mitt.Held);
+            CubeDebug debug = Object.FindAnyObjectByType<CubeDebug>();
+            debug.SpawnNpcs(false);
+            yield return PhysicsSteps(2);
+            NpcTalker near = debug.DebugNpcs.First();
+            near.transform.position = body.position + Vector2.left * 1.2f * K;
+            yield return PhysicsSteps(2);
+            Assert.IsTrue(near.PlayerInRange(), "a person in talking range");
+            yield return this.Tap(keyboard.eKey, 2);
+            Assert.IsNull(mitt.Held, "the boulder dropped");
+            Assert.IsFalse(DialogueBox.Shared != null && DialogueBox.Shared.IsOpen, "and no talk opened");
+            yield return this.Tap(keyboard.eKey, 2);
+            Assert.IsTrue(mitt.Held != null || (DialogueBox.Shared != null && DialogueBox.Shared.IsOpen),
+                "with empty hands, E grabs or talks as before");
+        }
+
+        // ---------------------------------------------------------------- 4.19 review: the overlay's real lines fit
+
+        [UnityTest]
+        public IEnumerator TheOverlaysRealLines_FitTheirBars_At960x600_Everywhere()
+        {
+            yield return Load();
+            yield return Rebuild(7, true);
+            CubeDebug debug = Object.FindAnyObjectByType<CubeDebug>();
+            Assert.Greater(CubeDebug.MeasuredWidth(CubeDebug.KeysLine, 12), 100f, "the built-in font measures text");
+            var lines = new List<string>();
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            yield return PhysicsSteps(2);
+            lines.Add(debug.LocationLine);
+            foreach (FaceId face in TemplePlan.TempleFaces(world.Model))
+                for (int y = 0; y < world.FaceSize; y++)
+                    for (int x = 0; x < world.FaceSize; x++)
+                    {
+                        navigator.TeleportTo(new ScreenAddress(face, x, y), Facing.North);
+                        yield return null;
+                        lines.Add(debug.LocationLine);
+                    }
+            yield return WalkIn(world.Model.FaceOf(Theme.Physics));
+            lines.Add(debug.LocationLine);
+            Assert.IsTrue(temples.Leave());
+            yield return PhysicsSteps(2);
+            Assert.IsTrue(arena.Enter(navigator));
+            yield return PhysicsSteps(2);
+            lines.Add(debug.LocationLine);
+            navigator.TeleportTo(world.Model.StartScreen, Facing.East);
+            yield return PhysicsSteps(2);
+            foreach (string line in lines)
+            {
+                StringAssert.StartsWith("Seed 7", line);
+                int size = CubeDebug.FittedFontSize(line, 960f, 600f);
+                Assert.GreaterOrEqual(size, 11, $"readable at 11 px or more: {line}");
+                Assert.LessOrEqual(CubeDebug.MeasuredWidth(line, size), 960f - 16f, line);
+            }
+            int keys = CubeDebug.FittedFontSize(CubeDebug.KeysLine, 960f, 600f);
+            Assert.GreaterOrEqual(keys, 11, "every key at 11 px or more");
+            Assert.LessOrEqual(CubeDebug.MeasuredWidth(CubeDebug.KeysLine, keys), 960f - 16f);
+            // Every race hostile: the longest location line still fits, at 10 px at least.
+            foreach (Race race in RaceExtensions.All) world.Relations.SetHostile(race, true);
+            string longest = debug.LocationLine;
+            foreach (Race race in RaceExtensions.All) world.Relations.SetHostile(race, false);
+            int fitted = CubeDebug.FittedFontSize(longest, 960f, 600f);
+            Assert.LessOrEqual(CubeDebug.MeasuredWidth(longest, fitted), 960f - 16f, longest);
         }
 
         // ---------------------------------------------------------------- the gem in the core

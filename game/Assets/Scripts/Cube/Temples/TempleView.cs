@@ -10,8 +10,9 @@ namespace Game.Cube
     /// entry; leaving an unsolved temple throws it away, so the puzzle starts afresh next time): the race's floor and walls
     /// round a whole screen with one doorway south, the face's fragments hovering dim over the gem's spot (the altar, or the
     /// puzzle's goal), and the puzzle itself, built by the face's own runtime: an island screen, an ice or wind screen (the
-    /// player's IceSlider and WindRider drive inside a temple), Physics' booths (PhysicsTrial) or a row of targets
-    /// (TempleTargets). Solving it plays the magic moment (TempleMagic: the fragments spiral in and mend into the gem, which
+    /// player's IceSlider and WindRider drive inside a temple), Physics' booths (PhysicsTrial), or (4.19) Town's sliding
+    /// crest (TempleSlidingBoard), Chemistry's crystals (TempleCrystals) or Biology's finches (TempleChoir). Solving it plays
+    /// the magic moment (TempleMagic: the fragments spiral in and mend into the gem, which
     /// flies to the player) and repairs the face (CubeWorld.RepairFace: the gem, its boss benefit, the gold statue), and the
     /// temple's quest is marked done.
     /// </summary>
@@ -43,7 +44,14 @@ namespace Game.Cube
         public IceScreen Ice { get; private set; }
         public WindScreen Wind { get; private set; }
         public PhysicsTrial Booths { get; private set; }
-        public TempleTargets Targets { get; private set; }
+
+        /// <summary>Town's sliding crest, Chemistry's crystals, Biology's finches (4.19); null in the other temples.</summary>
+        public TempleSlidingBoard Tiles { get; private set; }
+        public TempleCrystals Crystals { get; private set; }
+        public TempleChoir Choir { get; private set; }
+
+        /// <summary>The board the player strikes (any of the three above), or null.</summary>
+        public TempleStrikeBoard Board => Tiles != null ? Tiles : Crystals != null ? Crystals : (TempleStrikeBoard)Choir;
 
         /// <summary>The fragments hovering over the gem's spot (they spiral in when it is solved).</summary>
         public IReadOnlyList<SpriteRenderer> Shards => shards;
@@ -127,15 +135,18 @@ namespace Game.Cube
                     LayDashes();
                     break;
                 }
-                default:
-                {
-                    var go = new GameObject("Temple Targets");
-                    go.transform.SetParent(transform, false);
-                    Targets = go.AddComponent<TempleTargets>();
-                    Targets.Configure(Puzzle.Order, Theme, Centre, material);
-                    Targets.Solved += _ => Solve();
+                case TemplePuzzleKind.Sliding:
+                    Tiles = NewBoard<TempleSlidingBoard>("Temple Tiles");
+                    Tiles.Configure(Puzzle.Sliding, Centre, material);
                     break;
-                }
+                case TemplePuzzleKind.Lights:
+                    Crystals = NewBoard<TempleCrystals>("Temple Crystals");
+                    Crystals.Configure(Puzzle.Lights, Centre, material);
+                    break;
+                default:
+                    Choir = NewBoard<TempleChoir>("Temple Finches");
+                    Choir.Configure(Puzzle.Song, Centre, material);
+                    break;
             }
             if (!Puzzle.FillsRoom)
             {
@@ -151,6 +162,15 @@ namespace Game.Cube
                 s.color = new Color(1f, 1f, 1f, 0.55f);
                 shards.Add(s);
             }
+        }
+
+        private T NewBoard<T>(string name) where T : TempleStrikeBoard
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            T board = go.AddComponent<T>();
+            board.Solved += _ => Solve();
+            return board;
         }
 
         /// <summary>The latch bands of Physics' booths (4.14 review), in door order.</summary>
@@ -207,6 +227,22 @@ namespace Game.Cube
                                                         new Vector2(0f, 0.12f * Mathf.Sin(Time.time * 2f + i));
         }
 
+        /// <summary>How long the rule popup stays (seconds).</summary>
+        public const float RuleSeconds = 6f;
+
+        /// <summary>
+        /// Where the rule popup's centre stands (local) for 4.19's board temples: still (it does not rise), low in the room
+        /// between the board and the doorway, so it never covers the tiles, the crystals or the finches (4.19 review).
+        /// </summary>
+        public static readonly Vector2 BoardRuleSpot = new Vector2(0f, -5.45f);
+
+        /// <summary>True for the kinds whose rule stands low and still (the sliding crest, the crystals, the finches).</summary>
+        public static bool RuleStandsLow(TemplePuzzleKind kind) =>
+            kind == TemplePuzzleKind.Sliding || kind == TemplePuzzleKind.Lights || kind == TemplePuzzleKind.Song;
+
+        /// <summary>The rule popup shown on walking in (null before).</summary>
+        public PickupPopup RulePopup { get; private set; }
+
         /// <summary>True once this room said its rule (once per attempt: an unsolved room is rebuilt for the next one).</summary>
         public bool RuleSaid { get; private set; }
 
@@ -220,7 +256,10 @@ namespace Game.Cube
             }
             if (RuleSaid) return;
             RuleSaid = true;
-            PickupPopup.Show(EntryPoint + new Vector2(0f, 2.5f), TempleText.Rule(Puzzle.Kind), new Color(0.9f, 0.95f, 1f), 6f);
+            if (RuleStandsLow(Puzzle.Kind))
+                RulePopup = PickupPopup.Show(Centre + BoardRuleSpot - Vector2.up * PickupPopup.StartHeight, TempleText.Rule(Puzzle.Kind),
+                    new Color(0.9f, 0.95f, 1f), RuleSeconds, 0f);
+            else RulePopup = PickupPopup.Show(EntryPoint + new Vector2(0f, 2.5f), TempleText.Rule(Puzzle.Kind), new Color(0.9f, 0.95f, 1f), RuleSeconds);
         }
 
         /// <summary>

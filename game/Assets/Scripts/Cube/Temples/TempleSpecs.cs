@@ -7,202 +7,6 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// An ordering temple (4.14) as pure data: Biology's seeds, Chemistry's glowing stones or Town's mixed tokens, standing
-    /// on a grid over the room's floor (clear of the altar and the lane in). Target i is struck i-th; each shows a mark the
-    /// order follows by a rule (the research note's clue level 2): a seed's size (smallest first), a stone's glow (brightest
-    /// first) or a token's pips (fewest first). A wrong strike puts every target back (no damage). Chemistry's also has a
-    /// timer: once the first stone is lit, every stone must be lit within TimerSeconds, at least TimerSlack times the best
-    /// route (late tier: T at least 1.5x), or they all go dark. Solvable by construction: the order exists and every target
-    /// stands free on the open floor; Problems re-checks it all.
-    /// </summary>
-    public sealed class TempleOrderSpec
-    {
-        /// <summary>Targets per kind: six seeds, six stones (late: 5-6), four tokens (Town's short one).</summary>
-        public const int SeedCount = 6, StoneCount = 6, TownCount = 4;
-
-        /// <summary>The least distance between two targets' centres (the grid's step).</summary>
-        public const float Spacing = 3f;
-
-        /// <summary>A swing's cooldown (PlayerAttack's default), counted once per target in the best route.</summary>
-        public const float SwingSeconds = 0.35f;
-
-        /// <summary>The timer's slack over the best route (research note 1f, late: T at least 1.5x).</summary>
-        public const float TimerSlack = 1.5f;
-
-        /// <summary>The timer never runs shorter than this.</summary>
-        public const float MinTimerSeconds = 6f;
-
-        /// <summary>The target grid (local): seven columns, three rows.</summary>
-        public static readonly float[] Columns = { -9f, -6f, -3f, 0f, 3f, 6f, 9f };
-        public static readonly float[] Rows = { -3.5f, 0f, 3.5f };
-
-        private readonly List<Vector2> spots;
-        private readonly List<int> marks;
-        private readonly List<Theme> looks;
-
-        public TemplePuzzleKind Kind { get; }
-
-        /// <summary>Each target's spot (local), in striking order.</summary>
-        public IReadOnlyList<Vector2> Spots => spots;
-
-        /// <summary>
-        /// Each target's mark, in striking order: a seed's size step (0 smallest), a stone's glow step (0 brightest), a token's
-        /// pips (fewest first). Always strictly rising, so the rule gives the order.
-        /// </summary>
-        public IReadOnlyList<int> Marks => marks;
-
-        /// <summary>Town's tokens: whose face each one is drawn from (a mix); the region's theme of the kind otherwise.</summary>
-        public IReadOnlyList<Theme> Looks => looks;
-
-        /// <summary>Seconds every target must be struck within once the first is (0: no timer).</summary>
-        public float TimerSeconds { get; }
-
-        public int Count => spots.Count;
-
-        public TempleOrderSpec(TemplePuzzleKind kind, List<Vector2> spots, List<int> marks, List<Theme> looks, float timerSeconds)
-        {
-            Kind = kind;
-            this.spots = spots ?? new List<Vector2>();
-            this.marks = marks ?? new List<int>();
-            this.looks = looks ?? new List<Theme>();
-            TimerSeconds = timerSeconds;
-        }
-
-        /// <summary>Targets a kind needs.</summary>
-        public static int CountFor(TemplePuzzleKind kind) =>
-            kind == TemplePuzzleKind.SeedOrder ? SeedCount : kind == TemplePuzzleKind.StoneOrder ? StoneCount : TownCount;
-
-        /// <summary>Every spot a target may take (local): the grid, less the spots by the altar and in the lane in.</summary>
-        public static List<Vector2> Candidates()
-        {
-            var list = new List<Vector2>();
-            Rect altar = Grow(TempleRoom.AltarRect, 1f);
-            foreach (float y in Rows)
-                foreach (float x in Columns)
-                {
-                    var p = new Vector2(x, y);
-                    if (altar.Contains(p) || Grow(TempleRoom.EntryLane, 0.5f).Contains(p)) continue;
-                    list.Add(p);
-                }
-            return list;
-        }
-
-        /// <summary>The seconds of the best route from the first target to the last, at base speed, with a swing at each.</summary>
-        public float TimedRouteSeconds
-        {
-            get
-            {
-                float d = 0f;
-                for (int i = 1; i < spots.Count; i++) d += Vector2.Distance(spots[i - 1], spots[i]);
-                return d / TimeField.BasePlayerSpeed + spots.Count * SwingSeconds;
-            }
-        }
-
-        /// <summary>The timer a route needs: TimerSlack times it, never under MinTimerSeconds, rounded up to half a second.</summary>
-        public static float TimerFor(float routeSeconds) =>
-            Mathf.Max(MinTimerSeconds, Mathf.Ceil(routeSeconds * TimerSlack * 2f) / 2f);
-
-        /// <summary>Deals a kind's targets: a seeded shuffle of the grid, the first spots taken in striking order.</summary>
-        public static TempleOrderSpec Deal(SeededRng rng, TemplePuzzleKind kind)
-        {
-            int n = CountFor(kind);
-            List<Vector2> grid = Candidates();
-            rng.Shuffle(grid);
-            List<Vector2> picked = grid.GetRange(0, Math.Min(n, grid.Count));
-            var marks = new List<int>();
-            var looks = new List<Theme>();
-            if (kind == TemplePuzzleKind.TownOrder)
-            {
-                // Four distinct pip counts of 1-6, fewest first, each on a token from a different science face.
-                var pips = new List<int> { 1, 2, 3, 4, 5, 6 };
-                rng.Shuffle(pips);
-                pips = pips.GetRange(0, n);
-                pips.Sort();
-                marks.AddRange(pips);
-                var faces = new List<Theme>(CubeModel.ScienceThemes);
-                rng.Shuffle(faces);
-                for (int i = 0; i < n; i++) looks.Add(faces[i % faces.Count]);
-            }
-            else
-            {
-                for (int i = 0; i < n; i++)
-                {
-                    marks.Add(i);
-                    looks.Add(kind == TemplePuzzleKind.SeedOrder ? Theme.Biology : Theme.Chemistry);
-                }
-            }
-            var spec = new TempleOrderSpec(kind, picked, marks, looks, 0f);
-            if (kind != TemplePuzzleKind.StoneOrder) return spec;
-            return new TempleOrderSpec(kind, picked, marks, looks, TimerFor(spec.TimedRouteSeconds));
-        }
-
-        /// <summary>
-        /// Problems (empty when all is well): the kind's count; marks strictly rising (the rule gives one order); every target
-        /// on the floor, Spacing apart, clear of the altar and the lane in; the timer (stones only) at least TimerSlack times
-        /// the best route, and none on the others.
-        /// </summary>
-        public List<string> Problems(string what)
-        {
-            var problems = new List<string>();
-            int want = CountFor(Kind);
-            if (spots.Count != want) problems.Add($"{what}: {spots.Count} targets (want {want})");
-            if (marks.Count != spots.Count || looks.Count != spots.Count) problems.Add($"{what}: marks or looks do not match the targets");
-            for (int i = 1; i < marks.Count; i++)
-                if (marks[i] <= marks[i - 1]) problems.Add($"{what}: target {i}'s mark does not follow the rule");
-            if (Kind == TemplePuzzleKind.TownOrder)
-                foreach (int m in marks)
-                    if (m < 1 || m > 6) problems.Add($"{what}: a token with {m} pips");
-            Rect floor = TempleRoom.Floor, altar = Grow(TempleRoom.AltarRect, 0.5f), lane = TempleRoom.EntryLane;
-            for (int i = 0; i < spots.Count; i++)
-            {
-                Vector2 p = spots[i];
-                if (!Grow(floor, -1.5f).Contains(p)) problems.Add($"{what}: target {i} at {p} is not on the open floor");
-                if (altar.Contains(p)) problems.Add($"{what}: target {i} stands on the altar");
-                if (lane.Contains(p)) problems.Add($"{what}: target {i} stands in the lane in");
-                for (int j = i + 1; j < spots.Count; j++)
-                    if (Vector2.Distance(p, spots[j]) < Spacing - 1e-3f) problems.Add($"{what}: targets {i} and {j} are too close");
-            }
-            if (Kind == TemplePuzzleKind.StoneOrder)
-            {
-                if (TimerSeconds < TimerSlack * TimedRouteSeconds - 1e-3f)
-                    problems.Add($"{what}: the timer {TimerSeconds:0.0} s is under {TimerSlack}x the best route {TimedRouteSeconds:0.00} s");
-            }
-            else if (TimerSeconds > 0f) problems.Add($"{what}: a timer on a {Kind} temple");
-            return problems;
-        }
-
-        /// <summary>The chance a player striking untouched targets at random gets the order right: 1 in Count!.</summary>
-        public double RandomSolveRate
-        {
-            get
-            {
-                double ways = 1;
-                for (int i = 2; i <= spots.Count; i++) ways *= i;
-                return 1.0 / ways;
-            }
-        }
-
-        public string Stats()
-        {
-            string rule = Kind == TemplePuzzleKind.SeedOrder ? "smallest seed first" : Kind == TemplePuzzleKind.StoneOrder ? "brightest glow first" : "fewest pips first";
-            string timer = TimerSeconds > 0f ? $"timer {TimerSeconds:0.0} s ({TimerSeconds / TimedRouteSeconds:0.00}x the best route {TimedRouteSeconds:0.00} s)" : "no timer";
-            return $"{spots.Count} targets, clue level 2 ({rule}), a wrong strike resets, {timer}, P_rand 1/{Math.Round(1.0 / RandomSolveRate)}";
-        }
-
-        public string Signature()
-        {
-            var sb = new StringBuilder();
-            for (int i = 0; i < spots.Count; i++)
-                sb.Append(spots[i].x.ToString("0.#")).Append(',').Append(spots[i].y.ToString("0.#")).Append(':').Append(marks[i])
-                    .Append(Kind == TemplePuzzleKind.TownOrder ? "/" + looks[i] : "").Append(' ');
-            if (TimerSeconds > 0f) sb.Append("timer ").Append(TimerSeconds.ToString("0.0"));
-            return sb.ToString().TrimEnd();
-        }
-
-        internal static Rect Grow(Rect r, float by) => Rect.MinMaxRect(r.xMin - by, r.yMin - by, r.xMax + by, r.yMax + by);
-    }
-
-    /// <summary>
     /// Physics' temple (4.14) as pure data: two booths against the north half of the room, each behind a timed door that
     /// needs Required (3, the research note's late count) boulders in its time field, and exactly Required boulders, shared
     /// (PhysicsTrialSpec, built by PhysicsTrial as the face's own trial is). Each door's switch stands across the room on
@@ -351,8 +155,8 @@ namespace Game.Cube
                     if (Vector2.Distance(p, door.FieldLocal) > inner || !bounds.Contains(p)) continue;
                     bool clear = true;
                     foreach (TrialBoothSpec b in spec.Booths)
-                        if (Touches(TempleOrderSpec.Grow(b.Footprint, 0.1f), p, Boulder.Radius)) clear = false;
-                    if (Touches(TempleOrderSpec.Grow(Corridor(door), 0.05f), p, Boulder.Radius)) clear = false;
+                        if (Touches(TempleRoom.Grow(b.Footprint, 0.1f), p, Boulder.Radius)) clear = false;
+                    if (Touches(TempleRoom.Grow(Corridor(door), 0.05f), p, Boulder.Radius)) clear = false;
                     foreach (Vector2 q in placed)
                         if (Vector2.Distance(p, q) < 2f * Boulder.Radius + 0.1f) clear = false;
                     if (clear) placed.Add(p);
@@ -382,16 +186,16 @@ namespace Game.Cube
                 TrialBoothSpec booth = spec.Booths[i];
                 DoorLayout d = booth.Layout;
                 string w = $"{what} booth {i}";
-                if (!TempleOrderSpec.Grow(floor, -0.3f).Contains(booth.Footprint.min) || !TempleOrderSpec.Grow(floor, -0.3f).Contains(booth.Footprint.max))
+                if (!TempleRoom.Grow(floor, -0.3f).Contains(booth.Footprint.min) || !TempleRoom.Grow(floor, -0.3f).Contains(booth.Footprint.max))
                     problems.Add($"{w}: off the floor");
-                if (booth.Footprint.Overlaps(TempleOrderSpec.Grow(altar, 0.5f)) || booth.Footprint.Overlaps(lane)) problems.Add($"{w}: on the altar or the lane in");
+                if (booth.Footprint.Overlaps(TempleRoom.Grow(altar, 0.5f)) || booth.Footprint.Overlaps(lane)) problems.Add($"{w}: on the altar or the lane in");
                 if (d.Required != Required) problems.Add($"{w}: its door needs {d.Required}");
                 if (!d.HasSwitch)
                 {
                     problems.Add($"{w}: no switch");
                     continue;
                 }
-                if (!TempleOrderSpec.Grow(floor, -1f).Contains(d.SwitchLocal)) problems.Add($"{w}: its switch is off the floor");
+                if (!TempleRoom.Grow(floor, -1f).Contains(d.SwitchLocal)) problems.Add($"{w}: its switch is off the floor");
                 if (ShortDash(d) < PhysicsPlan.MinWalkSeconds) problems.Add($"{w}: the dash from its switch is only {ShortDash(d):0.00} s");
                 float open = TimeField.OpenSeconds(BaseSeconds(d), Required * TimeField.BoulderMass);
                 float shortOpen = TimeField.OpenSeconds(BaseSeconds(d), (Required - 1) * TimeField.BoulderMass);
@@ -400,15 +204,15 @@ namespace Game.Cube
                 // The whole switch-touch corridor (every parallel dash) is clear of both booths, and meets the latch band.
                 Rect corridor = Corridor(d);
                 foreach (TrialBoothSpec other in spec.Booths)
-                    if (corridor.Overlaps(TempleOrderSpec.Grow(other.Footprint, 0.05f))) problems.Add($"{w}: a dash from its switch can hit a booth");
+                    if (corridor.Overlaps(TempleRoom.Grow(other.Footprint, 0.05f))) problems.Add($"{w}: a dash from its switch can hit a booth");
                 Rect band = LatchBand(d);
                 if (band.yMin > DashY - SwitchTouch || band.yMax < DashY + SwitchTouch) problems.Add($"{w}: its latch band misses a dash off the line");
-                if (band.Overlaps(TempleOrderSpec.Grow(booth.Footprint, TimeField.PlayerRadius))) problems.Add($"{w}: its latch band is behind the booth's wall");
+                if (band.Overlaps(TempleRoom.Grow(booth.Footprint, TimeField.PlayerRadius))) problems.Add($"{w}: its latch band is behind the booth's wall");
                 for (int j = i + 1; j < spec.Booths.Count; j++)
                 {
                     if (Vector2.Distance(d.FieldLocal, spec.Booths[j].Layout.FieldLocal) <= 2f * TimeField.FieldRadius)
                         problems.Add($"{w}: its field overlaps booth {j}'s");
-                    if (TempleOrderSpec.Grow(booth.Footprint, 0.5f).Overlaps(spec.Booths[j].Footprint)) problems.Add($"{w}: touches booth {j}");
+                    if (TempleRoom.Grow(booth.Footprint, 0.5f).Overlaps(spec.Booths[j].Footprint)) problems.Add($"{w}: touches booth {j}");
                 }
                 int room = FieldRoom(spec, d);
                 if (room < Required) problems.Add($"{w}: room for only {room} boulders in its field off the run");
@@ -422,7 +226,7 @@ namespace Game.Cube
                 {
                     if (Vector2.Distance(b, booth.Layout.FieldLocal) <= TimeField.FieldRadius + PhysicsPlan.FieldClearance)
                         problems.Add($"{w}: starts in a field");
-                    if (Touches(TempleOrderSpec.Grow(booth.Footprint, 0.3f), b, Boulder.Radius)) problems.Add($"{w}: starts against a booth");
+                    if (Touches(TempleRoom.Grow(booth.Footprint, 0.3f), b, Boulder.Radius)) problems.Add($"{w}: starts against a booth");
                     if (booth.Layout.HasSwitch && Vector2.Distance(b, booth.Layout.SwitchLocal) < PhysicsPlan.MinGap) problems.Add($"{w}: on a switch");
                 }
                 if (Touches(altar, b, Boulder.Radius)) problems.Add($"{w}: on the altar");

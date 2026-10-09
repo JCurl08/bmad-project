@@ -188,12 +188,23 @@ hitl = false
 risk = "low"
 
 [[entry]]
+id = 19
+type = "story"
+title = "Playtest 5 fixes"
+description = "Playtest 5: drop a held boulder on Interact whatever the facing; give the Town, Chemistry and Biology temples distinct standard puzzles (sliding-tile picture puzzle, Lights Out, birdsong Simon); move the top-left HUD panel so it no longer covers play."
+verify = "Tests: a held boulder drops on Interact in every facing; each new temple puzzle is solvable on seeds 1-50 (and 1-500 generation), solved with real input in play; the HUD stays out of the play area at 960x600; all suites and the sweep pass."
+covers = ["CAP-29"]
+after = [15]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 16
 type = "story"
 title = "itch.io release 2"
 description = "Runs the 50-seed sweep and full playtests against the epic's Done when, then the user builds, uploads and plays the WebGL build on the itch.io page."
 verify = "The sweep passes 50/50; the no-benefit boss skill check holds at 60-120 s; on the itch.io page in a fresh browser a run visits towns, repairs at least one face, finds the lair and the real portal, and upgrades persist after a tab reload."
 covers = []
-after = [15, "1.14"]
+after = [19, "1.14"]
 hitl = true
 risk = "medium"

@@ -256,6 +256,190 @@ namespace Game.Cube
             return sprite;
         }
 
+        // ------------------------------------------------------------------ 4.19: the crest, the crystals, the finches
+
+        /// <summary>The crest picture's size in pixels (3x3 pieces of CrestPiecePixels, 8 pixels a unit: 2 units a piece).</summary>
+        public const int CrestPixels = 48, CrestPiecePixels = 16;
+
+        /// <summary>
+        /// Town's crest (Town's temple, 4.19), the sliding picture: a purple-rimmed shield on parchment, quartered red, blue,
+        /// green and gold, a white roundel with the town hall at its heart, a gold crown above it and a red ribbon below. Every
+        /// 16-pixel piece shows a different part, so each tile reads on its own. Row 0 at the bottom (Texture2D).
+        /// </summary>
+        public static TownArt.Canvas CrestCanvas()
+        {
+            var c = new TownArt.Canvas(CrestPixels, CrestPixels, 0, 0);
+            c.Rect(0, 0, 47, 47, Cr);
+            // Corner flourishes on the parchment, so the corner pieces differ.
+            c.Rect(1, 46, 5, 46, Br); c.Rect(1, 42, 1, 46, Br);
+            c.Rect(42, 46, 46, 46, Br); c.Rect(46, 42, 46, 46, Br);
+            // The shield: a rim, then the quartered field, its point down to row 8.
+            for (int y = 8; y <= 41; y++)
+            {
+                int inset = y >= 18 ? 0 : (18 - y);
+                c.Rect(7 + inset, y, 40 - inset, y, Vi);
+                if (y < 10 || y > 39) continue;
+                int left = 9 + inset, right = 38 - inset;
+                if (left > right) continue;
+                bool top = y >= 25;
+                c.Rect(left, y, Mathf.Min(23, right), y, top ? Rd : Gr);
+                if (right >= 24) c.Rect(Mathf.Max(24, left), y, right, y, top ? Bl : Gs);
+            }
+            // A small mark in each quarter: a key (red), a star (blue), a leaf (green), a coin (gold).
+            c.Rect(12, 33, 18, 33, Gd); c.Rect(12, 31, 13, 33, Gd); c.Rect(17, 31, 17, 32, Gd);
+            c.Px(32, 35, W); c.Rect(31, 34, 33, 34, W); c.Px(32, 33, W);
+            c.Ellipse(15, 18, 3, 2, DGr); c.Line(13, 16, 17, 20, Gr);
+            c.Ellipse(32, 18, 2.5f, 2.5f, Gd); c.Px(32, 18, Or);
+            // The roundel and the town hall.
+            c.Ellipse(23.5f, 25f, 7.5f, 7.5f, W);
+            c.Rect(19, 20, 28, 26, Pg);
+            c.Triangle(18, 29, 27, 31, Vi);
+            c.Rect(22, 20, 25, 23, DSl);
+            c.Px(20, 24, DBl); c.Px(27, 24, DBl);
+            // The crown above.
+            c.Rect(16, 42, 31, 44, Gd);
+            foreach (int x in new[] { 16, 21, 26, 31 }) c.Rect(x, 45, x, 46, Gd);
+            c.Px(23, 43, Rd); c.Px(24, 43, Rd);
+            // The ribbon below.
+            c.Rect(2, 2, 45, 6, Rd);
+            c.Rect(2, 2, 45, 2, DRd);
+            for (int x = 6; x <= 42; x += 6) c.Px(x, 4, W);
+            return c;
+        }
+
+        private static Texture2D crestTexture;
+
+        private static Texture2D CrestTexture()
+        {
+            if (crestTexture != null) return crestTexture;
+            TownArt.Canvas c = CrestCanvas();
+            crestTexture = new Texture2D(c.Width, c.Height, TextureFormat.RGBA32, false)
+            {
+                name = "Temple Crest",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            crestTexture.SetPixels32(c.Pixels);
+            crestTexture.Apply();
+            return crestTexture;
+        }
+
+        /// <summary>The whole crest (the picture by the wall that shows the goal).</summary>
+        public static Sprite Crest()
+        {
+            const string key = "Temple Crest Whole";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            Sprite sprite = Sprite.Create(CrestTexture(), new Rect(0, 0, CrestPixels, CrestPixels), new Vector2(0.5f, 0.5f), TownLayout.PixelsPerUnit);
+            sprite.name = key;
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>The crest's piece for a tile: tile v (1-9) is the piece of cell v - 1 (row (v - 1) / 3 from the top).</summary>
+        public static Sprite CrestPiece(int tile)
+        {
+            string key = "Temple Crest " + tile;
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            int cell = Mathf.Clamp(tile, 1, 9) - 1;
+            int col = cell % 3, rowFromTop = cell / 3;
+            var rect = new Rect(col * CrestPiecePixels, (2 - rowFromTop) * CrestPiecePixels, CrestPiecePixels, CrestPiecePixels);
+            Sprite sprite = Sprite.Create(CrestTexture(), rect, new Vector2(0.5f, 0.5f), TownLayout.PixelsPerUnit);
+            sprite.name = key;
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>A crystal on its stand (Chemistry's temple, 4.19): lit, a warm gold-orange gem; dark, a dull slate one.</summary>
+        public static TownArt.Canvas CrystalCanvas(bool lit)
+        {
+            var c = new TownArt.Canvas(16, 22);
+            c.Rect(1, 0, 10, 2, Gy);
+            c.Rect(2, 3, 9, 3, Pg);
+            Color32 face = lit ? Gd : Sl, side = lit ? Or : DSl, tip = lit ? W : Gy;
+            for (int y = 4; y <= 16; y++)
+            {
+                int half = y <= 10 ? (y - 4) / 2 + 1 : (16 - y) / 2 + 1;
+                c.Rect(5 - half + 1, y, 5, y, face);
+                c.Rect(6, y, 6 + half - 1, y, side);
+            }
+            c.Px(4, 12, tip); c.Px(4, 13, tip); c.Px(5, 14, tip);
+            c.Outline();
+            return c;
+        }
+
+        public static Sprite Crystal(bool lit)
+        {
+            string key = "Temple Crystal " + (lit ? "Lit" : "Dark");
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            Sprite sprite = CrystalCanvas(lit).ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>The finches' colours (Biology's temple, 4.19): red, gold, blue, green.</summary>
+        public static Color32 FinchColor(int finch)
+        {
+            switch (((finch % 4) + 4) % 4)
+            {
+                case 0: return Rd;
+                case 1: return Gs;
+                case 2: return Bl;
+                default: return Gr;
+            }
+        }
+
+        /// <summary>
+        /// A finch statue on its plinth (Biology's temple, 4.19), side-on: its body in its colour, finch i with i + 1 crest
+        /// feathers (so each reads apart by shape too); singing, its beak is open and its breast lit white.
+        /// </summary>
+        public static TownArt.Canvas FinchCanvas(int finch, bool singing)
+        {
+            var c = new TownArt.Canvas(18, 22);
+            Color32 body = FinchColor(finch);
+            c.Rect(1, 0, 12, 3, Pg);
+            c.Rect(10, 0, 12, 3, Gy);
+            c.Rect(5, 4, 6, 5, Or);
+            c.Ellipse(6f, 9f, 5f, 3.6f, body);
+            c.Ellipse(8.5f, 13.5f, 2.8f, 2.8f, body);
+            c.Rect(0, 8, 2, 10, body);
+            c.Ellipse(5f, 8.5f, 3f, 1.8f, singing ? W : Cr);
+            c.Px(9, 14, O);
+            if (singing)
+            {
+                c.Rect(11, 15, 12, 15, Or);
+                c.Rect(11, 12, 12, 12, Or);
+            }
+            else c.Rect(11, 13, 12, 14, Or);
+            for (int f = 0; f <= ((finch % 4) + 4) % 4; f++) c.Rect(6 + f * 2, 16, 6 + f * 2, 17 + (f % 2), body);
+            c.Outline();
+            return c;
+        }
+
+        public static Sprite Finch(int finch, bool singing)
+        {
+            string key = $"Temple Finch {finch % 4} {(singing ? "Singing" : "Still")}";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            Sprite sprite = FinchCanvas(finch, singing).ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>A note rising from a singing finch, in its colour.</summary>
+        public static Sprite Note(int finch)
+        {
+            string key = "Temple Note " + finch % 4;
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            var c = new TownArt.Canvas(9, 12);
+            Color32 col = FinchColor(finch);
+            c.Ellipse(1.5f, 1.5f, 1.8f, 1.4f, col);
+            c.Rect(3, 1, 3, 7, col);
+            c.Px(4, 7, col); c.Px(4, 6, col); c.Px(5, 5, col);
+            c.Outline();
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
         /// <summary>Every temple pixel canvas (tests check the pixel style of each).</summary>
         public static IEnumerable<TownArt.Canvas> AllCanvases()
         {

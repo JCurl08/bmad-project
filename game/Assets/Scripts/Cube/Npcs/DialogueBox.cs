@@ -131,6 +131,13 @@ namespace Game.Cube
             Closed?.Invoke(this);
         }
 
+        /// <summary>The box's panel on a screen (pixels, GUI y down): centred, along the bottom 150 px (4.19 review: layout tests).</summary>
+        public static Rect PanelRect(float screenWidth, float screenHeight)
+        {
+            float width = Mathf.Min(screenWidth - 32f, 760f);
+            return new Rect((screenWidth - width) / 2f, screenHeight - 150f, width, 134f);
+        }
+
         private void OnGUI()
         {
             if (!IsOpen) return;
@@ -141,8 +148,7 @@ namespace Game.Cube
                 nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
                 nameStyle.normal.textColor = new Color(1f, 0.85f, 0.4f);
             }
-            float width = Mathf.Min(Screen.width - 32f, 760f);
-            var rect = new Rect((Screen.width - width) / 2f, Screen.height - 150f, width, 134f);
+            Rect rect = PanelRect(Screen.width, Screen.height);
             GUI.color = new Color(0f, 0f, 0f, 0.8f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = Color.white;

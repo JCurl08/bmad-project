@@ -28,6 +28,9 @@ namespace Game.Cube
     /// follows the player (Boulder), and is let go on a second press, when the mitt is no longer equipped, or when
     /// the player gets too far from it (stuck on a wall, or the player left the screen). Without the mitt a boulder
     /// cannot be moved at all. A HUD line says what the mitt is doing.
+    /// 4.19 (playtest 5): Interact while holding a boulder always drops it, whichever way the player faces, and never
+    /// refuses: the press is the mitt's (an NPC in talking range yields to it), and the boulder is set down where it is when
+    /// that spot is free, else at the nearest free spot round the player (DropSpot). Grabbing is unchanged.
     /// </summary>
     [RequireComponent(typeof(Inventory), typeof(Rigidbody2D))]
     public class MassMitt : MonoBehaviour
@@ -174,11 +177,7 @@ namespace Game.Cube
                 if (attack.SwingCount == handledSwing) return false;
                 handledSwing = attack.SwingCount;
             }
-            if (held != null)
-            {
-                Release();
-                return true;
-            }
+            if (held != null) return Drop(); // 4.19 review: a swing drops it as E does (set down at a free spot)
             Boulder target = attack != null ? NearestInHitbox(attack) : null;
             return Grab(target != null ? target : boulder);
         }
@@ -204,16 +203,113 @@ namespace Game.Cube
             return best;
         }
 
-        /// <summary>An Interact press: lets go of the held boulder, else grabs the nearest one in range. Returns true if it did either.</summary>
+        /// <summary>An Interact press: drops the held boulder (Drop), else grabs the nearest one in range. Returns true if it did either.</summary>
         public bool Interact()
         {
-            if (held != null)
-            {
-                Release();
-                return true;
-            }
+            if (held != null) return Drop();
             Boulder nearest = Nearest();
             return nearest != null && Grab(nearest);
+        }
+
+        /// <summary>Rings tried round the player for a drop: from just clear of the player, DropStep apart, out to DropReach.</summary>
+        public const float DropStep = 0.3f, DropReach = 3.6f;
+
+        /// <summary>Directions tried on each ring.</summary>
+        public const int DropDirections = 16;
+
+        /// <summary>Where the last drop set the boulder down (world).</summary>
+        public Vector2 LastDropSpot { get; private set; }
+
+        /// <summary>
+        /// 4.19: lets go of the held boulder and sets it down (DropSpot), whichever way the player faces. Never refuses:
+        /// with no free spot at all it stays where it is. True when a boulder was held.
+        /// </summary>
+        public bool Drop()
+        {
+            Boulder boulder = held;
+            if (boulder == null) return false;
+            Release();
+            Vector2 spot = DropSpot(boulder);
+            if ((spot - boulder.Position).sqrMagnitude > 1e-8f) boulder.Teleport(spot);
+            LastDropSpot = spot;
+            return true;
+        }
+
+        /// <summary>
+        /// Where a dropped boulder goes: where it is, when that spot is free (FreeForBoulder) and within GrabRange; else the
+        /// nearest free spot round the player (rings outward from just clear of the player's body, on each ring the direction
+        /// nearest the boulder's own first) with a clear line from the player; else where it is.
+        /// </summary>
+        public Vector2 DropSpot(Boulder boulder)
+        {
+            Vector2 at = boulder.Position, me = Body.position;
+            if (Vector2.Distance(at, me) <= GrabRange && FreeForBoulder(boulder, at)) return at;
+            float start = PlayerReach() + Boulder.Radius + 0.05f;
+            Vector2 toward = at - me;
+            float baseAngle = toward.sqrMagnitude > 1e-6f ? Mathf.Atan2(toward.y, toward.x) : -Mathf.PI / 2f;
+            for (float r = start; r <= DropReach + 1e-4f; r += DropStep)
+                for (int k = 0; k < DropDirections; k++)
+                {
+                    // 0, +1, -1, +2, -2 ... steps from the boulder's own direction.
+                    int step = (k + 1) / 2 * (k % 2 == 1 ? 1 : -1);
+                    float a = baseAngle + step * (2f * Mathf.PI / DropDirections);
+                    Vector2 p = me + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                    if (FreeForBoulder(boulder, p) && LineClear(boulder, me, p)) return p;
+                }
+            return at;
+        }
+
+        /// <summary>The player's body radius (its widest collider's extent), for the first drop ring.</summary>
+        private float PlayerReach()
+        {
+            float reach = 0f;
+            foreach (Collider2D c in Colliders)
+                if (c != null && !c.isTrigger) reach = Mathf.Max(reach, Mathf.Max(c.bounds.extents.x, c.bounds.extents.y));
+            return reach > 0f ? reach : TimeField.PlayerRadius;
+        }
+
+        /// <summary>
+        /// True when a boulder could stand at p: inside its bounds, and its circle touching nothing solid (walls, doors,
+        /// other boulders, people, the player) nor a timed door's doorway (BoulderBlocker).
+        /// </summary>
+        public static bool FreeForBoulder(Boulder boulder, Vector2 p)
+        {
+            if (boulder.Bounds.HasValue && !boulder.Bounds.Value.Contains(p)) return false;
+            foreach (Collider2D c in Physics2D.OverlapCircleAll(p, Boulder.Radius * 0.98f))
+            {
+                if (c == null || !c.enabled || c == boulder.Circle) continue;
+                if (c.isTrigger && c.GetComponent<BoulderBlocker>() == null) continue;
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// True when the boulder could be carried from the player's centre to a spot (4.19 review): its circle cast along the
+        /// way meets nothing solid but the player and itself, nor a timed door's doorway (BoulderBlocker), as Boulder.Follow
+        /// moves it. Something already touching at the start blocks only a move deeper into it.
+        /// </summary>
+        private bool LineClear(Boulder boulder, Vector2 from, Vector2 to)
+        {
+            Vector2 delta = to - from;
+            float distance = delta.magnitude;
+            if (distance < 1e-4f) return true;
+            Vector2 dir = delta / distance;
+            foreach (RaycastHit2D hit in Physics2D.CircleCastAll(from, Boulder.Radius * 0.98f, dir, distance))
+            {
+                Collider2D c = hit.collider;
+                if (c == null || !c.enabled || c == boulder.Circle) continue;
+                if (c.isTrigger && c.GetComponent<BoulderBlocker>() == null) continue;
+                if (c.attachedRigidbody != null && c.attachedRigidbody == Body) continue;
+                if (hit.distance <= 0f)
+                {
+                    Vector2 toOther = c.ClosestPoint(from) - from;
+                    if (toOther.sqrMagnitude < 1e-8f) toOther = (Vector2)c.bounds.center - from;
+                    if (Vector2.Dot(dir, toOther) <= 0f) continue;
+                }
+                return false;
+            }
+            return true;
         }
 
         /// <summary>A swing (or press) aimed at a boulder: lets go of it if held, else grabs it. Returns true if it did either.</summary>

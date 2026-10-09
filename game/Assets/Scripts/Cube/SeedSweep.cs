@@ -705,7 +705,7 @@ namespace Game.Cube
                 what += ", Town's lost-and-found trail completable (2-3 townsfolk on different reachable screens off the square, a favour " +
                         "helper, every line in the text rule) and one sound errand in every town";
             if (templesChecked)
-                what += ", every temple's puzzle (islands, ice or wind, booths, or targets in order) solvable from its doorway inside the late tier's targets";
+                what += ", every temple's puzzle (islands, ice or wind, booths, a sliding crest, crystals or a finch song) solvable from its doorway inside the late tier's targets";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

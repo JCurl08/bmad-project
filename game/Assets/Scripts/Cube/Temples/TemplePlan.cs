@@ -21,14 +21,14 @@ namespace Game.Cube
         /// <summary>Physics: two booths behind timed doors sharing three boulders (PhysicsTrial, TempleBooths).</summary>
         Booths = 3,
 
-        /// <summary>Chemistry: six glowing stones struck from the brightest to the faintest, against a timer (TempleOrderSpec).</summary>
-        StoneOrder = 4,
+        /// <summary>Chemistry (4.19): Lights Out on a 5x3 bank of crystals (TempleLights); a strike flips a crystal and its neighbours.</summary>
+        Lights = 4,
 
-        /// <summary>Biology: six seeds cracked from the smallest to the largest (TempleOrderSpec).</summary>
-        SeedOrder = 5,
+        /// <summary>Biology (4.19): birdsong Simon with four finch statues (TempleSong); a wrong note replays the round.</summary>
+        Song = 5,
 
-        /// <summary>Town (assumption: Town has no puzzle of its own): four mixed tokens struck by their pips, fewest first.</summary>
-        TownOrder = 6,
+        /// <summary>Town (4.19): a 3x3 sliding-tile picture of the town crest (TempleSliding); strike a tile beside the gap.</summary>
+        Sliding = 6,
     }
 
     /// <summary>
@@ -36,8 +36,10 @@ namespace Game.Cube
     /// face's hardest tier in the research note) and its layout or spec, all from the run seed and the face on their own
     /// stream (RngStreams.Temples), so the game, the sweep and the tests make the same puzzle. Every kind is either searched
     /// and kept only once its solver finds no problem (islands, ice, wind: their generators' own checks, with a hand-checked
-    /// temple template past the budget) or dealt so it is solvable by construction (booths and targets: Problems re-proves
-    /// the timing, reach and order). The room it stands in is a whole screen off the net (TempleRooms) with one doorway, south.
+    /// temple template past the budget), dealt so it is solvable by construction (booths: Problems re-proves the timing and
+    /// reach), or (4.19) made by legal moves from the solved state and measured by a breadth-first search (the sliding
+    /// picture, the crystals) or dealt and checked (the song). The room it stands in is a whole screen off the net
+    /// (TempleRooms) with one doorway, south.
     /// </summary>
     public sealed class TemplePuzzle
     {
@@ -53,13 +55,16 @@ namespace Game.Cube
         public IceLayout Ice { get; }
         public WindLayout Wind { get; }
         public PhysicsTrialSpec Booths { get; }
-        public TempleOrderSpec Order { get; }
+        public TempleSliding Sliding { get; }
+        public TempleLights Lights { get; }
+        public TempleSong Song { get; }
 
         /// <summary>True when a hand-checked temple template stood in for the search (the sweep reports it).</summary>
         public bool FromTemplate { get; }
 
         public TemplePuzzle(int seed, FaceId face, Theme theme, TemplePuzzleKind kind, IslandLayout islands = null, IceLayout ice = null,
-            WindLayout wind = null, PhysicsTrialSpec booths = null, TempleOrderSpec order = null, bool fromTemplate = false)
+            WindLayout wind = null, PhysicsTrialSpec booths = null, TempleSliding sliding = null, TempleLights lights = null,
+            TempleSong song = null, bool fromTemplate = false)
         {
             Seed = seed;
             Face = face;
@@ -69,7 +74,9 @@ namespace Game.Cube
             Ice = ice;
             Wind = wind;
             Booths = booths;
-            Order = order;
+            Sliding = sliding;
+            Lights = lights;
+            Song = song;
             FromTemplate = fromTemplate;
         }
 
@@ -94,8 +101,8 @@ namespace Game.Cube
         /// <summary>
         /// Problems with the puzzle (empty when it is solvable inside its tier's targets from the temple's one doorway): the
         /// islands' own checks (geometry, every target, solvable), the ice's and wind's (every target from the south doorway,
-        /// no hard traps), the booths' timing and reach (TempleBooths.Problems) or the targets' order and timer
-        /// (TempleOrderSpec.Problems); and the kind matches the face's theme.
+        /// no hard traps), the booths' timing and reach (TempleBooths.Problems), or 4.19's tiles, crystals and song (their
+        /// searched optimal lengths and placement: TempleSliding, TempleLights, TempleSong); and the kind matches the theme.
         /// </summary>
         public List<string> Problems()
         {
@@ -137,9 +144,17 @@ namespace Game.Cube
                     if (Booths == null) problems.Add($"{what}: no booths");
                     else problems.AddRange(TempleBooths.Problems(what, Booths));
                     break;
+                case TemplePuzzleKind.Sliding:
+                    if (Sliding == null) problems.Add($"{what}: no tiles");
+                    else problems.AddRange(Sliding.Problems(what));
+                    break;
+                case TemplePuzzleKind.Lights:
+                    if (Lights == null) problems.Add($"{what}: no crystals");
+                    else problems.AddRange(Lights.Problems(what));
+                    break;
                 default:
-                    if (Order == null) problems.Add($"{what}: no targets");
-                    else problems.AddRange(Order.Problems(what));
+                    if (Song == null) problems.Add($"{what}: no song");
+                    else problems.AddRange(Song.Problems(what));
                     break;
             }
             return problems;
@@ -154,7 +169,9 @@ namespace Game.Cube
                 case TemplePuzzleKind.Ice: return Ice?.Measure(Facing.South).ToString() ?? "-";
                 case TemplePuzzleKind.Wind: return Wind?.Measure(Facing.South).ToString() ?? "-";
                 case TemplePuzzleKind.Booths: return Booths != null ? TempleBooths.Stats(Booths) : "-";
-                default: return Order?.Stats() ?? "-";
+                case TemplePuzzleKind.Sliding: return Sliding?.Stats() ?? "-";
+                case TemplePuzzleKind.Lights: return Lights?.Stats() ?? "-";
+                default: return Song?.Stats() ?? "-";
             }
         }
 
@@ -168,7 +185,9 @@ namespace Game.Cube
                 case TemplePuzzleKind.Ice: sb.Append(Ice?.Signature()); break;
                 case TemplePuzzleKind.Wind: sb.Append(Wind?.Signature()); break;
                 case TemplePuzzleKind.Booths: sb.Append(Booths != null ? TempleBooths.Signature(Booths) : "-"); break;
-                default: sb.Append(Order?.Signature()); break;
+                case TemplePuzzleKind.Sliding: sb.Append(Sliding?.Signature()); break;
+                case TemplePuzzleKind.Lights: sb.Append(Lights?.Signature()); break;
+                default: sb.Append(Song?.Signature()); break;
             }
             return sb.Append(']').ToString();
         }
@@ -208,9 +227,9 @@ namespace Game.Cube
                 case Theme.Math: return new List<TemplePuzzleKind> { TemplePuzzleKind.Islands };
                 case Theme.EarthAtmosphere: return new List<TemplePuzzleKind> { TemplePuzzleKind.Ice, TemplePuzzleKind.Wind };
                 case Theme.Physics: return new List<TemplePuzzleKind> { TemplePuzzleKind.Booths };
-                case Theme.Chemistry: return new List<TemplePuzzleKind> { TemplePuzzleKind.StoneOrder };
-                case Theme.Biology: return new List<TemplePuzzleKind> { TemplePuzzleKind.SeedOrder };
-                default: return new List<TemplePuzzleKind> { TemplePuzzleKind.TownOrder };
+                case Theme.Chemistry: return new List<TemplePuzzleKind> { TemplePuzzleKind.Lights };
+                case Theme.Biology: return new List<TemplePuzzleKind> { TemplePuzzleKind.Song };
+                default: return new List<TemplePuzzleKind> { TemplePuzzleKind.Sliding };
             }
         }
 
@@ -262,8 +281,21 @@ namespace Game.Cube
                 }
                 case TemplePuzzleKind.Booths:
                     return new TemplePuzzle(seed, face, theme, kind, booths: TempleBooths.Deal(rng));
+                case TemplePuzzleKind.Sliding:
+                {
+                    TempleSliding tiles = TempleSliding.Deal(rng);
+                    return new TemplePuzzle(seed, face, theme, kind, sliding: tiles, fromTemplate: tiles.FromTemplate);
+                }
+                case TemplePuzzleKind.Lights:
+                {
+                    TempleLights lights = TempleLights.Deal(rng);
+                    return new TemplePuzzle(seed, face, theme, kind, lights: lights, fromTemplate: lights.FromTemplate);
+                }
                 default:
-                    return new TemplePuzzle(seed, face, theme, kind, order: TempleOrderSpec.Deal(rng, kind));
+                {
+                    TempleSong song = TempleSong.Deal(rng);
+                    return new TemplePuzzle(seed, face, theme, kind, song: song, fromTemplate: song.FromTemplate);
+                }
             }
         }
 
@@ -317,7 +349,7 @@ namespace Game.Cube
         /// <summary>The temple rooms' row of screens below the faces (arena -3, town rooms -6, lair rooms -9).</summary>
         public const int RoomRow = -12;
 
-        /// <summary>Where the gem rises in a booth or target temple (local): by the north wall, on the altar.</summary>
+        /// <summary>Where the gem rises in a booth, tile, crystal or finch temple (local): by the north wall, on the altar.</summary>
         public static readonly Vector2 AltarSpot = new Vector2(0f, 5f);
 
         /// <summary>The altar's footprint (local): art only, nothing solid.</summary>
@@ -349,7 +381,10 @@ namespace Game.Cube
         /// <summary>The room's solid walls (local): every edge whole but the south one, which has its doorway.</summary>
         public static List<Rect> Walls => ScreenEdges.SolidRects(3, new Vector2Int(1, 1), TemplePlan.SouthOnly);
 
-        /// <summary>The lane in from the doorway that a booth or target temple keeps clear (local).</summary>
+        /// <summary>The lane in from the doorway that a booth, tile, crystal or finch temple keeps clear (local).</summary>
         public static Rect EntryLane => Rect.MinMaxRect(-2f, Floor.yMin, 2f, -3f);
+
+        /// <summary>A rect grown by a margin on every side (shrunk when negative).</summary>
+        public static Rect Grow(Rect r, float by) => Rect.MinMaxRect(r.xMin - by, r.yMin - by, r.xMax + by, r.yMax + by);
     }
 }

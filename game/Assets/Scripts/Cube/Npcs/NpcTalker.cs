@@ -159,6 +159,7 @@ namespace Game.Cube
         {
             if (Spec == null || lines.Count == 0 || !PlayerInRange()) return false;
             if (PlayerDead()) return false; // a dead player has no control, talking included
+            if (PlayerHoldsBoulder()) return false; // 4.19: the press drops the boulder (MassMitt), never opens a talk
             DialogueBox target = Box;
             if (target.IsOpen || target.ClosedFrame == Time.frameCount) return false;
             if (!IsNearestInRange()) return false;
@@ -185,6 +186,14 @@ namespace Game.Cube
                 if (theirs < mine || (Mathf.Approximately(theirs, mine) && Active.IndexOf(other) < Active.IndexOf(this))) return false;
             }
             return true;
+        }
+
+        /// <summary>True while the player holds a boulder (4.19: Interact then belongs to the Heavy Mitt*'s drop).</summary>
+        private bool PlayerHoldsBoulder()
+        {
+            Transform target = ResolvePlayer();
+            MassMitt mitt = target != null ? target.GetComponentInParent<MassMitt>() : null;
+            return mitt != null && mitt.isActiveAndEnabled && mitt.Held != null;
         }
 
         /// <summary>True if the player has a Health and it is dead.</summary>

@@ -11,7 +11,8 @@ namespace Game.Cube.Tests
     /// <summary>
     /// The temples (4.14), pure: every face's temple holds a hard version of its own puzzle (late tier), solvable from its
     /// one doorway on seeds 1-50 and, where it is generated (islands, ice, wind), on seeds 1-500 with no template; the
-    /// hand-checked templates hold every target; the dealt puzzles (booths, targets) prove their timing, order and room;
+    /// hand-checked templates hold every target; the dealt booths prove their timing and room; 4.19's sliding crest,
+    /// crystals and finch song over seeds 1-500, with an independent check of the search (IDA*, every strike set);
     /// a hand-in unseals and only the gem repairs (and gives the benefit); the quest log follows; the town's temple, its
     /// art and its return point; the rooms off the net; and the words keep the text rule.
     /// </summary>
@@ -89,30 +90,202 @@ namespace Game.Cube.Tests
             CollectionAssert.IsEmpty(new TemplePuzzle(1, FaceId.Front, Theme.EarthAtmosphere, TemplePuzzleKind.Ice, ice: TempleTemplates.Ice(), fromTemplate: true).Problems());
         }
 
+        // ---------------------------------------------------------------- 4.19: the sliding crest, the crystals, the finches
+
         [Test]
-        public void TheOrderingTemples_OverSeeds1To500_KeepTheirRule_Spacing_AndTimer()
+        public void TheSlidingCrest_OverSeeds1To500_IsAScrambleOfLegalMoves_OptimalIn14To18_AndItsSolutionSolvesIt()
         {
-            foreach (TemplePuzzleKind kind in new[] { TemplePuzzleKind.SeedOrder, TemplePuzzleKind.StoneOrder, TemplePuzzleKind.TownOrder })
-                for (int seed = 1; seed <= 500; seed++)
-                {
-                    TempleOrderSpec spec = TempleOrderSpec.Deal(TemplePlan.RngFor(seed, FaceId.Top), kind);
-                    CollectionAssert.IsEmpty(spec.Problems($"{kind} seed {seed}"));
-                    Assert.AreEqual(TempleOrderSpec.CountFor(kind), spec.Count);
-                    if (kind == TemplePuzzleKind.StoneOrder)
-                        Assert.GreaterOrEqual(spec.TimerSeconds, TempleOrderSpec.TimerSlack * spec.TimedRouteSeconds, "T at least 1.5x the best route");
-                    else Assert.AreEqual(0f, spec.TimerSeconds);
-                }
-            // The late column: six targets for the faces' own, a timer for the stones; Town's is short.
-            Assert.GreaterOrEqual(TempleOrderSpec.SeedCount, 5);
-            Assert.GreaterOrEqual(TempleOrderSpec.StoneCount, 5);
-            Assert.Less(TempleOrderSpec.TownCount, TempleOrderSpec.SeedCount);
-            // A broken rule is caught.
-            TempleOrderSpec good = TempleOrderSpec.Deal(TemplePlan.RngFor(3, FaceId.Top), TemplePuzzleKind.SeedOrder);
-            var marks = good.Marks.ToList();
-            marks.Reverse();
-            var bad = new TempleOrderSpec(good.Kind, good.Spots.ToList(), marks, good.Looks.ToList(), 0f);
-            Assert.IsTrue(bad.Problems("bad").Any(p => p.Contains("rule")));
+            // The search itself: every board reachable from the solved picture (half the orderings), the hardest 31 moves.
+            Assert.AreEqual(0, TempleSliding.Distance(TempleSliding.Solved()));
+            Assert.AreEqual(-1, TempleSliding.Distance(new[] { 2, 1, 3, 4, 5, 6, 7, 8, 0 }), "one swap away: never solvable");
+            Assert.AreEqual(1, TempleSliding.Distance(new[] { 1, 2, 3, 4, 5, 6, 7, 0, 8 }));
+            var lengths = new Dictionary<int, int>();
+            int minWalk = int.MaxValue, maxWalk = 0;
+            for (int seed = 1; seed <= 500; seed++)
+            {
+                TempleSliding t = TempleSliding.Deal(TemplePlan.RngFor(seed, FaceId.Front));
+                Assert.IsFalse(t.FromTemplate, $"seed {seed}: from the walk");
+                CollectionAssert.IsEmpty(t.Problems($"seed {seed}"));
+                int d = t.OptimalMoves;
+                Assert.That(d, Is.InRange(TempleSliding.MinMoves, TempleSliding.MaxMoves));
+                Assert.GreaterOrEqual(t.WalkMoves, d, "made by at least as many legal moves");
+                lengths[d] = lengths.TryGetValue(d, out int c) ? c + 1 : 1;
+                minWalk = Mathf.Min(minWalk, t.WalkMoves);
+                maxWalk = Mathf.Max(maxWalk, t.WalkMoves);
+                // An independent check of the optimal length on the first seeds: iterative deepening (IDA*, Manhattan).
+                if (seed <= 12) Assert.AreEqual(d, IdaStar(t.Tiles.ToArray()), $"seed {seed}: IDA* agrees");
+            }
+            Assert.AreEqual(16, new TempleSliding(TempleSliding.TemplateTiles, 0, true).OptimalMoves, "the template is 16 moves");
+            CollectionAssert.IsEmpty(new TempleSliding(TempleSliding.TemplateTiles, 0, true).Problems("template"));
+            Debug.Log($"Sliding crest, seeds 1-500: optimal lengths {string.Join(", ", lengths.OrderBy(e => e.Key).Select(e => $"{e.Key}: {e.Value}"))}; " +
+                      $"walks {minWalk}-{maxWalk}; seed 1: {TempleSliding.Deal(TemplePlan.RngFor(1, FaceId.Front)).Stats()}");
         }
+
+        /// <summary>IDA* with the Manhattan distance (admissible): the optimal number of slides, found without the table.</summary>
+        private static int IdaStar(int[] start)
+        {
+            int bound = Manhattan(start);
+            while (bound <= 31)
+            {
+                int next = Search(start, 0, bound, -1);
+                if (next < 0) return -next - 1;
+                bound = next;
+            }
+            return -1;
+        }
+
+        private static int Search(int[] t, int g, int bound, int previousGap)
+        {
+            int f = g + Manhattan(t);
+            if (f > bound) return f;
+            if (TempleSliding.IsSolved(t)) return -(g + 1);
+            int min = int.MaxValue;
+            int gap = TempleSliding.GapOf(t);
+            foreach (int cell in TempleSliding.Neighbours(gap))
+            {
+                if (cell == previousGap) continue;
+                int r = Search(TempleSliding.Slide(t, cell), g + 1, bound, gap);
+                if (r < 0) return r;
+                min = Mathf.Min(min, r);
+            }
+            return min;
+        }
+
+        private static int Manhattan(int[] t)
+        {
+            int m = 0;
+            for (int i = 0; i < t.Length; i++)
+            {
+                if (t[i] == 0) continue;
+                int home = t[i] - 1;
+                m += Mathf.Abs(home / 3 - i / 3) + Mathf.Abs(home % 3 - i % 3);
+            }
+            return m;
+        }
+
+        [Test]
+        public void TheCrystals_OverSeeds1To500_AreLitIn6To7Strikes_ByTheSearch_AndByEveryStrikeSet()
+        {
+            (int boards, int hardest) = TempleLights.Reach();
+            Assert.AreEqual(4096, boards, "the 5x3 bank: 4,096 boards can be lit");
+            Assert.AreEqual(8, hardest, "the hardest needs 8 strikes");
+            Assert.AreEqual(0, TempleLights.LeastStrikes(TempleLights.AllLit));
+            // A strike flips the crystal and those beside it (a corner: three; the middle: five).
+            Assert.AreEqual(3, TempleLights.LitCount(TempleLights.Flips(0)));
+            Assert.AreEqual(5, TempleLights.LitCount(TempleLights.Flips(7)));
+            var least = new Dictionary<int, int>();
+            for (int seed = 1; seed <= 500; seed++)
+            {
+                TempleLights l = TempleLights.Deal(TemplePlan.RngFor(seed, FaceId.Left));
+                Assert.IsFalse(l.FromTemplate, $"seed {seed}: dealt");
+                CollectionAssert.IsEmpty(l.Problems($"seed {seed}"));
+                int d = l.LeastStrikesToSolve;
+                Assert.That(d, Is.InRange(TempleLights.MinStrikes, TempleLights.MaxStrikes));
+                least[d] = least.TryGetValue(d, out int c) ? c + 1 : 1;
+                // An independent check on the first seeds: every set of strikes (2^15, order does not matter, a crystal
+                // struck twice is not struck), the fewest that light it all.
+                if (seed <= 12) Assert.AreEqual(d, LeastByEveryStrikeSet(l.Start), $"seed {seed}: the strike sets agree");
+            }
+            CollectionAssert.IsEmpty(new TempleLights(Template(), TempleLights.TemplateStrikes, true).Problems("template"));
+            Debug.Log($"Crystals, seeds 1-500: least strikes {string.Join(", ", least.OrderBy(e => e.Key).Select(e => $"{e.Key}: {e.Value}"))}; " +
+                      $"seed 1: {TempleLights.Deal(TemplePlan.RngFor(1, FaceId.Left)).Stats()}");
+        }
+
+        private static int Template()
+        {
+            int b = TempleLights.AllLit;
+            foreach (int i in TempleLights.TemplateStrikes) b = TempleLights.Strike(b, i);
+            return b;
+        }
+
+        private static int LeastByEveryStrikeSet(int board)
+        {
+            int best = -1;
+            for (int set = 0; set < 1 << TempleLights.Count; set++)
+            {
+                int b = board, n = 0;
+                for (int i = 0; i < TempleLights.Count; i++)
+                    if ((set & (1 << i)) != 0)
+                    {
+                        b = TempleLights.Strike(b, i);
+                        n++;
+                    }
+                if (b == TempleLights.AllLit && (best < 0 || n < best)) best = n;
+            }
+            return best;
+        }
+
+        [Test]
+        public void TheFinchSong_OverSeeds1To500_IsSixNotes_NoFinchTwiceInARow_EverySingerUsed_AndEachFinchStruckAlone()
+        {
+            var firsts = new int[TempleSong.Finches];
+            for (int seed = 1; seed <= 500; seed++)
+            {
+                TempleSong song = TempleSong.Deal(TemplePlan.RngFor(seed, FaceId.Bottom));
+                Assert.IsFalse(song.FromTemplate, $"seed {seed}: dealt");
+                CollectionAssert.IsEmpty(song.Problems($"seed {seed}"));
+                Assert.AreEqual(TempleSong.Length, song.Notes.Count);
+                firsts[song.Notes[0]]++;
+            }
+            foreach (int n in firsts) Assert.Greater(n, 60, "every finch starts some songs");
+            // The rounds: 3, 4, 5, 6 notes (18 strikes), a replay well inside the late tier's cheap retry.
+            Assert.AreEqual(4, TempleSong.Rounds);
+            Assert.AreEqual(18, TempleSong.TotalStrikes);
+            Assert.LessOrEqual(TempleSong.SongSeconds(TempleSong.Length), 12f);
+            CollectionAssert.IsEmpty(new TempleSong(TempleSong.TemplateNotes, true).Problems("template"));
+            Assert.IsTrue(new TempleSong(new[] { 0, 0, 1, 2, 3, 1 }).Problems("bad").Any(p => p.Contains("same finch")));
+            Assert.IsTrue(new TempleSong(new[] { 0, 1, 0, 1, 0, 1 }).Problems("bad").Any(p => p.Contains("never sings")));
+            Debug.Log($"Finch song: {TempleSong.Deal(TemplePlan.RngFor(1, FaceId.Bottom)).Stats()}");
+        }
+
+        [Test]
+        public void TheNewTempleArt_ReadsApart()
+        {
+            // Nine different crest pieces, so every tile is its own.
+            var pieces = new HashSet<string>();
+            TownArt.Canvas crest = TempleArt.CrestCanvas();
+            for (int cell = 0; cell < 9; cell++)
+            {
+                int col = cell % 3, row = 2 - cell / 3;
+                var px = new List<string>();
+                for (int y = 0; y < 16; y++)
+                    for (int x = 0; x < 16; x++)
+                    {
+                        Color32 c = crest.Pixels[(row * 16 + y) * crest.Width + col * 16 + x];
+                        px.Add($"{c.r},{c.g},{c.b}");
+                    }
+                Assert.IsTrue(pieces.Add(string.Join(";", px)), $"crest piece {cell} is its own");
+                Sprite piece = TempleArt.CrestPiece(cell + 1);
+                Assert.AreEqual(FilterMode.Point, piece.texture.filterMode);
+                Assert.AreEqual(2f, piece.rect.width / piece.pixelsPerUnit, 1e-4f, "a piece is 2 units across");
+            }
+            // The crystals: where lit and dark differ, lit reads much brighter.
+            TownArt.Canvas lit = TempleArt.CrystalCanvas(true), dark = TempleArt.CrystalCanvas(false);
+            float litSum = 0f, darkSum = 0f;
+            int differ = 0;
+            for (int i = 0; i < lit.Pixels.Length; i++)
+            {
+                if (lit.Pixels[i].Equals(dark.Pixels[i])) continue;
+                litSum += Luminance(lit.Pixels[i]);
+                darkSum += Luminance(dark.Pixels[i]);
+                differ++;
+            }
+            Assert.Greater(differ, 40, "the gem itself changes");
+            Assert.Greater(litSum / differ, darkSum / differ + 0.25f, "lit vs dark");
+            // The finches: four looks, each singing look apart from its still one.
+            var finches = new HashSet<string>();
+            for (int f = 0; f < TempleSong.Finches; f++)
+            {
+                Assert.IsTrue(finches.Add(Pixels(TempleArt.FinchCanvas(f, false))), $"finch {f} looks its own");
+                Assert.AreNotEqual(Pixels(TempleArt.FinchCanvas(f, false)), Pixels(TempleArt.FinchCanvas(f, true)), $"finch {f} sings visibly");
+                Assert.AreEqual(TownLayout.PixelsPerUnit, TempleArt.Finch(f, true).pixelsPerUnit);
+                Assert.IsNotNull(TempleArt.Note(f));
+            }
+        }
+
+        private static string Pixels(TownArt.Canvas c) => string.Join(";", c.Pixels.Select(p => $"{p.r},{p.g},{p.b},{p.a}"));
+
+        private static float Luminance(Color32 p) => (0.2126f * p.r + 0.7152f * p.g + 0.0722f * p.b) / 255f;
 
         [Test]
         public void ThePhysicsTemple_EveryVariant_OpensWithThreeBoulders_AndShutsEarlyWithTwo()

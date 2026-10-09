@@ -1,6 +1,6 @@
 # Player guide: how a run works
 
-This describes the game as of commit `bc5678d` (Epic 4 through 4.18). Names ending in `*` are placeholders until the naming brainstorm.
+This describes the game as of commit `bc5678d` (Epic 4 through 4.18), plus 4.19 (playtest 5 fixes: new Town, Greenwood\* and Ember Vale\* temple puzzles, dropping boulders with E, and the slimmer debug overlay). Names ending in `*` are placeholders until the naming brainstorm.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
@@ -48,7 +48,7 @@ Every science face has a colour and a race of people:
 |---|---|---|---|---|
 | Greenwood\* | Green | Finches | Thin Beak\* or Thick Beak\* (one each run) | Thin: distant buttons and flowers. Thick: pots and rocks. |
 | Ember Vale\* | Red | Mushroom folk | Glowstone\*, Wildstone\* or Leadstone\* (one each run) | Glow: dark rooms. Wild: cracked walls. Lead: pressure plates. |
-| Weightlands\* | Blue | Alien folk | Heavy Mitt\* | Pick up boulders (E) and pile them by **timed doors**, then hit the door's switch and run. More boulders keep the door open longer. |
+| Weightlands\* | Blue | Alien folk | Heavy Mitt\* | Pick up boulders (E) and pile them by **timed doors**, then hit the door's switch and run. More boulders keep the door open longer. **E always drops the boulder you hold**, whichever way you face: it is set down where it is, or on the nearest free spot beside you. |
 | Bridgelands\* | Yellow | Shape people | Gap-Crosser\* | Swing at a gap gate or a broken bridge to lay a plank. |
 | Wildlands\* | Orange | Dinosaurs | Stormcaller\* (one weather each run) | Quake knocks down rock pillars, rain puts out fire walls, snow freezes water, tornado blows debris away. |
 
@@ -86,14 +86,14 @@ Every science face has a colour and a race of people:
 
 | Temple | Puzzle |
 |---|---|
-| Town | Four tokens, each in a face's colour with pips. Swing at them by their pips, fewest first. |
-| Greenwood\* | Six seeds. Crack them from the smallest to the largest. |
-| Ember Vale\* | Six glowing stones. Wake them from the brightest to the faintest, and be quick: after the first one, a timer bar runs over the altar. |
+| Town | **Sliding picture.** Town's crest is cut into eight tiles on a 3×3 board with one gap; the whole crest hangs small by the west wall. Swing at a tile beside the gap and it slides in (a tile in its own place shows a gold pip in its corner). Put the crest back together; the last piece then fills the gap. The scramble always takes 14–18 slides at best. |
+| Greenwood\* | **Finch song.** Four finch statues (red, gold, blue and green, with one to four crest feathers) stand round a perch. They sing a song (each finch glows, opens its beak and a note rises), then you swing at them in the same order. Each song is one note longer: 3, then 4, 5 and 6 notes. A wrong note and they sing that song again; you keep the round. |
+| Ember Vale\* | **Lights out.** A bank of 15 crystals (5×3), some lit gold, some dark. Swinging at a crystal flips it and the crystals beside it (above, below, left, right). Light them all. It always takes at least 6 or 7 strikes. |
 | Weightlands\* | Two booths behind timed doors that each need **three** boulders by them, and only three boulders. The temple lends you a grip, so press E (Interact) to grab a boulder even without the Heavy Mitt\*. Pile them by one door (off the gold dashed line), step on its switch across the room and dash straight along the line to the glowing band beside the booth; then drag them all over to the other door. Anywhere on the switch is fine. |
 | Bridgelands\* | A big "light every plank" island network (the hardest kind). |
 | Wildlands\* | A big ice screen or a big wind screen (it varies by run). |
 
-  - In the seed, stone and token temples, **any swing counts**: you don't need the face's item. A wrong one puts them all back (no damage).
+  - In the crest, finch and crystal temples, **any swing counts**: you don't need the face's item, and nothing there hurts you. A swing that reaches two tiles or statues strikes only the one in front.
   - You can always walk back out south. **Leaving an unsolved temple resets its puzzle.** A solved one stays solved.
 - **Solve it** and the face's fragments rise, spiral together and mend into the face's **gem**, which flies to you. The face is mended: its statue turns gold, the temple shows the gem over its door, the HUD die turns gold with a gem on its corner, and the map tag says "gem" in gold.
 - Each gem helps you in the boss fight:
@@ -122,7 +122,7 @@ Every science face has a colour and a race of people:
 After you win or die, the between-runs screen shows what you earned. Spend Jumbles\* on permanent upgrades (Extra Heart, Thick Skin, Big Bonk, Zoomies), then **Continue** into a new, freshly shuffled run.
 
 ## A good first run
-1. Talk to the Mayor, follow the townsfolk trail to Town's lost fragment (check Q if you forget who's next), and bring it back. That opens Town's temple: solve its token puzzle for Town's gem.
+1. Talk to the Mayor, follow the townsfolk trail to Town's lost fragment (check Q if you forget who's next), and bring it back. That opens Town's temple: slide its crest back together for Town's gem.
 2. Spend your key on a Town arch.
 3. On that face, dig mounds and talk to people until you have its item and its 2 keys.
 4. Use keys and items to open more arches. Grab fragments and chests as you go.
@@ -142,7 +142,7 @@ After you win or die, the between-runs screen shows what you earned. Spend Jumbl
 | F9 | Rest to full health |
 | F10 | New run |
 | F5 | Reroll the seed |
-| F1 | Debug overlay |
+| F1 | Debug overlay: two slim bars over the top and bottom walls (where you are and the seed on top, every dev key at the bottom), never over the floor |
 | F3 | Spawn NPCs (Shift+F3: all six leaders) |
 | F7 | Spawn an enemy |
 

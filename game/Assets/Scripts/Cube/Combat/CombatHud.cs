@@ -125,15 +125,13 @@ namespace Game.Cube
 
             // Bottom left, just above the dialogue box's band (the bottom 150 px), so it never overlaps the debug
             // overlay (top left, about 156 px tall) or the dialogue box, at any width (the 960x600 WebGL canvas too).
-            const float size = 22f, gap = 6f, margin = 12f, dialogueBand = 150f;
+            const float size = HeartSize, gap = 6f;
             int hearts = Mathf.CeilToInt(health.Max);
             float width = hearts * (size + gap) - gap;
-            float x = margin + 8f;
             string rewardsLine = RewardsText;
             List<FaceDie> dice = FragmentDice;
-            float extra = (rewardsLine != null ? 24f : 0f) + (dice.Count > 0 ? DieRow : 0f);
-            float y = Screen.height - dialogueBand - margin - (size + 40f + extra) + 6f;
-            var back = new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, rewardsLine != null ? 420f : 300f) + 16f, size + 40f + extra);
+            Rect back = PanelRect(Screen.width, Screen.height, hearts, rewardsLine != null, dice.Count > 0);
+            float x = back.x + 8f, y = back.y + 6f;
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(back, Texture2D.whiteTexture);
             for (int i = 0; i < hearts; i++)
@@ -162,6 +160,23 @@ namespace Game.Cube
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(panel, message, deathStyle);
+        }
+
+        /// <summary>A heart's size (pixels).</summary>
+        public const float HeartSize = 22f;
+
+        /// <summary>
+        /// The panel's rect on a screen (pixels, GUI y down; 4.19 review: layout tests): bottom left, above the dialogue band
+        /// (the bottom 150 px), as tall as its rows (hearts and the item, the rewards line, the dice).
+        /// </summary>
+        public static Rect PanelRect(float screenWidth, float screenHeight, int hearts, bool rewardsLine, bool dice)
+        {
+            const float size = HeartSize, gap = 6f, margin = 12f, dialogueBand = 150f;
+            float width = hearts * (size + gap) - gap;
+            float x = margin + 8f;
+            float extra = (rewardsLine ? 24f : 0f) + (dice ? DieRow : 0f);
+            float y = screenHeight - dialogueBand - margin - (size + 40f + extra) + 6f;
+            return new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, rewardsLine ? 420f : 300f) + 16f, size + 40f + extra);
         }
 
         /// <summary>Height of the fragments row (4.8).</summary>

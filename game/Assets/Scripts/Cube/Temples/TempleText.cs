@@ -20,16 +20,19 @@ namespace Game.Cube
         /// <summary>The debug overlay's label.</summary>
         public const string OverlayLabel = "In the temple of";
 
-        /// <summary>A wrong strike in an ordering temple.</summary>
-        public const string WrongPopup = "Wrong order. They all go dark.";
+        /// <summary>Town's tiles (4.19): a struck tile that is not beside the gap.</summary>
+        public const string TileStuckPopup = "Only a tile beside the gap can slide.";
 
-        /// <summary>An ordering temple's timer ran out.</summary>
-        public const string TooSlowPopup = "Too slow. They all go dark.";
+        /// <summary>The finches (4.19): a wrong note; the round's song plays again.</summary>
+        public const string WrongNotePopup = "Wrong note. They sing it again.";
+
+        /// <summary>The finches (4.19): a round sung back right; the next song is one note longer.</summary>
+        public const string NextSongPopup = "Well sung! Now one note more.";
 
         /// <summary>Said once the puzzle is solved, as the fragments rise.</summary>
         public const string MendingPopup = "The fragments rise and mend...";
 
-        /// <summary>The rule of a temple's puzzle (shown on walking in, and again after a wrong strike).</summary>
+        /// <summary>The rule of a temple's puzzle (shown on walking in, once per attempt).</summary>
         public static string Rule(TemplePuzzleKind kind)
         {
             switch (kind)
@@ -42,12 +45,12 @@ namespace Game.Cube
                     return "Reach the gold ring to win the gem.\nStep into a gust and it carries you.\nYou cannot steer while riding.";
                 case TemplePuzzleKind.Booths:
                     return "Open both booths to win the gem.\nEach door needs three boulders by it.\nThe temple lends you a grip:\n[Interact] grabs a boulder.\nStep on a switch, then run.";
-                case TemplePuzzleKind.StoneOrder:
-                    return "Wake the stones, the brightest first,\nthen each fainter one in turn.\nBe quick, or they all go dark again.\nAny swing will do here.";
-                case TemplePuzzleKind.SeedOrder:
-                    return "Crack the seeds, the smallest first,\nthen each bigger one in turn.\nA wrong one, and they all close up.\nAny swing will do here.";
+                case TemplePuzzleKind.Lights:
+                    return "Light every crystal to win the gem.\nA strike flips a crystal and the ones beside it:\nlit ones go dark, dark ones light.\nAny swing will do here.";
+                case TemplePuzzleKind.Song:
+                    return "Watch the finches sing, then strike them\nin the same order to win the gem.\nEach song is one note longer. A wrong note,\nand they sing it again; so does the grey stone.\nAny swing will do here.";
                 default:
-                    return "Strike the tokens by their pips,\nthe fewest first.\nA wrong one puts them all back.\nAny swing will do here.";
+                    return "Mend the town crest to win the gem.\nStrike a tile beside the gap to slide it in.\nThe small crest by the wall shows the picture.\nAny swing will do here.";
             }
         }
 
@@ -62,11 +65,12 @@ namespace Game.Cube
         {
             yield return SealedPopup;
             yield return MapBadge;
-            yield return WrongPopup;
-            yield return TooSlowPopup;
+            yield return TileStuckPopup;
+            yield return WrongNotePopup;
+            yield return NextSongPopup;
             yield return MendingPopup;
             yield return SolvedPlaque;
-            for (int k = 0; k <= (int)TemplePuzzleKind.TownOrder; k++) yield return Rule((TemplePuzzleKind)k);
+            for (int k = 0; k <= (int)TemplePuzzleKind.Sliding; k++) yield return Rule((TemplePuzzleKind)k);
             foreach (Theme theme in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere })
                 yield return GemPopup(theme);
         }
