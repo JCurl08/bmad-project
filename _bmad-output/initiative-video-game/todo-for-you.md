@@ -122,9 +122,17 @@ Open `game/` in Unity, open `Assets/Scenes/Cube.unity`, and press Play.
 
     Once you know the real portal, the map shows it in gold. Walk south, or press F8, to leave a lair room. Are the prisoners readable?
 
+## Since your last playtest (2026-10-08)
+| Story | Commit | What to check |
+|---|---|---|
+| 4.17 Bridge puzzles readable | `2c22a74` | Lit planks glow mint, non-puzzle planks are grey, and every doorway island has a rule sign. Crossing detection and solvability were fine: on the yellow floor you just couldn't see the lit planks. |
+| 4.18 Playtest polish | `a5f7880` | Talking pauses everything. **Q** opens the quest log. Each town has one errand. Town's lost-and-found trail. White Town floor and mixed-race townsfolk. New Mayor and Hattie looks. Raptor avian dinosaur. Humpty-Dumpty shape people. |
+| 4.14 Temples (your design) | `6b51e67` | The leader hand-in unseals the temple. Inside is a hard puzzle of the face's own kind; solving it gives the gem and its boss benefit. **The Physics temple dash leaves only about 4% spare time, so tell me if it feels too tight.** Shift+F8 solves a temple. |
+| 4.15 Cleanup | `bc5678d` | No gameplay change. Every seed from 1 to 500 can be finished. `tools/verify.sh` runs all the tests (see `tools/README.md`). |
+
+The step-by-step **`player-guide.md`** is up to date with all of this.
+
 ## Not built, possible next steps
-- **4.14 Temples (optional).** Each face's signature item would sit in a temple. Keep it, or drop it?
-- **4.15 Refactor sweep.** Includes a 500-seed check that every run can be finished, since real runs use random seeds.
 - **4.16 / 1.14 itch.io releases.** These need you: run Tracer → Build WebGL in Unity, upload the build, and play it in a browser.
 - **Epic 2: every run plays differently.** Not started.
 - **Push** when you're happy with the work: `git -C C:/Projects/bmad-project push`

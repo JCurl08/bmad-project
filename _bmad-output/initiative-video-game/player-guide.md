@@ -1,6 +1,6 @@
 # Player guide: how a run works
 
-This describes the game as of story 4.14 (temples, on top of commit `a5f7880`). Names ending in `*` are placeholders until the naming brainstorm.
+This describes the game as of commit `bc5678d` (Epic 4 through 4.18). Names ending in `*` are placeholders until the naming brainstorm.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
