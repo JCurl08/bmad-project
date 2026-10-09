@@ -82,6 +82,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("islandPuzzles", IslandPlan.RngStream),
             new KeyValuePair<string, ulong>("lair", LairPlan.RngStream),
             new KeyValuePair<string, ulong>("townTrail", TownTrail.RngStream),
+            new KeyValuePair<string, ulong>("temples", TemplePlan.RngStream),
         };
 
         /// <summary>The signature lines of one seed, keyed "seed:kind", in a fixed order.</summary>
@@ -141,6 +142,8 @@ namespace Game.Cube.Tests
             Add("lair", LairPlan.ForRun(model)?.Signature());
             // 4.18: Town's lost-and-found trail (its people, the favour step and the helper).
             Add("townTrail", TownTrail.For(seed, model.FaceSize)?.Signature() ?? "none");
+            // 4.14: every face's temple puzzle (its kind and its layout, booths or targets).
+            Add("temples", TemplePlan.Signature(model));
 
             // The pure prefix of each face's population stream, in the order the face's EndReveal draws it.
             if (biology != null)

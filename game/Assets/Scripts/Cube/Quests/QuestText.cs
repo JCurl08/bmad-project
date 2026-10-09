@@ -26,7 +26,13 @@ namespace Game.Cube
 
         public static string FragmentProgress(int found, int count) => $"{found} of {count} fragments found";
 
-        public static string LeaderDone(Theme theme, string leader) => $"{InWorldText.Region(theme)} is mended. {leader} thanks you.";
+        public static string LeaderDone(Theme theme, string leader) => $"{leader} took the fragments and opened the temple of {InWorldText.Region(theme)}.";
+
+        // ---------- temples (4.14)
+        public static string TempleTitle(Theme theme) => $"The temple of {InWorldText.Region(theme)}";
+        public static string TempleStep(Theme theme) =>
+            $"Solve the puzzle in the temple of {InWorldText.Region(theme)}, by its town square, to mend the fragments and win its gem.";
+        public static string TempleDone(Theme theme) => $"The fragments are mended. The gem of {InWorldText.Region(theme)} is yours.";
 
         // ---------- Town's lost fragment (TownTrail)
 
@@ -40,7 +46,7 @@ namespace Game.Cube
 
         public const string TownReturn = "You have Town's fragment. Take it back to Mayor Muddleton in the town square.";
 
-        public const string TownDone = "Town is mended. Mayor Muddleton is delighted.";
+        public const string TownDone = "Mayor Muddleton has the fragment back, and Town's temple is open.";
 
         // ---------- errands (Errands)
 
@@ -74,6 +80,10 @@ namespace Game.Cube
                 yield return LeaderStep(theme, leader, 4, 2);
                 yield return LeaderStep(theme, leader, 4, 4);
                 yield return LeaderDone(theme, leader);
+                yield return TempleTitle(theme);
+                yield return TempleStep(theme);
+                yield return TempleDone(theme);
+                yield return Added(TempleTitle(theme));
                 yield return ErrandStep(person, other, theme);
                 yield return Added(LeaderTitle(theme));
                 yield return Completed(LeaderTitle(theme));

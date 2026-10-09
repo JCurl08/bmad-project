@@ -169,7 +169,7 @@ namespace Game.Cube.Tests
         // ---------- The leaders' quest ----------
 
         [Test]
-        public void AHandIn_OfAllKFragments_RepairsTheFace_AndTheQuestNamesTheCount()
+        public void AHandIn_OfAllKFragments_UnsealsTheTemple_OnlyItsGemRepairs_AndTheQuestNamesTheCount()
         {
             var go = new GameObject("Player");
             try
@@ -193,9 +193,18 @@ namespace Game.Cube.Tests
                 CollectionAssert.AreEqual(Dialogue.QuestConversation(Race.Shape, count, count), preview);
 
                 List<string> handIn = LeaderQuest.Lines(Race.Shape, face, count, rewards, repairs, true, out QuestStep handed);
-                Assert.AreEqual(QuestStep.Repaired, handed, "All four: the leader mends the face");
-                CollectionAssert.AreEqual(Dialogue.RepairConversation(Race.Shape, count), handIn);
-                Assert.IsTrue(repairs.Repair(face));
+                Assert.AreEqual(QuestStep.Unsealed, handed, "All four: the leader unseals the temple (4.14)");
+                CollectionAssert.AreEqual(Dialogue.UnsealConversation(Race.Shape, count), handIn);
+                Assert.IsFalse(repairs.IsRepaired(face), "the hand-in alone mends nothing");
+                Assert.IsTrue(repairs.Unseal(face));
+                Assert.IsTrue(repairs.IsUnsealed(face));
+                Assert.IsFalse(repairs.IsRepaired(face));
+                Assert.AreEqual(BossBenefit.None, repairs.Benefits(new CubeModel(3)), "no benefit before the gem");
+                List<string> open = LeaderQuest.Lines(Race.Shape, face, count, rewards, repairs, true, out QuestStep waiting);
+                Assert.AreEqual(QuestStep.TempleOpen, waiting, "with the temple open, the leader points the way");
+                CollectionAssert.AreEqual(Dialogue.TempleOpenConversation(Race.Shape), open);
+                Assert.IsTrue(repairs.Repair(face), "the temple's gem repairs the face");
+                Assert.IsTrue(repairs.HasGem(face));
                 Assert.IsFalse(repairs.Repair(face), "Once");
                 Assert.AreEqual(BossBenefit.WiderGap, BossBenefits.Of(Theme.Math));
 
@@ -232,8 +241,10 @@ namespace Game.Cube.Tests
 
                 Assert.IsTrue(rewards.Grant(Reward.Fragment(1), town), "Found on the trail");
                 List<string> second = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep handed);
-                Assert.AreEqual(QuestStep.Repaired, handed);
-                CollectionAssert.AreEqual(Dialogue.RepairConversation(Race.Townsfolk, 1), second);
+                Assert.AreEqual(QuestStep.Unsealed, handed);
+                CollectionAssert.AreEqual(Dialogue.UnsealConversation(Race.Townsfolk, 1), second);
+                repairs.Unseal(town);
+                Assert.AreEqual(BossBenefit.None, repairs.Benefits(new CubeModel(3)), "Town's heart waits for its temple's gem");
                 repairs.Repair(town);
                 Assert.AreEqual(BossBenefit.ExtraHeart, repairs.Benefits(new CubeModel(3)));
                 LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep after);
@@ -264,7 +275,7 @@ namespace Game.Cube.Tests
                 CollectionAssert.AreEqual(preview, first);
                 Assert.IsTrue(rewards.HasFragment(town, 1));
                 LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep handed, false);
-                Assert.AreEqual(QuestStep.Repaired, handed, "the next talk mends Town");
+                Assert.AreEqual(QuestStep.Unsealed, handed, "the next talk opens Town's temple");
             }
             finally
             {
@@ -289,7 +300,9 @@ namespace Game.Cube.Tests
                     string quest = Dialogue.QuestLine(race, count, 1);
                     StringAssert.Contains(Dialogue.CountWord(count), quest, $"{race}: names {count}");
                     StringAssert.Contains("mend", quest);
-                    StringAssert.Contains(Dialogue.CountWord(count), Dialogue.RepairLine(race, count), $"{race}: the hand-in names {count}");
+                    StringAssert.Contains(Dialogue.CountWord(count), Dialogue.UnsealLine(race, count), $"{race}: the hand-in names {count}");
+                    StringAssert.Contains("temple", Dialogue.UnsealLine(race, count), $"{race}: the hand-in opens the temple");
+                    StringAssert.Contains("gem", Dialogue.UnsealLine(race, count), $"{race}: and tells of its gem");
                 }
             }
             foreach (string text in BossBenefits.AllText()) CollectionAssert.IsEmpty(InWorldText.Problems(text), text);
@@ -342,7 +355,7 @@ namespace Game.Cube.Tests
             Assert.AreEqual(BossBenefit.ExtraHeart | BossBenefit.WiderGap, two);
             Assert.AreEqual(BossBenefit.None, BossBenefits.From(new FaceId[0], model));
             Assert.IsNull(BossBenefits.HudLine(BossBenefit.None));
-            Assert.AreEqual("Help from mended faces: +1 heart, wider gaps", BossBenefits.HudLine(two));
+            Assert.AreEqual("Help from your gems: +1 heart, wider gaps", BossBenefits.HudLine(two));
         }
 
         [Test]

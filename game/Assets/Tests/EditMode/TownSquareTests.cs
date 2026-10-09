@@ -55,6 +55,7 @@ namespace Game.Cube.Tests
                 Assert.GreaterOrEqual(town.Buildings.Select(b => b.Kind).Distinct().Count(), 2, $"{theme}: more than one kind of building");
                 foreach (TownBuilding b in town.Buildings)
                 {
+                    if (b.Kind == TownBuildingKind.Temple) continue; // 4.14: every race's temple, drawn in its own style (TempleArt)
                     Assert.AreEqual(theme, TownLayout.ThemeOf(b.Kind), $"{theme}: {b} is in another race's style");
                     if (kindsSeen.TryGetValue(b.Kind, out Theme other)) Assert.AreEqual(theme, other, $"{b.Kind} is shared by two races");
                     kindsSeen[b.Kind] = theme;
@@ -73,7 +74,7 @@ namespace Game.Cube.Tests
                         Assert.IsFalse(solid.Overlaps(ScreenEdges.DoorwayRect(side)), $"{theme}: {solid} blocks the {side} doorway");
                 }
             }
-            Assert.AreEqual(Enum.GetValues(typeof(TownBuildingKind)).Length, kindsSeen.Count, "Every kind of building is used");
+            Assert.AreEqual(Enum.GetValues(typeof(TownBuildingKind)).Length - 1, kindsSeen.Count, "Every kind of building is used (the temple, every race's, checked above)");
         }
 
         [Test]

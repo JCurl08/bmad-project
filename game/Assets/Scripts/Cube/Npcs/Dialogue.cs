@@ -442,28 +442,40 @@ namespace Game.Cube
         public const string MayorFoundLine = "Here's the job, friend: every face is coming apart. Town lost just one fragment, and look, I found it! Hold on to it, then hand it back to me and we'll mend Town!";
 
         /// <summary>
-        /// What each leader says on taking all {count} fragments (4.8): the face is mended, and how it will help in the core
+        /// What each leader says on taking all {count} fragments (4.8; since 4.14): the fragments are not mended yet, the leader
+        /// unseals the face's temple instead; solving its puzzle mends them and gives the face's gem, which helps in the core
         /// (BossBenefits.Of its theme), in voice and in plain words.
         /// </summary>
-        public static readonly IReadOnlyDictionary<Race, string> RepairTemplates = new Dictionary<Race, string>
+        public static readonly IReadOnlyDictionary<Race, string> UnsealTemplates = new Dictionary<Race, string>
         {
-            [Race.Townsfolk] = "That's the one! There... Town is mended! At the core, Town's got your back: one extra heart for the fight. Now, every other face lost more fragments, so help each leader!",
-            [Race.Finch] = "Verily, all {count}! The " + InWorldText.Greenwood + " is whole again. When thou facest the Demon, its bouncing motes shall drift toward thee, as finches to seed.",
-            [Race.Mushroom] = "All {count}! Oh, I'm crying, it's mended! And I'm so furious at the Demon that I'll fizz away some of its bouncing motes. Fewer to mix for you!",
-            [Race.Alien] = "All {count}... the " + InWorldText.Weightlands + " is whole, I think. In the core, perhaps time will drag for the Demon, and it will tidy things back more slowly. Curious, no?",
-            [Race.Shape] = "Given all {count} fragments, the " + InWorldText.Bridgelands + " is mended. Therefore, in the core, the gaps at both ends of the Demon's wall will be wider. Use them.",
-            [Race.Dinosaur] = "All {count}! The " + InWorldText.Wildlands + " is solid ground again. I'll send a headwind into the core: the Demon's shots will fly slower and come less often.",
+            [Race.Townsfolk] = "That's the one! Now watch: I'm opening Town's old temple by the square. Solve the puzzle inside and the fragment mends. Its gem gives you an extra heart against the Demon!",
+            [Race.Finch] = "Verily, all {count}! I have unsealed our temple. Solve the riddle within and the fragments shall mend. Its gem shall draw the Demon's bouncing motes toward thee.",
+            [Race.Mushroom] = "All {count}! Oh, I'm so thrilled! I've unsealed our temple! Solve its puzzle and they'll mend! Its gem fizzes away some of the Demon's bouncing motes. Fewer to mix!",
+            [Race.Alien] = "All {count}... I have opened our temple, I think. Solve what waits within, and perhaps they mend. Its gem makes time drag for the Demon: it will tidy things back more slowly.",
+            [Race.Shape] = "Given all {count} fragments, I unseal our temple. If you solve its puzzle, then they mend. Its gem widens the gaps at both ends of the Demon's wall. Therefore, go.",
+            [Race.Dinosaur] = "All {count}! I've cracked open our temple, up the trail by the square. Solve it and the fragments mend. Its gem sends a headwind: the Demon's shots fly slower and rarer.",
         };
 
-        /// <summary>What each leader says once their face is mended (4.8), in voice.</summary>
+        /// <summary>What each leader says once their temple is open but its gem not yet won (4.14), in voice.</summary>
+        public static readonly IReadOnlyDictionary<Race, string> TempleOpenLines = new Dictionary<Race, string>
+        {
+            [Race.Townsfolk] = "Town's temple is open, friend, right there by the square! Solve its puzzle and the fragment mends itself.",
+            [Race.Finch] = "Our temple standeth open, good traveller. Hark: solve its riddle, and thou shalt hold its gem.",
+            [Race.Mushroom] = "The temple's open! Go, go, go! Ooh, I can't watch! Solve it and the fragments mend!",
+            [Race.Alien] = "The temple waits, open. Perhaps it has always been waiting for you. Solve it, and the fragments mend.",
+            [Race.Shape] = "The temple is open. If you solve its puzzle, then the fragments mend. Hence, the gem.",
+            [Race.Dinosaur] = "Temple's open, just up the trail. Solve what's inside and the fragments mend. Then the gem's yours.",
+        };
+
+        /// <summary>What each leader says once their face is mended and its gem won (4.8; 4.14), in voice.</summary>
         public static readonly IReadOnlyDictionary<Race, string> MendedLines = new Dictionary<Race, string>
         {
-            [Race.Townsfolk] = "Town's mended and gloriously messy again! Now the other faces: each leader is waiting on their own fragments.",
-            [Race.Finch] = "The " + InWorldText.Greenwood + " doth flourish, thanks to thee. Go now, and may the wind be kind to thy feathers.",
-            [Race.Mushroom] = "It's mended and I'm *so* happy! Go bonk that Demon for me! I'll be cheering! Loudly!",
-            [Race.Alien] = "Whole again. I wonder whether it was ever truly broken? Go well, traveller.",
-            [Race.Shape] = "The " + InWorldText.Bridgelands + " is whole. If the core waits, then go there.",
-            [Race.Dinosaur] = "Ground's holding and the sky's clear. Go give that Demon a storm of its own.",
+            [Race.Townsfolk] = "Town's mended and gloriously messy again, and that gem looks grand on you! Now the other faces: each leader is waiting on their own fragments.",
+            [Race.Finch] = "The " + InWorldText.Greenwood + " doth flourish, and thou bearest its gem. Go now, and may the wind be kind to thy feathers.",
+            [Race.Mushroom] = "It's mended and you've got the gem and I'm *so* happy! Go bonk that Demon for me! I'll be cheering! Loudly!",
+            [Race.Alien] = "Whole again, and the gem is yours. I wonder whether it was ever truly broken? Go well, traveller.",
+            [Race.Shape] = "The " + InWorldText.Bridgelands + " is whole, and the gem is yours. If the core waits, then go there.",
+            [Race.Dinosaur] = "Ground's holding, the sky's clear and the gem's yours. Go give that Demon a storm of its own.",
         };
 
         /// <summary>A count in words for the quest lines: "none", "one" .. "six" (numerals past six).</summary>
@@ -493,8 +505,11 @@ namespace Game.Cube
         /// <summary>A leader's quest hook with no run to read (SampleCount, none found; the Mayor's gift line).</summary>
         public static string QuestLine(Race race) => QuestLine(race, SampleCount, 0);
 
-        /// <summary>A leader's line on taking all count fragments (4.8).</summary>
-        public static string RepairLine(Race race, int count) => RepairTemplates[race].Replace("{count}", CountWord(count));
+        /// <summary>A leader's line on taking all count fragments: the temple is unsealed (4.14).</summary>
+        public static string UnsealLine(Race race, int count) => UnsealTemplates[race].Replace("{count}", CountWord(count));
+
+        /// <summary>A leader's line while their temple is open and its gem not yet won (4.14).</summary>
+        public static string TempleOpenLine(Race race) => TempleOpenLines[race];
 
         /// <summary>A leader's line once their face is mended (4.8).</summary>
         public static string MendedLine(Race race) => MendedLines[race];
@@ -506,13 +521,16 @@ namespace Game.Cube
         public static List<string> QuestConversation(Race race, int count, int found) =>
             new List<string>(MaxLines) { LeaderLine(race), QuestLine(race, count, found) };
 
-        /// <summary>A leader's conversation as they mend the face (4.8).</summary>
-        public static List<string> RepairConversation(Race race, int count) => new List<string>(MaxLines) { RepairLine(race, count) };
+        /// <summary>A leader's conversation as they take the fragments and unseal the temple (4.14).</summary>
+        public static List<string> UnsealConversation(Race race, int count) => new List<string>(MaxLines) { UnsealLine(race, count) };
+
+        /// <summary>A leader's conversation while their temple is open (4.14).</summary>
+        public static List<string> TempleOpenConversation(Race race) => new List<string>(MaxLines) { TempleOpenLine(race) };
 
         /// <summary>A leader's conversation once the face is mended (4.8).</summary>
         public static List<string> MendedConversation(Race race) => new List<string>(MaxLines) { MendedLine(race) };
 
-        /// <summary>Every quest, repair and mended line a race's leader can say (every count 2-6 and found 0..count; Town's own), for the scans.</summary>
+        /// <summary>Every quest, unseal, temple-open and mended line a race's leader can say (every count 2-6 and found 0..count; Town's own), for the scans.</summary>
         public static IEnumerable<string> LeaderQuestLines(Race race)
         {
             if (race == Race.Townsfolk)
@@ -520,14 +538,15 @@ namespace Game.Cube
                 yield return MayorGiftLine;
                 yield return MayorFoundLine;
                 foreach (string line in QuestLines.MayorLines()) yield return line;
-                yield return RepairLine(race, 1);
+                yield return UnsealLine(race, 1);
             }
             else
                 for (int count = 2; count <= DieNumbers.Highest; count++)
                 {
                     for (int found = 0; found <= count; found++) yield return QuestLine(race, count, found);
-                    yield return RepairLine(race, count);
+                    yield return UnsealLine(race, count);
                 }
+            yield return TempleOpenLine(race);
             yield return MendedLine(race);
         }
 

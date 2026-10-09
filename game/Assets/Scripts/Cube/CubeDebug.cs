@@ -97,6 +97,33 @@ namespace Game.Cube
 
         [SerializeField] private LairRooms lair;
 
+        /// <summary>The temples' rooms (4.14; found in the scene when not set).</summary>
+        public TempleRooms Temples
+        {
+            get
+            {
+                if (temples == null) temples = FindAnyObjectByType<TempleRooms>();
+                return temples;
+            }
+            set => temples = value;
+        }
+
+        [SerializeField] private TempleRooms temples;
+
+        /// <summary>True while the player is in a temple (4.14).</summary>
+        public bool PlayerInTemple => navigator != null && navigator.InTemple;
+
+        /// <summary>
+        /// Shift+F8 (4.14): solves the temple the player is in (the magic moment plays and the gem is given). False outside a
+        /// temple, or when it is solved already.
+        /// </summary>
+        public bool SolveTemple()
+        {
+            if (!PlayerInTemple || Temples == null || Temples.Current == null || Temples.Current.IsSolved) return false;
+            Temples.Current.Solve();
+            return true;
+        }
+
         /// <summary>True while the player is inside a town building (or down in a lair room, which is a kind of interior).</summary>
         public bool PlayerInInterior => navigator != null && navigator.InInterior;
 
@@ -111,6 +138,7 @@ namespace Game.Cube
         {
             if (PlayerInCoreArena && CoreArena != null) return CoreArena.Centre;
             if (PlayerInLair && Lair != null && Lair.Current != null) return Lair.Current.Centre;
+            if (PlayerInTemple && Temples != null && Temples.Current != null) return Temples.Current.Centre;
             if (PlayerInInterior && Interiors != null && Interiors.Current != null) return Interiors.Current.Centre;
             ScreenAddress here = navigator != null ? navigator.Current : world.Model.StartScreen;
             return world.ScreenCenter(here);
@@ -186,7 +214,11 @@ namespace Game.Cube
             if (keyboard.f5Key.wasPressedThisFrame) Reroll();
             if (keyboard.f6Key.wasPressedThisFrame) JumpToNextUnsealed();
             if (keyboard.f7Key.wasPressedThisFrame) SpawnEnemy();
-            if (keyboard.f8Key.wasPressedThisFrame) LeaveCoreArena();
+            if (keyboard.f8Key.wasPressedThisFrame)
+            {
+                if (keyboard.shiftKey.isPressed) SolveTemple();
+                else LeaveCoreArena();
+            }
             if (keyboard.f9Key.wasPressedThisFrame)
             {
                 if (keyboard.shiftKey.isPressed) GatherFragments();
@@ -208,6 +240,7 @@ namespace Game.Cube
         public bool LeaveCoreArena()
         {
             if (PlayerInLair) return Lair != null && Lair.Leave();
+            if (PlayerInTemple) return Temples != null && Temples.Leave();
             if (PlayerInInterior) return Interiors != null && Interiors.Leave();
             if (!PlayerInCoreArena || world.Model == null) return false;
             navigator.TeleportTo(world.Model.StartScreen, Facing.East);
@@ -505,13 +538,16 @@ namespace Game.Cube
                 string head = $"Seed {model.Seed}   N={model.FaceSize}   Regions {(world.ScienceRevealed ? "revealed" : "unrevealed")}\n";
                 string tail = $"Hostile races: {HostileText()}\n" +
                               "F1 overlay   F2 slots   F3 NPCs (+Shift leaders)   F4 hostility   F5 reroll   F6 next screen   F7 enemy\n" +
-                              "F8 leave core/room   F9 rest (+Shift fragments)   F10 new run   F11 light map (+Shift unlock arches)   M map";
+                              "F8 leave core/room (+Shift solve temple)   F9 rest (+Shift fragments)   F10 new run   F11 light map (+Shift unlock arches)   M map";
                 if (PlayerInCoreArena)
                     return head + $"{CoreArenaLabel}   (outside every face)\n\n\n" + tail;
                 ScreenAddress here = navigator != null ? navigator.Current : model.StartScreen;
                 if (PlayerInLair)
                     return head + $"{LairText.OverlayLabel} Face {here.Face}   Region {InWorldText.Region(model.ThemeOf(here.Face))}\n" +
                            $"Portal cell ({here.Cell.x},{here.Cell.y})   (off the cube net)\n\n" + tail;
+                if (PlayerInTemple)
+                    return head + $"{TempleText.OverlayLabel} {InWorldText.Region(model.ThemeOf(here.Face))}   Face {here.Face}\n" +
+                           $"Town cell ({here.Cell.x},{here.Cell.y})   (off the cube net)   Shift+F8 solve\n\n" + tail;
                 if (PlayerInInterior)
                 {
                     string room = Interiors != null && Interiors.Current != null ? Interiors.Current.Interior.Name : "building";

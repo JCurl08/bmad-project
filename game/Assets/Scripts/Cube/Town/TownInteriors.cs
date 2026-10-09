@@ -169,12 +169,15 @@ namespace Game.Cube
         /// pushing into it right now (an enabled mover whose last physics step moved at least MinNorthFacing into the door;
         /// a dead or frozen player, one waiting for a fresh press, or one merely facing the door is never pulled in).
         /// </summary>
-        public static bool AtDoor(TownDoor door, Vector2 p, CubeNavigator player)
+        public static bool AtDoor(TownDoor door, Vector2 p, CubeNavigator player) => door != null && AtDoor(door.Sill, door.Facing, p, player);
+
+        /// <summary>AtDoor for any door by its sill and facing (4.14: the temples' doors too).</summary>
+        public static bool AtDoor(Vector2 sill, Facing facing, Vector2 p, CubeNavigator player)
         {
             if (player == null || !player.TryGetComponent(out PlayerMover mover) || !mover.isActiveAndEnabled) return false;
             if (player.TryGetComponent(out Health health) && health.IsDead) return false;
-            Vector2 into = -(Vector2)door.Facing.ToVector();
-            Vector2 offset = p - door.Sill;
+            Vector2 into = -(Vector2)facing.ToVector();
+            Vector2 offset = p - sill;
             float along = Vector2.Dot(offset, into);   // negative: in front of the door
             float across = Mathf.Abs(Vector2.Dot(offset, new Vector2(into.y, -into.x)));
             if (across > DoorAim || along > 0f || along < -(TimeField.PlayerRadius + DoorReach)) return false;

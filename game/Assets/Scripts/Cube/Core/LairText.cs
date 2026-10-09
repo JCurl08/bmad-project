@@ -82,18 +82,18 @@ namespace Game.Cube
             "there is a door out in the west wall of the Demon's den, if you need to catch your breath",
         };
 
-        /// <summary>A Benefit hint's fact: what mending a theme's face does in the fight (BossBenefits.Of, in plain words).</summary>
+        /// <summary>A Benefit hint's fact: what the gem of a theme's temple (4.14: solving it mends the face) does in the fight (BossBenefits.Of, in plain words).</summary>
         public static string BenefitFact(Theme theme)
         {
             string region = InWorldText.Region(theme);
             switch (BossBenefits.Of(theme))
             {
-                case BossBenefit.ExtraHeart: return $"mending {region} gives you one more heart against Primsworth the Demon";
-                case BossBenefit.Attraction: return $"mending {region} makes the Demon's bouncing motes drift toward you";
-                case BossBenefit.FewerParticles: return $"mending {region} leaves fewer bouncing motes for you to mix";
-                case BossBenefit.SlowerRestore: return $"mending {region} makes the Demon tidy things back more slowly";
-                case BossBenefit.WiderGap: return $"mending {region} widens the gaps at both ends of the Demon's wall";
-                default: return $"mending {region} makes the Demon's shots fly slower and come less often";
+                case BossBenefit.ExtraHeart: return $"the gem from the temple of {region} gives you one more heart against Primsworth the Demon";
+                case BossBenefit.Attraction: return $"the gem from the temple of {region} makes the Demon's bouncing motes drift toward you";
+                case BossBenefit.FewerParticles: return $"the gem from the temple of {region} leaves fewer bouncing motes for you to mix";
+                case BossBenefit.SlowerRestore: return $"the gem from the temple of {region} makes the Demon tidy things back more slowly";
+                case BossBenefit.WiderGap: return $"the gem from the temple of {region} widens the gaps at both ends of the Demon's wall";
+                default: return $"the gem from the temple of {region} makes the Demon's shots fly slower and come less often";
             }
         }
 

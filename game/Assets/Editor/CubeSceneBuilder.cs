@@ -121,6 +121,10 @@ public static class CubeSceneBuilder
         var lairRooms = worldObject.AddComponent<LairRooms>();
         lairRooms.World = world;
         lairRooms.Navigator = navigator;
+        // The temples (4.14): every town's temple door, once unsealed, leads into its face's temple room, off the net.
+        var templeRooms = worldObject.AddComponent<TempleRooms>();
+        templeRooms.World = world;
+        templeRooms.Navigator = navigator;
 
         // Letterbox camera: clears the whole window to black behind the main camera's viewport.
         var letterbox = new GameObject("Letterbox Camera").AddComponent<Camera>();
@@ -393,6 +397,7 @@ public static class CubeSceneBuilder
         report += RewardReport(results, library);
         report += LockReportLine(results);
         report += LairReportLine(results);
+        report += TempleReportLine(results);
         int towns = results.Sum(r => r.TownsChecked);
         report += $"Towns: {towns} checked over {results.Count} seeds (the Town face's and every built face's centre: its town " +
                   "module, slot-free, with a sound layout; no gate, pickup, core portal, puzzle screen, trial, flower or hidden spot on it).\n";
@@ -422,6 +427,35 @@ public static class CubeSceneBuilder
     /// The sweep's lair line (4.13): the real portal's face theme per seed, the lair rooms and prisoners, and whether the real
     /// portal is proven reachable (its screen from Town, and under every key-spending order: only on seeds where the lock check ran).
     /// </summary>
+    /// <summary>The sweep's temple line (4.14): how many temples, of which kind, solvable; templates; mean stats by kind.</summary>
+    private static string TempleReportLine(List<SeedSweep.SeedResult> results)
+    {
+        int seeds = 0, passed = 0, temples = 0, templates = 0;
+        var kinds = new SortedDictionary<TemplePuzzleKind, int>();
+        var samples = new SortedDictionary<TemplePuzzleKind, string>();
+        foreach (SeedSweep.SeedResult r in results)
+        {
+            if (r.TempleProblems == null) continue;
+            seeds++;
+            if (r.TempleProblems.Count == 0) passed++;
+            var model = new CubeModel(r.Seed);
+            foreach (FaceId face in TemplePlan.TempleFaces(model))
+            {
+                TemplePuzzle t = TemplePlan.For(model, face);
+                temples++;
+                if (t.FromTemplate) templates++;
+                kinds.TryGetValue(t.Kind, out int c);
+                kinds[t.Kind] = c + 1;
+                if (!samples.ContainsKey(t.Kind)) samples[t.Kind] = $"seed {r.Seed}: {t.Stats()}";
+            }
+        }
+        if (seeds == 0) return "Temples: not checked.\n";
+        string text = $"Temples: every temple solvable on {passed}/{seeds} seeds ({temples} temples: " +
+                      string.Join(", ", kinds.Select(e => $"{e.Key} {e.Value}")) + $"; {templates} from a template).\n";
+        foreach (KeyValuePair<TemplePuzzleKind, string> e in samples) text += $"  {e.Key}: {e.Value}\n";
+        return text;
+    }
+
     private static string LairReportLine(List<SeedSweep.SeedResult> results)
     {
         int seeds = 0, passed = 0, rooms = 0, prisoners = 0, realReachable = 0;

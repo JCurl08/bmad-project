@@ -1,0 +1,74 @@
+using System.Collections.Generic;
+
+namespace Game.Cube
+{
+    /// <summary>
+    /// The temples' words (4.14): each puzzle's rule (said on walking in), the sealed door's reply, the solve moment's
+    /// popups, the map badge and the overlay label. Voice-neutral (no character says them), short lines (at most
+    /// MaxLineLength), under the text rule (InWorldText: no science words, region names keep their "*").
+    /// </summary>
+    public static class TempleText
+    {
+        public const int MaxLineLength = 60;
+
+        /// <summary>Said walking into a sealed temple's door.</summary>
+        public const string SealedPopup = "Sealed. Its leader holds the key:\nbring every fragment of this face.";
+
+        /// <summary>The map's header badge while inside a temple.</summary>
+        public const string MapBadge = "Inside the temple";
+
+        /// <summary>The debug overlay's label.</summary>
+        public const string OverlayLabel = "In the temple of";
+
+        /// <summary>A wrong strike in an ordering temple.</summary>
+        public const string WrongPopup = "Wrong order. They all go dark.";
+
+        /// <summary>An ordering temple's timer ran out.</summary>
+        public const string TooSlowPopup = "Too slow. They all go dark.";
+
+        /// <summary>Said once the puzzle is solved, as the fragments rise.</summary>
+        public const string MendingPopup = "The fragments rise and mend...";
+
+        /// <summary>The rule of a temple's puzzle (shown on walking in, and again after a wrong strike).</summary>
+        public static string Rule(TemplePuzzleKind kind)
+        {
+            switch (kind)
+            {
+                case TemplePuzzleKind.Islands:
+                    return "Light every plank to win the gem.\nA plank glows when you cross it.\nIf you cross a glowing plank, then they all go dark.";
+                case TemplePuzzleKind.Ice:
+                    return "Slide onto the gold pad to win the gem.\nOn ice you slide until something stops you.\nA pit drops you back at the door.";
+                case TemplePuzzleKind.Wind:
+                    return "Reach the gold ring to win the gem.\nStep into a gust and it carries you.\nYou cannot steer while riding.";
+                case TemplePuzzleKind.Booths:
+                    return "Open both booths to win the gem.\nEach door needs three boulders by it.\nThe temple lends you a grip:\n[Interact] grabs a boulder.\nStep on a switch, then run.";
+                case TemplePuzzleKind.StoneOrder:
+                    return "Wake the stones, the brightest first,\nthen each fainter one in turn.\nBe quick, or they all go dark again.\nAny swing will do here.";
+                case TemplePuzzleKind.SeedOrder:
+                    return "Crack the seeds, the smallest first,\nthen each bigger one in turn.\nA wrong one, and they all close up.\nAny swing will do here.";
+                default:
+                    return "Strike the tokens by their pips,\nthe fewest first.\nA wrong one puts them all back.\nAny swing will do here.";
+            }
+        }
+
+        /// <summary>The gem's popup: "+1 gem: wider gaps" (its boss benefit's label).</summary>
+        public static string GemPopup(Theme theme) => "+1 gem: " + BossBenefits.Label(BossBenefits.Of(theme));
+
+        /// <summary>A plaque in a solved temple.</summary>
+        public const string SolvedPlaque = "Solved. The gem is yours.";
+
+        /// <summary>Every fixed text here, for the scans.</summary>
+        public static IEnumerable<string> All()
+        {
+            yield return SealedPopup;
+            yield return MapBadge;
+            yield return WrongPopup;
+            yield return TooSlowPopup;
+            yield return MendingPopup;
+            yield return SolvedPlaque;
+            for (int k = 0; k <= (int)TemplePuzzleKind.TownOrder; k++) yield return Rule((TemplePuzzleKind)k);
+            foreach (Theme theme in new[] { Theme.Town, Theme.Biology, Theme.Chemistry, Theme.Physics, Theme.Math, Theme.EarthAtmosphere })
+                yield return GemPopup(theme);
+        }
+    }
+}

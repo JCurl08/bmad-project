@@ -56,6 +56,12 @@ namespace Game.Cube
         /// </summary>
         public bool InLair { get; private set; }
 
+        /// <summary>
+        /// True while the player is in a temple (4.14, TempleRooms): a kind of interior (InInterior is true too), with Current
+        /// the temple's town screen and InteriorDoor its door. The ice and wind drivers work in here (the temple's puzzle).
+        /// </summary>
+        public bool InTemple { get; private set; }
+
         /// <summary>The marked door the player went in by (world, its sill), while InInterior: where the map shows them.</summary>
         public Vector2 InteriorDoor { get; private set; }
 
@@ -139,6 +145,7 @@ namespace Game.Cube
             InCoreArena = false;
             InInterior = false;
             InLair = false;
+            InTemple = false;
             Face = address.Face;
             Facing = facing;
             if (TryGetComponent(out PlayerMover mover))
@@ -155,11 +162,12 @@ namespace Game.Cube
         /// until the player walks out (PlaceOn) or any teleport. A lair room (4.13) goes in the same way, with lair true
         /// (town: the portal's screen, door: the portal).
         /// </summary>
-        public void EnterInterior(ScreenAddress town, Vector2 door, Vector2 position, Facing facing, bool lair = false)
+        public void EnterInterior(ScreenAddress town, Vector2 door, Vector2 position, Facing facing, bool lair = false, bool temple = false)
         {
             InCoreArena = false;
             InInterior = true;
             InLair = lair;
+            InTemple = temple && !lair;
             interiorTown = town;
             InteriorDoor = door;
             Face = town.Face;
@@ -182,6 +190,7 @@ namespace Game.Cube
             InCoreArena = true;
             InInterior = false;
             InLair = false;
+            InTemple = false;
             if (TryGetComponent(out PlayerMover mover)) mover.ClearFreshPressWait();
             SetPosition(position);
         }

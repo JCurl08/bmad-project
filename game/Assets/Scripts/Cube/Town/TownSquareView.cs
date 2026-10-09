@@ -55,7 +55,7 @@ namespace Game.Cube
         /// <summary>The statue's art.</summary>
         public SpriteRenderer StatueArt => statueArt;
 
-        /// <summary>True once its face is repaired (4.8): the statue is lit and the banners fly.</summary>
+        /// <summary>True once its face is repaired (4.8; since 4.14 its temple's gem taken): the statue is lit and the banners fly.</summary>
         public bool Repaired
         {
             get => repaired;
@@ -65,7 +65,37 @@ namespace Game.Cube
                 if (value && repairArt == null) BuildRepairArt();
                 if (repairArt != null) repairArt.SetActive(value);
                 if (statueArt != null) statueArt.color = value ? LitStatueTint : Color.white;
+                ShowTemple();
             }
+        }
+
+        private bool templeUnsealed;
+        private SpriteRenderer templeArt;
+
+        /// <summary>The temple's door (4.14): where the player goes in once the temple is unsealed.</summary>
+        public TempleDoor TempleDoor { get; private set; }
+
+        /// <summary>The temple's art (sealed, open or mended).</summary>
+        public SpriteRenderer TempleArtRenderer => templeArt;
+
+        /// <summary>True once the face's fragments are handed in (4.14): the seal is gone and the doorway glows.</summary>
+        public bool TempleUnsealed
+        {
+            get => templeUnsealed;
+            set
+            {
+                templeUnsealed = value;
+                ShowTemple();
+            }
+        }
+
+        /// <summary>How the temple looks now.</summary>
+        public TempleLook TempleLook => repaired ? TempleLook.Mended : templeUnsealed ? TempleLook.Open : TempleLook.Sealed;
+
+        private void ShowTemple()
+        {
+            if (templeArt != null && Layout != null) templeArt.sprite = TempleArt.Building(Layout.Theme, TempleLook);
+            if (TempleDoor != null) TempleDoor.Unsealed = templeUnsealed || repaired;
         }
 
         /// <summary>The halo behind the statue and a banner each side of it (no colliders).</summary>
@@ -126,7 +156,14 @@ namespace Game.Cube
                 solid.size = b.Solid.size;
                 buildings.Add(solid);
                 Vector2 artCentre = b.Art.center - b.Solid.center;
-                if (!TownArt.IsKenney(b.Kind) || !LayKenneyCottage(root.transform, b, artCentre, material))
+                if (b.Kind == TownBuildingKind.Temple)
+                {
+                    // 4.14: the temple, in the race's style, sealed until the face's fragments are handed in.
+                    templeArt = NewRenderer("Art", root.transform, artCentre, material, ArtOrder);
+                    TempleDoor = AddTempleDoor(b);
+                    ShowTemple();
+                }
+                else if (!TownArt.IsKenney(b.Kind) || !LayKenneyCottage(root.transform, b, artCentre, material))
                 {
                     SpriteRenderer art = NewRenderer("Art", root.transform, artCentre, material, ArtOrder);
                     art.sprite = TownArt.Building(b.Kind);
@@ -178,6 +215,16 @@ namespace Game.Cube
                     material, false);
             }
             return true;
+        }
+
+        private TempleDoor AddTempleDoor(TownBuilding b)
+        {
+            var go = new GameObject("Temple Door");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = b.Door;
+            TempleDoor door = go.AddComponent<TempleDoor>();
+            door.Configure(b.DoorFacing, Layout.Theme);
+            return door;
         }
 
         private TownDoor AddDoor(TownBuilding b, Material material)

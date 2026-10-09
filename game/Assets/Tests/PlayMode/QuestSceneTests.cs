@@ -332,9 +332,17 @@ namespace Game.Cube.Tests
             yield return this.Tap(keyboard.qKey, 2);
             for (int i = 2; i <= count; i++) rewards.Grant(Reward.Fragment(i), face);
             yield return TalkTo(world.GetComponent<TownSquares>().LeaderOf(face), said);
-            Assert.IsTrue(world.Repairs.IsRepaired(face));
+            Assert.IsTrue(world.Repairs.IsUnsealed(face), "the hand-in opens the temple (4.14)");
+            Assert.IsFalse(world.Repairs.IsRepaired(face));
             Assert.IsTrue(quest.Done, "the hand-in marks it done");
             Assert.AreEqual(QuestText.LeaderDone(Theme.Biology, leader.Spec.Name), quest.Step);
+            QuestEntry temple = world.Quests.Get(QuestLog.TempleId(face));
+            Assert.IsNotNull(temple, "the temple's quest joins the log on the hand-in");
+            Assert.IsFalse(temple.Done);
+            Assert.AreEqual(QuestText.TempleStep(Theme.Biology), temple.Step);
+            world.RepairFace(face);
+            world.Quests.RefreshLeaders(world, rewards);
+            Assert.IsTrue(temple.Done, "done once its gem is won");
 
             // The face's errand too.
             ErrandPlan faceErrand = world.GetComponent<TownSquares>().FaceErrands[face];
@@ -345,7 +353,7 @@ namespace Game.Cube.Tests
             Assert.IsTrue(world.Quests.IsDone(QuestLog.ErrandId(face)), $"{faceErrand}: carried");
 
             List<QuestEntry> shown = world.Quests.Ordered();
-            Assert.AreEqual(4, shown.Count, "Town's errand and side quest, the leader's quest and the face's errand");
+            Assert.AreEqual(5, shown.Count, "Town's errand and side quest, the leader's quest, its temple's (4.14) and the face's errand");
             Assert.AreEqual(QuestLog.TownId, shown[0].Id, "the open quest first");
             Assert.IsTrue(shown.Skip(1).All(e => e.Done));
 
@@ -516,8 +524,10 @@ namespace Game.Cube.Tests
 
             // Back to the Mayor: Town is mended, and the side quest is done.
             yield return TalkTo(town.Leader, said);
-            CollectionAssert.AreEqual(Dialogue.RepairConversation(Race.Townsfolk, 1), said);
-            Assert.IsTrue(world.Repairs.IsRepaired(CubeModel.StartFace), "Town is mended");
+            CollectionAssert.AreEqual(Dialogue.UnsealConversation(Race.Townsfolk, 1), said);
+            Assert.IsTrue(world.Repairs.IsUnsealed(CubeModel.StartFace), "Town's temple is open (4.14)");
+            Assert.IsFalse(world.Repairs.IsRepaired(CubeModel.StartFace), "Town is mended only by its temple's gem");
+            Assert.IsTrue(world.Quests.Has(QuestLog.TempleId(CubeModel.StartFace)), "the temple joins the log");
             Assert.IsTrue(entry.Done);
             Assert.AreEqual(QuestText.TownDone, entry.Step);
         }

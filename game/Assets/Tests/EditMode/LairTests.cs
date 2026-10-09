@@ -116,7 +116,7 @@ namespace Game.Cube.Tests
                             topics.Add(prisoner.Topic);
                             break;
                         case PrisonerHint.Benefit:
-                            StringAssert.Contains("mending " + InWorldText.Region(prisoner.BenefitTheme), lines[1]);
+                            StringAssert.Contains("the gem from the temple of " + InWorldText.Region(prisoner.BenefitTheme), lines[1]); // 4.14: mending is the temple's gem
                             StringAssert.Contains(LairText.BenefitFact(prisoner.BenefitTheme), lines[1]);
                             told.Add(prisoner.BenefitTheme);
                             break;

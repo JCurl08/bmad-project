@@ -13,14 +13,20 @@ namespace Game.Cube
         /// <summary>The Mayor handed over Town's one fragment (4.8; since 4.18 the fragment is found on Town's trail instead).</summary>
         Gave = 1,
 
-        /// <summary>All the face's fragments were handed in: the face is mended now.</summary>
+        /// <summary>Before 4.14: the hand-in mended the face. Since 4.14 the hand-in unseals the temple (Unsealed) instead.</summary>
         Repaired = 2,
 
-        /// <summary>The face was already mended.</summary>
+        /// <summary>The face was already mended (its temple's gem taken).</summary>
         Mended = 3,
 
         /// <summary>The Mayor says Town's fragment went missing, or reminds who to ask next (4.18, TownTrailQuest).</summary>
         Lost = 4,
+
+        /// <summary>All the face's fragments were handed in: the leader unseals its temple (4.14).</summary>
+        Unsealed = 5,
+
+        /// <summary>The temple is open; its gem not yet won (4.14): the leader points the way.</summary>
+        TempleOpen = 6,
     }
 
     /// <summary>
@@ -143,15 +149,18 @@ namespace Game.Cube
             if (step == QuestStep.Gave)
                 PickupPopup.Show(at, RewardText.FragmentPopup(theme, 1, 1), RewardChest.PopupColor, 1.6f);
             if (step == QuestStep.Asked) LogAsked(theme, rewards, at);
-            if (step == QuestStep.Repaired)
+            if (step == QuestStep.Unsealed)
             {
-                LogAsked(theme, rewards, at);
-                if (world != null) world.RepairFace(Face);
-                PickupPopup.Show(at, RewardText.RepairPopup(theme), RewardChest.PopupColor, 2f);
-                LogRepaired(theme, at);
+                LogAsked(theme, rewards, at - new Vector2(0f, PopupStep)); // a quest given and done at once: its notice below the rest
+                if (world != null) world.UnsealTemple(Face);
+                PickupPopup.Show(at, RewardText.UnsealPopup(theme), RewardChest.PopupColor, 2f);
+                LogUnsealed(theme, at);
             }
             return lines;
         }
+
+        /// <summary>How far apart the hand-in's popups stand (4.14 review): the unseal line, the quest done above it, the temple's above that.</summary>
+        public const float PopupStep = 1f;
 
         /// <summary>The leader's name ("Queen Wrennifer").</summary>
         public string LeaderName => Talker != null && Talker.Spec != null ? Talker.Spec.Name : NpcNames.Leader(Race);
@@ -167,8 +176,11 @@ namespace Game.Cube
             QuestNotice.Added(entry, at);
         }
 
-        /// <summary>The hand-in marks the face's quest done in the log (Town's: the lost-and-found side quest, 4.18).</summary>
-        private void LogRepaired(Theme theme, Vector2 at)
+        /// <summary>
+        /// The hand-in marks the face's quest done in the log (Town's: the lost-and-found side quest, 4.18) and gives the
+        /// temple's quest (4.14), done once its gem is won (TempleView).
+        /// </summary>
+        private void LogUnsealed(Theme theme, Vector2 at)
         {
             QuestLog log = world != null ? world.Quests : null;
             if (log == null) return;
@@ -176,17 +188,19 @@ namespace Game.Cube
             {
                 if (!log.Has(QuestLog.TownId))
                     log.Add(QuestLog.TownId, QuestKind.TownSide, Face, LeaderName, QuestText.TownTitle, QuestText.TownReturn);
-                if (log.Complete(QuestLog.TownId, QuestText.TownDone)) QuestNotice.Completed(log.Get(QuestLog.TownId), at);
-                return;
+                if (log.Complete(QuestLog.TownId, QuestText.TownDone)) QuestNotice.Completed(log.Get(QuestLog.TownId), at + new Vector2(0f, PopupStep));
             }
-            if (log.Complete(QuestLog.LeaderId(Face), QuestText.LeaderDone(theme, LeaderName)))
-                QuestNotice.Completed(log.Get(QuestLog.LeaderId(Face)), at);
+            else if (log.Complete(QuestLog.LeaderId(Face), QuestText.LeaderDone(theme, LeaderName)))
+                QuestNotice.Completed(log.Get(QuestLog.LeaderId(Face)), at + new Vector2(0f, PopupStep));
+            if (!log.Has(QuestLog.TempleId(Face)))
+                QuestNotice.Added(log.Add(QuestLog.TempleId(Face), QuestKind.Temple, Face, LeaderName, QuestText.TempleTitle(theme),
+                    QuestText.TempleStep(theme)), at + new Vector2(0f, 2f * PopupStep));
         }
 
         /// <summary>
         /// The quest's rule, pure (EditMode tests use it): what a leader of a race says for a face numbered count, given the
-        /// player's rewards and the run's repairs; for a hand-in (act, all count held) it reports Repaired (the caller then
-        /// mends the face: CubeWorld.RepairFace, or repairs.Repair without a world). Town with no fragment held reports Lost
+        /// player's rewards and the run's repairs; for a hand-in (act, all count held) it reports Unsealed (the caller then
+        /// unseals the temple: CubeWorld.UnsealTemple, or repairs.Unseal without a world); with the temple open, TempleOpen. Town with no fragment held reports Lost
         /// (4.18: Town's trail gives the fragment). Only when Town's trail is not ready (townTrailReady false) does the Mayor
         /// fall back to 4.8's gift: he hands the fragment over (Gave), and the next talk mends Town.
         /// </summary>
@@ -197,6 +211,12 @@ namespace Game.Cube
             {
                 step = QuestStep.Mended;
                 return Dialogue.MendedConversation(race);
+            }
+            if (repairs != null && repairs.IsUnsealed(face))
+            {
+                // 4.14: the fragments were handed in and the temple stands open; its puzzle mends them.
+                step = QuestStep.TempleOpen;
+                return Dialogue.TempleOpenConversation(race);
             }
             int found = rewards != null ? rewards.FragmentsOf(face) : 0;
             if (face == CubeModel.StartFace && found == 0 && !townTrailReady)
@@ -213,8 +233,8 @@ namespace Game.Cube
             }
             if (rewards != null && repairs != null && found >= count)
             {
-                step = act ? QuestStep.Repaired : QuestStep.Asked;
-                if (act) return Dialogue.RepairConversation(race, count);
+                step = act ? QuestStep.Unsealed : QuestStep.Asked;
+                if (act) return Dialogue.UnsealConversation(race, count);
                 return Dialogue.QuestConversation(race, count, found);
             }
             step = QuestStep.Asked;

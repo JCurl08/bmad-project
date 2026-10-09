@@ -84,7 +84,7 @@ namespace Game.Cube
         {
             velocity = Vector2.zero;
             if (body == null) return false;
-            if (navigator != null && (navigator.InCoreArena || navigator.InInterior))
+            if (navigator != null && (navigator.InCoreArena || (navigator.InInterior && !navigator.InTemple))) // 4.14: a temple's ice or wind is the puzzle
             {
                 if (!ReferenceEquals(screen, null)) Reset(null);
                 return false;

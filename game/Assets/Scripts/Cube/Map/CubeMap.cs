@@ -64,8 +64,10 @@ namespace Game.Cube
             foreach (InteriorKind kind in new[] { InteriorKind.Shop, InteriorKind.LeadersHall, InteriorKind.Home })
                 yield return InsideText(kind);
             yield return LairText.MapBadge;
+            yield return TempleText.MapBadge;
             yield return RewardText.FragmentCount(2, 4, false);
             yield return RewardText.FragmentCount(1, 1, true);
+            yield return RewardText.FragmentCount(4, 4, true, false);
         }
 
         /// <summary>The map's header band (title, inside badge, close hint): the net starts below it.</summary>
@@ -108,6 +110,9 @@ namespace Game.Cube
 
         /// <summary>A mended face's town marker and fragment tag (4.8): gold.</summary>
         private static readonly Color MendedColor = new Color(1f, 0.9f, 0.3f);
+
+        /// <summary>A face whose temple is open (4.14): its tag in pale lilac, "temple".</summary>
+        private static readonly Color TempleTagColor = new Color(0.85f, 0.8f, 1f);
         private static readonly Color PlayerColor = new Color(1f, 0.35f, 0.3f);
 
         [SerializeField] private CubeWorld world;
@@ -191,6 +196,7 @@ namespace Game.Cube
             {
                 if (!PlayerInside || world == null || world.Model == null) return null;
                 if (navigator.InLair) return LairText.MapBadge;
+                if (navigator.InTemple) return TempleText.MapBadge;
                 return InsideText(TownInterior.KindFor(world.Model.ThemeOf(navigator.Face)));
             }
         }
@@ -269,7 +275,7 @@ namespace Game.Cube
             if (!visited) return null;
             RunRewards rewards = navigator != null ? navigator.GetComponent<RunRewards>() : null;
             return RewardText.FragmentCount(rewards != null ? rewards.FragmentsOf(face) : 0, world.Dice.Of(face),
-                world.Repairs != null && world.Repairs.IsRepaired(face));
+                world.Repairs != null && world.Repairs.IsUnsealed(face), world.Repairs != null && world.Repairs.IsRepaired(face));
         }
 
         /// <summary>Re-reads the markers from the live world (gates opened, items taken, trials solved since).</summary>
@@ -500,7 +506,8 @@ namespace Game.Cube
                 if (tag == null) continue;
                 Rect tagRect = FragmentTagRect(n, p.Face, left, top, cell);
                 Fill(tagRect, new Color(0.05f, 0.04f, 0.07f, 0.6f));
-                GUI.color = world.Repairs != null && world.Repairs.IsRepaired(p.Face) ? MendedColor : Color.white;
+                GUI.color = world.Repairs != null && world.Repairs.IsRepaired(p.Face) ? MendedColor
+                    : world.Repairs != null && world.Repairs.IsUnsealed(p.Face) ? TempleTagColor : Color.white;
                 GUI.Label(tagRect, tag, tagStyle);
                 GUI.color = Color.white;
             }

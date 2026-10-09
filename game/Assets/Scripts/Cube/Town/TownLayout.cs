@@ -34,6 +34,12 @@ namespace Game.Cube
         Lodge = 11,
         /// <summary>Dinosaurs: a little log cabin with a stone chimney.</summary>
         Cabin = 12,
+
+        /// <summary>
+        /// Every town's temple (4.14), drawn in its race's style (TempleArt): sealed until the face's fragments are handed to
+        /// its leader, then its door leads into the temple's puzzle room (TempleRooms).
+        /// </summary>
+        Temple = 13,
     }
 
     /// <summary>One town building: its kind, its solid footprint, the area its art covers, its door and whether that door is the one 4.6 makes enterable.</summary>
@@ -101,6 +107,9 @@ namespace Game.Cube
         /// <summary>Which of the four is the marked (enterable) building: the inner one west of the crossroads.</summary>
         public const int MarkedBuilding = 1;
 
+        /// <summary>Which of the four is the temple (4.14): the outer one east of the crossroads.</summary>
+        public const int TempleBuilding = 3;
+
         /// <summary>The statue's pedestal and figure (art), and its solid base, in the south-east quadrant by the crossroads.</summary>
         public static readonly Rect StatueArtRect = new Rect(1.95f, -5.5f, 20f / PixelsPerUnit, 24f / PixelsPerUnit);
         public static readonly Rect StatueSolidRect = Rect.MinMaxRect(2.3f, -5.5f, 4.1f, -4.1f);
@@ -157,21 +166,24 @@ namespace Game.Cube
             return layout;
         }
 
-        /// <summary>Each race's buildings, west to east (the second is the marked one).</summary>
+        /// <summary>Each race's buildings, west to east (the second is the marked one, the fourth the temple, 4.14).</summary>
         public static TownBuildingKind[] KindsFor(Theme theme)
         {
             switch (theme)
             {
-                case Theme.Biology: return new[] { TownBuildingKind.Nest, TownBuildingKind.Treehouse, TownBuildingKind.Nest, TownBuildingKind.Treehouse };
-                case Theme.Chemistry: return new[] { TownBuildingKind.VentHut, TownBuildingKind.MushroomHut, TownBuildingKind.VentHut, TownBuildingKind.MushroomHut };
-                case Theme.Physics: return new[] { TownBuildingKind.Dome, TownBuildingKind.Observatory, TownBuildingKind.Dome, TownBuildingKind.Observatory };
-                case Theme.Math: return new[] { TownBuildingKind.Block, TownBuildingKind.Tower, TownBuildingKind.Block, TownBuildingKind.Tower };
-                case Theme.EarthAtmosphere: return new[] { TownBuildingKind.Cabin, TownBuildingKind.Lodge, TownBuildingKind.Cabin, TownBuildingKind.Lodge };
-                default: return new[] { TownBuildingKind.StoneCottage, TownBuildingKind.Cottage, TownBuildingKind.MarketStall, TownBuildingKind.Cottage };
+                case Theme.Biology: return new[] { TownBuildingKind.Nest, TownBuildingKind.Treehouse, TownBuildingKind.Nest, TownBuildingKind.Temple };
+                case Theme.Chemistry: return new[] { TownBuildingKind.VentHut, TownBuildingKind.MushroomHut, TownBuildingKind.VentHut, TownBuildingKind.Temple };
+                case Theme.Physics: return new[] { TownBuildingKind.Dome, TownBuildingKind.Observatory, TownBuildingKind.Dome, TownBuildingKind.Temple };
+                case Theme.Math: return new[] { TownBuildingKind.Block, TownBuildingKind.Tower, TownBuildingKind.Block, TownBuildingKind.Temple };
+                case Theme.EarthAtmosphere: return new[] { TownBuildingKind.Cabin, TownBuildingKind.Lodge, TownBuildingKind.Cabin, TownBuildingKind.Temple };
+                default: return new[] { TownBuildingKind.StoneCottage, TownBuildingKind.Cottage, TownBuildingKind.MarketStall, TownBuildingKind.Temple };
             }
         }
 
-        /// <summary>The race whose style a building kind is in (Town's for the cottages and the market).</summary>
+        /// <summary>
+        /// The race whose style a building kind is in (Town's for the cottages and the market). The temple is drawn in every
+        /// race's style (TempleArt), so it reads as Town's here: ask the town's own theme instead.
+        /// </summary>
         public static Theme ThemeOf(TownBuildingKind kind)
         {
             switch (kind)
@@ -203,6 +215,17 @@ namespace Game.Cube
                 case TownBuildingKind.Block: return 10f / PixelsPerUnit;
                 case TownBuildingKind.Cabin: return 12f / PixelsPerUnit;
                 default: return BuildingWidth / 2f;
+            }
+        }
+
+        /// <summary>The temple (4.14).</summary>
+        public TownBuilding Temple
+        {
+            get
+            {
+                foreach (TownBuilding b in buildings)
+                    if (b.Kind == TownBuildingKind.Temple) return b;
+                return buildings[TempleBuilding];
             }
         }
 
@@ -243,6 +266,10 @@ namespace Game.Cube
             int marked = 0;
             foreach (TownBuilding b in buildings) if (b.Enterable) marked++;
             if (marked != 1) problems.Add($"{Theme}: {marked} marked doors (want 1)");
+            int temples = 0;
+            foreach (TownBuilding b in buildings) if (b.Kind == TownBuildingKind.Temple) temples++;
+            if (temples != 1) problems.Add($"{Theme}: {temples} temples (want 1)");
+            if (Temple.Enterable) problems.Add($"{Theme}: the temple is the marked building");
 
             List<Rect> solids = Solids;
             for (int i = 0; i < solids.Count; i++)

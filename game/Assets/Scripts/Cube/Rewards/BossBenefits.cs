@@ -82,14 +82,14 @@ namespace Game.Cube
             }
         }
 
-        /// <summary>The core HUD's help line ("Help from mended faces: +1 heart, wider gaps"), or null with none.</summary>
+        /// <summary>The core HUD's help line ("Help from your gems: +1 heart, wider gaps"), or null with none.</summary>
         public static string HudLine(BossBenefit benefits)
         {
             if (benefits == BossBenefit.None) return null;
             var labels = new List<string>();
             foreach (BossBenefit b in All)
                 if ((benefits & b) != 0) labels.Add(Label(b));
-            return "Help from mended faces: " + string.Join(", ", labels);
+            return "Help from your gems: " + string.Join(", ", labels);
         }
 
         /// <summary>Every fixed text here, for the text scans.</summary>

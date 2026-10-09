@@ -24,11 +24,21 @@ namespace Game.Cube
             return char.ToUpperInvariant(region[0]) + region.Substring(1) + " is mended!";
         }
 
+        /// <summary>The popup when a leader unseals a face's temple (4.14): "The temple of the Greenwood* is open!".</summary>
+        public static string UnsealPopup(Theme theme) => $"The temple of {InWorldText.Region(theme)} is open!";
+
         /// <summary>The HUD's fragments label (the dice follow it, one per face, a pip per fragment).</summary>
         public const string FragmentsLabel = "Fragments";
 
-        /// <summary>One face's fragment count as the HUD and map spell it: "2/4", or "mended".</summary>
-        public static string FragmentCount(int found, int count, bool mended) => mended ? "mended" : $"{found}/{count}";
+        /// <summary>A face's fragment state on the HUD and map (4.14): "temple" once its temple is open, "gem" once its gem is won.</summary>
+        public const string TempleTag = "temple", GemTag = "gem";
+
+        /// <summary>One face's fragment count as the HUD and map spell it: "2/4", or "gem" once mended (its temple's gem won).</summary>
+        public static string FragmentCount(int found, int count, bool mended) => mended ? GemTag : $"{found}/{count}";
+
+        /// <summary>As FragmentCount, with the temple open (4.14): "2/4", "temple" or "gem".</summary>
+        public static string FragmentCount(int found, int count, bool unsealed, bool mended) =>
+            mended ? GemTag : unsealed ? TempleTag : $"{found}/{count}";
 
         /// <summary>
         /// The HUD's fragments line as text (the HUD draws it as dice): "Fragments: Town mended, the Greenwood* 2/4, ...", for
@@ -40,6 +50,16 @@ namespace Game.Cube
             if (faces != null)
                 foreach ((Theme theme, int found, int count, bool mended) in faces)
                     parts.Add(InWorldText.Region(theme) + " " + FragmentCount(found, count, mended));
+            return parts.Count == 0 ? null : FragmentsLabel + ": " + string.Join(", ", parts);
+        }
+
+        /// <summary>The HUD's line with the temples (4.14): "Fragments: Town gem, the Greenwood* temple, Bridgelands* 2/4".</summary>
+        public static string FragmentsLine(IEnumerable<(Theme Theme, int Found, int Count, bool Unsealed, bool Mended)> faces)
+        {
+            var parts = new List<string>();
+            if (faces != null)
+                foreach ((Theme theme, int found, int count, bool unsealed, bool mended) in faces)
+                    parts.Add(InWorldText.Region(theme) + " " + FragmentCount(found, count, unsealed, mended));
             return parts.Count == 0 ? null : FragmentsLabel + ": " + string.Join(", ", parts);
         }
 
@@ -107,11 +127,14 @@ namespace Game.Cube
             yield return PowerPopup;
             yield return FragmentPopup(Theme.Town, 1, 1);
             yield return RepairPopup(Theme.Town);
+            yield return UnsealPopup(Theme.Town);
             foreach (Theme t in CubeModel.ScienceThemes)
             {
                 yield return FragmentPopup(t, 3, 5);
                 yield return RepairPopup(t);
+                yield return UnsealPopup(t);
             }
+            yield return FragmentsLine(new[] { (Theme.Town, 1, 1, true, true), (Theme.Biology, 4, 4, true, false), (Theme.Math, 2, 6, false, false) });
             yield return FragmentsLine(new[] { (Theme.Town, 1, 1, true), (Theme.Biology, 2, 4, false), (Theme.Math, 0, 6, false) });
             yield return HudLine(2, new[] { RunUpgrade.Heart, RunUpgrade.Heart, RunUpgrade.Speed, RunUpgrade.Power });
             yield return HudLine(1, new[] { RunUpgrade.Speed });

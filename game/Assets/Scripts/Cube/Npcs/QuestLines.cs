@@ -103,7 +103,7 @@ namespace Game.Cube
             [Voice.Finch] = "Verily, here is the mayor's fragment. I did guard it well. Bear it back to " + Mayor + ", prithee.",
             [Voice.Mushroom] = "Oh, the fragment! Here! I was *so* worried I'd lose it! Take it back to " + Mayor + ", quick!",
             [Voice.Alien] = "Here is the fragment. Was I keeping it, or was it keeping me, I wonder? Take it to " + Mayor + ".",
-            [Voice.Shape] = "Here is the fragment. If you take it to " + Mayor + ", then Town is mended. Therefore, go.",
+            [Voice.Shape] = "Here is the fragment. If you take it to " + Mayor + ", then Town's temple opens. Therefore, go.",
             [Voice.Ground] = "Here's the fragment. Kept it safe as a rock. Haul it back to " + Mayor + ".",
             [Voice.Sky] = "Here's the fragment, safe and dry from the rain. Float it back to " + Mayor + ".",
         };

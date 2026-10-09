@@ -132,15 +132,42 @@ namespace Game.Cube
             return module != null ? module.GetComponentInChildren<TownSquareView>(true) : null;
         }
 
-        /// <summary>Repairs a face (its leader took all its fragments, LeaderQuest): records it and lights its town. False if it already was.</summary>
+        /// <summary>
+        /// Repairs a face: since 4.14 its temple's puzzle was solved, so the fragments mend and the player takes the face's gem
+        /// (TempleView); records it and lights its town. False if it already was.
+        /// </summary>
         public bool RepairFace(FaceId face)
         {
             if (Repairs == null || !Repairs.Repair(face)) return false;
             TownSquareView view = TownViewOf(face);
-            if (view != null) view.Repaired = true;
+            if (view != null)
+            {
+                view.TempleUnsealed = true;
+                view.Repaired = true;
+            }
             FaceRepaired?.Invoke(face);
             return true;
         }
+
+        /// <summary>Raised when a face's temple is unsealed this run (4.14; after its town shows it).</summary>
+        public event Action<FaceId> TempleUnsealed;
+
+        /// <summary>
+        /// Unseals a face's temple (4.14: its leader took all its fragments, LeaderQuest): records it and opens the temple's
+        /// door in its town. False if it already was open.
+        /// </summary>
+        public bool UnsealTemple(FaceId face)
+        {
+            if (Repairs == null || !Repairs.Unseal(face)) return false;
+            TempleOf(face); // 4.14 review: the temple's puzzle is made (and cached) now, never on the first step inside
+            TownSquareView view = TownViewOf(face);
+            if (view != null) view.TempleUnsealed = true;
+            TempleUnsealed?.Invoke(face);
+            return true;
+        }
+
+        /// <summary>A face's temple puzzle this run (4.14, TemplePlan; made once per seed and face), or null without a run.</summary>
+        public TemplePuzzle TempleOf(FaceId face) => Model != null ? TemplePlan.For(Model, face) : null;
 
         /// <summary>An edge opened (4.9): every arch built along it, on both faces, drops its bars.</summary>
         private void OnEdgeOpened(CubeEdge edge)
@@ -857,7 +884,16 @@ namespace Game.Cube
             module.transform.position = ScreenCenter(address);
             module.SetActiveCoreEntrance(activeCoreSlot);
             // A town module (4.5) gets its race's town: buildings, plaza and statue (TownSquareView).
-            if (module.IsTownScreen) TownSquareView.Build(module, material);
+            if (module.IsTownScreen)
+            {
+                TownSquareView town = TownSquareView.Build(module, material);
+                // 4.14: a town built after its temple was opened (or its gem taken) shows it.
+                if (town != null && Repairs != null)
+                {
+                    town.TempleUnsealed = Repairs.IsUnsealed(address.Face);
+                    town.Repaired = Repairs.IsRepaired(address.Face);
+                }
+            }
             // Exits whose edge leads into a sealed face are closed (that edge is a wall).
             foreach (ExitSlot exit in module.Exits)
                 exit.gameObject.SetActive(Model.TryStep(address, exit.Facing, out _, out _));

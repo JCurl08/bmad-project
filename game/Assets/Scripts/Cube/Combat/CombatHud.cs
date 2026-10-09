@@ -52,13 +52,20 @@ namespace Game.Cube
             public readonly int Count;
             public readonly bool Mended;
 
-            public FaceDie(FaceId face, Theme theme, int found, int count, bool mended)
+            /// <summary>True once the face's temple is open (4.14).</summary>
+            public readonly bool Unsealed;
+
+            /// <summary>True once the face's gem is won (4.14: the same as Mended).</summary>
+            public bool HasGem => Mended;
+
+            public FaceDie(FaceId face, Theme theme, int found, int count, bool mended, bool unsealed = false)
             {
                 Face = face;
                 Theme = theme;
                 Found = found;
                 Count = count;
                 Mended = mended;
+                Unsealed = unsealed || mended;
             }
         }
 
@@ -78,7 +85,7 @@ namespace Game.Cube
                     FaceId face = world.Dice.FaceNumbered(number);
                     if (face != CubeModel.StartFace && (!world.ScienceRevealed || !CubeLayout.IsLaidOut(world.Model, face))) continue;
                     dice.Add(new FaceDie(face, world.Model.ThemeOf(face), rewards.FragmentsOf(face), number,
-                        world.Repairs != null && world.Repairs.IsRepaired(face)));
+                        world.Repairs != null && world.Repairs.IsRepaired(face), world.Repairs != null && world.Repairs.IsUnsealed(face)));
                 }
                 return dice;
             }
@@ -89,8 +96,8 @@ namespace Game.Cube
         {
             get
             {
-                var parts = new List<(Theme, int, int, bool)>();
-                foreach (FaceDie d in FragmentDice) parts.Add((d.Theme, d.Found, d.Count, d.Mended));
+                var parts = new List<(Theme, int, int, bool, bool)>();
+                foreach (FaceDie d in FragmentDice) parts.Add((d.Theme, d.Found, d.Count, d.Unsealed, d.Mended));
                 return RewardText.FragmentsLine(parts);
             }
         }
@@ -187,6 +194,22 @@ namespace Game.Cube
                     // Pip (x, y) on the 7x7 face, y up; GUI y runs down.
                     var r = new Rect(box.x + pips[p].x * cell - cell * 0.25f, box.y + (6 - pips[p].y) * cell - cell * 0.25f, cell * 1.5f, cell * 1.5f);
                     Fill(r, pip);
+                }
+                if (d.HasGem)
+                {
+                    // 4.14: the face's gem, a diamond in its region's colour on the die's corner.
+                    Color gem = TempleArt.GemColor(d.Theme);
+                    var g = new Rect(box.xMax - 6f, box.y - 8f, 12f, 12f);
+                    Fill(new Rect(g.x + 3f, g.y, 6f, 12f), Color.black);
+                    Fill(new Rect(g.x, g.y + 3f, 12f, 6f), Color.black);
+                    Fill(new Rect(g.x + 4f, g.y + 1f, 4f, 10f), gem);
+                    Fill(new Rect(g.x + 1f, g.y + 4f, 10f, 4f), gem);
+                    Fill(new Rect(g.x + 4f, g.y + 4f, 2f, 2f), Color.white);
+                }
+                else if (d.Unsealed)
+                {
+                    // The temple open: a pale bar under the die, waiting for its gem.
+                    Fill(new Rect(box.x - 4f, box.yMax + 3f, box.width + 8f, 2f), new Color(0.85f, 0.85f, 1f));
                 }
             }
         }

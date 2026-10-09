@@ -115,6 +115,11 @@ namespace Game.Cube
             /// </summary>
             public List<string> QuestProblems;
 
+            /// <summary>Temple problems (4.14: TemplePlan.FindProblems, every temple's puzzle solvable inside its tier's targets); null when not checked.</summary>
+            public List<string> TempleProblems;
+
+            public bool TemplesChecked => TempleProblems != null;
+
             public bool CoreChecked => CoreProblems != null;
             public bool QuestsChecked => QuestProblems != null;
             public bool ItemsChecked => ItemProblems != null;
@@ -135,7 +140,8 @@ namespace Game.Cube
                                   (WindProblems == null || WindProblems.Count == 0) &&
                                   (IslandProblems == null || IslandProblems.Count == 0) &&
                                   (LairProblems == null || LairProblems.Count == 0) &&
-                                  (QuestProblems == null || QuestProblems.Count == 0);
+                                  (QuestProblems == null || QuestProblems.Count == 0) &&
+                                  (TempleProblems == null || TempleProblems.Count == 0);
         }
 
         /// <summary>
@@ -432,6 +438,8 @@ namespace Game.Cube
                     // 4.18: Town's lost-and-found trail is completable, and every town has one sound errand.
                     if (catalog is ModuleLibrary questLibrary && TownSquare.HasTown(faceSize))
                         result.QuestProblems = FindQuestProblems(model, questLibrary, out result.TownTrail);
+                    // 4.14: every temple's puzzle is solvable from its doorway, inside its (late) tier's targets.
+                    if (TownSquare.HasTown(faceSize)) result.TempleProblems = TemplePlan.FindProblems(model);
                     MathPlan islands = null;
                     // 4.10: Earth's ice screens, solved from every doorway against their tier's targets.
                     IcePlan ice = IcePlan.Create(model, layout);
@@ -610,7 +618,7 @@ namespace Game.Cube
             var failures = new StringBuilder();
             int total = 0, failed = 0;
             bool coreChecked = false, itemsChecked = false, hiddenChecked = false, rewardsChecked = false, locksChecked = false, iceChecked = false, windChecked = false, islandsChecked = false;
-            bool lairChecked = false, questsChecked = false;
+            bool lairChecked = false, questsChecked = false, templesChecked = false;
             foreach (SeedResult r in results)
             {
                 total++;
@@ -624,6 +632,7 @@ namespace Game.Cube
                 islandsChecked |= r.IslandsChecked && r.Islands != null && r.Islands.Screens.Count > 0;
                 lairChecked |= r.LairChecked;
                 questsChecked |= r.QuestsChecked;
+                templesChecked |= r.TemplesChecked;
                 if (r.Passed) continue;
                 failed++;
                 if (r.Unreachable.Count > 0)
@@ -659,6 +668,9 @@ namespace Game.Cube
                 if (r.QuestProblems != null && r.QuestProblems.Count > 0)
                     failures.Append("Seed ").Append(r.Seed).Append(": quests ")
                         .AppendLine(string.Join("; ", r.QuestProblems));
+                if (r.TempleProblems != null && r.TempleProblems.Count > 0)
+                    failures.Append("Seed ").Append(r.Seed).Append(": temples ")
+                        .AppendLine(string.Join("; ", r.TempleProblems));
             }
             string what = coreChecked
                 ? "fully reachable with a reachable core entrance on every built face"
@@ -692,6 +704,8 @@ namespace Game.Cube
             if (questsChecked)
                 what += ", Town's lost-and-found trail completable (2-3 townsfolk on different reachable screens off the square, a favour " +
                         "helper, every line in the text rule) and one sound errand in every town";
+            if (templesChecked)
+                what += ", every temple's puzzle (islands, ice or wind, booths, or targets in order) solvable from its doorway inside the late tier's targets";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";
         }
     }

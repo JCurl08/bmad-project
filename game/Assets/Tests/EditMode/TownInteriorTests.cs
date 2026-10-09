@@ -147,7 +147,7 @@ namespace Game.Cube.Tests
             foreach (string text in CubeMap.AllTexts().Where(t => t.StartsWith("Inside")))
                 CollectionAssert.IsEmpty(InWorldText.Problems(text), text);
             Assert.AreEqual("Inside the shop", CubeMap.InsideText(InteriorKind.Shop));
-            Assert.AreEqual(3, CubeMap.AllTexts().Count(t => t.StartsWith("Inside the ")), "One inside badge per kind of room");
+            Assert.AreEqual(4, CubeMap.AllTexts().Count(t => t.StartsWith("Inside the ")), "One inside badge per kind of room, and the temple's (4.14)");
         }
 
         [Test]

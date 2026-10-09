@@ -1,11 +1,11 @@
 # Player guide: how a run works
 
-This describes the game as of story 4.18 (playtest 4 polish, on top of commit `2c22a74`). Names ending in `*` are placeholders until the naming brainstorm.
+This describes the game as of story 4.14 (temples, on top of commit `a5f7880`). Names ending in `*` are placeholders until the naming brainstorm.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
 
-You don't have to do everything. A full run means getting out of Town, collecting items and keys, mending faces for boss help, finding the real core portal, and winning the fight.
+You don't have to do everything. A full run means getting out of Town, collecting items and keys, opening temples and winning their gems for boss help, finding the real core portal, and winning the fight.
 
 ## Controls
 | Action | Key |
@@ -29,7 +29,7 @@ Your **swing uses the item you're holding**. Most puzzles and gates are solved b
 - **Talk to Mayor Muddleton** (purple top hat, by the statue). **Town's fragment has gone missing**, and he tells you who had it last. That starts **Town's lost-and-found side quest**:
   - Find that person on another Town screen (the Mayor says which, e.g. "on Town's north-east screen"). They passed it on, and tell you who to ask next.
   - Somewhere along the trail of 2 or 3 townsfolk, one of them wants a **favour** first: carry a word to someone else in Town, then come back with the answer.
-  - The last person hands you the fragment. Take it back to the Mayor and he mends Town, which gives you **+1 heart in the boss fight**.
+  - The last person hands you the fragment. Take it back to the Mayor and he **opens Town's temple** (the white-columned building east of the square). Solve its puzzle and you win **Town's gem: +1 heart in the boss fight**.
 - **Errands:** in each town, one person has an errand: carry a word to someone else in that town. Other would-be quest-givers just gossip.
 - **Quest log (Q):** every quest someone gives you is added: each leader's fragment quest (with how many you've found), Town's side quest (with your next step) and each town's errand. Finished ones are marked Done.
 - The building with a rug and lantern at its door can be entered: walk straight north into the door.
@@ -74,16 +74,31 @@ Every science face has a colour and a race of people:
   - A sign stands on each doorway's island, and arriving there says the rule.
   - Tip: count each island's planks. If two islands have an odd number, start on one of them.
   - One doorway reaches the puzzle only over a broken span, so use the Gap-Crosser\* there. Without it, go round by another doorway (its sign says so).
-- **Trials:** each face has one harder puzzle (numbered targets, boulder booths and similar) that pays Jumbles\*.
+- **Trials:** each face has one harder puzzle (numbered targets, boulder booths and similar) that pays Jumbles\*. The temples (step 4) hold the hardest ones.
 
-### 4. Mend faces for help against the boss
+### 4. Open the temples and win their gems
 - Each run, every face rolls a **die number**. Town is always 1; the other faces get 2–6.
 - **The face numbered k hides k fragments** behind its roadblocks. The HUD dice show how many you've found, and the map shows tags such as "2/4".
-- Bring all of a face's fragments to its **leader** (crowned, by the town statue on the centre screen). The face is mended, and its statue turns gold. Talking to a leader adds their quest to your quest log, which counts the fragments you hold.
+- Every town has a **temple** (the fourth building, east of the crossroads, in its race's own style). It starts **sealed**: a glowing seal with chains over its door. Walking into it just tells you so.
+- Bring all of a face's fragments to its **leader** (crowned, by the town statue on the centre screen). The leader **unseals the temple**: the seal is gone and the doorway glows. Your quest log marks the leader's quest done and adds the temple's. The HUD die gets a pale bar and the map tag says "temple".
 - Town's one fragment comes from Town's lost-and-found side quest (step 1), not from a chest.
-- Each mended face helps you in the boss fight:
+- **Inside the temple** is one hard puzzle, a tougher take on the face's own (walk north into the door; the rule pops up as you arrive):
 
-| Mended face | Help in the fight |
+| Temple | Puzzle |
+|---|---|
+| Town | Four tokens, each in a face's colour with pips. Swing at them by their pips, fewest first. |
+| Greenwood\* | Six seeds. Crack them from the smallest to the largest. |
+| Ember Vale\* | Six glowing stones. Wake them from the brightest to the faintest, and be quick: after the first one, a timer bar runs over the altar. |
+| Weightlands\* | Two booths behind timed doors that each need **three** boulders by them, and only three boulders. The temple lends you a grip, so press E (Interact) to grab a boulder even without the Heavy Mitt\*. Pile them by one door (off the gold dashed line), step on its switch across the room and dash straight along the line to the glowing band beside the booth; then drag them all over to the other door. Anywhere on the switch is fine. |
+| Bridgelands\* | A big "light every plank" island network (the hardest kind). |
+| Wildlands\* | A big ice screen or a big wind screen (it varies by run). |
+
+  - In the seed, stone and token temples, **any swing counts**: you don't need the face's item. A wrong one puts them all back (no damage).
+  - You can always walk back out south. **Leaving an unsolved temple resets its puzzle.** A solved one stays solved.
+- **Solve it** and the face's fragments rise, spiral together and mend into the face's **gem**, which flies to you. The face is mended: its statue turns gold, the temple shows the gem over its door, the HUD die turns gold with a gem on its corner, and the map tag says "gem" in gold.
+- Each gem helps you in the boss fight:
+
+| Gem from | Help in the fight |
 |---|---|
 | Town | +1 heart |
 | Greenwood\* | Particles drift toward you |
@@ -107,11 +122,11 @@ Every science face has a colour and a race of people:
 After you win or die, the between-runs screen shows what you earned. Spend Jumbles\* on permanent upgrades (Extra Heart, Thick Skin, Big Bonk, Zoomies), then **Continue** into a new, freshly shuffled run.
 
 ## A good first run
-1. Talk to the Mayor, follow the townsfolk trail to Town's lost fragment (check Q if you forget who's next), and bring it back. That mends Town.
+1. Talk to the Mayor, follow the townsfolk trail to Town's lost fragment (check Q if you forget who's next), and bring it back. That opens Town's temple: solve its token puzzle for Town's gem.
 2. Spend your key on a Town arch.
 3. On that face, dig mounds and talk to people until you have its item and its 2 keys.
 4. Use keys and items to open more arches. Grab fragments and chests as you go.
-5. Mend at least one or two faces.
+5. Open at least one or two temples and win their gems.
 6. Try core portals. A lair tells you where the real one is.
 7. Fight Primsworth.
 
@@ -120,9 +135,10 @@ After you win or die, the between-runs screen shows what you earned. Spend Jumbl
 |---|---|
 | F11 | Reveal the whole map |
 | Shift+F11 | Unlock every arch |
-| Shift+F9 | Get every fragment of the face you're on (then talk to its leader) |
+| Shift+F9 | Get every fragment of the face you're on (then talk to its leader to open its temple) |
 | F6 | Jump to the next screen |
-| F8 | Leave the arena, a building or the lair |
+| F8 | Leave the arena, a building, the lair or a temple |
+| Shift+F8 | Solve the temple you're in |
 | F9 | Rest to full health |
 | F10 | New run |
 | F5 | Reroll the seed |

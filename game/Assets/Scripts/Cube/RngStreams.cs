@@ -4,7 +4,7 @@ namespace Game.Cube
     /// Every named PCG32 stream (SeededRng's stream argument) in one place. Each seeded system draws from its own
     /// stream so that adding draws to one never shifts another's results. Changing a value changes what a seed
     /// produces, so never renumber or reuse one. A new system takes the
-    /// next free value (30) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
+    /// next free value (32) and adds it here; RngStreamsTests fails on a duplicate. The cube model's theme placement
     /// uses SeededRng's default stream. The owners' RngStream constants are aliases of these.
     /// </summary>
     public static class RngStreams
@@ -95,5 +95,8 @@ namespace Game.Cube
 
         /// <summary>Town's lost-and-found side quest (TownTrail, 4.18): the trail's length, its people and who wants the favour.</summary>
         public const ulong TownTrail = 30;
+
+        /// <summary>The temples (TemplePlan, 4.14): each face's temple puzzle (its islands, ice or wind, booths or targets), searched or dealt.</summary>
+        public const ulong Temples = 31;
     }
 }

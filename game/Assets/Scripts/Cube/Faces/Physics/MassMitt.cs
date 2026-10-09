@@ -77,14 +77,31 @@ namespace Game.Cube
         /// <summary>The player's own colliders (a held boulder ignores them).</summary>
         public Collider2D[] Colliders => colliders != null ? colliders : colliders = GetComponentsInChildren<Collider2D>();
 
-        /// <summary>True when the player holds the mitt.</summary>
-        public bool IsHeld => item != null && Inventory.Has(item);
+        private bool templeGrip;
 
-        /// <summary>True when the mitt is held and equipped (what grabbing needs).</summary>
+        /// <summary>
+        /// The Physics temple lends its grip (4.14; assumption: the temple's puzzle never needs the face's item): while set,
+        /// Interact grabs a boulder as if the mitt were equipped. TempleRooms sets it inside the Physics temple only.
+        /// </summary>
+        public bool TempleGrip
+        {
+            get => templeGrip;
+            set
+            {
+                if (templeGrip && !value) Release();
+                templeGrip = value;
+            }
+        }
+
+        /// <summary>True when the player holds the mitt (or the temple lends its grip).</summary>
+        public bool IsHeld => templeGrip || (item != null && Inventory.Has(item));
+
+        /// <summary>True when the mitt is held and equipped (what grabbing needs), or the temple lends its grip.</summary>
         public bool IsEquipped
         {
             get
             {
+                if (templeGrip) return true;
                 if (equipment == null) equipment = GetComponent<Equipment>();
                 return IsHeld && (equipment == null || equipment.Equipped == item);
             }
@@ -98,6 +115,8 @@ namespace Game.Cube
         {
             get
             {
+                // 4.14 review: the temple's grip without the mitt says what to do, not the mitt's name.
+                if (templeGrip && !(item != null && Inventory.Has(item))) return held != null ? TempleDropText : TempleGrabText;
                 if (!IsHeld) return null;
                 if (held != null) return DraggingText;
                 if (!IsEquipped) return EquipText;
@@ -109,8 +128,11 @@ namespace Game.Cube
         public const string EquipText = MassMittItem.Name + ": equip it to grab boulders";
         public const string ReadyText = MassMittItem.Name + ": [Interact] or swing at a boulder to grab it";
 
+        public const string TempleGrabText = "[Interact] grab a boulder";
+        public const string TempleDropText = "[Interact] drop the boulder";
+
         /// <summary>Every HUD line the mitt can show (for the text checks).</summary>
-        public static readonly string[] AllHudText = { DraggingText, EquipText, ReadyText };
+        public static readonly string[] AllHudText = { DraggingText, EquipText, ReadyText, TempleGrabText, TempleDropText };
 
         private void OnEnable()
         {

@@ -14,6 +14,9 @@ namespace Game.Cube
 
         /// <summary>A face's one errand (Errands): carry a word from one town resident to another.</summary>
         Errand = 2,
+
+        /// <summary>A face's temple (4.14): opened by its leader, done once its puzzle is solved and its gem taken.</summary>
+        Temple = 3,
     }
 
     /// <summary>One quest in the log: who gave it, what it is, the current step, any progress, and whether it is done.</summary>
@@ -69,6 +72,9 @@ namespace Game.Cube
 
         /// <summary>A science face's leader quest's id.</summary>
         public static string LeaderId(FaceId face) => "leader:" + face;
+
+        /// <summary>A face's temple quest's id (4.14).</summary>
+        public static string TempleId(FaceId face) => "temple:" + face;
 
         /// <summary>A face's errand's id (one per face at most: Errands).</summary>
         public static string ErrandId(FaceId face) => "errand:" + face;
@@ -157,15 +163,17 @@ namespace Game.Cube
 
         /// <summary>
         /// Brings every leader quest up to date from the run (live progress): how many of the face's fragments the player holds
-        /// (rewards), out of its die number (dice), and done once the face is mended (repairs).
+        /// (rewards), out of its die number (dice), and done once the face's temple is open (repairs); a temple's quest is done once its gem is taken (4.14).
         /// </summary>
         public void RefreshLeaders(CubeModel model, DieNumbers dice, FaceRepairs repairs, RunRewards rewards)
         {
-            foreach (QuestEntry e in entries)
+            foreach (QuestEntry e in new List<QuestEntry>(entries))
             {
-                if (e.Kind != QuestKind.Leader || e.Done) continue;
                 Theme theme = model != null ? model.ThemeOf(e.Face) : Theme.Town;
-                if (repairs != null && repairs.IsRepaired(e.Face))
+                if (e.Kind == QuestKind.Temple && !e.Done && repairs != null && repairs.IsRepaired(e.Face))
+                    Complete(e.Id, QuestText.TempleDone(theme));
+                if (e.Kind != QuestKind.Leader || e.Done) continue;
+                if (repairs != null && repairs.IsUnsealed(e.Face))
                 {
                     Complete(e.Id, QuestText.LeaderDone(theme, e.Giver));
                     continue;

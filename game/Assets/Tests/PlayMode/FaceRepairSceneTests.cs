@@ -136,18 +136,42 @@ namespace Game.Cube.Tests
 
             yield return Talk(Mayor(), t => talked = t);
             Assert.IsTrue(talked);
-            CollectionAssert.AreEqual(Dialogue.RepairConversation(Race.Townsfolk, 1), box.Lines, "Handing it back mends Town");
+            CollectionAssert.AreEqual(Dialogue.UnsealConversation(Race.Townsfolk, 1), box.Lines, "Handing it back opens Town's temple (4.14)");
+            Assert.IsTrue(world.Repairs.IsUnsealed(CubeModel.StartFace));
+            Assert.IsFalse(world.Repairs.IsRepaired(CubeModel.StartFace), "Not mended until the temple's puzzle is solved");
+            Assert.IsTrue(view.TempleUnsealed, "The temple's seal is gone");
+            Assert.AreEqual(TempleLook.Open, view.TempleLook);
+            Assert.IsFalse(view.Repaired);
+            Assert.AreEqual("Fragments: Town temple", hud.FragmentsText);
+            Assert.AreEqual(RewardText.TempleTag, map.FragmentTag(CubeModel.StartFace));
+            Assert.AreEqual(BossBenefit.None, arena.RunBenefits, "No benefit before the gem");
+            yield return Talk(Mayor(), t => talked = t);
+            CollectionAssert.AreEqual(Dialogue.TempleOpenConversation(Race.Townsfolk), box.Lines, "The Mayor points to the temple");
+            box.Close();
+            yield return null;
+
+            // Into the temple, and its puzzle solved: the fragment mends and the gem is the player's.
+            TempleRooms temples = Object.FindAnyObjectByType<TempleRooms>();
+            Assert.IsTrue(temples.Enter(view.TempleDoor));
+            Assert.IsTrue(navigator.InTemple);
+            temples.Current.Solve();
             Assert.IsTrue(world.Repairs.IsRepaired(CubeModel.StartFace));
+            Assert.IsTrue(world.Repairs.HasGem(CubeModel.StartFace));
             Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == RewardText.RepairPopup(Theme.Town)));
+            Assert.IsTrue(PickupPopup.Active.Any(p => p.Text == TempleText.GemPopup(Theme.Town)));
+            Assert.IsTrue(temples.Leave());
+            yield return null;
             Assert.IsTrue(view.Repaired, "The town shows it");
             Assert.IsTrue(view.RepairArt.activeSelf, "Halo and banners");
             Assert.AreEqual(3, view.RepairArt.GetComponentsInChildren<SpriteRenderer>().Length, "A halo and two banners");
             Assert.IsEmpty(view.RepairArt.GetComponentsInChildren<Collider2D>(), "Art only: nothing solid");
             Assert.AreEqual(TownSquareView.LitStatueTint, view.StatueArt.color, "The statue is lit");
-            Assert.AreEqual("Fragments: Town mended", hud.FragmentsText);
+            Assert.AreEqual(TempleLook.Mended, view.TempleLook);
+            Assert.AreEqual("Fragments: Town gem", hud.FragmentsText);
+            Assert.IsTrue(hud.FragmentDice[0].HasGem, "The HUD's die shows the gem");
             MapMarker townMarker = MapMarkers.FromWorld(world).Single(m => m.Kind == MapMarkerKind.Town && m.Screen.Face == CubeModel.StartFace);
             Assert.IsTrue(townMarker.Done, "The map's town is mended");
-            Assert.AreEqual("mended", map.FragmentTag(CubeModel.StartFace));
+            Assert.AreEqual(RewardText.GemTag, map.FragmentTag(CubeModel.StartFace));
 
             yield return Talk(Mayor(), t => talked = t);
             CollectionAssert.AreEqual(Dialogue.MendedConversation(Race.Townsfolk), box.Lines, "Then a thank-you");
@@ -234,17 +258,30 @@ namespace Game.Cube.Tests
             Assert.IsTrue(mine[k - 1].Open(navigator.gameObject));
             yield return Talk(LeaderOf(face), t => talked = t);
             Assert.IsTrue(talked);
-            CollectionAssert.AreEqual(Dialogue.RepairConversation(race, k), leader.Box.Lines, "All five: mended");
-            Assert.IsTrue(world.Repairs.IsRepaired(face));
+            CollectionAssert.AreEqual(Dialogue.UnsealConversation(race, k), leader.Box.Lines, "All five: the temple opens (4.14)");
+            Assert.IsTrue(world.Repairs.IsUnsealed(face));
+            Assert.IsFalse(world.Repairs.IsRepaired(face), "not mended yet");
+            Assert.AreEqual(RewardText.TempleTag, map.FragmentTag(face));
+            StringAssert.Contains($"{InWorldText.Region(theme)} temple", hud.FragmentsText);
+            Assert.AreEqual(BossBenefit.None, arena.RunBenefits & BossBenefits.Of(theme), "its benefit waits for the gem");
+            leader.Box.Close();
+            yield return null;
             TownSquareView view = world.TownViewOf(face);
+            Assert.IsTrue(view.TempleUnsealed);
+            TempleRooms temples = Object.FindAnyObjectByType<TempleRooms>();
+            Assert.IsTrue(temples.Enter(view.TempleDoor));
+            Assert.AreEqual(world.TempleOf(face).Kind, temples.Current.Puzzle.Kind);
+            temples.Current.Solve();
+            Assert.IsTrue(temples.Leave());
+            yield return null;
+            Assert.IsTrue(world.Repairs.IsRepaired(face), "the temple's gem mends the face");
             Assert.IsTrue(view.Repaired);
             Assert.IsTrue(view.RepairArt.activeSelf);
             Assert.IsEmpty(view.RepairArt.GetComponentsInChildren<Collider2D>());
             Assert.IsTrue(MapMarkers.FromWorld(world).Single(m => m.Kind == MapMarkerKind.Town && m.Screen.Face == face).Done);
-            Assert.AreEqual("mended", map.FragmentTag(face));
-            StringAssert.Contains($"{InWorldText.Region(theme)} mended", hud.FragmentsText);
-            Assert.AreEqual(BossBenefits.Of(theme), arena.RunBenefits, "Its benefit waits in the core");
-            leader.Box.Close();
+            Assert.AreEqual(RewardText.GemTag, map.FragmentTag(face));
+            StringAssert.Contains($"{InWorldText.Region(theme)} gem", hud.FragmentsText);
+            Assert.AreEqual(BossBenefits.Of(theme), arena.RunBenefits, "Its gem's benefit waits in the core");
         }
     }
 }
