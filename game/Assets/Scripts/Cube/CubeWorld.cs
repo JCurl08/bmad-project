@@ -115,11 +115,11 @@ namespace Game.Cube
         /// <summary>The faces repaired this run (4.8; a fresh record on every rebuild). Repairing a face lights its town (TownViewOf).</summary>
         public FaceRepairs Repairs { get; private set; } = new FaceRepairs();
 
-        /// <summary>The run's quest log (4.18; a fresh one on every rebuild): every quest given, its progress, and Town's trail progress.</summary>
+        /// <summary>The run's quest log (4.18; a fresh one on every rebuild): every quest given, its progress, and the Mayor's tour's progress (4.20).</summary>
         public QuestLog Quests { get; private set; } = new QuestLog();
 
-        /// <summary>Town's lost-and-found trail this run (4.18, TownTrail; null on a face too small for a town); rolled on every rebuild.</summary>
-        public TownTrail TownTrail { get; private set; }
+        /// <summary>The Mayor's tour of Town this run (4.20, TownTour; null on a Town that is not 3x3); rolled on every rebuild.</summary>
+        public TownTour TownTour { get; private set; }
 
         /// <summary>Raised when a face is repaired this run (after its town shows it).</summary>
         public event Action<FaceId> FaceRepaired;
@@ -284,7 +284,7 @@ namespace Game.Cube
             Locks.Opened += OnEdgeOpened;
             Repairs = new FaceRepairs();
             Quests = new QuestLog();
-            TownTrail = TownTrail.For(newSeed, CubeSettings.DefaultFaceSize);
+            TownTour = TownTour.For(newSeed, CubeSettings.DefaultFaceSize);
             Layout = null;
             Ice = null;
             Wind = null;

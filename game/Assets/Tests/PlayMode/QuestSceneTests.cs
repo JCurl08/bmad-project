@@ -19,8 +19,9 @@ namespace Game.Cube.Tests
     /// still works, and everything moves again once it closes;</item>
     /// <item>the quest log: Q opens it (pausing like the map, and from the map), and every quest given joins it: a leader's
     /// (with live fragment progress), a face's errand (done when carried), Town's side quest;</item>
-    /// <item>Town's lost-and-found side quest, walked with real presses on several seeds: the Mayor, each townsperson in turn,
-    /// the favour, the fragment, and the Mayor mending Town.</item>
+    /// <item>over seeds 1-50, the spawned Town is the sweep's pure one, the Mayor's tour is bound (its guide on its pure
+    /// spot) and each face has one errand-giver. (4.18's lost-and-found trail walk is gone with the trail; 4.20's tour is
+    /// walked in TownTourSceneTests.)</item>
     /// </list>
     /// </summary>
     public class QuestSceneTests : InputTestFixture
@@ -373,7 +374,7 @@ namespace Game.Cube.Tests
             .ToList();
 
         [UnityTest]
-        public IEnumerator OverSeeds1To50_TheSpawnedTown_IsThePureTown_TheTrailIsReady_AndEachFaceHasOneErrandGiver()
+        public IEnumerator OverSeeds1To50_TheSpawnedTown_IsThePureTown_TheTourIsReady_AndEachFaceHasOneErrandGiver()
         {
             yield return Load(1);
             FaceEnemies(false);
@@ -387,14 +388,14 @@ namespace Game.Cube.Tests
                 yield return null;
                 yield return null;
                 int n = world.FaceSize;
-                // The sweep's pure spots are the spawned ones, so the trail the sweep proves is the one in play.
-                List<TownSpot> pure = TownPlan.Spots(seed, n, TownPlan.Specs(seed, n).Count,
-                    cell => TownPlan.BlockedRects(world.Library.TownModule(cell, n)));
+                // The sweep's pure spots are the spawned ones, so the tour the sweep proves (its guide clear of them) is the one in play.
+                System.Func<Vector2Int, IReadOnlyList<Rect>> blockedFor = cell => TownPlan.BlockedRects(world.Library.TownModule(cell, n));
+                List<TownSpot> pure = TownPlan.Spots(seed, n, TownPlan.Specs(seed, n).Count, blockedFor);
                 if (!pure.SequenceEqual(town.Spots)) problems.Add($"seed {seed}: the spawned Town spots are not the pure ones");
-                if (!town.Trail.Ready) problems.Add($"seed {seed}: the trail is not ready");
+                if (!town.Tour.Ready) problems.Add($"seed {seed}: the tour is not ready");
                 if (town.Errand == null) problems.Add($"seed {seed}: Town has no errand");
-                foreach (int index in world.TownTrail.Steps.Append(world.TownTrail.Helper))
-                    if (!town.SpotAt(index).Equals(pure[index])) problems.Add($"seed {seed}: trail person {index} is not on its pure spot");
+                TownSpot guide = TownTour.GuideSpot(world.TownTour, pure, blockedFor(world.TownTour.StopOf(TourLesson.Talk).Screen.Cell));
+                if (!guide.Found || !town.Tour.GuideSpot.Equals(guide)) problems.Add($"seed {seed}: the guide's spot {town.Tour.GuideSpot} is not the pure {guide}");
 
                 // Every face's people as spawned: the towns, the town buildings and the face populations.
                 world.RevealScience();
@@ -434,102 +435,6 @@ namespace Game.Cube.Tests
                 }
             }
             Assert.IsEmpty(problems, string.Join("\n", problems.Take(30)));
-        }
-
-        // ---------- Town's lost-and-found side quest ----------
-
-        [UnityTest]
-        public IEnumerator TownsLostFragment_WalkedWithRealPresses_FromTheMayor_AlongTheTrail_BackToTheMayor([Values(7, 21, 42)] int seed)
-        {
-            yield return Load(seed);
-            FaceEnemies(false);
-            TownTrailQuest trailQuest = town.Trail;
-            Assert.IsNotNull(trailQuest);
-            Assert.IsTrue(trailQuest.Ready, "every trail person stands in Town");
-            TownTrail trail = world.TownTrail;
-            Assert.AreSame(trail, trailQuest.Trail);
-            IReadOnlyList<NpcSpec> specs = town.Specs;
-            var said = new List<string>();
-            string Name(int index) => TownPlan.Specs(seed, world.FaceSize)[index].Name;
-            string Where(int index) => QuestLines.Where(ScreenOf(trailQuest.PersonAt(index).transform.position), world.FaceSize);
-
-            // 4.18 review: Town is where everyone still mixes, so its people never turn hostile. F4 beside a trail person
-            // turns their race hostile on the faces, but not them; then every race turns hostile, and the trail still runs.
-            NpcTalker firstPerson = trailQuest.PersonAt(trail.Steps[0]);
-            navigator.TeleportTo(ScreenOf(firstPerson.transform.position), Facing.East);
-            yield return null;
-            PlacePlayer((Vector2)firstPerson.transform.position + new Vector2(0.3f, 0f) * K);
-            yield return null;
-            yield return this.Tap(keyboard.f4Key, 2);
-            Assert.IsTrue(world.Relations.IsHostile(firstPerson.Race), "F4 turns the nearest person's race hostile");
-            foreach (Race race in RaceExtensions.All) world.Relations.SetHostile(race, true);
-            yield return null;
-            foreach (NpcTalker npc in town.Npcs.Where(n => n != null).Append(town.Leader))
-            {
-                Assert.IsFalse(npc.IsHostile, $"{npc.Spec.DisplayName} in Town never turns hostile");
-                Assert.IsNull(npc.Relations, $"{npc.Spec.DisplayName} has no race relations");
-            }
-
-            // Before the Mayor speaks, the last person on the trail has nothing to say about it.
-            int last = trail.Steps[trail.Steps.Count - 1];
-            yield return TalkTo(trailQuest.PersonAt(last), said);
-            Assert.IsFalse(said.Any(l => l == QuestLines.GiveLine(trailQuest.PersonAt(last).Spec.Voice)), "no fragment before the trail starts");
-            Assert.IsFalse(rewards.HasFragment(CubeModel.StartFace, 1));
-
-            // The Mayor: it went missing, and who had it last (where they really stand).
-            yield return TalkTo(town.Leader, said);
-            Assert.AreEqual(QuestLines.MayorLostLine(Name(trail.Steps[0]), Where(trail.Steps[0])), said[1], "the Mayor names who had it last");
-            Assert.AreNotEqual(ScreenOf(town.Leader.transform.position), ScreenOf(trailQuest.PersonAt(trail.Steps[0]).transform.position),
-                "the trail leads off the square");
-            QuestEntry entry = world.Quests.Get(QuestLog.TownId);
-            Assert.IsNotNull(entry, "the side quest joins the log");
-            Assert.AreEqual(QuestText.TownAsk(Name(trail.Steps[0]), Where(trail.Steps[0])), entry.Step);
-
-            var screens = new HashSet<ScreenAddress>();
-            for (int s = 0; s < trail.Steps.Count; s++)
-            {
-                int index = trail.Steps[s];
-                NpcTalker person = trailQuest.PersonAt(index);
-                screens.Add(ScreenOf(person.transform.position));
-                Voice voice = person.Spec.Voice;
-                if (s == trail.FavourStep)
-                {
-                    yield return TalkTo(person, said);
-                    Assert.AreEqual(QuestLines.FavourAskLine(voice, Name(trail.Helper), Where(trail.Helper)), said[0], $"step {s}: a favour first");
-                    Assert.AreEqual(QuestText.TownFavour(Name(index), Name(trail.Helper), Where(trail.Helper)), entry.Step);
-                    NpcTalker helper = trailQuest.PersonAt(trail.Helper);
-                    yield return TalkTo(helper, said);
-                    Assert.AreEqual(QuestLines.HelperReplyLine(helper.Spec.Voice, Name(index)), said[0], "the helper answers");
-                    Assert.AreEqual(QuestText.TownFavourBack(Name(index), Where(index)), entry.Step);
-                }
-                yield return TalkTo(person, said);
-                if (s == trail.FavourStep) Assert.AreEqual(QuestLines.FavourThanksLine(voice), said[0], "thanks for the favour");
-                string onward = said[s == trail.FavourStep ? 1 : 0];
-                if (s + 1 < trail.Steps.Count)
-                {
-                    int next = trail.Steps[s + 1];
-                    Assert.AreEqual(QuestLines.PointerLine(voice, Name(next), Where(next)), onward, $"step {s} points on");
-                    Assert.AreEqual(QuestText.TownAsk(Name(next), Where(next)), entry.Step);
-                    Assert.IsFalse(rewards.HasFragment(CubeModel.StartFace, 1));
-                }
-                else
-                {
-                    Assert.AreEqual(QuestLines.GiveLine(voice), onward, "the last one hands it over");
-                    Assert.IsTrue(rewards.HasFragment(CubeModel.StartFace, 1), "Town's fragment is the player's");
-                    Assert.AreEqual(QuestText.TownReturn, entry.Step);
-                }
-            }
-            Assert.AreEqual(trail.Steps.Count, screens.Count, "each townsperson on the trail stands on a screen of their own");
-            Assert.IsTrue(screens.All(sc => sc.Face == CubeModel.StartFace), "all in Town");
-
-            // Back to the Mayor: Town is mended, and the side quest is done.
-            yield return TalkTo(town.Leader, said);
-            CollectionAssert.AreEqual(Dialogue.UnsealConversation(Race.Townsfolk, 1), said);
-            Assert.IsTrue(world.Repairs.IsUnsealed(CubeModel.StartFace), "Town's temple is open (4.14)");
-            Assert.IsFalse(world.Repairs.IsRepaired(CubeModel.StartFace), "Town is mended only by its temple's gem");
-            Assert.IsTrue(world.Quests.Has(QuestLog.TempleId(CubeModel.StartFace)), "the temple joins the log");
-            Assert.IsTrue(entry.Done);
-            Assert.AreEqual(QuestText.TownDone, entry.Step);
         }
     }
 }

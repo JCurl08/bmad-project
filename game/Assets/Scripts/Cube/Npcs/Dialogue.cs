@@ -429,15 +429,14 @@ namespace Game.Cube
         };
 
         /// <summary>
-        /// The Mayor's quest with no run to read (4.18): Town's one fragment has gone missing, so ask around. In a run the
-        /// Mayor names who had it last (QuestLines.MayorLostLine, Town's lost-and-found trail: TownTrail); the last person on
-        /// the trail hands it over, and handing it to the Mayor mends Town.
+        /// The Mayor's quest with no run to read (4.20; a debug spawn): Town keeps one fragment, and in town he offers a tour
+        /// (TownTourText.Offer, with its question) or hands it straight over.
         /// </summary>
-        public const string MayorGiftLine = "Here's the job, friend: every face is coming apart, and Town's one fragment has gone missing! Ask around town, somebody saw it. Bring it back and we'll mend Town!";
+        public const string MayorGiftLine = "Every face is coming apart, friend, and Town keeps one fragment of its own. Talk to me in the town square: I'll show you round or hand it straight over, and then we'll mend Town!";
 
         /// <summary>
-        /// The Mayor's fallback (4.8's gift) when Town's lost-and-found trail cannot run (4.18 review: its people did not all
-        /// find a spot): he found Town's one fragment and hands it over; talking again hands it back and mends Town.
+        /// The Mayor's fallback (4.8's gift) when the tour cannot run (4.20: no TownTourQuest bound, or a Town of another size):
+        /// he hands Town's one fragment over; talking again hands it back and opens Town's temple.
         /// </summary>
         public const string MayorFoundLine = "Here's the job, friend: every face is coming apart. Town lost just one fragment, and look, I found it! Hold on to it, then hand it back to me and we'll mend Town!";
 
@@ -451,7 +450,7 @@ namespace Game.Cube
             [Race.Townsfolk] = "That's the one! Now watch: I'm opening Town's old temple by the square. Solve the puzzle inside and the fragment mends. Its gem gives you an extra heart against the Demon!",
             [Race.Finch] = "Verily, all {count}! I have unsealed our temple. Solve the riddle within and the fragments shall mend. Its gem shall draw the Demon's bouncing motes toward thee.",
             [Race.Mushroom] = "All {count}! Oh, I'm so thrilled! I've unsealed our temple! Solve its puzzle and they'll mend! Its gem fizzes away some of the Demon's bouncing motes. Fewer to mix!",
-            [Race.Alien] = "All {count}... I have opened our temple, I think. Solve what waits within, and perhaps they mend. Its gem makes time drag for the Demon: it will tidy things back more slowly.",
+            [Race.Alien] = "All {count}... I have opened our temple, I think. Solve what waits within, and perhaps they mend. Its gem makes time drag for the Demon: it will tidy things back far, far more slowly.",
             [Race.Shape] = "Given all {count} fragments, I unseal our temple. If you solve its puzzle, then they mend. Its gem widens the gaps at both ends of the Demon's wall. Therefore, go.",
             [Race.Dinosaur] = "All {count}! I've cracked open our temple, up the trail by the square. Solve it and the fragments mend. Its gem sends a headwind: the Demon's shots fly slower and rarer.",
         };

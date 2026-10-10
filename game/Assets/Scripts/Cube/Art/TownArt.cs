@@ -670,6 +670,52 @@ namespace Game.Cube
             return sprite;
         }
 
+        // ------------------------------------------------------------------ the Mayor's tour (4.20)
+
+        /// <summary>
+        /// A tour stop's glow on the floor (4.20): a mint ring with a gold rim and a faint heart, in three hard steps of alpha
+        /// (pixel style), drawn under people.
+        /// </summary>
+        public static Sprite TourGlow()
+        {
+            const string key = "Tour Glow";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            const int size = 24;
+            var c = new Canvas(size, size, 0, 0);
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x + 0.5f - size / 2f) / (size / 2f), dy = (y + 0.5f - size / 2f) / (size / 2f);
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+                if (d > 1f) continue;
+                if (d > 0.84f) c.Px(x, y, new Color32(Gd.r, Gd.g, Gd.b, 230));       // the gold rim
+                else if (d > 0.62f) c.Px(x, y, new Color32(Mi.r, Mi.g, Mi.b, 150));  // the mint ring
+                else c.Px(x, y, new Color32(Mi.r, Mi.g, Mi.b, 55));                  // a faint heart
+            }
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>A tour stop's sign (4.20): a little wooden post with a gold flag and a mint star on it, outlined.</summary>
+        public static Sprite TourSign()
+        {
+            const string key = "Tour Sign";
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+            var c = new Canvas(14, 20);
+            c.Rect(1, 0, 1, 15, Br);             // the post
+            c.Rect(0, 0, 2, 0, Db);              // its foot
+            c.Rect(2, 9, 9, 15, Gd);             // the flag
+            c.Rect(2, 9, 9, 9, Gs);              // its shaded hem
+            c.Px(5, 12, Mi); c.Px(6, 12, Mi);    // a mint star
+            c.Px(5, 13, Mi); c.Px(6, 13, Mi); c.Px(5, 11, Mi); c.Px(6, 11, Mi);
+            c.Px(4, 12, Mi); c.Px(7, 12, Mi);
+            c.Outline();
+            Sprite sprite = c.ToSprite(key);
+            Cache[key] = sprite;
+            return sprite;
+        }
+
         /// <summary>A bubble from a vent hut's pipe: a mint ring with a glint.</summary>
         public static Sprite Bubble()
         {

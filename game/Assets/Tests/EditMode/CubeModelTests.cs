@@ -268,6 +268,15 @@ namespace Game.Cube.Tests
             Assert.AreEqual(Vector2.zero, latch.Filter(Vector2.zero));
             Assert.AreEqual(Vector2.right, latch.Filter(Vector2.right));
 
+            // 4.20 review: a resting stick's drift (under its 0.25-0.3 deadzone) counts as let go, and is not a press.
+            latch.Hold();
+            Assert.AreEqual(Vector2.zero, latch.Filter(Vector2.up));
+            Assert.AreEqual(Vector2.zero, latch.Filter(new Vector2(0.2f, 0.15f)), "drift while waiting: let go, not a press");
+            Assert.IsTrue(latch.Waiting);
+            Assert.AreEqual(Vector2.up, latch.Filter(Vector2.up), "a real push after the drift walks");
+            Assert.Less(new Vector2(0.2f, 0.15f).magnitude, Game.Tracer.FreshPressLatch.ReleasedBelow);
+            Assert.LessOrEqual(Game.Tracer.FreshPressLatch.ReleasedBelow, 0.3f, "never so high a gentle push is lost");
+
             // A teleport clears the wait.
             latch.Hold();
             latch.Clear();

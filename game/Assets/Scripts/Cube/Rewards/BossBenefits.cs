@@ -120,11 +120,17 @@ namespace Game.Cube
         /// <summary>Attraction: particles within this distance of the player feel it.</summary>
         public const float AttractRange = 9f * ScreenMath.ContentScale;
 
-        /// <summary>SlowerRestore: the Demon's pause between fetches is this many times as long.</summary>
-        public const float SlowRestoreScale = 2f;
+        /// <summary>
+        /// SlowerRestore: the Demon's pause between fetches is this many times as long (4.20: x2 to x5, so the gem is clearly
+        /// felt; with the slower steering below, the time between its fetches is measured over three times as long).
+        /// </summary>
+        public const float SlowRestoreScale = 5f;
 
-        /// <summary>SlowerRestore: the speed the Demon steers a fetched particle at (4.5 to 3.375 a second, scaled: x0.75).</summary>
-        public const float SlowNudgeSpeed = MaxwellDemon.NudgeSpeed * 0.75f;
+        /// <summary>SlowerRestore: how much of its speed the Demon steers a fetched particle at (4.20: x0.75 to x0.3).</summary>
+        public const float SlowNudgeFraction = 0.3f;
+
+        /// <summary>SlowerRestore: the speed the Demon steers a fetched particle at (4.5 to 1.35 a second, scaled: x0.3).</summary>
+        public const float SlowNudgeSpeed = MaxwellDemon.NudgeSpeed * SlowNudgeFraction;
 
         /// <summary>ExtraHeart: hearts added for the fight.</summary>
         public const int ExtraHearts = 1;

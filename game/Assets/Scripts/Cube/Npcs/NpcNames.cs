@@ -59,6 +59,12 @@ namespace Game.Cube
         /// <summary>The greeter's label in the dialogue box ("Hattie Hullo the greeter").</summary>
         public const string GreeterKind = "greeter";
 
+        /// <summary>The Mayor's tour guide (4.20), who waits at the tour's talking stop.</summary>
+        public const string Guide = "Gus Guidewell";
+
+        /// <summary>The guide's label in the dialogue box ("Gus Guidewell the tour guide").</summary>
+        public const string GuideKind = "tour guide";
+
         /// <summary>The apple cameo on the Weightlands* (Newton-inspired, never named so).</summary>
         public const string AppleSage = "Sage Conkwell";
 
@@ -110,6 +116,7 @@ namespace Game.Cube
             yield return OldMushroom;
             yield return AppleSage;
             yield return Greeter;
+            yield return Guide;
             yield return Demon;
             yield return DemonTitle;
             yield return DemonFull;

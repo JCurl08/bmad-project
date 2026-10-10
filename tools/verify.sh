@@ -4,7 +4,7 @@
 #
 # Usage: tools/verify.sh [tag] [part ...]
 #   tag   names the results (default: v); a summary goes to $OUT/verify_<tag>.txt
-#   part  edit (EditMode but the Slow category) | robust (the Slow category: seeds 1-500) | 0 .. 7 (a PlayMode batch) |
+#   part  edit (EditMode but the Slow category) | robust (the Slow category: seeds 1-500) | 0 .. 8 (a PlayMode batch) |
 #         sweep | all (default: all). Run one part per call on a low-memory machine. The tag may not be a part name.
 #   tools/verify.sh --list   prints the PlayMode batches, one per line.
 #
@@ -36,6 +36,7 @@ BATCHES=(
 "${P}TownSceneTests;${P}TownInteriorSceneTests;${P}LairSceneTests;${P}RunLoopSceneTests;Game.Tracer.Tests.ProbeTests;Game.Tracer.Tests.TracerSceneTests"
 "${P}IslandWalkTests;${P}IslandTrailWalkTests"
 "${P}TempleSceneTests"
+"${P}TownTourSceneTests"
 )
 
 if [ "${1:-}" = "--list" ]; then

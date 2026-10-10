@@ -260,13 +260,12 @@ namespace Game.Cube.Tests
                     Assert.AreEqual(TownSquare.RaceOf(model.ThemeOf(face)), leader.Spec.Race, context);
                     Assert.IsTrue(world.TryScreenAt(leader.transform.position, out ScreenAddress leaderAt) && leaderAt == townScreen, $"{context}: the leader is in the town");
                     Assert.Less(Vector2.Distance(leader.transform.position, view.Statue.transform.position), TownLayout.LeaderReach + 1f, $"{context}: near the statue");
-                    // Its quest names its face's fragments (4.8): the die number, none found yet. The Mayor (4.18) says Town's
-                    // went missing and who had it last (Town's lost-and-found trail).
+                    // Its quest names its face's fragments (4.8): the die number, none found yet. The Mayor (4.20) offers his
+                    // tour of Town.
                     if (face == CubeModel.StartFace)
                     {
                         CollectionAssert.AreEqual(leader.GetComponent<LeaderQuest>().Preview(), leader.Lines, context);
-                        StringAssert.Contains("gone missing", leader.Lines[1], context);
-                        StringAssert.Contains(TownPlan.Specs(world.Seed, world.FaceSize)[world.TownTrail.Steps[0]].Name, leader.Lines[1], context);
+                        Assert.AreEqual(TownTourText.Offer, leader.Lines[1], context);
                     }
                     else CollectionAssert.AreEqual(Dialogue.QuestConversation(leader.Spec.Race, world.Dice.Of(face), 0), leader.Lines, context);
                     Assert.IsNotNull(leader.GetComponent<LeaderQuest>(), $"{context}: the leader carries the quest");

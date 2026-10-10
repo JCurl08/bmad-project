@@ -106,12 +106,12 @@ namespace Game.Cube
             /// <summary>Lair problems (LairPlan.FindProblems: one portal to the arena, on a reachable screen, every other into a lair room with its hint-givers); null when not checked.</summary>
             public List<string> LairProblems;
 
-            /// <summary>Town's lost-and-found trail that was checked (4.18); null when not checked.</summary>
-            public TownTrail TownTrail;
+            /// <summary>The Mayor's tour of Town that was checked (4.20); null when not checked.</summary>
+            public TownTour TownTour;
 
             /// <summary>
-            /// Quest problems (4.18: Town's trail completable, TownTrail.FindProblems, and every town's one errand sound); null
-            /// when not checked.
+            /// Quest problems (4.20: the Mayor's tour completable, TownTour.FindProblems; 4.18: every town's one errand sound);
+            /// null when not checked.
             /// </summary>
             public List<string> QuestProblems;
 
@@ -145,26 +145,21 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// Quest problems of a run (4.18; empty when all is well): Town's trail (TownTrail.FindProblems against the Town
-        /// population's planned spots: 2-3 people on different screens off the square, a helper, every line in the rules),
-        /// its people all on screens reachable from the start, and every town's errand (Town's and each laid-out face's): a
-        /// giver and a different target, both among the town's people, with lines in the rules.
+        /// Quest problems of a run (empty when all is well): the Mayor's tour of Town (4.20, TownTour.FindProblems against
+        /// Town's modules and the Town population's planned spots: the eight lessons in order, each stop one doorway on from
+        /// the last on a screen reachable from the start, markers and things on clear lanes, the last stop by an arch on the
+        /// rim, the guide's spot found, every line in the rules), and every town's errand (4.18: Town's and each laid-out
+        /// face's): a giver and a different target, both among the town's people, with lines in the rules.
         /// </summary>
-        public static List<string> FindQuestProblems(CubeModel model, ModuleLibrary library, out TownTrail trail)
+        public static List<string> FindQuestProblems(CubeModel model, ModuleLibrary library, out TownTour tour)
         {
             var problems = new List<string>();
             int n = model.FaceSize;
-            trail = TownTrail.For(model.Seed, n);
+            tour = TownTour.For(model.Seed, n);
             List<NpcSpec> specs = TownPlan.Specs(model.Seed, n);
-            List<TownSpot> spots = TownPlan.Spots(model.Seed, n, specs.Count, cell => TownPlan.BlockedRects(library.TownModule(cell, n)));
-            foreach (string p in TownTrail.FindProblems(model.Seed, n, trail, spots)) problems.Add("trail: " + p);
-            if (trail != null)
-            {
-                HashSet<ScreenAddress> reachable = FindReachable(model);
-                foreach (int index in new List<int>(trail.Steps) { trail.Helper })
-                    if (index < spots.Count && spots[index].Found && !reachable.Contains(spots[index].Screen))
-                        problems.Add($"trail: person {index} on unreachable {spots[index].Screen}");
-            }
+            Func<Vector2Int, IReadOnlyList<Rect>> blockedFor = cell => TownPlan.BlockedRects(library.TownModule(cell, n));
+            List<TownSpot> spots = TownPlan.Spots(model.Seed, n, specs.Count, blockedFor);
+            foreach (string p in TownTour.FindProblems(model.Seed, n, tour, spots, blockedFor, FindReachable(model))) problems.Add("tour: " + p);
             Dictionary<FaceId, ErrandPlan> errands = Errands.ForRun(model);
             if (!errands.ContainsKey(CubeModel.StartFace)) problems.Add("errand: Town has none");
             foreach (KeyValuePair<FaceId, ErrandPlan> e in errands)
@@ -435,9 +430,9 @@ namespace Game.Cube
                     // 4.13: one portal to the arena, the rest into the lair, each room with its hint-givers.
                     result.Lair = LairPlan.ForRun(model);
                     result.LairProblems = LairPlan.FindProblems(model, layout, result.Lair, FindReachable(model));
-                    // 4.18: Town's lost-and-found trail is completable, and every town has one sound errand.
+                    // 4.20: the Mayor's tour of Town can be walked start to end; 4.18: every town has one sound errand.
                     if (catalog is ModuleLibrary questLibrary && TownSquare.HasTown(faceSize))
-                        result.QuestProblems = FindQuestProblems(model, questLibrary, out result.TownTrail);
+                        result.QuestProblems = FindQuestProblems(model, questLibrary, out result.TownTour);
                     // 4.14: every temple's puzzle is solvable from its doorway, inside its (late) tier's targets.
                     if (TownSquare.HasTown(faceSize)) result.TempleProblems = TemplePlan.FindProblems(model);
                     MathPlan islands = null;
@@ -702,8 +697,8 @@ namespace Game.Cube
                 what += ", exactly one core portal (the real one, on a reachable screen) leading to the arena and every other into a lair " +
                         "room whose prisoners give a fight hint, benefit hints and the real portal's region, all in the text rule";
             if (questsChecked)
-                what += ", Town's lost-and-found trail completable (2-3 townsfolk on different reachable screens off the square, a favour " +
-                        "helper, every line in the text rule) and one sound errand in every town";
+                what += ", the Mayor's tour of Town walkable (its eight lessons in order, each stop one doorway on a reachable screen, " +
+                        "markers and things on clear lanes, the last by an arch, the guide's spot found, every line in the text rule) and one sound errand in every town";
             if (templesChecked)
                 what += ", every temple's puzzle (islands, ice or wind, booths, a sliding crest, crystals or a finch song) solvable from its doorway inside the late tier's targets";
             return $"Seed sweep: {total - failed}/{total} seeds {what}, {failed} failing.\n{failures}";

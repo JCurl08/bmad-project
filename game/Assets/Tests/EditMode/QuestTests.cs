@@ -9,7 +9,7 @@ namespace Game.Cube.Tests
     /// <summary>
     /// Playtest 4 polish (4.18), pure: the quest log (add once, steps, done, the order it shows, live leader progress, its
     /// words in the text rule, its layout at 960x600 and its key on the map); one errand per town, so no two people on a face
-    /// give the same quest; Town's lost-and-found trail, completable on seeds 1-50 on its own stream; and the talk pause
+    /// give the same quest; the Mayor's tour of Town (4.20), walkable on seeds 1-50 on its own stream; and the talk pause
     /// (a conversation stops time like the map, and the press that closes it is not the player's).
     /// </summary>
     public class QuestTests
@@ -53,8 +53,8 @@ namespace Game.Cube.Tests
             log.Added += e => added.Add(e.Id);
             log.Changed += e => changed.Add(e.Id);
 
-            QuestEntry town = log.Add(QuestLog.TownId, QuestKind.TownSide, CubeModel.StartFace, "Mayor Muddleton", QuestText.TownTitle,
-                QuestText.TownAsk("Pipwick", "on Town's north-east screen"));
+            QuestEntry town = log.Add(QuestLog.TownId, QuestKind.TownSide, CubeModel.StartFace, "Mayor Muddleton", QuestText.TourTitle,
+                QuestText.TourStep(TourLesson.Dig, "on Town's north-east screen", false));
             QuestEntry errand = log.Add(QuestLog.ErrandId(FaceId.Right), QuestKind.Errand, FaceId.Right, "Wrenna",
                 QuestText.ErrandTitle("Wrenna"), QuestText.ErrandStep("Wrenna", "Pipwick", Theme.Biology));
             Assert.AreSame(town, log.Add(QuestLog.TownId, QuestKind.TownSide, CubeModel.StartFace, "x", "x", "x"), "a quest is added once");
@@ -228,45 +228,141 @@ namespace Game.Cube.Tests
             }
         }
 
-        // ---------- Town's lost-and-found trail ----------
+        // ---------- The Mayor's tour of Town (4.20) ----------
 
         [Test]
-        public void TownTrail_IsCompletable_OnSeeds1To50_TwoOrThreeTownsfolk_WithAFavour_OnItsOwnStream()
+        public void TownTour_IsWalkable_OnSeeds1To50_EightLessonsInOrder_OneDoorwayApart_OnItsOwnStream()
         {
             ModuleLibrary library = Library();
-            var lengths = new HashSet<int>();
-            var favourSteps = new HashSet<int>();
+            var starts = new HashSet<int>();
+            var directions = new HashSet<int>();
             var problems = new List<string>();
+            System.Func<Vector2Int, IReadOnlyList<Rect>> blockedFor = cell => TownPlan.BlockedRects(library.TownModule(cell, N));
             for (int seed = 1; seed <= 50; seed++)
             {
-                TownTrail trail = TownTrail.For(seed, N);
-                Assert.IsNotNull(trail, $"seed {seed}: a trail");
+                TownTour tour = TownTour.For(seed, N);
+                Assert.IsNotNull(tour, $"seed {seed}: a tour");
                 List<NpcSpec> specs = TownPlan.Specs(seed, N);
-                List<TownSpot> spots = TownPlan.Spots(seed, N, specs.Count, cell => TownPlan.BlockedRects(library.TownModule(cell, N)));
-                foreach (string p in TownTrail.FindProblems(seed, N, trail, spots)) problems.Add($"seed {seed}: {p}");
-                lengths.Add(trail.Steps.Count);
-                favourSteps.Add(trail.FavourStep);
-                Assert.AreEqual(trail.Signature(), TownTrail.For(seed, N).Signature(), "the same seed, the same trail");
-                // The trail never takes the greeter, the square (its errand) or the Mayor.
-                foreach (int index in trail.Steps.Append(trail.Helper))
-                    Assert.GreaterOrEqual(index, TownTrail.FirstOffSquare(N));
-                // Its lines name the right people.
-                List<string> lines = TownTrail.Lines(trail, specs, spots).ToList();
-                StringAssert.Contains(specs[trail.Steps[0]].Name, lines[0], "the Mayor names the first person");
-                Assert.IsTrue(lines.Any(l => l.Contains(specs[trail.Helper].Name)), "the favour names the helper");
-                Assert.IsTrue(SeedSweep.FindQuestProblems(new CubeModel(seed), library, out _).Count == 0,
-                    $"seed {seed}: " + string.Join("; ", SeedSweep.FindQuestProblems(new CubeModel(seed), library, out _)));
+                List<TownSpot> spots = TownPlan.Spots(seed, N, specs.Count, blockedFor);
+                var model = new CubeModel(seed);
+                foreach (string p in TownTour.FindProblems(seed, N, tour, spots, blockedFor, SeedSweep.FindReachable(model)))
+                    problems.Add($"seed {seed}: {p}");
+                foreach (string p in SeedSweep.FindQuestProblems(model, library, out TownTour swept)) problems.Add($"seed {seed} (sweep): {p}");
+                starts.Add(tour.Start);
+                directions.Add(tour.Direction);
+                Assert.AreEqual(tour.Signature(), TownTour.For(seed, N).Signature(), "the same seed, the same tour");
+                CollectionAssert.AreEqual(TownTour.Lessons, tour.Stops.Select(s => s.Lesson), "the lessons in their order");
+                Assert.AreEqual(8, tour.Stops.Select(s => s.Screen).Distinct().Count(), "a screen a stop: all eight round the square");
+                // The guide stands on the Talk screen, clear of every planned Town person there.
+                TownSpot guide = TownTour.GuideSpot(tour, spots, blockedFor(tour.StopOf(TourLesson.Talk).Screen.Cell));
+                Assert.IsTrue(guide.Found, $"seed {seed}: the guide has a spot");
+                Assert.AreEqual(tour.StopOf(TourLesson.Talk).Screen, guide.Screen);
+                foreach (TownSpot s in spots.Where(s => s.Found && s.Screen == guide.Screen))
+                    Assert.IsFalse(TownPlan.Footprint(s.Local, TownPlan.Spacing / 2f).Overlaps(TownPlan.Footprint(guide.Local, TownPlan.Spacing / 2f)),
+                        $"seed {seed}: the guide keeps clear of {s}");
+                // The last stop stands by an arch on the face's rim, in the lane leading to it.
+                TourStop locks = tour.StopOf(TourLesson.Locks);
+                Vector2Int beyond = locks.Screen.Cell + locks.ArchSide.ToVector();
+                Assert.IsTrue(beyond.x < 0 || beyond.y < 0 || beyond.x >= N || beyond.y >= N, $"seed {seed}: the arch is on the rim");
+                Assert.Greater(Vector2.Dot(locks.Marker, (Vector2)locks.ArchSide.ToVector()), 0f, "the marker stands towards its arch");
             }
-            Assert.IsEmpty(problems, string.Join("\n", problems));
-            CollectionAssert.AreEquivalent(new[] { 2, 3 }, lengths, "trails of two and of three townsfolk");
-            Assert.Greater(favourSteps.Count, 1, "the favour falls on different steps");
-            Assert.AreNotEqual(TownTrail.For(1, N).Signature(), TownTrail.For(2, N).Signature(), "seeded");
-            Assert.IsNull(TownTrail.For(1, 2), "no town, no trail");
-            // The sweep flags a broken trail.
-            List<NpcSpec> s1 = TownPlan.Specs(1, N);
-            var none = new List<TownSpot>(new TownSpot[s1.Count]);
-            Assert.IsNotEmpty(TownTrail.FindProblems(1, N, TownTrail.For(1, N), none), "people with no spot");
-            Assert.IsNotEmpty(TownTrail.FindProblems(1, N, null, none), "no trail");
+            Assert.IsEmpty(problems, string.Join("\n", problems.Take(30)));
+            CollectionAssert.AreEquivalent(new[] { 0, 2, 4, 6 }, starts, "the tour starts beside the square on every side over the seeds");
+            CollectionAssert.AreEquivalent(new[] { 1, -1 }, directions, "and goes round both ways");
+            Assert.IsNull(TownTour.For(1, 2), "no town, no tour");
+            Assert.IsNull(TownTour.For(1, 5), "only a 3x3 Town's ring is all rim");
+            // The sweep flags a broken tour.
+            Assert.IsNotEmpty(TownTour.FindProblems(1, N, null, null, blockedFor), "no tour");
+            List<TownSpot> crowd = Enumerable.Range(0, 400).Select(i => new TownSpot(TownTour.For(1, N).StopOf(TourLesson.Talk).Screen,
+                new Vector2(-12f + (i % 20) * 1.25f, -7.5f + (i / 20) * 0.8f))).ToList();
+            Assert.IsTrue(TownTour.FindProblems(1, N, TownTour.For(1, N), crowd, blockedFor).Any(p => p.Contains("guide")), "no room for the guide");
+            Assert.IsTrue(TownTour.FindProblems(1, N, TownTour.For(1, N), TownPlan.Spots(1, N, TownPlan.Specs(1, N).Count, blockedFor), blockedFor,
+                new HashSet<ScreenAddress>()).Any(p => p.Contains("unreachable")), "an unreachable stop");
+        }
+
+        [Test]
+        public void TownTourProblems_CatchWrongOrder_FarStops_MarkersOffALaneOrOnASolid_AndALocksStopOffTheRim()
+        {
+            // 4.20 review: every check in TownTour.FindProblems can fail.
+            ModuleLibrary library = Library();
+            System.Func<Vector2Int, IReadOnlyList<Rect>> blockedFor = cell => TownPlan.BlockedRects(library.TownModule(cell, N));
+            const int seed = 3;
+            TownTour good = TownTour.For(seed, N);
+            List<TownSpot> spots = TownPlan.Spots(seed, N, TownPlan.Specs(seed, N).Count, blockedFor);
+            List<string> Problems(IEnumerable<TourStop> stops, System.Func<Vector2Int, IReadOnlyList<Rect>> blocked = null) =>
+                TownTour.FindProblems(seed, N, TownTour.Custom(seed, N, good.Start, good.Direction, stops), spots, blocked ?? blockedFor);
+            Assert.IsEmpty(Problems(good.Stops), "the run's own tour is sound");
+            List<TourStop> Edit(int k, System.Func<TourStop, TourStop> change)
+            {
+                List<TourStop> list = good.Stops.ToList();
+                list[k] = change(list[k]);
+                return list;
+            }
+
+            // Wrong order: two lessons swapped.
+            List<TourStop> swapped = good.Stops.ToList();
+            (swapped[2], swapped[3]) = (new TourStop(swapped[3].Lesson, swapped[2].Screen, swapped[2].Marker, swapped[2].Prop, swapped[2].ArchSide),
+                new TourStop(swapped[2].Lesson, swapped[3].Screen, swapped[3].Marker, swapped[3].Prop, swapped[3].ArchSide));
+            Assert.IsTrue(Problems(swapped).Any(p => p.Contains("teaches")), "lessons out of order");
+
+            // A stop more than one doorway from the last: stops 3 and 5 trade screens.
+            List<TourStop> far = good.Stops.ToList();
+            TourStop a = far[3], b = far[5];
+            far[3] = new TourStop(a.Lesson, b.Screen, a.Marker, a.Prop, a.ArchSide);
+            far[5] = new TourStop(b.Lesson, a.Screen, b.Marker, b.Prop, b.ArchSide);
+            Assert.IsTrue(Problems(far).Any(p => p.Contains("not one doorway on")), "a stop two doorways off");
+
+            // A marker off the lanes.
+            Assert.IsTrue(Problems(Edit(0, s0 => new TourStop(s0.Lesson, s0.Screen, new Vector2(6f, 4f), s0.Prop, s0.ArchSide)))
+                .Any(p => p.Contains("off the lanes")), "a marker off the lanes");
+
+            // A marker on a solid (a module that put something in the lane).
+            Vector2Int moveCell = good.Stops[0].Screen.Cell;
+            System.Func<Vector2Int, IReadOnlyList<Rect>> walled = cell => cell == moveCell
+                ? new List<Rect>(blockedFor(cell)) { new Rect(-1f, -1f, 2f, 2f) }
+                : blockedFor(cell);
+            Assert.IsTrue(Problems(good.Stops, walled).Any(p => p.Contains("meets a solid")), "a marker on a solid");
+
+            // The Locks stop with its arch facing in, not on the face's rim.
+            int last = good.Stops.Count - 1;
+            Assert.IsTrue(Problems(Edit(last, l =>
+            {
+                Vector2Int inward = CubeModel.StartCell(N) - l.Screen.Cell;
+                Facing side = inward.y > 0 ? Facing.North : inward.y < 0 ? Facing.South : inward.x > 0 ? Facing.East : Facing.West;
+                return new TourStop(l.Lesson, l.Screen, TownTour.ArchMarker(side), TownTour.ArchMarker(side), side);
+            })).Any(p => p.Contains("not the face's rim")), "a Locks stop whose arch is not on the rim");
+
+            // Too few stops, and a stop on the square.
+            Assert.IsTrue(Problems(good.Stops.Take(6)).Any(p => p.Contains("6 stops")));
+            var square = new ScreenAddress(CubeModel.StartFace, CubeModel.StartCell(N));
+            Assert.IsTrue(Problems(Edit(1, s1 => new TourStop(s1.Lesson, square, s1.Marker, s1.Prop, s1.ArchSide)))
+                .Any(p => p.Contains("on the square")));
+        }
+
+        [Test]
+        public void TownTour_Words_KeepTheTextRule_FitTheBox_AndNameTheRightKeys()
+        {
+            foreach (string line in TownTourText.AllLines().Concat(QuestLines.MayorLines()))
+            {
+                Assert.LessOrEqual(line.Length, Dialogue.MaxLineLength, line);
+                CollectionAssert.IsEmpty(InWorldText.Problems(line), line);
+            }
+            StringAssert.Contains("Interact (E)", TownTourText.StopLine(TourLesson.Talk));
+            StringAssert.Contains("Swing at it twice", TownTourText.StopLine(TourLesson.Dig));
+            StringAssert.Contains("Press M", TownTourText.StopLine(TourLesson.Map));
+            StringAssert.Contains("Press Q", TownTourText.StopLine(TourLesson.QuestLog));
+            StringAssert.Contains("Press 1 or 2", TownTourText.StopLine(TourLesson.Items));
+            StringAssert.Contains("keyhole", TownTourText.StopLine(TourLesson.Locks));
+            StringAssert.Contains("Town's fragment", TownTourText.StopLine(TourLesson.Locks), "the last stop gives the fragment");
+            foreach (TourLesson lesson in TownTour.Lessons)
+            {
+                string before = QuestText.TourStep(lesson, QuestLines.SampleWhere, false), after = QuestText.TourStep(lesson, QuestLines.SampleWhere, true);
+                CollectionAssert.IsEmpty(InWorldText.Problems(before), before);
+                CollectionAssert.IsEmpty(InWorldText.Problems(after), after);
+                StringAssert.Contains($"stop {(int)lesson + 1}", before);
+            }
+            CollectionAssert.IsEmpty(InWorldText.Problems(TownTourText.Speaker));
+            CollectionAssert.IsEmpty(InWorldText.Problems(DialogueBox.ChoicePrompt));
         }
 
         // ---------- The talk pause ----------

@@ -1334,8 +1334,9 @@ namespace Game.Cube.Tests
         }
 
         /// <summary>
-        /// A fight on seed 1234 with a benefit, five warm particles moved across, the Demon restoring (no pulses): the mean game
-        /// time between its restorations (fetch and pause), over the first four.
+        /// A fight on seed 1234 with a benefit, every warm particle moved across, the Demon restoring (no pulses): the mean game
+        /// time between its restorations (fetch and pause), over the first eight (4.20 review: seven intervals, not three, so
+        /// the threefold check stands on a long window).
         /// </summary>
         private IEnumerator TimeBetweenFetches(BossBenefit benefit, Action<float> result)
         {
@@ -1344,11 +1345,15 @@ namespace Game.Cube.Tests
             arena.SetDemonDuties(true, false);
             List<Particle> warm = Of(ArenaSide.Warm);
             Vector2 c = arena.Centre;
-            for (int i = 0; i < 5; i++) warm[i].Teleport(c + new Vector2(2f + (i % 3) * 1.5f, -3.6f + 0.9f * (i / 3)) * K);
+            Vector2 Spot(int i) => c + new Vector2(2f + (i % 3) * 1.5f, -3.6f + 0.9f * (i / 3)) * K;
+            for (int i = 0; i < 5; i++) warm[i].Teleport(Spot(i));
+            // 4.20 review: eight restorations (seven intervals). Each one fetched home is sent across again, so five stay
+            // astray throughout (the same mix as before, never enough to end the fight) and the Demon always has work.
+            const int Restorations = 8;
             var times = new List<int>();
             int last = arena.Demon.Restored, steps = 0;
             Time.timeScale = 4f;
-            while (times.Count < 4 && steps < 2000 && arena.FightActive)
+            while (times.Count < Restorations && steps < 8000 && arena.FightActive)
             {
                 yield return new WaitForFixedUpdate();
                 steps++;
@@ -1356,6 +1361,8 @@ namespace Game.Cube.Tests
                 {
                     last = arena.Demon.Restored;
                     times.Add(steps);
+                    Particle home = warm.Take(5).FirstOrDefault(p => p != null && p.IsHome && arena.Demon.Fetching != p);
+                    if (home != null) home.Teleport(Spot(times.Count % 5));
                 }
             }
             Time.timeScale = 1f;
@@ -1364,7 +1371,7 @@ namespace Game.Cube.Tests
             yield return PhysicsSteps(2);
         }
 
-        /// <summary>4.8 review: SlowerRestore measured on the Demon's work: the time between its fetches rises.</summary>
+        /// <summary>4.8 review: SlowerRestore measured on the Demon's work: the time between its fetches rises (4.20: threefold or more).</summary>
         [UnityTest]
         public IEnumerator SlowerRestore_SpacesOutTheDemonsFetches()
         {
@@ -1374,8 +1381,9 @@ namespace Game.Cube.Tests
             yield return TimeBetweenFetches(BossBenefit.SlowerRestore, v => with = v);
             arena.BenefitsOverride = null;
             Debug.Log($"Slower restore: time between fetches {without:0.00} s -> {with:0.00} s");
-            Assert.Greater(without, 0f, "The Demon fetched four strays");
-            Assert.Greater(with, without * 1.3f, "and is clearly slower with the benefit");
+            Assert.Greater(without, 0f, "The Demon fetched the strays");
+            // 4.20: the gem is a much stronger help: at least three times as long between fetches (measured, not just the pause).
+            Assert.GreaterOrEqual(with, without * 3f, "and is three times slower with the benefit, or more");
         }
 
         /// <summary>A new run on a seed, ExtraHeart on, the player hurt by damage first; then into the fight.</summary>

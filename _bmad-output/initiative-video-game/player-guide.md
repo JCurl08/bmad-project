@@ -1,6 +1,6 @@
 # Player guide: how a run works
 
-This describes the game as of commit `bc5678d` (Epic 4 through 4.18), plus 4.19 (playtest 5 fixes: new Town, Greenwood\* and Ember Vale\* temple puzzles, dropping boulders with E, and the slimmer debug overlay). Names ending in `*` are placeholders until the naming brainstorm.
+This describes the game as of commit `951bec4` (Epic 4 through 4.19), plus 4.20 (the Mayor's tour of Town in place of the lost-and-found trail, yes/no questions in conversations, and a much stronger Weightlands\* gem). Names ending in `*` are placeholders until the naming brainstorm.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
@@ -19,6 +19,8 @@ You don't have to do everything. A full run means getting out of Town, collectin
 
 **Talking pauses everything.** While a conversation is open you can't move, swing or switch items, and nothing else moves either: other people, enemies, hazards, timed doors, wind and ice, and the boss fight all wait. E pages through the lines; Esc skips to the end.
 
+**Questions.** Some conversations end in a yes/no question (the two answers show along the bottom of the box). Pick with left/right or up/down (arrows or WASD), then press E to answer. Esc closes it without answering; you'll be asked again next time. The direction keys only choose: you won't walk off when the conversation ends, even if a key is still held (press it again to walk).
+
 Your **swing uses the item you're holding**. Most puzzles and gates are solved by holding the right item and swinging at the thing.
 
 ## Step by step
@@ -26,12 +28,26 @@ Your **swing uses the item you're holding**. Most puzzles and gates are solved b
 ### 1. Start in Town (the white face)
 - You start on Town's centre screen, in the town square, with **1 key**.
 - **Talk to everyone (E).** People give hints about where items are, in their own voice. Hints always tell the truth. Town's folk come from every face, so each speaks in their own race's voice; only Hattie Hullo (the greeter, waving) and the Mayor have Town's own look. Nobody in Town ever turns hostile: it's the one place everyone still mixes.
-- **Talk to Mayor Muddleton** (purple top hat, by the statue). **Town's fragment has gone missing**, and he tells you who had it last. That starts **Town's lost-and-found side quest**:
-  - Find that person on another Town screen (the Mayor says which, e.g. "on Town's north-east screen"). They passed it on, and tell you who to ask next.
-  - Somewhere along the trail of 2 or 3 townsfolk, one of them wants a **favour** first: carry a word to someone else in Town, then come back with the answer.
-  - The last person hands you the fragment. Take it back to the Mayor and he **opens Town's temple** (the white-columned building east of the square). Solve its puzzle and you win **Town's gem: +1 heart in the boss fight**.
+- **Talk to Mayor Muddleton** (purple top hat, by the statue). Town keeps one fragment of its own, and on your first talk he asks: **shall he show you round first?**
+  - **Yes: the tour.** A glowing marker (a mint ring with a little gold flag) lights on a screen next to the square. Walk onto it and its sign says one short lesson with a tiny task; do the task and the next marker lights, one doorway on. The stops go round the square in a ring (where it starts and which way round changes each run):
+
+    | Stop | Lesson | Tiny task |
+    |---|---|---|
+    | 1 | Moving between screens | Get there: walk through a doorway |
+    | 2 | Talking | Talk to Gus Guidewell, the tour guide, beside the marker (E) |
+    | 3 | Swinging and digging | Swing twice at the heap of dirt beside the marker |
+    | 4 | Chests | Open the chest beside the marker (walk into it or swing at it): 3 Jumbles\* |
+    | 5 | The map | Press M |
+    | 6 | The quest log | Press Q |
+    | 7 | Switching items | Press 1 or 2 (only if you hold two items or more; otherwise this stop is skipped) |
+    | 8 | Locked arches | Get there: the marker stands by one of Town's arches. A keyhole takes a key (used up); a picture takes that face's item (kept). |
+
+    The last stop hands you **Town's fragment**. Your quest log ("Mayor Muddleton's tour") always says the next stop and its task.
+  - **No:** he hands you Town's fragment at once.
+  - **Changed your mind?** Talk to the Mayor during the tour: he says where the next stop is and asks whether to skip the rest. Yes hands you the fragment at once; no keeps the tour going. The tour never stops you leaving Town: the arches work as usual, and the tour waits for you.
+  - Take the fragment back to the Mayor and he **opens Town's temple** (the white-columned building east of the square). Solve its puzzle and you win **Town's gem: +1 heart in the boss fight**.
 - **Errands:** in each town, one person has an errand: carry a word to someone else in that town. Other would-be quest-givers just gossip.
-- **Quest log (Q):** every quest someone gives you is added: each leader's fragment quest (with how many you've found), Town's side quest (with your next step) and each town's errand. Finished ones are marked Done.
+- **Quest log (Q):** every quest someone gives you is added: each leader's fragment quest (with how many you've found), the Mayor's tour or Town's fragment (with your next step) and each town's errand. Finished ones are marked Done.
 - The building with a rug and lantern at its door can be entered: walk straight north into the door.
 
 ### 2. Leave Town through a gate
@@ -81,7 +97,7 @@ Every science face has a colour and a race of people:
 - **The face numbered k hides k fragments** behind its roadblocks. The HUD dice show how many you've found, and the map shows tags such as "2/4".
 - Every town has a **temple** (the fourth building, east of the crossroads, in its race's own style). It starts **sealed**: a glowing seal with chains over its door. Walking into it just tells you so.
 - Bring all of a face's fragments to its **leader** (crowned, by the town statue on the centre screen). The leader **unseals the temple**: the seal is gone and the doorway glows. Your quest log marks the leader's quest done and adds the temple's. The HUD die gets a pale bar and the map tag says "temple".
-- Town's one fragment comes from Town's lost-and-found side quest (step 1), not from a chest.
+- Town's one fragment comes from the Mayor (step 1: at the end of his tour, or at once), not from a chest.
 - **Inside the temple** is one hard puzzle, a tougher take on the face's own (walk north into the door; the rule pops up as you arrive):
 
 | Temple | Puzzle |
@@ -103,7 +119,7 @@ Every science face has a colour and a race of people:
 | Town | +1 heart |
 | Greenwood\* | Particles drift toward you |
 | Ember Vale\* | Fewer particles to mix |
-| Weightlands\* | The Demon restores order more slowly |
+| Weightlands\* | The Demon restores order much more slowly: a long rest between fetches, and it drags each one back at about a third of its speed (over three times as long between fetches) |
 | Bridgelands\* | Wider gaps in the Demon's wall |
 | Wildlands\* | The Demon's shots are slower and rarer |
 
@@ -122,7 +138,7 @@ Every science face has a colour and a race of people:
 After you win or die, the between-runs screen shows what you earned. Spend Jumbles\* on permanent upgrades (Extra Heart, Thick Skin, Big Bonk, Zoomies), then **Continue** into a new, freshly shuffled run.
 
 ## A good first run
-1. Talk to the Mayor, follow the townsfolk trail to Town's lost fragment (check Q if you forget who's next), and bring it back. That opens Town's temple: slide its crest back together for Town's gem.
+1. Talk to the Mayor and say yes to his tour (or no, if you know the ropes). Follow the glowing markers (check Q if you forget where the next one is), then bring Town's fragment back to him. That opens Town's temple: slide its crest back together for Town's gem.
 2. Spend your key on a Town arch.
 3. On that face, dig mounds and talk to people until you have its item and its 2 keys.
 4. Use keys and items to open more arches. Grab fragments and chests as you go.

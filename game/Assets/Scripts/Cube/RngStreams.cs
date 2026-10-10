@@ -93,8 +93,12 @@ namespace Game.Cube
         /// <summary>The boss lair (LairPlan, 4.13): which core portal is the real way down, and each lair room's prisoners and hints.</summary>
         public const ulong Lair = 29;
 
-        /// <summary>Town's lost-and-found side quest (TownTrail, 4.18): the trail's length, its people and who wants the favour.</summary>
-        public const ulong TownTrail = 30;
+        /// <summary>
+        /// Town's tour (TownTour, 4.20): which screen next to the square the Mayor's tour starts on, and which way round it goes.
+        /// The number was 4.18's lost-and-found trail's (TownTrail, retired by 4.20); the tour took the stream over, so 30 stays
+        /// Town's quest stream and is never handed to anything else.
+        /// </summary>
+        public const ulong TownTour = 30;
 
         /// <summary>The temples (TemplePlan, 4.14): each face's temple puzzle (its islands, ice or wind, booths or targets), searched or dealt.</summary>
         public const ulong Temples = 31;

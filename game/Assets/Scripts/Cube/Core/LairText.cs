@@ -91,7 +91,7 @@ namespace Game.Cube
                 case BossBenefit.ExtraHeart: return $"the gem from the temple of {region} gives you one more heart against Primsworth the Demon";
                 case BossBenefit.Attraction: return $"the gem from the temple of {region} makes the Demon's bouncing motes drift toward you";
                 case BossBenefit.FewerParticles: return $"the gem from the temple of {region} leaves fewer bouncing motes for you to mix";
-                case BossBenefit.SlowerRestore: return $"the gem from the temple of {region} makes the Demon tidy things back more slowly";
+                case BossBenefit.SlowerRestore: return $"the gem from the temple of {region} makes the Demon tidy things back far more slowly, resting long between each one";
                 case BossBenefit.WiderGap: return $"the gem from the temple of {region} widens the gaps at both ends of the Demon's wall";
                 default: return $"the gem from the temple of {region} makes the Demon's shots fly slower and come less often";
             }

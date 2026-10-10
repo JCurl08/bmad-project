@@ -6,12 +6,12 @@ Runs the Unity project's full verification, one Unity process at a time:
 
 1. `edit`: the EditMode tests, except the `Slow` category;
 2. `robust`: the `Slow` EditMode tests (the 500-seed generation check, about 6 minutes);
-3. `0`-`7`: the PlayMode tests, in class batches (never all in one process, which runs out of memory);
+3. `0`-`8`: the PlayMode tests, in class batches (never all in one process, which runs out of memory);
 4. `sweep`: the seed sweep (`CubeSceneBuilder.RunSeedSweep`) and a check that the determinism fixture matches `HEAD`.
 
 ```bash
 tools/verify.sh mytag            # everything: edit, robust, every batch, sweep
-tools/verify.sh mytag edit       # one part: edit, robust, a batch number (0-7) or sweep
+tools/verify.sh mytag edit       # one part: edit, robust, a batch number (0-8) or sweep
 tools/verify.sh --list           # the PlayMode batches
 ```
 

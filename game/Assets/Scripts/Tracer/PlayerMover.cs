@@ -63,8 +63,11 @@ namespace Game.Tracer
     /// </summary>
     public sealed class FreshPressLatch
     {
-        /// <summary>An input shorter than this counts as every direction let go.</summary>
-        public const float ReleasedBelow = 0.1f;
+        /// <summary>
+        /// An input shorter than this counts as every direction let go (4.20 review: a gamepad stick's drift, which sits under
+        /// its usual 0.25-0.3 deadzone, counts as let go, so a resting stick never keeps the player waiting; keys give 0 or 1).
+        /// </summary>
+        public const float ReleasedBelow = 0.3f;
 
         private bool sawRelease;
 

@@ -68,6 +68,13 @@ namespace Game.Cube
         /// <summary>The speed it steers a fetched particle at this fight (NudgeSpeed, or slower with SlowerRestore).</summary>
         public float NudgeSpeedNow { get; private set; } = NudgeSpeed;
 
+        /// <summary>
+        /// How long a fetch may take before the Demon gives up on it this fight: FetchTimeout, stretched by as much as the
+        /// steering is slowed (4.20: SlowerRestore steers at a third of the speed, so a whole fetch still fits). Exactly
+        /// FetchTimeout at full speed, so the fight with no gems is unchanged.
+        /// </summary>
+        public float FetchTimeoutNow => NudgeSpeedNow < NudgeSpeed && NudgeSpeedNow > 0f ? FetchTimeout * (NudgeSpeed / NudgeSpeedNow) : FetchTimeout;
+
         /// <summary>Seconds between pulses this fight (PulseInterval, or longer with SlowerShots).</summary>
         public float PulseIntervalNow { get; private set; } = PulseInterval;
 
@@ -210,7 +217,7 @@ namespace Game.Cube
             if (fetching != null)
             {
                 fetchElapsed += dt;
-                if (fetching == null || !fetching.Nudged || fetchElapsed > FetchTimeout)
+                if (fetching == null || !fetching.Nudged || fetchElapsed > FetchTimeoutNow)
                 {
                     // Knocked free, gone or stuck: give up on this one for now.
                     StopFetch();

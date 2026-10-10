@@ -34,15 +34,31 @@ namespace Game.Cube
             $"Solve the puzzle in the temple of {InWorldText.Region(theme)}, by its town square, to mend the fragments and win its gem.";
         public static string TempleDone(Theme theme) => $"The fragments are mended. The gem of {InWorldText.Region(theme)} is yours.";
 
-        // ---------- Town's lost fragment (TownTrail)
+        // ---------- Town's fragment (4.20: the Mayor's tour, TownTour, or the fragment at once)
 
-        public const string TownTitle = "Town's lost fragment";
+        public const string TownTitle = "Town's fragment";
 
-        public static string TownAsk(string name, string where) => $"Town's fragment went missing. Ask {name} {where}.";
+        public const string TourTitle = "Mayor Muddleton's tour";
 
-        public static string TownFavour(string asker, string helper, string where) => $"{asker} wants a word passed to {helper} {where} first.";
-
-        public static string TownFavourBack(string asker, string where) => $"Take the answer back to {asker} {where}.";
+        /// <summary>
+        /// A tour stop's step: before arriving, walk to its glowing marker (where); once there, its task. The stop's number is
+        /// its lesson's (the item stop may be passed over).
+        /// </summary>
+        public static string TourStep(TourLesson lesson, string where, bool arrived)
+        {
+            string stop = $"Tour stop {(int)lesson + 1}";
+            if (!arrived) return $"{stop}: walk to the glowing marker {where}.";
+            switch (lesson)
+            {
+                case TourLesson.Talk: return $"{stop}: talk to {NpcNames.Guide} by the marker (Interact).";
+                case TourLesson.Dig: return $"{stop}: swing at the heap of dirt twice to dig it up.";
+                case TourLesson.Chest: return $"{stop}: open the chest. Walk into it, or swing at it.";
+                case TourLesson.Map: return $"{stop}: press M to open the map.";
+                case TourLesson.QuestLog: return $"{stop}: press Q to open the quest log.";
+                case TourLesson.Items: return $"{stop}: press 1 or 2 to switch items.";
+                default: return $"{stop}: walk to the glowing marker {where}.";
+            }
+        }
 
         public const string TownReturn = "You have Town's fragment. Take it back to Mayor Muddleton in the town square.";
 
@@ -90,9 +106,13 @@ namespace Game.Cube
             }
             yield return FragmentProgress(2, 5);
             yield return TownTitle;
-            yield return TownAsk(person, QuestLines.SampleWhere);
-            yield return TownFavour(person, other, QuestLines.SampleWhere);
-            yield return TownFavourBack(person, "in the town square");
+            yield return TourTitle;
+            foreach (TourLesson lesson in TownTour.Lessons)
+            {
+                yield return TourStep(lesson, QuestLines.SampleWhere, false);
+                yield return TourStep(lesson, QuestLines.SampleWhere, true);
+            }
+            yield return Added(TourTitle);
             yield return TownReturn;
             yield return TownDone;
             yield return ErrandTitle(person);

@@ -199,12 +199,23 @@ hitl = true
 risk = "medium"
 
 [[entry]]
+id = 20
+type = "story"
+title = "Town tutorial and boss tuning"
+description = "Playtest 6: the Mayor asks whether to show the player around; yes starts a short tutorial across Town's screens in a set order, ending with Town's fragment; no hands it over at once. The Weightlands gem makes the Demon sort much slower."
+verify = "Tests: the yes/no choice, the tutorial walked with real input on several seeds and completable on seeds 1-50, the skip path, and the stronger gem measured in the arena; the no-gem skill check unchanged; all suites and the sweep pass."
+covers = ["CAP-29", "CAP-11"]
+after = [19]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 16
 type = "story"
 title = "itch.io release 2"
 description = "Runs the 50-seed sweep and full playtests against the epic's Done when, then the user builds, uploads and plays the WebGL build on the itch.io page."
 verify = "The sweep passes 50/50; the no-benefit boss skill check holds at 60-120 s; on the itch.io page in a fresh browser a run visits towns, repairs at least one face, finds the lair and the real portal, and upgrades persist after a tab reload."
 covers = []
-after = [19, "1.14"]
+after = [20, "1.14"]
 hitl = true
 risk = "medium"

@@ -10,7 +10,7 @@ namespace Game.Cube
         /// <summary>Still looking: the leader names the count and how many are held.</summary>
         Asked = 0,
 
-        /// <summary>The Mayor handed over Town's one fragment (4.8; since 4.18 the fragment is found on Town's trail instead).</summary>
+        /// <summary>The Mayor handed over Town's one fragment at once (4.8's gift: since 4.20 only the fallback when the tour cannot run).</summary>
         Gave = 1,
 
         /// <summary>Before 4.14: the hand-in mended the face. Since 4.14 the hand-in unseals the temple (Unsealed) instead.</summary>
@@ -19,7 +19,7 @@ namespace Game.Cube
         /// <summary>The face was already mended (its temple's gem taken).</summary>
         Mended = 3,
 
-        /// <summary>The Mayor says Town's fragment went missing, or reminds who to ask next (4.18, TownTrailQuest).</summary>
+        /// <summary>4.18's lost-and-found trail (retired by 4.20's tour): no longer happens; kept so the numbers stay put.</summary>
         Lost = 4,
 
         /// <summary>All the face's fragments were handed in: the leader unseals its temple (4.14).</summary>
@@ -27,6 +27,12 @@ namespace Game.Cube
 
         /// <summary>The temple is open; its gem not yet won (4.14): the leader points the way.</summary>
         TempleOpen = 6,
+
+        /// <summary>The Mayor asks whether the player wants a tour of Town (4.20, TownTourQuest): yes starts it, no gives the fragment.</summary>
+        Offered = 7,
+
+        /// <summary>Mid-tour (4.20): the Mayor says where the next stop is and asks whether to skip the rest.</summary>
+        Touring = 8,
     }
 
     /// <summary>
@@ -36,8 +42,9 @@ namespace Game.Cube
     /// <list type="bullet">
     /// <item>a science face numbered k: until all k of its fragments are held, the leader's greeting and the quest naming k
     /// (and how many are held); with all k held, the leader takes them and the face is mended (CubeWorld.RepairFace);</item>
-    /// <item>Town (numbered 1, 4.18): the fragment went missing; the Mayor starts Town's lost-and-found trail
-    /// (TownTrailQuest.MayorTalk) and reminds who to ask next; once the player holds it, handing it in mends Town;</item>
+    /// <item>Town (numbered 1, 4.20): the Mayor asks whether to show the player round (TownTourQuest.MayorTalk, a yes/no
+    /// question): yes starts the tour, whose last stop gives the fragment; no gives it at once; mid-tour he can be asked to
+    /// skip the rest. Once the player holds it, handing it in opens Town's temple;</item>
     /// <item>once mended, a thank-you in voice.</item>
     /// </list>
     /// All state lives in the run (the world, its quest log and the player), never on the leader, so a re-spawned leader
@@ -104,46 +111,53 @@ namespace Game.Cube
         public int Count => world != null && world.Dice != null ? world.Dice.Of(Face) : DieNumbers.TownNumber;
 
         /// <summary>What the leader would say now, without acting.</summary>
-        public List<string> Preview() => Say(false, out _);
+        public List<string> Preview() => Say(false, out _, out _);
 
-        /// <summary>Town's trail (4.18) while Town's fragment is out and Town is not mended: the Mayor talks about it instead.</summary>
-        private TownTrailQuest TrailFor(RunRewards rewards, FaceRepairs repairs)
+        /// <summary>
+        /// Town's tour (4.20) while Town's fragment is still to be given and Town's temple is shut: the Mayor talks about it
+        /// instead (its question, or how it goes). Null elsewhere, or when no tour is bound (the fallback: 4.8's gift).
+        /// </summary>
+        private TownTourQuest TourFor(RunRewards rewards, FaceRepairs repairs)
         {
-            if (Face != CubeModel.StartFace || (repairs != null && repairs.IsRepaired(Face))) return null;
+            if (Face != CubeModel.StartFace || (repairs != null && (repairs.IsRepaired(Face) || repairs.IsUnsealed(Face)))) return null;
             if (rewards != null && rewards.FragmentsOf(Face) >= Count) return null;
-            TownTrailQuest trail = FindAnyObjectByType<TownTrailQuest>();
-            return trail != null && trail.Ready ? trail : null;
+            TownTourQuest tour = FindAnyObjectByType<TownTourQuest>();
+            return tour != null && tour.Ready && !tour.Progress.FragmentGiven ? tour : null;
         }
 
-        /// <summary>What is said now (the trail's words for the Mayor while it runs, else the quest's rule); with act, it acts.</summary>
-        private List<string> Say(bool act, out QuestStep step)
+        /// <summary>The question the last talk ended in (4.20: the Mayor's tour), handed to the talker with the lines; null for none.</summary>
+        public DialogueChoice LastChoice { get; private set; }
+
+        /// <summary>What is said now (the tour's words for the Mayor while Town's fragment is out, else the quest's rule); with act, it acts.</summary>
+        private List<string> Say(bool act, out QuestStep step, out DialogueChoice choice)
         {
             RunRewards rewards = Rewards;
             FaceRepairs repairs = world != null ? world.Repairs : null;
-            TownTrailQuest trail = TrailFor(rewards, repairs);
-            if (trail != null)
-            {
-                step = QuestStep.Lost;
-                return trail.MayorTalk(Race, act, transform.position);
-            }
-            // 4.18 review: with no ready trail (a trail person found no spot), the Mayor hands the fragment over as in 4.8.
-            TownTrailQuest any = Face == CubeModel.StartFace ? FindAnyObjectByType<TownTrailQuest>() : null;
-            return Lines(Race, Face, Count, rewards, repairs, act, out step, any != null && any.Ready);
+            choice = null;
+            TownTourQuest tour = TourFor(rewards, repairs);
+            if (tour != null) return tour.MayorTalk(Race, act, transform.position, out step, out choice);
+            // 4.20: with no tour bound (a component-only scene, a Town of another size), the Mayor hands the fragment over as in 4.8.
+            return Lines(Race, Face, Count, rewards, repairs, act, out step, false);
         }
 
         private void OnTalking(NpcTalker leader)
         {
             List<string> lines = Talk(out QuestStep step);
             leader.SetLines(lines);
+            leader.SetChoice(LastChoice);
             LastStep = step;
             Talked?.Invoke(this, step);
         }
 
-        /// <summary>One talk: acts on the run (gives Town's fragment, or takes a face's fragments and mends it) and returns what is said.</summary>
+        /// <summary>
+        /// One talk: acts on the run (gives Town's fragment, or takes a face's fragments and opens the temple) and returns what
+        /// is said; a question it ends in (the Mayor's tour) is LastChoice.
+        /// </summary>
         public List<string> Talk(out QuestStep step)
         {
             RunRewards rewards = Rewards;
-            List<string> lines = Say(true, out step);
+            List<string> lines = Say(true, out step, out DialogueChoice choice);
+            LastChoice = choice;
             Theme theme = world != null && world.Model != null ? world.Model.ThemeOf(Face) : Theme.Town;
             Vector2 at = transform.position;
             if (step == QuestStep.Gave)
@@ -177,7 +191,7 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// The hand-in marks the face's quest done in the log (Town's: the lost-and-found side quest, 4.18) and gives the
+        /// The hand-in marks the face's quest done in the log (Town's: its tour or fragment, 4.20) and gives the
         /// temple's quest (4.14), done once its gem is won (TempleView).
         /// </summary>
         private void LogUnsealed(Theme theme, Vector2 at)
@@ -200,12 +214,13 @@ namespace Game.Cube
         /// <summary>
         /// The quest's rule, pure (EditMode tests use it): what a leader of a race says for a face numbered count, given the
         /// player's rewards and the run's repairs; for a hand-in (act, all count held) it reports Unsealed (the caller then
-        /// unseals the temple: CubeWorld.UnsealTemple, or repairs.Unseal without a world); with the temple open, TempleOpen. Town with no fragment held reports Lost
-        /// (4.18: Town's trail gives the fragment). Only when Town's trail is not ready (townTrailReady false) does the Mayor
-        /// fall back to 4.8's gift: he hands the fragment over (Gave), and the next talk mends Town.
+        /// unseals the temple: CubeWorld.UnsealTemple, or repairs.Unseal without a world); with the temple open, TempleOpen.
+        /// Town with no fragment held reports Offered (4.20: the Mayor's tour, TownTourQuest, asks and gives the fragment).
+        /// Only when no tour can run (townTourReady false) does the Mayor fall back to 4.8's gift: he hands the fragment over
+        /// (Gave), and the next talk opens Town's temple.
         /// </summary>
         public static List<string> Lines(Race race, FaceId face, int count, RunRewards rewards, FaceRepairs repairs, bool act,
-            out QuestStep step, bool townTrailReady = true)
+            out QuestStep step, bool townTourReady = true)
         {
             if (repairs != null && repairs.IsRepaired(face))
             {
@@ -219,17 +234,17 @@ namespace Game.Cube
                 return Dialogue.TempleOpenConversation(race);
             }
             int found = rewards != null ? rewards.FragmentsOf(face) : 0;
-            if (face == CubeModel.StartFace && found == 0 && !townTrailReady)
+            if (face == CubeModel.StartFace && found == 0 && !townTourReady)
             {
-                // The fallback (4.8's gift): Town's trail cannot run, so the Mayor found the fragment and hands it over.
+                // The fallback (4.8's gift): no tour can run, so the Mayor hands the fragment over.
                 step = act && rewards != null && repairs != null && rewards.Grant(Reward.Fragment(1), face) ? QuestStep.Gave : QuestStep.Asked;
                 return new List<string>(Dialogue.MaxLines) { Dialogue.LeaderLine(race), Dialogue.MayorFoundLine };
             }
             if (face == CubeModel.StartFace && found == 0)
             {
-                // 4.18: Town's fragment went missing (the trail, TownTrailQuest, names who had it; with no trail, ask around).
-                step = QuestStep.Lost;
-                return Dialogue.QuestConversation(race, count, 0);
+                // 4.20: the Mayor offers a tour (TownTourQuest asks the question and acts on the answer).
+                step = QuestStep.Offered;
+                return new List<string>(Dialogue.MaxLines) { Dialogue.LeaderLine(race), TownTourText.Offer };
             }
             if (rewards != null && repairs != null && found >= count)
             {

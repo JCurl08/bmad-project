@@ -75,6 +75,14 @@ namespace Game.Cube
             if (newLines != null) lines.AddRange(newLines);
         }
 
+        private DialogueChoice pendingChoice;
+
+        /// <summary>
+        /// A question the next conversation ends in (4.20, DialogueChoice): a Talking listener sets it with the lines, and the
+        /// talk that opens hands it to the box (once; null clears it).
+        /// </summary>
+        public void SetChoice(DialogueChoice choice) => pendingChoice = choice;
+
         public void Configure(NpcSpec spec, IReadOnlyList<string> newLines, RaceRelations raceRelations,
             Transform playerTransform, SpriteRenderer[] partRenderers)
         {
@@ -168,9 +176,12 @@ namespace Game.Cube
                 Refused?.Invoke(this);
                 return false;
             }
+            pendingChoice = null;
             Talking?.Invoke(this);
+            DialogueChoice choice = pendingChoice;
+            pendingChoice = null;
             if (lines.Count == 0) return false;
-            return target.Open(Spec.DisplayName, lines, this);
+            return target.Open(Spec.DisplayName, lines, this, choice);
         }
 
         /// <summary>True unless another active talker with the same player is in range and closer (ties: the one enabled first).</summary>

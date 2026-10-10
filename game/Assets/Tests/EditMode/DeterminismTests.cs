@@ -81,7 +81,7 @@ namespace Game.Cube.Tests
             new KeyValuePair<string, ulong>("windScreens", WindPlan.RngStream),
             new KeyValuePair<string, ulong>("islandPuzzles", IslandPlan.RngStream),
             new KeyValuePair<string, ulong>("lair", LairPlan.RngStream),
-            new KeyValuePair<string, ulong>("townTrail", TownTrail.RngStream),
+            new KeyValuePair<string, ulong>("townTour", TownTour.RngStream),
             new KeyValuePair<string, ulong>("temples", TemplePlan.RngStream),
         };
 
@@ -140,8 +140,8 @@ namespace Game.Cube.Tests
             Add("locks", EdgeLocks.ForRun(model, library, catalog.Themes(), catalog.VariantCounts()).Signature());
             // 4.13: the boss lair (the real portal, each lair room's prisoners and their hints).
             Add("lair", LairPlan.ForRun(model)?.Signature());
-            // 4.18: Town's lost-and-found trail (its people, the favour step and the helper).
-            Add("townTrail", TownTrail.For(seed, model.FaceSize)?.Signature() ?? "none");
+            // 4.20: the Mayor's tour of Town (its first stop, its way round, and each stop's lesson and screen); 4.18's trail is retired.
+            Add("townTour", TownTour.For(seed, model.FaceSize)?.Signature() ?? "none");
             // 4.14: every face's temple puzzle (its kind and its layout, booths or targets).
             Add("temples", TemplePlan.Signature(model));
 

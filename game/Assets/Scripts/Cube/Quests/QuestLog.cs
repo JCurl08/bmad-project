@@ -9,7 +9,7 @@ namespace Game.Cube
         /// <summary>A science face's leader: bring all the face's fragments (live progress from the run).</summary>
         Leader = 0,
 
-        /// <summary>Town's lost-and-found side quest (TownTrail): follow the townsfolk to the Mayor's missing fragment.</summary>
+        /// <summary>Town's fragment (4.20): the Mayor's tour of Town (TownTour), or the fragment handed over at once.</summary>
         TownSide = 1,
 
         /// <summary>A face's one errand (Errands): carry a word from one town resident to another.</summary>
@@ -60,15 +60,15 @@ namespace Game.Cube
 
     /// <summary>
     /// The run's quest log (4.18, CAP-29): every quest a character gives is added the moment they give it (a leader's
-    /// fragment quest, Town's lost-and-found side quest, a face's errand), updated as the player makes progress, and marked
+    /// fragment quest, Town's tour or fragment, a face's errand), updated as the player makes progress, and marked
     /// done. The world owns one per run (CubeWorld.Quests, fresh on every rebuild), so a re-spawned character (the reveal
-    /// re-populates Town) carries on where the last one stopped; the trail's own progress (Trail) lives here too.
+    /// re-populates Town) carries on where the last one stopped; the Mayor's tour's own progress (Tour) lives here too.
     /// QuestLogView shows it (Q, or from the map).
     /// </summary>
     public sealed class QuestLog
     {
-        /// <summary>Town's side quest's id.</summary>
-        public const string TownId = "town:lost-fragment";
+        /// <summary>Town's quest's id (4.20: the Mayor's tour, or Town's fragment handed over at once).</summary>
+        public const string TownId = "town:fragment";
 
         /// <summary>A science face's leader quest's id.</summary>
         public static string LeaderId(FaceId face) => "leader:" + face;
@@ -84,8 +84,8 @@ namespace Game.Cube
         /// <summary>Every quest given this run, in the order given.</summary>
         public IReadOnlyList<QuestEntry> Entries => entries;
 
-        /// <summary>Town's lost-and-found progress (TownTrail): where on the trail the player is.</summary>
-        public TownTrailProgress Trail { get; } = new TownTrailProgress();
+        /// <summary>The Mayor's tour's progress (4.20, TownTour): asked, started, the stop reached, and Town's fragment given.</summary>
+        public TownTourProgress Tour { get; } = new TownTourProgress();
 
         /// <summary>Raised when a quest is first added (given).</summary>
         public event Action<QuestEntry> Added;
@@ -193,27 +193,44 @@ namespace Game.Cube
     }
 
     /// <summary>
-    /// Where the player is on Town's lost-and-found trail (TownTrail, 4.18): started by the Mayor, the step reached (the
-    /// trail person to ask next), the favour asked and done, and the fragment handed over. Pure state on the run's QuestLog.
+    /// Where the player is on the Mayor's tour (TownTour, 4.20): asked, started (or declined), the stop reached (arrived at its
+    /// marker, its task done), the guide talked to, skipped, and Town's fragment handed over. Pure state on the run's QuestLog,
+    /// so a re-spawned Mayor (the reveal re-populates Town) carries on.
     /// </summary>
-    public sealed class TownTrailProgress
+    public sealed class TownTourProgress
     {
-        /// <summary>The Mayor has said the fragment went missing.</summary>
+        /// <summary>The Mayor has asked whether the player wants the tour (at least once).</summary>
+        public bool Offered { get; internal set; }
+
+        /// <summary>The player said yes: the tour is on (until its last stop, or a skip).</summary>
         public bool Started { get; internal set; }
 
-        /// <summary>The trail step to ask next (0 .. Steps.Count; Steps.Count once the fragment is handed over).</summary>
+        /// <summary>The player said no to the tour (and got the fragment at once).</summary>
+        public bool Declined { get; internal set; }
+
+        /// <summary>The player asked the Mayor to skip the rest of the tour.</summary>
+        public bool Skipped { get; internal set; }
+
+        /// <summary>The stop to visit next (an index into TownTour.Stops; Stops.Count once the tour is over).</summary>
         public int Stage { get; internal set; }
 
-        /// <summary>The favour-asker has asked for their favour.</summary>
-        public bool FavourAsked { get; internal set; }
+        /// <summary>The player has reached the current stop's marker (its line was said).</summary>
+        public bool Arrived { get; internal set; }
 
-        /// <summary>The favour is done (the helper answered).</summary>
-        public bool FavourDone { get; internal set; }
+        /// <summary>The current stop's task is done (it moves on once no conversation is open).</summary>
+        public bool TaskDone { get; internal set; }
 
-        /// <summary>The last trail person has handed the fragment over.</summary>
+        /// <summary>The player has talked to the tour's guide (the Talk stop's task; it counts whenever it happened).</summary>
+        public bool GuideTalked { get; internal set; }
+
+        /// <summary>Town's fragment has been handed over (the last stop, a skip, or a no).</summary>
         public bool FragmentGiven { get; internal set; }
 
+        /// <summary>True while the tour runs: started, not skipped, its fragment not yet given.</summary>
+        public bool Running => Started && !Skipped && !FragmentGiven;
+
         public override string ToString() =>
-            $"started {Started} stage {Stage} favour {(FavourAsked ? FavourDone ? "done" : "asked" : "no")} given {FragmentGiven}";
+            $"offered {Offered} started {Started} declined {Declined} skipped {Skipped} stage {Stage} arrived {Arrived} " +
+            $"done {TaskDone} guide {GuideTalked} given {FragmentGiven}";
     }
 }

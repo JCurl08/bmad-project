@@ -222,24 +222,24 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void TheMayor_SaysTownsFragmentWentMissing_ThenTakesItBackOnceFound_AndMendsTown()
+        public void TheMayor_OffersHisTour_ThenTakesTownsFragmentBackOnceGiven_AndOpensTownsTemple()
         {
-            // 4.18: the Mayor no longer hands the fragment over (Town's lost-and-found trail does, TownTrailQuest). Without
-            // it he only says it went missing; once the player holds it, handing it in mends Town.
+            // 4.20: the Mayor's rule offers his tour (TownTourQuest asks the question and gives the fragment); his rule alone
+            // never hands it over. Once the player holds it, handing it in opens Town's temple.
             var go = new GameObject("Player");
             try
             {
                 RunRewards rewards = go.AddComponent<RunRewards>();
                 var repairs = new FaceRepairs();
                 const FaceId town = CubeModel.StartFace;
-                List<string> first = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep lost);
-                Assert.AreEqual(QuestStep.Lost, lost);
-                CollectionAssert.AreEqual(new[] { Dialogue.LeaderLine(Race.Townsfolk), Dialogue.MayorGiftLine }, first);
-                StringAssert.Contains("missing", Dialogue.MayorGiftLine, "The Mayor says it went missing");
-                Assert.IsFalse(rewards.HasFragment(town, 1), "The Mayor never hands the fragment over");
+                List<string> first = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep offered);
+                Assert.AreEqual(QuestStep.Offered, offered);
+                CollectionAssert.AreEqual(new[] { Dialogue.LeaderLine(Race.Townsfolk), TownTourText.Offer }, first);
+                StringAssert.Contains("show you round", TownTourText.Offer, "The Mayor offers to show the player round");
+                Assert.IsFalse(rewards.HasFragment(town, 1), "The rule alone never hands the fragment over");
                 Assert.IsFalse(repairs.IsRepaired(town));
 
-                Assert.IsTrue(rewards.Grant(Reward.Fragment(1), town), "Found on the trail");
+                Assert.IsTrue(rewards.Grant(Reward.Fragment(1), town), "Given by the tour (or at once)");
                 List<string> second = LeaderQuest.Lines(Race.Townsfolk, town, 1, rewards, repairs, true, out QuestStep handed);
                 Assert.AreEqual(QuestStep.Unsealed, handed);
                 CollectionAssert.AreEqual(Dialogue.UnsealConversation(Race.Townsfolk, 1), second);
@@ -257,9 +257,9 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void WithNoReadyTrail_TheMayorFallsBack_ToHandingTownsFragmentOver()
+        public void WithNoTour_TheMayorFallsBack_ToHandingTownsFragmentOver()
         {
-            // 4.18 review: if Town's trail cannot run (a trail person found no spot), the Mayor hands the fragment over (4.8).
+            // 4.20: if no tour can run (none bound, or a Town of another size), the Mayor hands the fragment over (4.8).
             var go = new GameObject("Player");
             try
             {
@@ -407,8 +407,8 @@ namespace Game.Cube.Tests
                     break;
                 case BossBenefit.SlowerRestore:
                     CollectionAssert.AreEqual(new[] { "restore" }, changed);
-                    Assert.AreEqual(2f, t.RestoreScale, "The pause between fetches doubles");
-                    Assert.Less(t.NudgeSpeed, b.NudgeSpeed, "and fetching is slower");
+                    Assert.GreaterOrEqual(t.RestoreScale, 3f, "4.20: the pause between fetches is at least three times as long");
+                    Assert.LessOrEqual(t.NudgeSpeed, 0.5f * b.NudgeSpeed, "4.20: and the Demon steers at half its speed or less");
                     break;
                 case BossBenefit.ExtraHeart:
                     CollectionAssert.AreEqual(new[] { "hearts" }, changed);

@@ -70,8 +70,8 @@ namespace Game.Cube
         /// <summary>Where the NPC for TownPlan.Specs index i stands (unfound if it found no spot).</summary>
         public TownSpot SpotAt(int planIndex) => byPlanIndex.TryGetValue(planIndex, out int k) && k < spots.Count ? spots[k] : default;
 
-        /// <summary>Town's lost-and-found side quest in play (4.18), bound to every population (on this object).</summary>
-        public TownTrailQuest Trail { get; private set; }
+        /// <summary>The Mayor's tour of Town in play (4.20), bound to every population (on this object).</summary>
+        public TownTourQuest Tour { get; private set; }
 
         /// <summary>Town's errand (4.18, Errands) this population, or null.</summary>
         public ErrandPlan Errand { get; private set; }
@@ -134,7 +134,6 @@ namespace Game.Cube
             specs.Clear();
             byPlanIndex.Clear();
             Errand = null;
-            if (Trail != null) Trail.Unbind();
             if (Leader != null)
             {
                 Leader.gameObject.SetActive(false);
@@ -197,17 +196,16 @@ namespace Game.Cube
                 spots.Add(spot);
                 specs.Add(spec);
             }
-            BindQuests(planSpecs);
+            BindQuests(planned);
             PopulatedSeed = seed;
             return npcs;
         }
 
         /// <summary>
-        /// Town's quests (4.18) on the new population: its one errand (Errands: a visitor on the square to another) and its
-        /// lost-and-found trail (TownTrail, bound to the townsfolk on Town's other screens), then the Mayor's lines again
-        /// (he names who had the fragment last).
+        /// Town's quests (4.18) on the new population: its one errand (Errands: a visitor on the square to another) and the
+        /// Mayor's tour (4.20, TownTour: its guide stands clear of the run's planned spots), then the Mayor's lines again.
         /// </summary>
-        private void BindQuests(List<NpcSpec> planSpecs)
+        private void BindQuests(List<TownSpot> planned)
         {
             if (world == null || world.Model == null || Leader == null) return;
             Errand = Errands.For(world.Seed, world.FaceSize, CubeModel.StartFace, Theme.Town);
@@ -224,9 +222,11 @@ namespace Game.Cube
                 }
                 else Errand = null;
             }
-            if (Trail == null) Trail = GetComponent<TownTrailQuest>();
-            if (Trail == null) Trail = gameObject.AddComponent<TownTrailQuest>();
-            Trail.Bind(world, world.TownTrail, planSpecs, NpcAt, SpotAt);
+            if (Tour == null) Tour = GetComponent<TownTourQuest>();
+            if (Tour == null) Tour = gameObject.AddComponent<TownTourQuest>();
+            TownTour tour = world.TownTour;
+            TownSpot guide = tour != null ? TownTour.GuideSpot(tour, planned, BlockedFor(tour.StopOf(TourLesson.Talk).Screen.Cell)) : default;
+            Tour.Bind(world, tour, guide, ResolvePlayer());
             LeaderQuest mayor = Leader.GetComponent<LeaderQuest>();
             if (mayor != null) Leader.SetLines(mayor.Preview());
         }

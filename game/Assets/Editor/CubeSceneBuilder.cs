@@ -406,21 +406,28 @@ public static class CubeSceneBuilder
         else Debug.LogError(report);
     }
 
-    /// <summary>The sweep's quest line (4.18): Town's trail completable per seed, its lengths and favours, and the errands.</summary>
+    /// <summary>
+    /// The sweep's quest line (4.20): the Mayor's tour of Town walkable start to end per seed (its stops, from which screen and
+    /// which way round), and the errands (4.18).
+    /// </summary>
     private static string QuestReportLine(List<SeedSweep.SeedResult> results)
     {
-        int seeds = 0, passed = 0, two = 0, three = 0;
+        int seeds = 0, passed = 0, clockwise = 0;
+        var starts = new SortedDictionary<string, int>();
         foreach (SeedSweep.SeedResult r in results)
         {
             if (r.QuestProblems == null) continue;
             seeds++;
             if (r.QuestProblems.Count == 0) passed++;
-            if (r.TownTrail != null && r.TownTrail.Steps.Count == 2) two++;
-            if (r.TownTrail != null && r.TownTrail.Steps.Count == 3) three++;
+            if (r.TownTour == null) continue;
+            if (r.TownTour.Direction > 0) clockwise++;
+            string first = HintGenerator.ScreenPhrase(r.TownTour.Stops[0].Screen, r.TownTour.FaceSize);
+            starts[first] = starts.TryGetValue(first, out int c) ? c + 1 : 1;
         }
         if (seeds == 0) return "Quests: not checked.\n";
-        return $"Quests: Town's lost-and-found trail completable on {passed}/{seeds} seeds ({two} of 2 townsfolk, {three} of 3, each " +
-               "with one favour), and one errand in every town.\n";
+        string from = string.Join(", ", starts.Select(kv => $"{kv.Key} {kv.Value}"));
+        return $"Quests: the Mayor's tour of Town walkable on {passed}/{seeds} seeds ({TownTour.Lessons.Count} stops, one doorway " +
+               $"apart; first stop {from}; clockwise on {clockwise}), and one errand in every town.\n";
     }
 
     /// <summary>
