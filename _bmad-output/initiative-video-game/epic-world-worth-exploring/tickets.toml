@@ -210,12 +210,56 @@ hitl = true
 risk = "medium"
 
 [[entry]]
+id = 21
+type = "story"
+title = "Release readiness"
+description = "Tier 1 of the 2026-10-13 polish review: meta save survives itch re-uploads (localStorage bridge, safe Save), HUD scales with the screen (one shared GUI scale), every action reachable on a gamepad (quest log, close/skip, shop, continue as input actions), pre-warmed generation to avoid hitches, release identity (product name, version, seed on the run-end screen), an Abandon run option, a smaller build (stripping, unused packages and scenes removed), a second close key so Esc isn't needed in fullscreen."
+verify = "Tests cover save round-trips through the bridge, HUD layout at 960x600 and 1920x1200, every action bound for gamepad, no generation spike on the reveal frame, abandon run, and the build settings; all suites and the sweep pass; the user builds WebGL and plays a run in the browser (HITL)."
+covers = []
+after = [20]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 22
+type = "story"
+title = "Feel and juice"
+description = "Tier 2 of the polish review: audio (SFX and a loop per face, notes for the finch song), title screen with intro, pause/options menu, character walk and idle animation, hit-stop and screen shake, screen transitions and region banners, boss presentation, one pixel density, per-face floors and walls, readability touch-ups."
+verify = "Planned; scope set when the story starts."
+covers = []
+after = [21]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 23
+type = "story"
+title = "Balance and economy"
+description = "Tier 3 of the polish review, with the user's design calls: boss with 0, 1 and 6 gems, Weightlands gem vs an easier base fight, Big Bonk in the fight, Jumbles sinks and temple pay, die numbers driving difficulty, Physics temple dash slack, early islands, Earth's repeated ice, keys and chest keys, combat drops, first-run hints, the tour covering the core loop."
+verify = "Planned; scope set when the story starts."
+covers = []
+after = [21]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 24
+type = "story"
+title = "Dialogue pass"
+description = "Rewrite dialogue from the user's storyboard comments and the dialogue/deity brainstorm: deity lore, leader arcs, planned scenes (Mayor speech with sleep-skip, celebrations, the Dreamer, Quadrilla's riddles, Rockjaw's forgotten name), Primsworth's lines, the storyboard's gaps."
+verify = "Planned; scope set when the story starts."
+covers = ["CAP-32"]
+after = [21]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 16
 type = "story"
 title = "itch.io release 2"
 description = "Runs the 50-seed sweep and full playtests against the epic's Done when, then the user builds, uploads and plays the WebGL build on the itch.io page."
 verify = "The sweep passes 50/50; the no-benefit boss skill check holds at 60-120 s; on the itch.io page in a fresh browser a run visits towns, repairs at least one face, finds the lair and the real portal, and upgrades persist after a tab reload."
 covers = []
-after = [20, "1.14"]
+after = [21, "1.14"]
 hitl = true
 risk = "medium"
