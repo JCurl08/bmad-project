@@ -26,6 +26,9 @@ namespace Game.Cube
         /// <summary>Forgets every cached layout (timing tests measure a cold generation).</summary>
         public static void ClearCache() => Cache.Clear();
 
+        /// <summary>Layouts generated so far (4.21: a warmed reveal generates none).</summary>
+        public static int Generated => Cache.Added;
+
         private readonly List<IslandScreenSpec> screens;
 
         public int Seed { get; }

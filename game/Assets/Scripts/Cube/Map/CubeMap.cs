@@ -46,7 +46,8 @@ namespace Game.Cube
     {
         public const string MapActionPath = "Player/Map";
         public const string Title = "Map";
-        public const string CloseHint = "[M] / [Tab] close";
+        /// <summary>The close hint (4.21: "[M]" shows the real keys, "[M/Tab]" or the pad's "[Select]").</summary>
+        public const string CloseHint = "[M] close";
         public const string CoreLabel = "You are in the core";
 
         /// <summary>The legend's labels, in drawing order (one per marker style).</summary>
@@ -121,6 +122,7 @@ namespace Game.Cube
         [SerializeField] private RunLoop loop;
 
         private InputAction mapAction;
+        private InputAction closeAction;
         private CubeNet net;
         private List<MapMarker> allMarkers = new List<MapMarker>();
         private CubeWorld subscribed;
@@ -289,6 +291,7 @@ namespace Game.Cube
             mapAction = InputSystem.actions != null ? InputSystem.actions.FindAction(MapActionPath) : null;
             if (mapAction == null) Debug.LogError($"CubeMap: input action '{MapActionPath}' not found in the project-wide actions.", this);
             else mapAction.Enable();
+            closeAction = GameActions.Find(GameActions.Close);
             Subscribe();
         }
 
@@ -297,6 +300,7 @@ namespace Game.Cube
             Close();
             Unsubscribe();
             mapAction = null; // shared project-wide action: never disabled here
+            closeAction = null;
         }
 
         private void OnDestroy()
@@ -321,8 +325,7 @@ namespace Game.Cube
                 Toggle();
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (IsOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame) Close();
+            if (IsOpen && GameActions.Pressed(closeAction)) Close();
         }
 
         private void Subscribe()
@@ -443,14 +446,15 @@ namespace Game.Cube
             GUI.depth = -50; // over the HUDs, under the between-runs screen
             EnsureStyles();
 
-            float w = Screen.width, h = Screen.height;
+            Vector2 virtualScreen = HudScale.Begin(); // 4.21: the shared scale; the net is laid out in the virtual screen
+            float w = virtualScreen.x, h = virtualScreen.y;
             GUI.color = new Color(0.02f, 0.02f, 0.05f, 0.94f);
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
             GUI.Label(TitleRect(w), Title, titleStyle);
-            GUI.Label(CloseHintRect(w), CloseHint, textStyle);
-            GUI.Label(QuestHintRect(w), QuestText.MapHint, textStyle);
+            GUI.Label(CloseHintRect(w), InputPrompts.Fill(CloseHint), textStyle);
+            GUI.Label(QuestHintRect(w), InputPrompts.Fill(QuestText.MapHint), textStyle);
             string inside = InsideLabel;
             if (inside != null)
             {

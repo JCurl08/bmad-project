@@ -36,7 +36,7 @@ BATCHES=(
 "${P}TownSceneTests;${P}TownInteriorSceneTests;${P}LairSceneTests;${P}RunLoopSceneTests;Game.Tracer.Tests.ProbeTests;Game.Tracer.Tests.TracerSceneTests"
 "${P}IslandWalkTests;${P}IslandTrailWalkTests"
 "${P}TempleSceneTests"
-"${P}TownTourSceneTests"
+"${P}TownTourSceneTests;${P}ReleaseReadinessSceneTests"
 )
 
 if [ "${1:-}" = "--list" ]; then

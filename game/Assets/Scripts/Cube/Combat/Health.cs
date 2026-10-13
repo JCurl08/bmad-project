@@ -85,6 +85,19 @@ namespace Game.Cube
         }
 
         /// <summary>
+        /// Dies at once (4.21: abandoning a run), whatever the health, invulnerability or damage modifiers, raising Died as a
+        /// fatal hit would. False when already dead.
+        /// </summary>
+        public bool Kill()
+        {
+            if (IsDead) return false;
+            current = 0f;
+            IsDead = true;
+            Died?.Invoke(this);
+            return true;
+        }
+
+        /// <summary>
         /// Applies damage from sourceItem (null for bare hits and contact). Returns the damage actually
         /// taken: 0 when disabled, dead, invulnerable or the amount is not positive.
         /// </summary>

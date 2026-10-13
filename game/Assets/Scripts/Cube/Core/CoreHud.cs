@@ -81,6 +81,7 @@ namespace Game.Cube
         private void OnGUI()
         {
             if (arena == null) return;
+            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
             if (labelStyle == null)
             {
                 labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
@@ -92,12 +93,12 @@ namespace Game.Cube
                 bannerStyle.normal.textColor = new Color(1f, 0.6f, 0.85f);
             }
 
-            if (MeterVisible) DrawMeter();
+            if (MeterVisible) DrawMeter(view);
 
             string message = MessageText;
             if (message == null || !arena.PlayerInArena) return;
             // Above the combat HUD's centred death panel (centre ± 60 px).
-            var panel = new Rect(Screen.width / 2f - 320f, Screen.height / 2f - 60f - 8f - 80f, 640f, 80f);
+            var panel = new Rect(view.x / 2f - 320f, view.y / 2f - 60f - 8f - 80f, 640f, 80f);
             GUI.color = new Color(0f, 0f, 0f, 0.75f);
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = Color.white;
@@ -110,12 +111,12 @@ namespace Game.Cube
             hintStyle.normal.textColor = Color.white; // tinted by GUI.color where drawn
         }
 
-        private void DrawMeter()
+        private void DrawMeter(Vector2 view)
         {
             // Bottom right, above the dialogue band (bottom 150 px); the hearts sit bottom left.
             const float width = 340f, barHeight = 18f, margin = 12f, dialogueBand = 150f;
-            float x = Screen.width - width - margin;
-            float y = Screen.height - dialogueBand - margin - 66f;
+            float x = view.x - width - margin;
+            float y = view.y - dialogueBand - margin - 66f;
             var back = new Rect(x - 8f, y - 6f, width + 16f, 72f);
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(back, Texture2D.whiteTexture);

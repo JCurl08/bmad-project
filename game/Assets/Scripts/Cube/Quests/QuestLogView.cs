@@ -6,7 +6,10 @@ namespace Game.Cube
 {
     /// <summary>
     /// The quest log (4.18): Q opens it (also from the map, whose header shows "[Q] quest log"), Q again or Escape closes
-    /// it. While open it pauses the game like the map (GamePause.Hold). It lists every quest of the run's log
+    /// it. 4.21: both are input actions (GameActions.QuestLog and Close), so a pad opens it with D-Pad Up and closes it with
+    /// D-Pad Up or B, and Backspace closes it too (Esc also leaves browser fullscreen). Its footer offers to abandon the run
+    /// (GameActions.Abandon: X on a keyboard or a pad): a yes/no question in the dialogue box, "Keep going" first, and a yes
+    /// ends the run the way a death does (RunLoop.Abandon), so a stuck player can always get out. While open it pauses the game like the map (GamePause.Hold). It lists every quest of the run's log
     /// (CubeWorld.Quests): open ones first, then done ones (dimmed, marked Done), each with its title, who gave it, its
     /// current step and progress (a leader's fragments are read live from the run on opening). Drawn with OnGUI in up to two
     /// columns (Layout), readable on the 960x600 canvas. It cannot open while the between-runs screen is up, and gives way
@@ -19,6 +22,8 @@ namespace Game.Cube
         public const string PauseKey = "quests";
 
         public const Key OpenKey = Key.Q;
+
+        private InputAction openAction, closeAction, abandonAction;
 
         /// <summary>The log's header band: entries start below it.</summary>
         public const float HeaderHeight = 60f;
@@ -100,7 +105,18 @@ namespace Game.Cube
 
         public bool Toggle() => IsOpen ? Close() : Open();
 
-        private void OnDisable() => Close();
+        private void OnEnable()
+        {
+            openAction = GameActions.Find(GameActions.QuestLog);
+            closeAction = GameActions.Find(GameActions.Close);
+            abandonAction = GameActions.Find(GameActions.Abandon);
+        }
+
+        private void OnDisable()
+        {
+            Close();
+            openAction = closeAction = abandonAction = null; // shared project-wide actions: never disabled here
+        }
 
         private void LateUpdate()
         {
@@ -109,16 +125,40 @@ namespace Game.Cube
                 Close(); // the run ended, or the map took over
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null) return;
             // A conversation keeps Q to itself (4.18 review): the log opens only once the talk is over.
-            if (keyboard[OpenKey].wasPressedThisFrame && !GamePause.Talking)
+            if (GameActions.Pressed(openAction) && !GamePause.Talking)
             {
                 Toggle();
                 return;
             }
-            if (IsOpen && keyboard.escapeKey.wasPressedThisFrame) Close();
+            if (!IsOpen) return;
+            if (GameActions.Pressed(closeAction)) Close();
+            else if (GameActions.Pressed(abandonAction)) AskAbandon();
         }
+
+        /// <summary>The abandon question's answer (tests and tools): the last one asked from this log, null before any.</summary>
+        public bool? LastAbandonAnswer { get; private set; }
+
+        /// <summary>
+        /// 4.21: closes the log and asks, in the dialogue box, whether to abandon the run ("Keep going" picked first). A yes
+        /// ends it through RunLoop.Abandon, as a death would. False when the log is closed or there is no run loop.
+        /// </summary>
+        public bool AskAbandon()
+        {
+            if (!IsOpen || Loop == null) return false;
+            Close();
+            RunLoop runLoop = Loop;
+            var question = new DialogueChoice(yes =>
+            {
+                LastAbandonAnswer = yes;
+                if (yes) runLoop.Abandon();
+                return null;
+            }, QuestText.AbandonYes, QuestText.AbandonNo, startOnNo: true);
+            return DialogueBox.Shared.Open(QuestText.AbandonSpeaker, new[] { QuestText.AbandonQuestion }, this, question);
+        }
+
+        /// <summary>The footer's place (the abandon hint), along the bottom of a w x h screen.</summary>
+        public static Rect FooterRect(float w, float h) => new Rect(Margin, h - 30f, w - 2f * Margin, 24f);
 
         /// <summary>
         /// Where each of count entries sits on a w x h screen: one column, or two once one column is full; entries past what
@@ -166,12 +206,14 @@ namespace Game.Cube
                 doneStyle = new GUIStyle(titleStyle);
                 doneStyle.normal.textColor = new Color(0.55f, 0.85f, 0.55f);
             }
-            float w = Screen.width, h = Screen.height;
+            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
+            float w = view.x, h = view.y;
             GUI.color = new Color(0.05f, 0.05f, 0.08f, 0.92f);
             GUI.DrawTexture(new Rect(0f, 0f, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(16f, 10f, 300f, 36f), QuestText.LogTitle, headerStyle);
-            GUI.Label(new Rect(w - 236f, 16f, 220f, 24f), QuestText.CloseHint, hintStyle);
+            GUI.Label(new Rect(w - 336f, 16f, 320f, 24f), InputPrompts.Fill(QuestText.CloseHint), hintStyle);
+            GUI.Label(FooterRect(w, h), InputPrompts.Fill(QuestText.AbandonHint), hintStyle);
 
             QuestLog log = Log;
             List<QuestEntry> entries = log != null ? log.Ordered() : new List<QuestEntry>();
@@ -189,7 +231,7 @@ namespace Game.Cube
                 GUI.DrawTexture(r, Texture2D.whiteTexture);
                 GUI.color = e.Done ? new Color(1f, 1f, 1f, 0.7f) : Color.white;
                 GUI.Label(new Rect(r.x + 8f, r.y + 2f, r.width - 16f, 24f), TitleLine(e), e.Done ? doneStyle : titleStyle);
-                GUI.Label(new Rect(r.x + 8f, r.y + 24f, r.width - 16f, r.height - 24f), StepLine(e), stepStyle);
+                GUI.Label(new Rect(r.x + 8f, r.y + 24f, r.width - 16f, r.height - 24f), InputPrompts.Fill(StepLine(e)), stepStyle);
             }
             GUI.color = Color.white;
         }

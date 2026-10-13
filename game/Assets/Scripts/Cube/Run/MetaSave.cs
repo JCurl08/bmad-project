@@ -29,7 +29,8 @@ namespace Game.Cube
     /// <summary>
     /// The meta progress that survives between runs and sessions: the meta-currency balance, upgrade levels (keyed by
     /// UpgradeShop id), the run count, victories and per-ability collection counts (keyed by item id, for Epic 2). Stored
-    /// as versioned JSON in PlayerPrefs (works on WebGL and desktop). Parsing is tolerant: unknown or extra fields are
+    /// as versioned JSON in MetaStorage.Current (4.21: the browser's localStorage on WebGL, so a save survives a new itch.io
+    /// upload, migrated from PlayerPrefs on first load; PlayerPrefs elsewhere). Neither Load nor Save ever throws. Parsing is tolerant: unknown or extra fields are
     /// ignored, missing ones keep their defaults, negative numbers are clamped, an older version is upgraded, a newer one
     /// is backed up and then written back as the current version, and a missing or unreadable save starts fresh without
     /// throwing. Keyed lists (not dictionaries) keep it JsonUtility-friendly
@@ -49,7 +50,7 @@ namespace Game.Cube
         /// <summary>Appended to the key to keep a newer version's original text before this version overwrites it.</summary>
         public const string NewerSuffix = ".newer";
 
-        /// <summary>The PlayerPrefs key used by Load() and Save() (tests point it at their own key and restore it).</summary>
+        /// <summary>The store key used by Load() and Save() (tests point it at their own key and restore it).</summary>
         public static string PrefsKey { get; set; } = DefaultPrefsKey;
 
         /// <summary>Back to the real key on every play start (statics survive when domain reload is off).</summary>
@@ -73,6 +74,7 @@ namespace Game.Cube
         [SerializeField] private int balance;
         [SerializeField] private int runCount;
         [SerializeField] private int victories;
+        [SerializeField] private int revision;
         [SerializeField] private List<Entry> upgrades = new List<Entry>();
         [SerializeField] private List<Entry> abilityCounts = new List<Entry>();
 
@@ -90,6 +92,20 @@ namespace Game.Cube
         {
             get => runCount;
             set => runCount = Mathf.Max(0, value);
+        }
+
+        /// <summary>
+        /// How many times this save has been written (4.21 review): every Save adds one, so of two copies (the browser's and a
+        /// PlayerPrefs fallback) the higher revision is the newer. A save from before 4.21 reads as 0.
+        /// </summary>
+        public int Revision => revision;
+
+        /// <summary>The revision of a save's text (RevisionOf), or -1 when there is none or it cannot be read. Never throws.</summary>
+        public static int RevisionOf(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return -1;
+            MetaSave save = FromJson(json, out MetaLoadStatus status);
+            return status == MetaLoadStatus.Corrupt || status == MetaLoadStatus.Fresh ? -1 : save.revision;
         }
 
         public int Victories
@@ -150,18 +166,22 @@ namespace Game.Cube
 
         public static MetaSave FromJson(string json) => FromJson(json, out _);
 
-        /// <summary>Loads from PlayerPrefs (PrefsKey). Never throws.</summary>
+        /// <summary>Loads from the store (MetaStorage.Current) under PrefsKey. Never throws.</summary>
         public static MetaSave Load() => Load(PrefsKey, out _);
 
-        public static MetaSave Load(string key, out MetaLoadStatus status)
+        public static MetaSave Load(string key, out MetaLoadStatus status) => Load(MetaStorage.Current, key, out status);
+
+        /// <summary>Loads from a store. Never throws: a store that fails reads as no save.</summary>
+        public static MetaSave Load(IMetaStore store, string key, out MetaLoadStatus status)
         {
             string json;
             try
             {
-                json = PlayerPrefs.GetString(key, null);
+                json = store.Get(key);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Debug.LogWarning($"MetaSave: could not read the save under '{key}' ({e.Message}); starting fresh.");
                 json = null;
             }
             MetaSave save = FromJson(json, out status);
@@ -170,7 +190,7 @@ namespace Game.Cube
                 try
                 {
                     // Only the first time: a later backup would be our own (already reduced) rewrite.
-                    if (!PlayerPrefs.HasKey(key + NewerSuffix)) PlayerPrefs.SetString(key + NewerSuffix, json);
+                    if (!store.Has(key + NewerSuffix)) store.Set(key + NewerSuffix, json);
                 }
                 catch (Exception)
                 {
@@ -182,7 +202,7 @@ namespace Game.Cube
                 Debug.LogWarning($"MetaSave: the save under '{key}' could not be read; starting fresh (kept as '{key}{CorruptSuffix}').");
                 try
                 {
-                    PlayerPrefs.SetString(key + CorruptSuffix, json);
+                    store.Set(key + CorruptSuffix, json);
                 }
                 catch (Exception)
                 {
@@ -192,21 +212,44 @@ namespace Game.Cube
             return save;
         }
 
-        /// <summary>Writes to PlayerPrefs (PrefsKey) and flushes.</summary>
-        public void Save() => Save(PrefsKey);
+        /// <summary>Writes to the store (MetaStorage.Current) under PrefsKey and flushes. Never throws: false (and a warning) on failure.</summary>
+        public bool Save() => Save(PrefsKey);
 
-        public void Save(string key)
+        public bool Save(string key) => Save(MetaStorage.Current, key);
+
+        /// <summary>Writes to a store and flushes. Never throws (4.21): a failing store logs a warning and returns false.</summary>
+        public bool Save(IMetaStore store, string key)
         {
-            Sanitize();
-            PlayerPrefs.SetString(key, ToJson());
-            PlayerPrefs.Save();
+            try
+            {
+                Sanitize();
+                revision = Mathf.Max(0, revision) + 1;
+                store.Set(key, ToJson());
+                store.Flush();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"MetaSave: could not save under '{key}' ({e.Message}).");
+                return false;
+            }
         }
 
-        public static void Delete(string key)
+        public static void Delete(string key) => Delete(MetaStorage.Current, key);
+
+        public static void Delete(IMetaStore store, string key)
         {
-            PlayerPrefs.DeleteKey(key);
-            PlayerPrefs.DeleteKey(key + CorruptSuffix);
-            PlayerPrefs.DeleteKey(key + NewerSuffix);
+            try
+            {
+                store.Delete(key);
+                store.Delete(key + CorruptSuffix);
+                store.Delete(key + NewerSuffix);
+                store.Flush(); // 4.21 review: a delete is durable at once, like a save
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"MetaSave: could not delete the save under '{key}' ({e.Message}).");
+            }
         }
 
         /// <summary>Clamps numbers, drops blank ids, merges duplicate ids (highest wins) and brings the version up to date.</summary>
@@ -218,6 +261,7 @@ namespace Game.Cube
             balance = Mathf.Max(0, balance);
             runCount = Mathf.Max(0, runCount);
             victories = Mathf.Max(0, victories);
+            revision = Mathf.Max(0, revision);
             upgrades = Clean(upgrades);
             abilityCounts = Clean(abilityCounts);
         }

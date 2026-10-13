@@ -249,6 +249,20 @@ namespace Game.Cube
             if (player.TryGetComponent(out Equipment equipment)) equipment.enabled = true;
         }
 
+        /// <summary>
+        /// Abandons the run (4.21: the quest log's way out of a soft-lock, e.g. a boulder wedged in a corner). It goes through
+        /// the death path: the player dies (Health.Kill), so the run ends as a defeat exactly as any death does, in the core
+        /// fight through the arena, elsewhere through OnPlayerDied, and RunEnded banks the wallet and counts the run as a
+        /// death would. With no living player it ends the run directly. False when the run already ended.
+        /// </summary>
+        public bool Abandon()
+        {
+            if (ScreenOpen || runState == null || runState.Ended) return false;
+            Health health = player != null ? player.Health : null;
+            if (health != null && !health.IsDead && health.Kill() && runState.Ended) return true;
+            return runState.EndRun(false);
+        }
+
         /// <summary>Buys the next level of an upgrade from the balance and saves. Refused (with a message) when too poor or maxed.</summary>
         public PurchaseResult Buy(UpgradeStat stat)
         {

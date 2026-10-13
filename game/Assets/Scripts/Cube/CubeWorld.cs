@@ -271,6 +271,12 @@ namespace Game.Cube
         public void Rebuild(int newSeed)
         {
             seed = newSeed;
+            // 4.21 review: a new run starts with empty generation caches, before anything of this run is made (the locks, the
+            // pre-warm), so only this run's entries are kept.
+            IcePlan.ClearCache();
+            WindPlan.ClearCache();
+            IslandPlan.ClearCache();
+            TemplePlan.ClearCache();
             Model = new CubeModel(newSeed, CubeSettings.DefaultFaceSize, sealedThemes);
             Dice = DieNumbers.Roll(Model);
             Lair = LairPlan.ForRun(Model);
@@ -311,7 +317,64 @@ namespace Game.Cube
             for (int f = 0; f < CubeSettings.FaceCount; f++)
                 BuildFace((FaceId)f);
 
+            StartPrewarm();
             Rebuilt?.Invoke();
+        }
+
+        // ---------------- 4.21: generation pre-warm ----------------
+
+        /// <summary>Turns the pre-warm off (tests and tools that time a cold reveal). On by default.</summary>
+        public static bool PrewarmEnabled { get; set; } = true;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetPrewarmStatic() => PrewarmEnabled = true;
+
+        /// <summary>The longest a frame of pre-warm work keeps going before it waits for the next frame (seconds).</summary>
+        public const float PrewarmFrameBudget = 0.006f;
+
+        private GenerationPrewarm prewarm;
+        private Coroutine prewarmRoutine;
+
+        /// <summary>This run's pre-warm (null before the first run; the reveal stops it, done or not).</summary>
+        public GenerationPrewarm Prewarm => prewarm;
+
+        /// <summary>Frames the current pre-warm has run over so far.</summary>
+        public int PrewarmFrames { get; private set; }
+
+        /// <summary>
+        /// Starts warming this run's reveal over frames (GenerationPrewarm): the science layout, every puzzle screen's layout
+        /// and every temple's puzzle, each made the way the reveal or an unsealing would make it and kept in their caches.
+        /// Nothing else is touched: each generator has its own seeded stream, so the run is the same warmed or not.
+        /// </summary>
+        private void StartPrewarm()
+        {
+            StopPrewarm();
+            if (!PrewarmEnabled || !Application.isPlaying || !enabled || !gameObject.activeInHierarchy || Model == null) return;
+            prewarm = new GenerationPrewarm(Model, library, Dice);
+            PrewarmFrames = 0;
+            prewarmRoutine = StartCoroutine(RunPrewarm(prewarm));
+        }
+
+        private void StopPrewarm()
+        {
+            if (prewarmRoutine != null) StopCoroutine(prewarmRoutine);
+            prewarmRoutine = null;
+        }
+
+        private System.Collections.IEnumerator RunPrewarm(GenerationPrewarm job)
+        {
+            yield return null; // never on the frame the run is built
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            foreach (string _ in job.Steps())
+            {
+                if (clock.Elapsed.TotalSeconds < PrewarmFrameBudget) continue;
+                PrewarmFrames++;
+                yield return null;
+                if (ScienceRevealed || prewarm != job) yield break; // the reveal came first (it makes the rest itself)
+                clock.Restart();
+            }
+            PrewarmFrames++;
+            prewarmRoutine = null;
         }
 
         /// <summary>
@@ -323,7 +386,12 @@ namespace Game.Cube
         {
             if (Model == null || ScienceRevealed) return false;
             ScienceRevealed = true;
-            if (library != null) Layout = CubeLayout.Generate(Model, library);
+            // 4.21: the pre-warm (GenerationPrewarm, run over frames while the player is in Town) made this run's layout and
+            // filled the puzzle and temple caches, so the reveal frame only builds; a cold reveal makes them here, the same.
+            CubeLayout warmed = prewarm != null ? prewarm.LayoutFor(Model) : null;
+            StopPrewarm();
+            if (warmed != null) Layout = warmed;
+            else if (library != null) Layout = CubeLayout.Generate(Model, library);
             else Debug.LogWarning("CubeWorld: no ModuleLibrary assigned; science faces revealed without modules.");
             Ice = IcePlan.Create(Model, Layout, Dice);
             Wind = WindPlan.Create(Model, Layout, Dice);

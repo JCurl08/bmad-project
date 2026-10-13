@@ -270,6 +270,7 @@ namespace Game.Cube
         private void OnGUI()
         {
             if (!showHud) return;
+            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
             DrawStageLabel();
             string text = HudText;
             if (text == null) return;
@@ -281,7 +282,7 @@ namespace Game.Cube
             // Just above the CombatHud panel (bottom left, above the dialogue band).
             const float margin = 12f, dialogueBand = 150f, combatPanel = 62f, pip = 16f;
             float x = margin;
-            float y = Screen.height - dialogueBand - margin - combatPanel - 34f;
+            float y = view.y - dialogueBand - margin - combatPanel - 34f;
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(new Rect(x, y, 420f, 28f), Texture2D.whiteTexture);
             GUI.color = ChemistryIsotope.StageColor(Stage);
@@ -298,9 +299,9 @@ namespace Game.Cube
             if (label == null || cam == null) return;
             if (labelStyle == null)
                 labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            Vector3 screen = cam.WorldToScreenPoint(transform.position + Vector3.up * (0.75f * ScreenMath.ContentScale));
-            if (screen.z < 0f) return;
-            var rect = new Rect(screen.x - 52f, Screen.height - screen.y - 22f, 104f, 20f);
+            Vector2? at = HudScale.WorldToGui(cam, transform.position + Vector3.up * (0.75f * ScreenMath.ContentScale));
+            if (at == null) return;
+            var rect = new Rect(at.Value.x - 52f, at.Value.y - 22f, 104f, 20f);
             GUI.color = new Color(0f, 0f, 0f, 0.7f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = StageLabelColor;

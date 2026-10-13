@@ -1,0 +1,10 @@
+<!--
+  4.21: managed stripping is High for WebGL. These assemblies are kept whole so nothing reached only by reflection or
+  serialization is stripped: the game's own code (JsonUtility saves, RuntimeInitializeOnLoadMethod statics, ScriptableObject
+  catalogs) and the Input System (its layouts, interactions and processors are created by name from the actions asset).
+-->
+<linker>
+  <assembly fullname="Game.Cube" preserve="all"/>
+  <assembly fullname="Game.Tracer" preserve="all"/>
+  <assembly fullname="Unity.InputSystem" preserve="all"/>
+</linker>

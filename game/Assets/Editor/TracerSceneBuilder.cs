@@ -102,9 +102,9 @@ public static class TracerSceneBuilder
             return;
         }
 
-        EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+        // 4.21: the Tracer scene is never a build scene (its PlayMode tests load it by path in the editor).
         AssetDatabase.SaveAssets();
-        Debug.Log($"Tracer: created {ScenePath} and set it as the only build scene.");
+        Debug.Log($"Tracer: created {ScenePath}.");
     }
 
     private static GameObject CreateBlock(string name, Transform parent, Sprite sprite, Material material,

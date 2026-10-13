@@ -115,6 +115,7 @@ namespace Game.Cube
         private void OnGUI()
         {
             if (health == null) return;
+            Vector2 view = HudScale.Begin(); // 4.21: one shared scale, laid out in a virtual screen of at least 960x600
             if (textStyle == null)
             {
                 textStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
@@ -130,7 +131,7 @@ namespace Game.Cube
             float width = hearts * (size + gap) - gap;
             string rewardsLine = RewardsText;
             List<FaceDie> dice = FragmentDice;
-            Rect back = PanelRect(Screen.width, Screen.height, hearts, rewardsLine != null, dice.Count > 0);
+            Rect back = PanelRect(view.x, view.y, hearts, rewardsLine != null, dice.Count > 0);
             float x = back.x + 8f, y = back.y + 6f;
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(back, Texture2D.whiteTexture);
@@ -155,7 +156,7 @@ namespace Game.Cube
 
             string message = MessageText;
             if (message == null) return;
-            var panel = new Rect(Screen.width / 2f - 320f, Screen.height / 2f - 60f, 640f, 120f);
+            var panel = new Rect(view.x / 2f - 320f, view.y / 2f - 60f, 640f, 120f);
             GUI.color = new Color(0f, 0f, 0f, 0.75f);
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = Color.white;
@@ -166,7 +167,7 @@ namespace Game.Cube
         public const float HeartSize = 22f;
 
         /// <summary>
-        /// The panel's rect on a screen (pixels, GUI y down; 4.19 review: layout tests): bottom left, above the dialogue band
+        /// The panel's rect on a screen (GUI units, y down: HudScale's virtual screen; 4.19 review: layout tests): bottom left, above the dialogue band
         /// (the bottom 150 px), as tall as its rows (hearts and the item, the rewards line, the dice).
         /// </summary>
         public static Rect PanelRect(float screenWidth, float screenHeight, int hearts, bool rewardsLine, bool dice)

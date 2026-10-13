@@ -204,11 +204,10 @@ public static class CubeSceneBuilder
             return;
         }
 
-        // Cube first, keep every other existing entry (Tracer's PlayMode tests load it by name).
+        // Cube first, keep every other existing entry but the Tracer scene (4.21: not shipped; its PlayMode tests load it by
+        // path in the editor).
         var scenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath, true) };
-        scenes.AddRange(EditorBuildSettings.scenes.Where(s => s.path != ScenePath));
-        if (scenes.All(s => s.path != TracerSceneBuilder.ScenePath))
-            scenes.Add(new EditorBuildSettingsScene(TracerSceneBuilder.ScenePath, true));
+        scenes.AddRange(EditorBuildSettings.scenes.Where(s => s.path != ScenePath && s.path != TracerSceneBuilder.ScenePath));
         EditorBuildSettings.scenes = scenes.ToArray();
         AssetDatabase.SaveAssets();
         Debug.Log($"Cube: created {ScenePath}; build scenes: {string.Join(", ", scenes.Select(s => s.path))}");

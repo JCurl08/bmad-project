@@ -626,6 +626,8 @@ namespace Game.Cube
         private void OnGUI()
         {
             if (world == null || world.Model == null) return;
+            // 4.21: the shared scale. The wall band is a fixed share of the height, so the bars still lie on it.
+            Vector2 view = HudScale.Begin();
             if (style == null)
             {
                 style = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip, wordWrap = false };
@@ -638,20 +640,20 @@ namespace Game.Cube
             if (slotMarkersVisible) DrawSlotLabels();
             if (!overlayVisible) return;
 
-            OverlayBars(Screen.width, Screen.height, out Rect top, out Rect bottom);
-            Bar(top, LocationLine);
+            OverlayBars(view.x, view.y, out Rect top, out Rect bottom);
+            Bar(top, LocationLine, view.y);
             // 4.19 review: the dialogue box reaches into the bottom wall band, so the keys bar steps aside while it is open.
-            if (BottomBarShown(DialogueBox.Shared != null && DialogueBox.Shared.IsOpen)) Bar(bottom, KeysLine);
+            if (BottomBarShown(DialogueBox.Shared != null && DialogueBox.Shared.IsOpen)) Bar(bottom, KeysLine, view.y);
         }
 
         /// <summary>One bar: a dark strip over the wall band, the line in the largest font that fits its width (down to 10 px).</summary>
-        private void Bar(Rect rect, string text)
+        private void Bar(Rect rect, string text, float screenHeight)
         {
             GUI.color = new Color(0f, 0f, 0f, 0.72f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             var inner = new Rect(rect.x + 8f, rect.y, rect.width - 16f, rect.height);
-            int size = OverlayFontSize(Screen.height);
+            int size = OverlayFontSize(screenHeight);
             var content = new GUIContent(text);
             style.fontSize = size;
             while (size > 10 && style.CalcSize(content).x > inner.width) style.fontSize = --size;
@@ -679,8 +681,9 @@ namespace Game.Cube
                     if (!slot.MarkerVisible) continue;
                     Vector3 viewport = cam.WorldToViewportPoint(slot.transform.position);
                     if (viewport.x < 0f || viewport.x > 1f || viewport.y < 0f || viewport.y > 1f) continue;
-                    Vector3 screen = cam.WorldToScreenPoint(slot.transform.position);
-                    var rect = new Rect(screen.x + 10f, Screen.height - screen.y - 10f, 160f, 22f);
+                    Vector2? at = HudScale.WorldToGui(cam, slot.transform.position);
+                    if (at == null) continue;
+                    var rect = new Rect(at.Value.x + 10f, at.Value.y - 10f, 160f, 22f);
                     GUI.color = slot.MarkerColor;
                     GUI.Label(rect, slot.Label, labelStyle);
                 }

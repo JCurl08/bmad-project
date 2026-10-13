@@ -29,10 +29,14 @@ namespace Game.Cube
             ((ulong)(uint)seed << 32) | (uint)((int)s.Face * 64 + s.Cell.x * 8 + s.Cell.y);
     }
 
-    /// <summary>A small cache that empties itself once it holds limit entries (the puzzle plans' layouts).</summary>
+    /// <summary>
+    /// A small cache of at most limit entries (the puzzle plans' layouts, the temples). 4.21 review: when full it forgets its
+    /// oldest entry only, so the current run's warmed entries are never all thrown away by one more.
+    /// </summary>
     public sealed class BoundedCache<TKey, TValue>
     {
         private readonly Dictionary<TKey, TValue> entries = new Dictionary<TKey, TValue>();
+        private readonly Queue<TKey> order = new Queue<TKey>();
         private readonly int limit;
 
         public BoundedCache(int limit = PuzzleScreenLayouts.CacheLimit)
@@ -42,15 +46,27 @@ namespace Game.Cube
 
         public int Count => entries.Count;
 
+        /// <summary>Values made and kept since the start (4.21: a cache miss each; Clear does not reset it). Tests read it.</summary>
+        public int Added { get; private set; }
+
         public bool TryGetValue(TKey key, out TValue value) => entries.TryGetValue(key, out value);
 
-        /// <summary>Keeps a value (emptying the cache first when it is full).</summary>
+        /// <summary>Keeps a value (forgetting the oldest entry first when the cache is full).</summary>
         public void Add(TKey key, TValue value)
         {
-            if (entries.Count >= limit) entries.Clear();
+            if (!entries.ContainsKey(key))
+            {
+                while (entries.Count >= Math.Max(1, limit) && order.Count > 0) entries.Remove(order.Dequeue());
+                order.Enqueue(key);
+            }
             entries[key] = value;
+            Added++;
         }
 
-        public void Clear() => entries.Clear();
+        public void Clear()
+        {
+            entries.Clear();
+            order.Clear();
+        }
     }
 }

@@ -221,6 +221,17 @@ hitl = true
 risk = "medium"
 
 [[entry]]
+id = 25
+type = "story"
+title = "Playtest 7 fixes"
+description = "Playtest 7: any boulder counts for any timed door (3 boulders on multi-door screens); the Physics temple doors time out like the others with a longer timer; harder wind puzzles; whole-screen rain; the gap-crosser lets you jump a gap instead of building a bridge; the side letterbox bars become the HUD/menu so nothing covers the play area; an NPC gives clear boss tips."
+verify = "Tests for each item; all suites, the 50-seed sweep and the 500-seed robustness test pass; the user confirms in play."
+covers = []
+after = [21]
+hitl = true
+risk = "medium"
+
+[[entry]]
 id = 22
 type = "story"
 title = "Feel and juice"

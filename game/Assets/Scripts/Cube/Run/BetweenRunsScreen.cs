@@ -9,6 +9,12 @@ namespace Game.Cube
     /// what it earned (trials, the Demon, stray Jumbles) and the balance; the four upgrades with level, next cost and next
     /// effect, each with a Buy button (keys 1-4); and Continue (Enter) back to Town on a new seed. The ended run's seed is
     /// shown, and in debug builds a button replays it. Campy copy; the currency is "Jumbles*" (InWorldText.Currency).
+    /// <para>4.21: every control is an input action (GameActions): Buy1-4 (keys 1-4), Continue (Enter, the pad's Start), and a
+    /// pick moved over the four upgrades and Continue with MenuUp/MenuDown (the arrow keys, the pad's d-pad or stick) and
+    /// taken with Confirm (Space, the pad's A), so a pad can shop and carry on. 4.21 review: the screen opens with nothing
+    /// picked (NoPick), and Confirm does nothing until the arrows or the pad have picked a row, so a stray Space or A never
+    /// buys. The labels show the real key or button names
+    /// (InputPrompts). The build's version is shown beside the seed (BuildLine), so a bug report can name both.</para>
     /// </summary>
     public class BetweenRunsScreen : MonoBehaviour
     {
@@ -25,11 +31,45 @@ namespace Game.Cube
         /// <summary>A Buy button's label (key 1-4).</summary>
         public static string BuyLabel(int index) => $"Buy [{index + 1}]";
 
+        /// <summary>A Buy button's label on a pad: the picked row shows its Confirm button, the rest just "Buy".</summary>
+        public const string PadBuyPicked = "Buy [Confirm]";
+        public const string PadBuy = "Buy";
+
+        /// <summary>The build's version, beside the seed (4.21: a bug report names the build and the seed).</summary>
+        public static string BuildLine(string version) => $"Build {version}";
+
+        /// <summary>The pick's rows: the four upgrades (0-3), then Continue.</summary>
+        public const int ContinueRow = 4;
+
+        public const int Rows = 5;
+
+        /// <summary>No row picked yet: the screen opens so, and Confirm then does nothing.</summary>
+        public const int NoPick = -1;
+
+        /// <summary>The picked row (4.21): a pad (or the arrow keys) moves it, Confirm takes it. NoPick on opening.</summary>
+        public int Picked { get; private set; } = NoPick;
+
+        /// <summary>
+        /// The row the pick lands on from a row after one step (down: +1), wrapping round. From NoPick, down lands on the
+        /// first upgrade and up on Continue.
+        /// </summary>
+        public static int Step(int row, int step)
+        {
+            if (row < 0 || row >= Rows) return step > 0 ? 0 : ContinueRow;
+            return ((row + step) % Rows + Rows) % Rows;
+        }
+
+        private readonly InputAction[] buyActions = new InputAction[4];
+        private InputAction continueAction, upAction, downAction, confirmAction;
+        private int openedFrame = -1;
+        private bool wasVisible;
+
         [SerializeField] private RunLoop loop;
 
         private GUIStyle titleStyle;
         private GUIStyle textStyle;
         private GUIStyle smallStyle;
+        private GUIStyle buildStyle;
         private GUIStyle buttonStyle;
 
         public RunLoop Loop
@@ -81,37 +121,69 @@ namespace Game.Cube
                    $"{UpgradeShop.Cost(level)} {CurrencyName}";
         }
 
+        private void OnEnable()
+        {
+            for (int i = 0; i < buyActions.Length; i++) buyActions[i] = GameActions.Find(GameActions.Buy(i));
+            continueAction = GameActions.Find(GameActions.Continue);
+            upAction = GameActions.Find(GameActions.MenuUp);
+            downAction = GameActions.Find(GameActions.MenuDown);
+            confirmAction = GameActions.Find(GameActions.Confirm);
+        }
+
+        private void OnDisable()
+        {
+            // Shared project-wide actions: never disabled here.
+            for (int i = 0; i < buyActions.Length; i++) buyActions[i] = null;
+            continueAction = upAction = downAction = confirmAction = null;
+        }
+
         private void Update()
         {
-            if (!Visible) return;
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null) return;
-            if (keyboard.digit1Key.wasPressedThisFrame) loop.Buy(UpgradeStat.Health);
-            if (keyboard.digit2Key.wasPressedThisFrame) loop.Buy(UpgradeStat.Defence);
-            if (keyboard.digit3Key.wasPressedThisFrame) loop.Buy(UpgradeStat.Power);
-            if (keyboard.digit4Key.wasPressedThisFrame) loop.Buy(UpgradeStat.Speed);
-            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame) loop.Continue();
+            bool visible = Visible;
+            if (visible && !wasVisible)
+            {
+                Picked = NoPick; // nothing picked: a stray Space or A neither buys nor skips the shop
+                openedFrame = Time.frameCount;
+            }
+            wasVisible = visible;
+            if (!visible || Time.frameCount == openedFrame) return; // the press that ended the run does nothing here
+            for (int i = 0; i < buyActions.Length && i < UpgradeShop.All.Length; i++)
+                if (GameActions.Pressed(buyActions[i])) loop.Buy(UpgradeShop.All[i]);
+            if (GameActions.Pressed(upAction)) Picked = Step(Picked, -1);
+            if (GameActions.Pressed(downAction)) Picked = Step(Picked, 1);
+            if (GameActions.Pressed(confirmAction)) TakePicked();
+            else if (GameActions.Pressed(continueAction)) loop.Continue();
+        }
+
+        /// <summary>Takes the picked row: buys its upgrade, or continues. Nothing while no row is picked.</summary>
+        public void TakePicked()
+        {
+            if (!Visible || Picked == NoPick) return;
+            if (Picked == ContinueRow) loop.Continue();
+            else if (Picked >= 0 && Picked < UpgradeShop.All.Length) loop.Buy(UpgradeShop.All[Picked]);
         }
 
         private void OnGUI()
         {
             if (!Visible) return;
             GUI.depth = -100; // over the HUDs
+            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
             EnsureStyles();
 
             GUI.color = new Color(0.05f, 0.02f, 0.08f, 0.9f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, view.x, view.y), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            float width = Mathf.Min(760f, Screen.width - 32f);
-            float x = (Screen.width - width) / 2f;
-            float y = Mathf.Max(16f, Screen.height / 2f - 290f);
+            float width = Mathf.Min(760f, view.x - 32f);
+            float x = (view.x - width) / 2f;
+            float y = Mathf.Max(16f, view.y / 2f - 290f);
 
             RunSummary run = loop.LastRun;
             GUI.Label(new Rect(x, y, width, 64f), Title, titleStyle);
             y += 66f;
             GUI.Label(new Rect(x, y, width, 22f),
                 RunLine(run.RunNumber, run.Seed, loop.Meta.Victories), smallStyle);
+            GUI.Label(new Rect(x, y, width, 22f), BuildLine(Application.version), buildStyle);
             y += 28f;
 
             foreach (string line in EarningsLines())
@@ -128,9 +200,11 @@ namespace Game.Cube
                 UpgradeStat stat = UpgradeShop.All[i];
                 bool maxed = UpgradeShop.IsMaxed(loop.Meta, stat);
                 bool affordable = !maxed && loop.Meta.Balance >= UpgradeShop.NextCost(loop.Meta, stat);
+                if (Picked == i) Pick(new Rect(x - 4f, y - 3f, width + 8f, 42f));
                 GUI.enabled = !maxed;
                 GUI.color = affordable || maxed ? Color.white : new Color(1f, 1f, 1f, 0.6f);
-                if (GUI.Button(new Rect(x, y, 90f, 30f), BuyLabel(i), buttonStyle)) loop.Buy(stat);
+                string label = InputPrompts.UsingGamepad ? (Picked == i ? PadBuyPicked : PadBuy) : BuyLabel(i);
+                if (GUI.Button(new Rect(x, y, 90f, 30f), InputPrompts.Fill(label), buttonStyle)) loop.Buy(stat);
                 GUI.enabled = true;
                 GUI.color = Color.white;
                 GUI.Label(new Rect(x + 100f, y, width - 100f, 22f), UpgradeLine(stat), textStyle);
@@ -146,9 +220,21 @@ namespace Game.Cube
             }
             y += 32f;
 
-            if (GUI.Button(new Rect(x, y, 320f, 40f), ContinueLabel, buttonStyle)) loop.Continue();
+            if (Picked == ContinueRow) Pick(new Rect(x - 4f, y - 4f, 328f, 48f));
+            if (GUI.Button(new Rect(x, y, 320f, 40f), InputPrompts.Fill(ContinueLabel), buttonStyle)) loop.Continue();
             if (CubeDebug.Available && GUI.Button(new Rect(x + 336f, y, 220f, 40f), $"Replay seed {run.Seed} (debug)", buttonStyle))
                 loop.StartRun(run.Seed);
+        }
+
+        /// <summary>The pick's frame: a gold outline round the picked row.</summary>
+        private static void Pick(Rect r)
+        {
+            GUI.color = new Color(1f, 0.85f, 0.45f, 0.9f);
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - 2f, r.width, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.y, 2f, r.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.xMax - 2f, r.y, 2f, r.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
         }
 
         private void EnsureStyles()
@@ -160,6 +246,7 @@ namespace Game.Cube
             textStyle.normal.textColor = Color.white;
             smallStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Italic };
             smallStyle.normal.textColor = new Color(0.8f, 0.8f, 0.9f);
+            buildStyle = new GUIStyle(smallStyle) { alignment = TextAnchor.UpperRight };
             buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 15 };
         }
     }

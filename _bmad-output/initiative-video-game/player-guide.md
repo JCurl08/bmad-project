@@ -1,6 +1,6 @@
 # Player guide: how a run works
 
-This describes the game as of commit `951bec4` (Epic 4 through 4.19), plus 4.20 (the Mayor's tour of Town in place of the lost-and-found trail, yes/no questions in conversations, and a much stronger Weightlands\* gem). Names ending in `*` are placeholders until the naming brainstorm.
+This describes the game as of commit `951bec4` (Epic 4 through 4.19), plus 4.20 (the Mayor's tour of Town in place of the lost-and-found trail, yes/no questions in conversations, and a much stronger Weightlands\* gem) and 4.21 (release readiness: gamepad controls, abandoning a run, a HUD that scales with the window, and saves that survive a new upload). Names ending in `*` are placeholders until the naming brainstorm; the game's working title is *Entropy Cube*.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
@@ -8,18 +8,28 @@ The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the De
 You don't have to do everything. A full run means getting out of Town, collecting items and keys, opening temples and winning their gems for boss help, finding the real core portal, and winning the fight.
 
 ## Controls
-| Action | Key |
-|---|---|
-| Move | WASD or arrow keys |
-| Swing / use your held item | Enter or left mouse button |
-| Talk, open, interact | E |
-| Switch held item | 1 (previous) / 2 (next) |
-| Map (pauses the game) | M or Tab |
-| Quest log (pauses the game) | Q (also from the map; Q or Esc closes it) |
+| Action | Keyboard | Gamepad (Xbox names) |
+|---|---|---|
+| Move | WASD or arrow keys | Left stick |
+| Swing / use your held item | Enter or left mouse button | X |
+| Talk, open, interact | E | Y |
+| Switch held item | 1 (previous) / 2 (next) | D-pad left / right |
+| Map (pauses the game) | M or Tab | Select (View) |
+| Quest log (pauses the game) | Q (also from the map) | D-pad up |
+| Close the map or log, skip a conversation | Esc or Backspace | B |
+| Abandon the run (from the quest log) | X | X |
 
-**Talking pauses everything.** While a conversation is open you can't move, swing or switch items, and nothing else moves either: other people, enemies, hazards, timed doors, wind and ice, and the boss fight all wait. E pages through the lines; Esc skips to the end.
+The prompts on screen (in the dialogue box, the map, the log, the between-runs screen and over things you can use) show the key or button for what you're playing with: the keyboard's until you press something on a pad, then the pad's.
 
-**Questions.** Some conversations end in a yes/no question (the two answers show along the bottom of the box). Pick with left/right or up/down (arrows or WASD), then press E to answer. Esc closes it without answering; you'll be asked again next time. The direction keys only choose: you won't walk off when the conversation ends, even if a key is still held (press it again to walk).
+**You never need Esc.** In a browser, Esc also leaves fullscreen. M closes the map, Q closes the quest log, E pages a conversation to its end, and Backspace does everything Esc does.
+
+**Talking pauses everything.** While a conversation is open you can't move, swing or switch items, and nothing else moves either: other people, enemies, hazards, timed doors, wind and ice, and the boss fight all wait. E (Y) pages through the lines; Backspace or Esc (B) skips to the end.
+
+**Questions.** Some conversations end in a yes/no question (the two answers show along the bottom of the box). Pick with left/right or up/down (arrows, WASD or the stick), then press E to answer (on a pad, A). Backspace or Esc (B) closes it without answering; you'll be asked again next time. The direction keys only choose: you won't walk off when the conversation ends, even if a key is still held (press it again to walk).
+
+**The HUD scales with the window.** Everything on screen (hearts, the dialogue box, the map, the log, the between-runs screen) was laid out for the 960×600 page and grows with a bigger window, fullscreen or a high-DPI screen, so the text stays readable.
+
+**Abandoning a run.** Stuck (a boulder wedged in a corner, say)? Open the quest log and press X. You're asked first, with "Keep going" picked; choose "Abandon" (left or up, then E, or A on a pad) and the run ends just as if you'd been defeated: what you earned is banked, the run counts, and the between-runs screen opens.
 
 Your **swing uses the item you're holding**. Most puzzles and gates are solved by holding the right item and swinging at the thing.
 
@@ -37,9 +47,9 @@ Your **swing uses the item you're holding**. Most puzzles and gates are solved b
     | 2 | Talking | Talk to Gus Guidewell, the tour guide, beside the marker (E) |
     | 3 | Swinging and digging | Swing twice at the heap of dirt beside the marker |
     | 4 | Chests | Open the chest beside the marker (walk into it or swing at it): 3 Jumbles\* |
-    | 5 | The map | Press M |
-    | 6 | The quest log | Press Q |
-    | 7 | Switching items | Press 1 or 2 (only if you hold two items or more; otherwise this stop is skipped) |
+    | 5 | The map | Press M (pad: Select) |
+    | 6 | The quest log | Press Q (pad: d-pad up) |
+    | 7 | Switching items | Press 1 or 2 (pad: d-pad left or right; only if you hold two items or more; otherwise this stop is skipped) |
     | 8 | Locked arches | Get there: the marker stands by one of Town's arches. A keyhole takes a key (used up); a picture takes that face's item (kept). |
 
     The last stop hands you **Town's fragment**. Your quest log ("Mayor Muddleton's tour") always says the next stop and its task.
@@ -135,7 +145,12 @@ Every science face has a colour and a race of people:
 - Need to leave? Walk out of the door in the **west wall** (straight west into the recess). The fight resets.
 
 ### 7. Between runs
-After you win or die, the between-runs screen shows what you earned. Spend Jumbles\* on permanent upgrades (Extra Heart, Thick Skin, Big Bonk, Zoomies), then **Continue** into a new, freshly shuffled run.
+After you win, die or abandon the run, the between-runs screen shows what you earned. Spend Jumbles\* on permanent upgrades (Extra Heart, Thick Skin, Big Bonk, Zoomies), then **Continue** into a new, freshly shuffled run.
+- **Keyboard:** 1-4 buy an upgrade, Enter continues.
+- **Gamepad:** the d-pad (or stick) moves a gold frame over the four upgrades and Continue, A takes it, and Start continues from anywhere. Nothing is framed until you press the d-pad, so a stray A never buys anything. (The arrow keys and Space do the same on a keyboard.)
+- The line under the title names the run's **seed**, and the right-hand side the game's **build** (for example "Build 0.4.0"). Put both in a bug report.
+
+Your progress (Jumbles\*, upgrades, runs and victories) is saved in the browser as soon as anything changes. In the web version it lives in the page's own storage, so it survives a new upload of the game; a save from before this version is carried over the first time you play.
 
 ## A good first run
 1. Talk to the Mayor and say yes to his tour (or no, if you know the ropes). Follow the glowing markers (check Q if you forget where the next one is), then bring Town's fragment back to him. That opens Town's temple: slide its crest back together for Town's gem.
@@ -156,7 +171,7 @@ After you win or die, the between-runs screen shows what you earned. Spend Jumbl
 | F8 | Leave the arena, a building, the lair or a temple |
 | Shift+F8 | Solve the temple you're in |
 | F9 | Rest to full health |
-| F10 | New run |
+| F10 | New run (nothing banked; to end a run properly, abandon it from the quest log) |
 | F5 | Reroll the seed |
 | F1 | Debug overlay: two slim bars over the top and bottom walls (where you are and the seed on top, every dev key at the bottom), never over the floor |
 | F3 | Spawn NPCs (Shift+F3: all six leaders) |

@@ -10,6 +10,16 @@ namespace Game.Cube
     {
         public const string LogTitle = "Quest log";
         public const string CloseHint = "[Q] / [Esc] close";
+
+        /// <summary>4.21: the log's footer, the way out of a stuck run (QuestLogView.AskAbandon).</summary>
+        public const string AbandonHint = "[Abandon] abandon this run";
+
+        /// <summary>The abandon question (4.21), asked in the dialogue box; the answers start on "Keep going".</summary>
+        public const string AbandonSpeaker = "Abandon run";
+        public const string AbandonQuestion =
+            "Abandon this run? It ends just as a defeat does: what you earned is banked, and you start again in Town.";
+        public const string AbandonYes = "Abandon";
+        public const string AbandonNo = "Keep going";
         public const string MapHint = "[Q] quest log";
         public const string Empty = "No quests yet. Talk to people: each town's leader has one, and somebody always needs a hand.";
         public const string DoneLabel = "Done";
@@ -53,9 +63,9 @@ namespace Game.Cube
                 case TourLesson.Talk: return $"{stop}: talk to {NpcNames.Guide} by the marker (Interact).";
                 case TourLesson.Dig: return $"{stop}: swing at the heap of dirt twice to dig it up.";
                 case TourLesson.Chest: return $"{stop}: open the chest. Walk into it, or swing at it.";
-                case TourLesson.Map: return $"{stop}: press M to open the map.";
-                case TourLesson.QuestLog: return $"{stop}: press Q to open the quest log.";
-                case TourLesson.Items: return $"{stop}: press 1 or 2 to switch items.";
+                case TourLesson.Map: return $"{stop}: press [M] to open the map.";
+                case TourLesson.QuestLog: return $"{stop}: press [Q] to open the quest log.";
+                case TourLesson.Items: return $"{stop}: press [prev] or [next] to switch items.";
                 default: return $"{stop}: walk to the glowing marker {where}.";
             }
         }
@@ -87,6 +97,11 @@ namespace Game.Cube
             yield return LogTitle;
             yield return CloseHint;
             yield return MapHint;
+            yield return AbandonHint;
+            yield return AbandonSpeaker;
+            yield return AbandonQuestion;
+            yield return AbandonYes;
+            yield return AbandonNo;
             yield return Empty;
             yield return DoneLabel;
             const string leader = "Queen Wrennifer", person = "Pipwick", other = "Wrenna";

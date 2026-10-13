@@ -5,7 +5,8 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Game.Tracer",
-        "Game.Cube"
+        "Game.Cube",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"

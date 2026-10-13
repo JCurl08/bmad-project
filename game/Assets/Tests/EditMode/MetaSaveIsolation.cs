@@ -30,6 +30,7 @@ namespace Game.Cube.Tests
 
         public void BeforeTest(ITest test)
         {
+            MetaStorage.Reset(); // 4.21: the platform's store (PlayerPrefs in the editor), whatever a test set
             MetaSave.PrefsKey = TestKey;
             MetaSave.Delete(TestKey);
             RunLoop.KeepSceneSeed = true;
@@ -39,6 +40,7 @@ namespace Game.Cube.Tests
         {
             MetaSave.Delete(TestKey);
             MetaSave.PrefsKey = MetaSave.DefaultPrefsKey;
+            MetaStorage.Reset();
             RunLoop.KeepSceneSeed = false;
         }
     }

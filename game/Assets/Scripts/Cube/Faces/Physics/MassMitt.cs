@@ -368,6 +368,8 @@ namespace Game.Cube
             if (!showHud) return;
             string text = HudText;
             if (text == null) return;
+            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
+            text = InputPrompts.Fill(text); // "[Interact]" shows the real key or button
             if (hudStyle == null)
             {
                 hudStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
@@ -376,7 +378,7 @@ namespace Game.Cube
             // Above the Chemistry stone's HUD line (bottom left, above the combat panel and the dialogue band).
             const float margin = 12f, dialogueBand = 150f, combatPanel = 62f, pip = 16f;
             float x = margin;
-            float y = Screen.height - dialogueBand - margin - combatPanel - 66f;
+            float y = view.y - dialogueBand - margin - combatPanel - 66f;
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(new Rect(x, y, 470f, 28f), Texture2D.whiteTexture);
             GUI.color = MassMittItem.ItemColor;

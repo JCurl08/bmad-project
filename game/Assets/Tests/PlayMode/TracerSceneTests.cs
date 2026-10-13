@@ -12,11 +12,11 @@ namespace Game.Tracer.Tests
 {
     /// <summary>
     /// I/O matrix rows "Walk across", "Walk back" and "Screen bounds", run against the real Tracer scene
-    /// (the only build scene, created by Tracer > Create Tracer Scene).
+    /// (created by Tracer > Create Tracer Scene). 4.21: it is no longer a build scene, so it is loaded by path in the editor.
     /// </summary>
     public class TracerSceneTests : InputTestFixture
     {
-        private const string SceneName = "Tracer";
+        private const string ScenePath = "Assets/Scenes/Tracer.unity";
         private const float Timeout = 6f;
 
         private Keyboard keyboard;
@@ -31,7 +31,12 @@ namespace Game.Tracer.Tests
 
         private IEnumerator LoadTracerScene()
         {
-            yield return SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Single);
+#if UNITY_EDITOR
+            yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(ScenePath,
+                new LoadSceneParameters(LoadSceneMode.Single));
+#else
+            Assert.Ignore("The Tracer scene is not in the build; its tests run in the editor.");
+#endif
             yield return null;
 
             var mover = UnityEngine.Object.FindAnyObjectByType<PlayerMover>();

@@ -77,17 +77,19 @@ namespace Game.Cube
         {
             Camera cam = Camera.main;
             if (cam == null || string.IsNullOrEmpty(Text)) return;
-            Vector3 screen = cam.WorldToScreenPoint(Position);
-            if (screen.z < 0f) return;
+            HudScale.Begin(); // 4.21: the shared scale
+            Vector2? at = HudScale.WorldToGui(cam, Position);
+            if (at == null) return;
             if (style == null)
                 style = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = false };
             float alpha = 1f - Mathf.Clamp01((age / seconds - 0.6f) / 0.4f);
-            Vector2 size = LabelSize(style.CalcSize(new GUIContent(Text)));
-            var rect = new Rect(screen.x - size.x / 2f, Screen.height - screen.y - size.y / 2f, size.x, size.y);
+            string text = InputPrompts.Fill(Text); // 4.21: "[Interact]" shows the real key or button
+            Vector2 size = LabelSize(style.CalcSize(new GUIContent(text)));
+            var rect = new Rect(at.Value.x - size.x / 2f, at.Value.y - size.y / 2f, size.x, size.y);
             GUI.color = new Color(0f, 0f, 0f, 0.8f * alpha);
-            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), Text, style);
+            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), text, style);
             GUI.color = new Color(color.r, color.g, color.b, alpha);
-            GUI.Label(rect, Text, style);
+            GUI.Label(rect, text, style);
             GUI.color = Color.white;
         }
     }

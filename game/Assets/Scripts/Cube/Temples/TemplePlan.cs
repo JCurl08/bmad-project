@@ -209,6 +209,9 @@ namespace Game.Cube
         /// <summary>Forgets every cached puzzle (timing tests measure a cold generation).</summary>
         public static void ClearCache() => Cache.Clear();
 
+        /// <summary>Temple puzzles made so far (4.21: a warmed run makes none on unsealing).</summary>
+        public static int Generated => Cache.Added;
+
         /// <summary>The temple's one doorway: south (the way in and out).</summary>
         public static bool SouthOnly(Facing side) => side == Facing.South;
 

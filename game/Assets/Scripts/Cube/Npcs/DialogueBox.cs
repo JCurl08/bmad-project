@@ -8,7 +8,8 @@ namespace Game.Cube
 {
     /// <summary>
     /// A simple on-screen dialogue box. Open shows the first line; the project-wide Player/Interact action
-    /// advances, and it closes after the last line. The skip key (Escape) closes it at once (Skip). A press in the
+    /// advances, and it closes after the last line. The Player/Close action (Esc or Backspace, the pad's B; 4.21) closes it at
+    /// once (Skip). Its prompts show the real key or button names (InputPrompts.Fill). A press in the
     /// frame the box opened does not advance,
     /// and talkers ignore the press that closed it, so one press never both opens and skips.
     /// One shared box per scene (Shared creates it on demand).
@@ -31,8 +32,13 @@ namespace Game.Cube
         /// <summary>The prompt under a question (4.20).</summary>
         public const string ChoicePrompt = "[Arrows] choose   [Interact] confirm";
 
+        /// <summary>The prompt under a question on a pad (4.21 review: A answers, as it takes a pick between runs).</summary>
+        public const string ChoicePromptPad = "[Arrows] choose   [Confirm] confirm";
+
         [SerializeField] private string interactActionPath = "Player/Interact";
         [SerializeField] private string moveActionPath = "Player/Move";
+        [SerializeField] private string closeActionPath = GameActions.Close;
+        [SerializeField] private string confirmActionPath = GameActions.Confirm;
 
         /// <summary>The key that closes a conversation at once.</summary>
         public const Key SkipKey = Key.Escape;
@@ -43,6 +49,8 @@ namespace Game.Cube
         private readonly List<string> lines = new List<string>();
         private InputAction interact;
         private InputAction move;
+        private InputAction skip;
+        private InputAction confirm;
         private Vector2 lastMove;
         private DialogueChoice choice;
         private bool askedThisTalk;
@@ -105,6 +113,8 @@ namespace Game.Cube
         {
             interact = NpcInput.Find(interactActionPath, this);
             move = NpcInput.Find(moveActionPath, this);
+            skip = NpcInput.Find(closeActionPath, this);
+            confirm = NpcInput.Find(confirmActionPath, this);
         }
 
         // The project-wide action is shared with every talker, so it is not disabled here. A box that goes away while open
@@ -113,6 +123,8 @@ namespace Game.Cube
         {
             interact = null;
             move = null;
+            skip = null;
+            confirm = null;
             Close();
         }
 
@@ -121,15 +133,20 @@ namespace Game.Cube
             Vector2 before = lastMove;
             lastMove = move != null ? move.ReadValue<Vector2>() : Vector2.zero;
             if (!IsOpen || GamePause.Active) return; // the map is open: the conversation waits
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard != null && keyboard[SkipKey].wasPressedThisFrame)
+            if (skip != null ? skip.WasPressedThisFrame() : Keyboard.current != null && Keyboard.current[SkipKey].wasPressedThisFrame)
             {
                 Skip();
                 return;
             }
             if (ChoiceOpen) Steer(before, lastMove);
-            if (interact == null || Time.frameCount == OpenedFrame) return;
-            if (!interact.WasPressedThisFrame()) return;
+            if (Time.frameCount == OpenedFrame) return;
+            // 4.21 review: a question is also answered with Confirm (the pad's A, as between runs; Space on a keyboard).
+            if (ChoiceOpen && confirm != null && confirm.WasPressedThisFrame())
+            {
+                Choose(SelectedYes);
+                return;
+            }
+            if (interact == null || !interact.WasPressedThisFrame()) return;
             if (ChoiceOpen) Choose(SelectedYes);
             else Advance();
         }
@@ -158,7 +175,7 @@ namespace Game.Cube
             Owner = owner;
             Index = 0;
             choice = question;
-            SelectedYes = true;
+            SelectedYes = question == null || !question.StartOnNo;
             askedThisTalk = question != null;
             IsOpen = true;
             OpenedFrame = Time.frameCount;
@@ -225,7 +242,7 @@ namespace Game.Cube
             Closed?.Invoke(this);
         }
 
-        /// <summary>The box's panel on a screen (pixels, GUI y down): centred, along the bottom 150 px (4.19 review: layout tests).</summary>
+        /// <summary>The box's panel on a screen (GUI units, y down: HudScale's virtual screen): centred, along the bottom 150 px (4.19 review: layout tests).</summary>
         public static Rect PanelRect(float screenWidth, float screenHeight)
         {
             float width = Mathf.Min(screenWidth - 32f, 760f);
@@ -245,6 +262,7 @@ namespace Game.Cube
         private void OnGUI()
         {
             if (!IsOpen) return;
+            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
             if (textStyle == null)
             {
                 textStyle = new GUIStyle(GUI.skin.label) { fontSize = 20, wordWrap = true };
@@ -252,12 +270,12 @@ namespace Game.Cube
                 nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
                 nameStyle.normal.textColor = new Color(1f, 0.85f, 0.4f);
             }
-            Rect rect = PanelRect(Screen.width, Screen.height);
+            Rect rect = PanelRect(view.x, view.y);
             GUI.color = new Color(0f, 0f, 0f, 0.8f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(rect.x + 14, rect.y + 8, rect.width - 28, 24), Speaker, nameStyle);
-            GUI.Label(new Rect(rect.x + 14, rect.y + 34, rect.width - 28, rect.height - 60), CurrentLine, textStyle);
+            GUI.Label(new Rect(rect.x + 14, rect.y + 34, rect.width - 28, rect.height - 60), InputPrompts.Fill(CurrentLine), textStyle);
             if (ChoiceOpen)
             {
                 // The two answers: the picked one in gold behind a pointer, the other dimmed.
@@ -268,11 +286,11 @@ namespace Game.Cube
                 nameStyle.normal.textColor = SelectedYes ? DimAnswer : gold;
                 GUI.Label(at[1], (SelectedYes ? "  " : "> ") + choice.NoLabel, nameStyle);
                 nameStyle.normal.textColor = gold;
-                GUI.Label(at[2], ChoicePrompt, nameStyle);
+                GUI.Label(at[2], InputPrompts.Fill(InputPrompts.UsingGamepad ? ChoicePromptPad : ChoicePrompt), nameStyle);
                 return;
             }
             string more = Index < lines.Count - 1 ? NextPrompt : ClosePrompt;
-            GUI.Label(new Rect(rect.xMax - 250, rect.yMax - 26, 240, 22), more, nameStyle);
+            GUI.Label(new Rect(rect.xMax - 340, rect.yMax - 26, 330, 22), InputPrompts.Fill(more), nameStyle);
         }
     }
 
@@ -289,9 +307,14 @@ namespace Game.Cube
         public string NoLabel { get; }
         public Func<bool, IReadOnlyList<string>> Answer { get; }
 
-        public DialogueChoice(Func<bool, IReadOnlyList<string>> answer, string yesLabel = DefaultYes, string noLabel = DefaultNo)
+        /// <summary>True when the pick starts on the second answer (4.21: a risky yes, like abandoning the run, is never the default).</summary>
+        public bool StartOnNo { get; }
+
+        public DialogueChoice(Func<bool, IReadOnlyList<string>> answer, string yesLabel = DefaultYes, string noLabel = DefaultNo,
+            bool startOnNo = false)
         {
             Answer = answer;
+            StartOnNo = startOnNo;
             YesLabel = string.IsNullOrEmpty(yesLabel) ? DefaultYes : yesLabel;
             NoLabel = string.IsNullOrEmpty(noLabel) ? DefaultNo : noLabel;
         }
