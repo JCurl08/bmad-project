@@ -1,0 +1,274 @@
+<title>Cube Dialogue Storyboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a run told left-to-right as acts on a sticky timeline rail; each act is a strip of scene cards read like a film storyboard, script lines inside, brainstorm direction on the card's foot. */
+:root {
+  --bg: #eceff3; --panel: #ffffff; --ink: #1d232b; --muted: #5d6875; --line: #d3d9e0; --soft: #f5f7f9;
+  --accent: #5b3fd6; --accent-ink: #ffffff;
+  --town: #8a96a3; --green: #2b8a3e; --red: #c92a2a; --blue: #1971c2; --yellow: #b8860b; --orange: #d9480f; --core: #5b3fd6;
+  --ok: #2b8a3e; --wip: #b8860b; --plan: #5b3fd6;
+  --f-display: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151a; --panel: #1b2027; --ink: #e6eaef; --muted: #9aa5b1; --line: #2c333c; --soft: #222831;
+  --accent: #9d8cff; --accent-ink: #12151a;
+  --town: #b4bec9; --green: #51cf66; --red: #ff6b6b; --blue: #4dabf7; --yellow: #fcc419; --orange: #ff922b; --core: #9d8cff;
+  --ok: #51cf66; --wip: #fcc419; --plan: #9d8cff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12151a; --panel: #1b2027; --ink: #e6eaef; --muted: #9aa5b1; --line: #2c333c; --soft: #222831;
+  --accent: #9d8cff; --accent-ink: #12151a;
+  --town: #b4bec9; --green: #51cf66; --red: #ff6b6b; --blue: #4dabf7; --yellow: #fcc419; --orange: #ff922b; --core: #9d8cff;
+  --ok: #51cf66; --wip: #fcc419; --plan: #9d8cff; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font-family: var(--f-display); font-size: clamp(28px, 4vw, 42px); font-weight: 700; letter-spacing: .5px; }
+h2 { font-family: var(--f-display); font-size: 24px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+.lede { color: var(--muted); max-width: 68ch; margin: 8px 0 0; }
+.meta { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+
+header.top { display: grid; gap: 14px; margin-bottom: 18px; }
+.howto { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 13px; color: var(--muted); }
+.howto b { color: var(--ink); }
+
+.tools { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tools input[type=search] { flex: 1 1 220px; min-width: 0; font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.chip { font: 600 12px var(--f-body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.chip:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+nav.rail { display: flex; gap: 6px; overflow-x: auto; padding-block: 12px; }
+nav.rail a { flex: 0 0 auto; text-decoration: none; color: var(--ink); font-size: 13px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); display: flex; gap: 6px; align-items: center; }
+nav.rail .n { font-family: var(--f-display); color: var(--muted); }
+
+section.act { margin-top: 34px; scroll-margin-top: 70px; }
+.act-head { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; margin-bottom: 14px; }
+.act-num { font-family: var(--f-display); font-size: 30px; line-height: 1; color: var(--face, var(--accent)); grid-row: span 2; }
+.act-head p { margin: 0; color: var(--muted); max-width: 80ch; grid-column: 2; }
+
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.scene { background: var(--panel); border: 1px solid var(--line); border-top: 5px solid var(--face, var(--town)); border-radius: 10px; display: grid; min-width: 0; }
+.scene.planned { border-style: dashed; border-top-style: solid; border-top-color: var(--plan); background: var(--soft); }
+.scene.hidden, .line.hidden { display: none; }
+.scene-h { padding: 12px 14px 8px; display: grid; gap: 6px; }
+.scene-h .tag { font: 600 11px var(--f-mono); color: var(--muted); letter-spacing: .4px; text-transform: uppercase; }
+.badge { display: inline-block; font: 700 10px var(--f-body); letter-spacing: .5px; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
+.badge.plan { background: var(--plan); color: var(--accent-ink); }
+.badge.ok { border: 1px solid var(--ok); color: var(--ok); }
+.badge.wip { border: 1px solid var(--wip); color: var(--wip); }
+.ctx { font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.ctx b { color: var(--ink); font-weight: 700; }
+.speakers { display: flex; flex-wrap: wrap; gap: 5px; }
+.sp { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--soft); border: 1px solid var(--line); }
+.sp i { font-style: normal; color: var(--muted); }
+
+.script { border-top: 1px solid var(--line); padding: 6px 0; }
+.line { padding: 8px 14px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; border-left: 3px solid transparent; }
+.line:hover, .line:focus-within { background: var(--soft); border-left-color: var(--voice, var(--line)); }
+.who { font: 700 12px var(--f-body); color: var(--voice, var(--muted)); letter-spacing: .3px; }
+.kind { font: 600 10px var(--f-mono); color: var(--muted); text-transform: uppercase; margin-left: 6px; }
+.text { grid-column: 1 / -1; font-size: 15px; overflow-wrap: anywhere; }
+.line.choice .text::before { content: "\25B8  "; color: var(--accent); }
+.line.popup .text, .line.hud .text, .line.sign .text { font-family: var(--f-mono); font-size: 13px; }
+.note { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.src { grid-column: 1 / -1; font: 11px var(--f-mono); color: var(--muted); opacity: .8; }
+details.var { grid-column: 1 / -1; font-size: 13px; }
+details.var summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: 12px; }
+details.var ol { margin: 6px 0 0; padding-left: 22px; display: grid; gap: 4px; }
+.suggest { align-self: start; font: 600 11px var(--f-body); border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 6px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+.suggest:hover { color: var(--ink); border-color: var(--ink); }
+.suggest[hidden] { display: none !important; }
+
+.dir { border-top: 1px dashed var(--line); padding: 10px 14px 14px; background: var(--soft); border-radius: 0 0 10px 10px; }
+.dir h4 { margin: 0 0 6px; font: 700 11px var(--f-body); letter-spacing: .6px; text-transform: uppercase; color: var(--plan); }
+.dir ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+
+.v-Town { --voice: var(--town); } .v-Finch { --voice: var(--green); } .v-Mushroom { --voice: var(--red); }
+.v-Alien { --voice: var(--blue); } .v-Shape { --voice: var(--yellow); } .v-Ground, .v-Sky { --voice: var(--orange); }
+.v-System { --voice: var(--muted); } .v-Core { --voice: var(--core); }
+.f-town { --face: var(--town); } .f-green { --face: var(--green); } .f-red { --face: var(--red); } .f-blue { --face: var(--blue); }
+.f-yellow { --face: var(--yellow); } .f-orange { --face: var(--orange); } .f-core { --face: var(--core); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--face, var(--accent)); border-radius: 10px; padding: 14px; display: grid; gap: 8px; min-width: 0; }
+.card .row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.card p { margin: 0; font-size: 14px; }
+.card dl { margin: 0; display: grid; gap: 6px; font-size: 13px; }
+.card dt { font-weight: 700; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.card dd { margin: 0; }
+.private { font-size: 12px; color: var(--muted); }
+ul.qs { padding-left: 18px; display: grid; gap: 6px; }
+.empty { color: var(--muted); font-style: italic; padding: 10px 14px; font-size: 13px; }
+.count { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+@media (max-width: 520px) { .strip, .cards { grid-template-columns: 1fr; } .wrap { padding-inline: 16px; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="meta" id="stamp"></div>
+    <h1>Cube Dialogue Storyboard</h1>
+    <p class="lede">Every line a player can read in one run, in the order they meet it, with the brainstorm's lore and character direction under each scene. Dashed cards are scenes we planned but haven't written yet.</p>
+    <div class="howto">
+      <span><b>Suggest a change:</b> hover a line and press <b>Suggest</b>, or use the comment tool on any scene.</span>
+      <span><b>Colours</b> follow each race's voice.</span>
+      <span><b>*</b> marks placeholder names.</span>
+    </div>
+  </header>
+
+  <div class="tools" role="search">
+    <input type="search" id="q" placeholder="Search lines, speakers, notes" aria-label="Search lines">
+    <span id="voices"></span>
+    <button class="chip" id="planOnly" aria-pressed="false" type="button">Planned only</button>
+    <span class="count" id="count"></span>
+  </div>
+  <nav class="rail" id="rail" aria-label="Acts"></nav>
+
+  <main id="acts"></main>
+
+  <section class="act" id="pantheon" style="--face: var(--core)">
+    <div class="act-head"><span class="act-num">&#9672;</span><h2>The pantheon</h2><p>One deity per face, shattered by Primsworth. Each deity's power against him mirrors its gem. Real inspirations are listed for you only and are never named in game.</p></div>
+    <div class="cards" id="gods"></div>
+  </section>
+
+  <section class="act" id="cast" style="--face: var(--accent)">
+    <div class="act-head"><span class="act-num">&#9786;</span><h2>Cast</h2><p>Personalities, secret wants and arcs from the brainstorm.</p></div>
+    <div class="cards" id="people"></div>
+  </section>
+
+  <section class="act" id="open" style="--face: var(--wip)">
+    <div class="act-head"><span class="act-num">?</span><h2>Open questions</h2><p>Things still to workshop before lines get rewritten.</p></div>
+    <ul class="qs" id="qs"></ul>
+  </section>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById("data").textContent);
+  const faceClass = (s) => {
+    s = (s || "").toLowerCase();
+    if (s.includes("greenwood") || s.includes("finch") || s.includes("biology")) return "f-green";
+    if (s.includes("ember") || s.includes("chemistry") || s.includes("mushroom")) return "f-red";
+    if (s.includes("weight") || s.includes("physics") || s.includes("alien")) return "f-blue";
+    if (s.includes("bridge") || s.includes("math") || s.includes("shape")) return "f-yellow";
+    if (s.includes("wild") || s.includes("earth") || s.includes("dinosaur")) return "f-orange";
+    if (s.includes("core") || s.includes("lair") || s.includes("demon") || s.includes("boss") || s.includes("primsworth")) return "f-core";
+    return "f-town";
+  };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const voiceOf = (scene, name) => { const s = (scene.speakers || []).find(p => p.name === name); return s ? s.voice : "System"; };
+  const statusBadge = (s) => { s = (s || "").toLowerCase(); if (!s) return null; const ok = s.startsWith("accept"); return el("span", "badge " + (ok ? "ok" : "wip"), ok ? "accepted" : s); };
+
+  document.getElementById("stamp").textContent = "Generated " + (data.generated || "") + (data.source_commit ? " · game commit " + data.source_commit : "");
+
+  const voices = ["Town", "Finch", "Mushroom", "Alien", "Shape", "Ground", "Sky", "System"];
+  const active = new Set();
+  const vbox = document.getElementById("voices");
+  voices.forEach(v => { const b = el("button", "chip v-" + v, v); b.type = "button"; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => { active.has(v) ? active.delete(v) : active.add(v); b.setAttribute("aria-pressed", active.has(v)); apply(); }); vbox.append(b); });
+
+  const rail = document.getElementById("rail"), main = document.getElementById("acts");
+  const lineEls = [], sceneEls = [];
+  (data.acts || []).forEach((act, ai) => {
+    const fc = faceClass(act.title + " " + act.id);
+    const a = el("a"); a.href = "#" + act.id; a.append(el("span", "n", String(ai + 1)), document.createTextNode(act.title)); rail.append(a);
+    const sec = el("section", "act " + fc); sec.id = act.id;
+    const head = el("div", "act-head"); head.append(el("span", "act-num", String(ai + 1)), el("h2", null, act.title));
+    if (act.summary) head.append(el("p", null, act.summary));
+    sec.append(head);
+    const strip = el("div", "strip");
+    (act.scenes || []).forEach(sc => {
+      const card = el("article", "scene " + faceClass(sc.title + " " + (sc.where || "") + " " + act.title) + (sc.planned ? " planned" : ""));
+      card.id = sc.id; card.setAttribute("data-comment-target", "");
+      const h = el("div", "scene-h");
+      const tag = el("div", "tag", sc.id); if (sc.planned) { tag.append(document.createTextNode("  ")); tag.append(el("span", "badge plan", "planned")); }
+      h.append(tag, el("h3", null, sc.title));
+      const ctx = el("div", "ctx");
+      if (sc.where) { const d = el("div"); d.append(el("b", null, "Where: "), document.createTextNode(sc.where)); ctx.append(d); }
+      if (sc.when) { const d = el("div"); d.append(el("b", null, "When: "), document.createTextNode(sc.when)); ctx.append(d); }
+      h.append(ctx);
+      if ((sc.speakers || []).length) { const sp = el("div", "speakers");
+        sc.speakers.forEach(p => { const c = el("span", "sp v-" + (p.voice || "System")); c.append(document.createTextNode(p.name)); if (p.role) c.append(el("i", null, " · " + p.role)); sp.append(c); }); h.append(sp); }
+      card.append(h);
+      const script = el("div", "script");
+      (sc.lines || []).forEach(ln => {
+        const v = voiceOf(sc, ln.speaker);
+        const row = el("div", "line v-" + v + " " + (ln.kind || "line")); row.id = "l-" + ln.id; row.setAttribute("data-comment-target", "");
+        const who = el("div"); who.append(el("span", "who", ln.speaker || "—"), el("span", "kind", ln.kind || "line"));
+        const btn = el("button", "suggest", "Suggest"); btn.type = "button"; btn.hidden = true; btn.setAttribute("aria-label", "Suggest a change to this line");
+        btn.addEventListener("click", () => openFor(row, btn));
+        row.append(who, btn, el("div", "text", ln.text || ""));
+        if ((ln.variants || []).length) { const d = el("details", "var"); d.append(el("summary", null, ln.variants.length + " other version" + (ln.variants.length > 1 ? "s" : "")));
+          const ol = el("ol"); ln.variants.forEach(t => ol.append(el("li", null, t))); d.append(ol); row.append(d); }
+        if (ln.notes) row.append(el("div", "note", ln.notes));
+        if (ln.source) row.append(el("div", "src", ln.source));
+        row._v = v; row._q = [ln.speaker, ln.text, (ln.variants || []).join(" "), ln.notes].join(" ").toLowerCase();
+        script.append(row); lineEls.push(row);
+      });
+      if (!(sc.lines || []).length) script.append(el("div", "empty", sc.planned ? "Not written yet. Direction below." : "No lines."));
+      card.append(script);
+      if ((sc.direction || []).length) { const d = el("div", "dir"); d.append(el("h4", null, "Brainstorm direction"));
+        const ul = el("ul"); sc.direction.forEach(t => ul.append(el("li", null, t))); d.append(ul); card.append(d); }
+      card._planned = !!sc.planned; card._lines = Array.from(script.querySelectorAll(".line"));
+      card._q = [sc.title, sc.where, sc.when, (sc.direction || []).join(" ")].join(" ").toLowerCase();
+      strip.append(card); sceneEls.push(card);
+    });
+    sec.append(strip); main.append(sec);
+  });
+  [["pantheon", "Pantheon"], ["cast", "Cast"], ["open", "Open questions"]].forEach(([id, t]) => { const a = el("a"); a.href = "#" + id; a.append(el("span", "n", "+"), document.createTextNode(t)); rail.append(a); });
+
+  const gods = document.getElementById("gods");
+  (data.pantheon || []).forEach(g => { const c = el("article", "card " + faceClass(g.face)); c.setAttribute("data-comment-target", "");
+    const r = el("div", "row"); r.append(el("h3", null, g.deity), statusBadge(g.status) || el("span")); c.append(r);
+    c.append(el("div", "meta", g.face));
+    const dl = el("dl"); [["Story", g.story], ["Gem in the boss fight", g.gem_benefit]].forEach(([k, v]) => { if (!v) return; dl.append(el("dt", null, k), el("dd", null, v)); }); c.append(dl);
+    if (g.inspiration) c.append(el("p", "private", "For you only: inspired by " + g.inspiration));
+    gods.append(c); });
+
+  const people = document.getElementById("people");
+  (data.characters || []).forEach(p => { const c = el("article", "card " + faceClass(p.face)); c.setAttribute("data-comment-target", "");
+    const r = el("div", "row"); r.append(el("h3", null, p.name), statusBadge(p.status) || el("span")); c.append(r);
+    c.append(el("div", "meta", p.face));
+    const dl = el("dl"); [["Personality", p.personality], ["Secretly wants", p.secret_want], ["Arc", p.arc]].forEach(([k, v]) => { if (!v) return; dl.append(el("dt", null, k), el("dd", null, v)); }); c.append(dl);
+    people.append(c); });
+
+  const qs = document.getElementById("qs");
+  (data.open_questions || []).forEach(t => qs.append(el("li", null, t)));
+
+  const q = document.getElementById("q"), planBtn = document.getElementById("planOnly"), count = document.getElementById("count");
+  let planOnly = false;
+  planBtn.addEventListener("click", () => { planOnly = !planOnly; planBtn.setAttribute("aria-pressed", planOnly); apply(); });
+  q.addEventListener("input", apply);
+  function apply() {
+    const term = q.value.trim().toLowerCase(); let shown = 0;
+    sceneEls.forEach(card => {
+      let any = false;
+      card._lines.forEach(row => { const ok = (!active.size || active.has(row._v)) && (!term || row._q.includes(term) || card._q.includes(term));
+        row.classList.toggle("hidden", !ok); if (ok) { any = true; shown++; } });
+      const sceneMatch = (!term || card._q.includes(term)) && !active.size;
+      const vis = (!planOnly || card._planned) && (any || (card._lines.length === 0 && sceneMatch) || (sceneMatch && !term && !active.size));
+      card.classList.toggle("hidden", !vis);
+    });
+    count.textContent = shown + " lines shown";
+  }
+  apply();
+
+  let comments = null;
+  async function openFor(row, btn) {
+    if (!comments) return;
+    try { await comments.openComposer({ element: row }); }
+    catch (e) { if (e && (e.code === "unavailable" || e.code === "not_granted" || e.code === "capability_disabled" || e.code === "capability_removed")) hideSuggest(); }
+  }
+  function hideSuggest() { document.querySelectorAll(".suggest").forEach(b => b.hidden = true); }
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("comments").then(c => { if (!c) return; comments = c; document.querySelectorAll(".suggest").forEach(b => b.hidden = false); }).catch(() => {});
+  }
+})();
+</script>
