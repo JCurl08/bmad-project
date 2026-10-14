@@ -3,9 +3,10 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The core fight's HUD (OnGUI placeholder): while the player is in the arena, an "Order ↔ Entropy" meter at the bottom
-    /// right (filled by the current phase's progress, with a mark at its goal) and the phase's name; once the fight ends, a
-    /// campy victory or defeat banner above the centre (the combat HUD's death message sits at the centre).
+    /// The core fight's HUD (OnGUI placeholder): while the player is in the arena, an "Order ↔ Entropy" meter (filled by the
+    /// current phase's progress, with a mark at its goal) and the phase's name, at the bottom of the right side column (4.25:
+    /// SideHud, never over the play area); once the fight ends, a campy victory or defeat banner above the play area's centre
+    /// (the combat HUD's death message sits at the centre).
     /// </summary>
     public class CoreHud : MonoBehaviour
     {
@@ -36,7 +37,6 @@ namespace Game.Cube
         private GUIStyle labelStyle;
         private GUIStyle bannerStyle;
         private GUIStyle hintStyle;
-        private GUIStyle helpStyle;
 
         /// <summary>True while the exit hint shows: the player is in a fight they can still walk out of.</summary>
         public bool ExitHintVisible => arena != null && arena.PlayerInArena && arena.FightActive && arena.ExitAvailable;
@@ -84,80 +84,108 @@ namespace Game.Cube
             Vector2 view = HudScale.Begin(); // 4.21: the shared scale
             if (labelStyle == null)
             {
-                labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
+                labelStyle = new GUIStyle(GUI.skin.label) { fontSize = LabelSize, fontStyle = FontStyle.Bold, wordWrap = false, clipping = TextClipping.Overflow };
                 labelStyle.normal.textColor = Color.white;
                 bannerStyle = new GUIStyle(GUI.skin.label)
                 {
                     fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true,
                 };
                 bannerStyle.normal.textColor = new Color(1f, 0.6f, 0.85f);
+                hintStyle = new GUIStyle(GUI.skin.label) { fontSize = HintSize, fontStyle = FontStyle.Italic, wordWrap = false, clipping = TextClipping.Overflow };
+                hintStyle.normal.textColor = Color.white; // tinted by GUI.color where drawn
             }
-
-            if (MeterVisible) DrawMeter(view);
+            SideHud.Frame frame = SideHud.Layout(view.x, view.y);
+            if (MeterVisible) DrawMeter(frame.Right);
 
             string message = MessageText;
             if (message == null || !arena.PlayerInArena) return;
-            // Above the combat HUD's centred death panel (centre ± 60 px).
-            var panel = new Rect(view.x / 2f - 320f, view.y / 2f - 60f - 8f - 80f, 640f, 80f);
-            GUI.color = new Color(0f, 0f, 0f, 0.75f);
-            GUI.DrawTexture(panel, Texture2D.whiteTexture);
-            GUI.color = Color.white;
+            // Above the combat HUD's centred death panel (centre ± 60), on the play area.
+            float width = Mathf.Min(640f, frame.Play.width);
+            var panel = new Rect(frame.Play.center.x - width / 2f, frame.Play.center.y - 60f - 8f - 80f, width, 80f);
+            SideHud.Fill(panel, new Color(0f, 0f, 0f, 0.75f));
             GUI.Label(panel, message, bannerStyle);
         }
 
-        private void MakeHintStyle()
+        /// <summary>Font sizes of the meter's lines (GUI units).</summary>
+        public const int LabelSize = 13, HintSize = 12;
+
+        /// <summary>The meter bar's height.</summary>
+        public const float BarHeight = 14f;
+
+        /// <summary>Where the meter's parts go in the right column: title, bar, help, exit hint (help and hint may be empty).</summary>
+        public struct MeterRects
         {
-            hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Italic };
-            hintStyle.normal.textColor = Color.white; // tinted by GUI.color where drawn
+            public Rect Title, Bar, Help, Hint;
         }
 
-        private void DrawMeter(Vector2 view)
+        /// <summary>
+        /// 4.25: the meter's layout at the bottom of the right side column (SideHud): its title and phase (wrapped), the bar, the
+        /// help from the gems (wrapped) and the exit hint (wrapped), bottom up from the column's inner bottom.
+        /// </summary>
+        public static MeterRects MeterLayout(Rect column, string title, string help, string hint)
         {
-            // Bottom right, above the dialogue band (bottom 150 px); the hearts sit bottom left.
-            const float width = 340f, barHeight = 18f, margin = 12f, dialogueBand = 150f;
-            float x = view.x - width - margin;
-            float y = view.y - dialogueBand - margin - 66f;
-            var back = new Rect(x - 8f, y - 6f, width + 16f, 72f);
-            GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(back, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-            BossPhase phase = arena.CurrentPhase;
-            string title = phase != null ? $"{MeterLabel}   ({phase.Name})" : MeterLabel;
-            GUI.Label(new Rect(x, y, width, 24f), title, labelStyle);
+            Rect inner = SideHud.Inner(column);
+            var m = new MeterRects();
+            float y = inner.yMax;
+            if (hint != null)
+            {
+                float h = SideHud.TextHeight(hint, HintSize, inner.width);
+                m.Hint = new Rect(inner.x, y - h, inner.width, h);
+                y = m.Hint.yMin - 6f;
+            }
+            if (help != null)
+            {
+                float h = SideHud.TextHeight(help, HintSize, inner.width);
+                m.Help = new Rect(inner.x, y - h, inner.width, h);
+                y = m.Help.yMin - 6f;
+            }
+            m.Bar = new Rect(inner.x, y - BarHeight, inner.width, BarHeight);
+            y = m.Bar.yMin - 4f;
+            float th = SideHud.TextHeight(title, LabelSize, inner.width);
+            m.Title = new Rect(inner.x, y - th, inner.width, th);
+            return m;
+        }
 
-            var bar = new Rect(x, y + 28f, width, barHeight);
+        /// <summary>The meter's title: its label and the phase's name.</summary>
+        public string MeterTitle
+        {
+            get
+            {
+                BossPhase phase = arena != null ? arena.CurrentPhase : null;
+                return phase != null ? $"{MeterLabel} ({phase.Name})" : MeterLabel;
+            }
+        }
+
+        private void DrawMeter(Rect column)
+        {
+            string help = BenefitsText;
+            string hint = ExitHintVisible ? ExitHint : null;
+            MeterRects m = MeterLayout(column, MeterTitle, help, hint);
+            SideHud.Label(m.Title, MeterTitle, LabelSize, labelStyle);
             GUI.color = new Color(0.55f, 0.6f, 0.9f); // order: cool, still, aligned
-            GUI.DrawTexture(bar, Texture2D.whiteTexture);
+            GUI.DrawTexture(m.Bar, Texture2D.whiteTexture);
             GUI.color = new Color(1f, 0.45f, 0.75f); // entropy: warm, lively
-            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * MeterValue, bar.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(m.Bar.x, m.Bar.y, m.Bar.width * MeterValue, m.Bar.height), Texture2D.whiteTexture);
+            BossPhase phase = arena.CurrentPhase;
             float goal = phase != null ? Mathf.Clamp01(phase.Goal) : 1f;
             if (goal < 1f)
             {
                 GUI.color = Color.white;
-                GUI.DrawTexture(new Rect(bar.x + bar.width * goal - 1f, bar.y - 4f, 3f, bar.height + 8f), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(m.Bar.x + m.Bar.width * goal - 1f, m.Bar.y - 4f, 3f, m.Bar.height + 8f), Texture2D.whiteTexture);
             }
             GUI.color = Color.white;
-            string help = BenefitsText;
             if (help != null)
             {
-                // Just above the meter's panel, in gold: what the mended faces do for this fight.
-                if (hintStyle == null) MakeHintStyle();
-                if (helpStyle == null) helpStyle = new GUIStyle(hintStyle) { wordWrap = true };
-                float helpHeight = Mathf.Ceil(helpStyle.CalcHeight(new GUIContent(help), width)) + 4f;
-                var helpBack = new Rect(x - 8f, y - 8f - helpHeight, width + 16f, helpHeight);
-                GUI.color = new Color(0f, 0f, 0f, 0.55f);
-                GUI.DrawTexture(helpBack, Texture2D.whiteTexture);
+                // Under the bar, in gold: what the mended faces do for this fight.
                 GUI.color = new Color(1f, 0.88f, 0.45f);
-                GUI.Label(new Rect(x, y - 6f - helpHeight, width, helpHeight), help, helpStyle);
+                SideHud.Label(m.Help, help, HintSize, hintStyle);
                 GUI.color = Color.white;
             }
-            if (ExitHintVisible)
+            if (hint != null)
             {
-                if (hintStyle == null) MakeHintStyle();
-                Color before = GUI.color;
                 GUI.color = new Color(0.85f, 0.85f, 0.95f);
-                GUI.Label(new Rect(x, y + 48f, width, 20f), ExitHint, hintStyle);
-                GUI.color = before;
+                SideHud.Label(m.Hint, hint, HintSize, hintStyle);
+                GUI.color = Color.white;
             }
         }
     }

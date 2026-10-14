@@ -158,7 +158,9 @@ namespace Game.Cube.Tests
             {
                 Rect screenRect = new Rect(world.ScreenCenter(zone.Screen) - CubeWorld.ScreenSize / 2f, CubeWorld.ScreenSize);
                 Assert.AreEqual(face, zone.Screen.Face);
-                Assert.IsTrue(screenRect.Contains(zone.Area.min) && screenRect.Contains(zone.Area.max), $"{zone.name} stays on its screen");
+                Assert.IsTrue(zone.Area.xMin >= screenRect.xMin - 1e-3f && zone.Area.yMin >= screenRect.yMin - 1e-3f &&
+                              zone.Area.xMax <= screenRect.xMax + 1e-3f && zone.Area.yMax <= screenRect.yMax + 1e-3f, $"{zone.name} stays on its screen");
+                if (zone is FreezingRain) Assert.AreEqual(screenRect.size, zone.Area.size, $"{zone.name} covers its whole screen (4.25)");
             }
 
             Assert.IsNotNull(earth.Trial, "The trial is built");
@@ -240,6 +242,14 @@ namespace Game.Cube.Tests
             Assert.IsFalse(mover.Modifier.IsNone, "In the rain the hazard reaches the mover");
             Assert.Less(mover.Modifier.SpeedMultiplier, 1f, "Slowed by the rain");
             Assert.AreEqual(TimeField.BasePlayerSpeed, mover.EffectiveSpeed, 1e-4f, "EffectiveSpeed (the Physics doors' maths) is untouched");
+            // 4.25: rainy all over the screen, its corners and doorways too.
+            Vector2 rainCentre = world.ScreenCenter(band.Screen);
+            foreach (Vector2 at in new[] { new Vector2(-9.5f, -5.5f), new Vector2(9.5f, 5.5f), new Vector2(0f, -6.4f), new Vector2(-10.8f, 0f) })
+            {
+                Assert.IsTrue(band.Contains(rainCentre + at), $"rain at {at}");
+                Assert.Less(HazardZone.ModifierAt(rainCentre + at).SpeedMultiplier, 1f, $"slowed at {at}");
+            }
+            Assert.Greater(band.Drops.Count, 40, "drops fall all over the screen");
 
             // The calm eye: nothing.
             yield return PutPlayerAt(plan.Eye, world.ScreenCenter(plan.Eye));

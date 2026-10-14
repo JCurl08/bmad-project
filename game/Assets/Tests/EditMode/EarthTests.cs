@@ -200,6 +200,32 @@ namespace Game.Cube.Tests
         }
 
         [Test]
+        public void FreezingRain_CoversItsWholeScreen_AndNeverFallsOnIceWindOrTownScreens()
+        {
+            // 4.25: the rain areas are rainy all over, not just a patch.
+            ModuleLibrary library = Library();
+            ItemCatalog catalog = Catalog();
+            Rect whole = new Rect(-ScreenMath.DefaultScreenSize / 2f, ScreenMath.DefaultScreenSize);
+            int rainy = 0;
+            for (int seed = 1; seed <= Seeds; seed++)
+            {
+                EarthPlan plan = Plan(seed, library, catalog, out CubeModel model, out _, out _);
+                foreach (HazardSpec h in plan.Hazards.Where(h => h.Kind == HazardKind.FreezingRain))
+                {
+                    rainy++;
+                    Assert.AreEqual(whole, h.Area, $"seed {seed}: {h} covers its whole screen");
+                    foreach (Vector2 corner in new[] { whole.min + Vector2.one * 0.1f, whole.max - Vector2.one * 0.1f, Vector2.zero,
+                                 new Vector2(whole.xMin + 0.1f, 0f), new Vector2(0f, whole.yMax - 0.1f) })
+                        Assert.IsTrue(h.Area.Contains(corner), $"seed {seed}: rain at {corner}");
+                    Assert.IsFalse(plan.IsIce(h.Screen) || plan.IsWind(h.Screen) || plan.IsCalm(h.Screen), $"seed {seed}: {h} on a puzzle or calm screen");
+                    Assert.IsFalse(TownSquare.IsTown(h.Screen, model.FaceSize), $"seed {seed}: {h} on the town");
+                    Assert.AreEqual(model.FaceOf(Theme.EarthAtmosphere), h.Screen.Face, "never on Town's face");
+                }
+            }
+            Assert.Greater(rainy, Seeds / 2, "rain falls on many runs");
+        }
+
+        [Test]
         public void Plan_TheCalmEyeIsTheCentre_OneHazardPerOtherScreen_EveryKind_StrengthsFromTheLevel_WithinTheMoverBounds()
         {
             ModuleLibrary library = Library();
@@ -406,6 +432,9 @@ namespace Game.Cube.Tests
             Assert.IsTrue(plan.WithHazard(rain, onEye).Problems(model, placement).Any(p => p.Contains("calm eye")), "A hazard on the eye");
             var standstill = new HazardSpec(w.Screen, HazardKind.FreezingRain, w.Area, 0.01f);
             Assert.IsTrue(plan.WithHazard(rain, standstill).Problems(model, placement).Any(p => p.Contains("minimum speed")), "Rain too slow");
+            // 4.25: a patch of rain (the old 9x6 lane patch) is flagged: rain covers its whole screen.
+            var patch = new HazardSpec(w.Screen, HazardKind.FreezingRain, new Rect(-4.5f, -3f, 9f, 6f), w.Strength);
+            Assert.IsTrue(plan.WithHazard(rain, patch).Problems(model, placement).Any(p => p.Contains("whole screen")), "A patch of rain");
             int crevice = plan.Hazards.ToList().FindIndex(h => h.Kind == HazardKind.Crevice);
             if (crevice >= 0)
             {

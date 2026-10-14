@@ -693,7 +693,7 @@ namespace Game.Cube
 
         /// <summary>How the gap-crosser* works, as the shape people tell it (true for every run: the mechanics).</summary>
         public const string GapCrosserLine =
-            "If a gap or a holed plank is in your way, then swing the " + GapCrosserItem.Name + " at it. It lays a crossing over that gap. Therefore, one swing, one gap.";
+            "If a gap or a holed plank is in your way, then swing the " + GapCrosserItem.Name + " at it. It hops you over the gap and builds nothing. Therefore, one swing, one hop.";
 
         /// <summary>
         /// Lines the ground dinosaurs of the Wildlands* say about their patron, Granny Trowel (one per dinosaur, picked by
@@ -865,6 +865,8 @@ namespace Game.Cube
             foreach (string line in QuestLines.SpokenLines(voice)) yield return line; // 4.18: errands and Town's trail
             foreach (string line in KeeperLineTable[voice]) yield return line;
             foreach (string line in LairText.SpokenLines(voice)) yield return line; // 4.13: the lair's prisoners
+            if (voice == Voice.Town)
+                foreach (string line in BossTips.AllLines()) yield return line; // 4.25: Captain Shuffles's tips on the Demon
         }
 
         /// <summary>Every fixed line and filler, for the tone check.</summary>

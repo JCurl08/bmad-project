@@ -47,6 +47,9 @@ namespace Game.Cube
         /// <summary>The time-dilation factor of a total mass: 1 with no mass, growing with every boulder.</summary>
         public static float Dilation(float mass) => 1f + K * Mathf.Max(0f, mass);
 
+        /// <summary>The dilation of a mass in a field of another strength per boulder (4.25: the Physics temple's, TempleBooths.FieldK).</summary>
+        public static float Dilation(float mass, float k) => 1f + Mathf.Max(0f, k) * Mathf.Max(0f, mass);
+
         /// <summary>How long a door with this base time stays open with this mass beside it.</summary>
         public static float OpenSeconds(float baseSeconds, float mass) => Mathf.Max(0f, baseSeconds) * Dilation(mass);
 
@@ -93,15 +96,15 @@ namespace Game.Cube
             OpenSeconds(baseSeconds, mass) >= walkSeconds;
 
         /// <summary>
-        /// The total boulder mass whose centres lie within radius of a point: every active boulder, or with an owner
-        /// only the boulders that owner placed (a trial booth weighs only its trial's own boulders).
+        /// The total boulder mass whose centres lie within radius of a point: every active boulder, whoever placed it (4.25:
+        /// any boulder counts for any timed door near it).
         /// </summary>
-        public static float MassNear(Vector2 point, float radius = FieldRadius, Object owner = null)
+        public static float MassNear(Vector2 point, float radius = FieldRadius)
         {
             float mass = 0f;
             float r2 = radius * radius;
             foreach (Boulder boulder in Boulder.All)
-                if (boulder != null && (owner == null || boulder.Owner == owner) && ((Vector2)boulder.transform.position - point).sqrMagnitude <= r2) mass += boulder.Mass;
+                if (boulder != null && ((Vector2)boulder.transform.position - point).sqrMagnitude <= r2) mass += boulder.Mass;
             return mass;
         }
     }

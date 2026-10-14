@@ -252,6 +252,11 @@ namespace Game.Cube
         private void Awake()
         {
             if (Model == null) Rebuild(seed);
+            // 4.25: the HUD lives in side columns beside the play area (SideHud): the camera draws between them.
+            if (!TryGetComponent(out SideHudView sideHud)) sideHud = gameObject.AddComponent<SideHudView>();
+            sideHud.World = this;
+            ScreenCamera screenCamera = FindAnyObjectByType<ScreenCamera>();
+            if (screenCamera != null) screenCamera.Viewport = SideHud.CameraRect;
         }
 
         /// <summary>

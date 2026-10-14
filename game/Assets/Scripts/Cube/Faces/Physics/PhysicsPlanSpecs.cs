@@ -101,13 +101,18 @@ namespace Game.Cube
         /// <summary>Boulders needed to pass (the difficulty parameter, 1 to 3).</summary>
         public int Required { get; }
 
-        /// <summary>Extra boulders beyond the required ones (0 or 1).</summary>
+        /// <summary>Extra boulders beyond the required ones (0 or 1; always 0 on a screen whose doors share their boulders).</summary>
         public int Spare { get; }
 
         /// <summary>The door's geometry and timing; null when the plan was made without modules.</summary>
         public DoorLayout Layout { get; }
 
-        /// <summary>Where this door's boulders start (local to its screen centre); empty without modules.</summary>
+        /// <summary>
+        /// Where the boulders built with this door start (local to its screen centre); empty without modules. Every boulder
+        /// counts for every timed door near it (4.25). On a screen with one timed door these are its Required + Spare; on a
+        /// screen with more (PhysicsPlan.SharesBoulders), the screen's PhysicsPlan.SharedBoulders are built once, with the
+        /// trial when it is there, else with the screen's first door, and the other doors carry none (PhysicsPlan.BouldersOn).
+        /// </summary>
         public IReadOnlyList<Vector2> Boulders { get; }
 
         public TimedDoorSpec(ScreenAddress screen, int slot, bool onHome, int required, int spare, DoorLayout layout,
@@ -150,30 +155,25 @@ namespace Game.Cube
         }
     }
 
-    /// <summary>The Physics trial: booths on one screen sharing a limited set of boulders.</summary>
+    /// <summary>
+    /// The Physics trial: booths on one screen sharing a limited set of boulders. Since 4.25 every boulder counts for every
+    /// door (no owner rule): on the face the trial's screen holds PhysicsPlan.SharedBoulders, shared with any timed door there.
+    /// </summary>
     public sealed class PhysicsTrialSpec
     {
         public ScreenAddress Screen { get; }
         public IReadOnlyList<TrialBoothSpec> Booths { get; }
         public IReadOnlyList<Vector2> Boulders { get; }
 
-        /// <summary>Boulders each booth door needs (the shared set holds exactly this many).</summary>
+        /// <summary>Boulders each booth door needs (fewer than the booths' total, so the boulders must be moved between them).</summary>
         public int Required { get; }
 
-        /// <summary>
-        /// True when the booth doors weigh only the trial's own boulders (TimedDoorGate.MassOwner): boulders brought
-        /// from the screen's timed doors cannot dilate a booth, so the shared boulders really must be moved.
-        /// </summary>
-        public bool CountsOnlyOwnBoulders { get; }
-
-        public PhysicsTrialSpec(ScreenAddress screen, IReadOnlyList<TrialBoothSpec> booths, IReadOnlyList<Vector2> boulders, int required,
-            bool countsOnlyOwnBoulders = true)
+        public PhysicsTrialSpec(ScreenAddress screen, IReadOnlyList<TrialBoothSpec> booths, IReadOnlyList<Vector2> boulders, int required)
         {
             Screen = screen;
             Booths = booths;
             Boulders = boulders ?? Array.Empty<Vector2>();
             Required = required;
-            CountsOnlyOwnBoulders = countsOnlyOwnBoulders;
         }
     }
 }

@@ -51,12 +51,11 @@ namespace Game.Cube.Tests
             yield return ("CoreHud", $"{CoreHud.MeterLabel}   ({new MixingPhase().Name})");
             yield return ("CoreHud", $"{CoreHud.MeterLabel}   ({new FallbackBoss().Name})");
             foreach (string line in CubeMap.AllTexts()) yield return ("CubeMap", line);
-            yield return ("IslandScreen", IslandScreen.MendedText);
             yield return ("IslandScreen", IslandScreen.LoneText);
+            yield return ("GapHop", GapHop.BlockedText);
             yield return ("IslandScreen", IslandScreen.SolvedText);
             yield return ("IslandScreen", IslandScreen.RuleText);
             yield return ("IslandScreen", IslandScreen.GapDoorText);
-            yield return ("IslandScreen", IslandScreen.GapDoorMendedText);
             yield return ("IceScreen", IceScreen.GoalText);
             yield return ("IceSlider", IceSlider.FallText);
             yield return ("WindScreen", WindScreen.GoalText);

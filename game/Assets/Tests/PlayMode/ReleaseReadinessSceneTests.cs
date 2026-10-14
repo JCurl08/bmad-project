@@ -280,5 +280,31 @@ namespace Game.Cube.Tests
             Assert.IsTrue(world.RevealScience());
             Assert.AreEqual(warmed.Signature(), world.Layout.Signature());
         }
+
+        [UnityTest]
+        public IEnumerator TheCamera_DrawsThePlayAreaBetweenTheSideColumns_AndTheHudDrawsBesideIt()
+        {
+            // 4.25 (playtest 7): the HUD lives in the side columns (SideHud); the camera draws only the play area between them.
+            yield return Load(7);
+            yield return null;
+            yield return null;
+            Camera cam = Camera.main;
+            Assert.IsNotNull(cam);
+            Assert.IsNotNull(world.GetComponent<SideHudView>(), "the side columns' view is on the world");
+            Assert.IsNotNull(cam.GetComponent<Game.Tracer.ScreenCamera>().Viewport, "the camera takes its viewport from the HUD's layout");
+            Rect expected = SideHud.CameraRect(Screen.width, Screen.height);
+            Assert.AreEqual(expected.x, cam.rect.x, 1e-3f);
+            Assert.AreEqual(expected.y, cam.rect.y, 1e-3f);
+            Assert.AreEqual(expected.width, cam.rect.width, 1e-3f);
+            Assert.AreEqual(expected.height, cam.rect.height, 1e-3f);
+            Assert.AreEqual(1.6f, cam.pixelRect.width / cam.pixelRect.height, 0.02f, "the play area keeps the screen's aspect");
+            SideHud.Frame frame = SideHud.Current;
+            float k = HudScale.Current;
+            Assert.LessOrEqual(frame.Left.xMax * k, cam.pixelRect.xMin + 1f, "the left column ends where the play area begins");
+            Assert.GreaterOrEqual(frame.Right.xMin * k, cam.pixelRect.xMax - 1f, "and the right one starts where it ends");
+            // The player stands in the play area: its screen point is inside the camera's pixel rect.
+            Vector3 p = cam.WorldToScreenPoint(navigator.transform.position);
+            Assert.IsTrue(cam.pixelRect.Contains(new Vector2(p.x, p.y)), $"the player at {p} is drawn in the play area {cam.pixelRect}");
+        }
     }
 }

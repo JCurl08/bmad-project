@@ -412,12 +412,17 @@ namespace Game.Cube
             foreach (int n in reached) m.ReturnCost = Math.Max(m.ReturnCost, home[n] < 0 ? 99 : home[n]);
             int[] toGoal = graph.DistancesTo(n => n == goal);
             foreach (int u in reached)
+            {
                 for (int i = 0; i < graph.MoveCount(u); i++)
                 {
                     int v = graph.Move(u, i).To;
                     bool onRoute = v >= 0 && dist[v] >= 0 && toGoal[v] >= 0 && dist[v] + toGoal[v] == m.MinRides;
                     if (!onRoute) m.Decoys++;
                 }
+                // 4.25: a choice is a resting place on a shortest route with rides on to two or more places.
+                bool routeNode = u != goal && dist[u] >= 0 && toGoal[u] >= 0 && dist[u] + toGoal[u] == m.MinRides;
+                if (routeNode && graph.OutDegree(u) >= 2) m.Choices++;
+            }
             return m;
         }
 
@@ -635,7 +640,7 @@ namespace Game.Cube
         // ------------------------------------------------------------------ Generation
 
         /// <summary>Search steps per attempt, and attempts (the retry budget, deterministic), before the template stands in.</summary>
-        public const int StepsPerAttempt = 600, Attempts = 160; // early 400 steps an attempt, mid 600, late 800
+        public const int StepsPerAttempt = 600, Attempts = 400; // early 400 steps an attempt, mid 600, late 800 (4.25: 400 attempts)
 
         /// <summary>
         /// A seeded wind screen of a tier for a screen whose doorways are hasDoorway (research note 3b, as a search): the ring
@@ -672,25 +677,26 @@ namespace Game.Cube
         /// </summary>
         public static readonly string[][] Templates =
         {
+            // 4.25: found by the search at the new targets (seed 1 of each tier), kept by hand.
             new[]
             {
-                "_____________________", "_....^.............._", "_....^.............._", "_..G__.............._",
-                "_..___<<<<<<........_", "_..........^........_", "_..........^........_", "_..........^__......_",
-                "_...........__......_", "_...........__v....._", "_...........^.v....._", "_...........^.v....._",
+                "_____________________", "_.....^.......^....._", "_.....^...._G__....._", "_.....^.>>>____....._",
+                "_.....___....v......_", "_.....___....v......_", "_.....___<...v......_", "_......v.^...v......_",
+                "_.....____.+<<......_", "_....>____.v........_", "_....+.v.^<<........_", "_....^.v............_",
                 "_____________________",
             },
             new[]
             {
-                "_____________________", "_.......v..........._", "_.......v..........._", "_.......v.>>v......._",
-                "_.......>__#__......_", "_........__#__......_", "_.v<<<<<<__#__>v...._", "_.v.......^<<..v...._",
-                "_.v............v...._", "_.___..........___.._", "_.___..........__G.._", "_.v.^..........v...._",
+                "_____________________", "_...........^......._", "_..........>^......._", "_..........^.>>v...._",
+                "_<<<____...^__#__>>>_", "_...____....__#__..._", "_...____<<<<.^.v...._", "_..........^.+.+<<.._",
+                "_.......>>>+.^.v.^.._", "_.......^..^__#__^.._", "_.......^...__#G_..._", "_.......^....^.v...._",
                 "_____________________",
             },
             new[]
             {
-                "_____________________", "_.....^............._", "_<___.___>>>>>>>>v.._", "_.___<___........v.._",
-                "_...v.___<<<<<...v.._", "_...+>^......^...v.._", "_...v........^..v+.._", "_...v........^..v..._",
-                "_...>___.....^___>+>_", "_....__G......___..._", "_....___.....v___..._", "_......v.....v.^...._",
+                "_____________________", "_...^.v.v...^..^...._", "_...^<+<<.>>^..^...._", "_.....v...^...__...._",
+                "_>+>>__>>>+>>>__>__._", "_....__........^.__._", "_.....^...v<<<<+<<.._", "_.....^..__........._",
+                "_.....^.v__..>+v...._", "_.....^.v.>>__#G_..._", "_.....^.v...__#__..._", "_.....^.v...v...v..._",
                 "_____________________",
             },
         };
@@ -797,7 +803,39 @@ namespace Game.Cube
                     for (int i = 0; i < ways; i++) AddStream(route[1 + rng.NextInt(route.Count - 2)], decoy);
                     AddStream(decoy, home);
                 }
+                // 4.25: a route too short for the tier's rides is lengthened with grip anchors on its streams (each splits a ride).
+                for (int tries = 0; tries < 12; tries++)
+                {
+                    last = work.Measure(first, graph);
+                    if (!last.Solvable || last.MinRides >= hops) break;
+                    if (!LengthenRoute()) break;
+                }
                 return true;
+            }
+
+            /// <summary>
+            /// 4.25: a grip anchor in the middle of a stream on a shortest route (measured afresh), splitting one of the route's
+            /// rides in two; any stream when there is no route yet. False when no route stream is long enough.
+            /// </summary>
+            private bool LengthenRoute()
+            {
+                last = work.Measure(first, graph);
+                if (!last.Solvable) return AddAnchor();
+                int start = work.DoorNode(first), goal = work.NodeOf(work.Goal);
+                int[] dist = graph.Distances(start);
+                int[] toGoal = graph.DistancesTo(n => n == goal);
+                var candidates = new List<int>();
+                foreach (int h in work.heads)
+                {
+                    int src = SourceOf(h);
+                    if (src < 0) continue;
+                    int land = work.Ride(h, out int len);
+                    if (land < 0 || len < 3) continue;
+                    int a = work.regionNodes[src], b = work.NodeOf(land);
+                    if (dist[a] >= 0 && toGoal[b] >= 0 && dist[a] + 1 + toGoal[b] == last.MinRides) candidates.Add(h);
+                }
+                if (candidates.Count == 0) return false;
+                return AnchorIn(candidates[rng.NextInt(candidates.Count)]);
             }
 
             private WindMetrics last;
@@ -881,6 +919,10 @@ namespace Game.Cube
             private bool Mutate()
             {
                 work.Analyse();
+                // 4.25: while the route is too short, often split one of its rides with an anchor; while an island no ride
+                // reaches is left over (and the screen has regions to spare), sometimes let it sink into the sky.
+                if (last != null && last.Solvable && last.MinRides < targets.MinRidesLo && rng.NextInt(3) == 0) return LengthenRoute();
+                if (last != null && last.Unreached > 0 && work.regionCount > targets.RegionsLo && rng.NextInt(4) == 0) return SinkUnreached();
                 int kind = rng.NextInt(20);
                 if (kind < 8)
                 {
@@ -909,6 +951,43 @@ namespace Game.Cube
                 }
                 if (kind < 18) return RemoveAnchor();
                 return MoveGoal();
+            }
+
+            /// <summary>
+            /// 4.25: an island (or twin half) no ride reaches sinks into the sky, with every stream setting off from or landing
+            /// on it and any wall left standing beside it. Never the ring, the goal's island or a grip anchor.
+            /// </summary>
+            private bool SinkUnreached()
+            {
+                var unreached = new List<int>();
+                int home = work.region[HomeNode], goal = work.Goal >= 0 ? work.region[work.Goal] : -1;
+                for (int r = 0; r < work.regionCount; r++)
+                {
+                    if (r == home || r == goal || graph.IsReached(work.regionNodes[r])) continue;
+                    if (work.tiles[work.regionNodes[r]] == (byte)WindTile.Grip) continue;
+                    unreached.Add(r);
+                }
+                if (unreached.Count == 0) return false;
+                int sink = unreached[rng.NextInt(unreached.Count)];
+                var heads = new List<int>(work.heads);
+                foreach (int h in heads)
+                {
+                    int land = work.Ride(h, out _);
+                    if (SourceOf(h) == sink || (land >= 0 && work.region[land] == sink)) RemoveStream(h);
+                }
+                work.Analyse();
+                var cells = new List<int>(work.regionCells[sink]);
+                foreach (int c in cells)
+                {
+                    work.tiles[c] = (byte)WindTile.Sky;
+                    for (int f = 0; f < 4; f++)
+                    {
+                        var p = Pos(c) + Step((Facing)f);
+                        if (InGrid(p) && work.tiles[Index(p)] == (byte)WindTile.Wall) work.tiles[Index(p)] = (byte)WindTile.Sky;
+                    }
+                }
+                work.Touch();
+                return true;
             }
 
             /// <summary>The region a stream sets off from (the land beside its first tile, other than where it lands), or -1.</summary>
@@ -943,11 +1022,27 @@ namespace Game.Cube
             private bool AddAnchor()
             {
                 if (work.heads.Count == 0) return false;
-                int head = work.heads[rng.NextInt(work.heads.Count)];
+                return AnchorIn(work.heads[rng.NextInt(work.heads.Count)]);
+            }
+
+            /// <summary>A grip anchor on a middle tile of the stream starting at head.</summary>
+            private bool AnchorIn(int head)
+            {
                 var cells = new List<int>();
+                int end = -1;
                 for (int pos = head, guard = 0; guard < Cells && pos >= 0 && work.tiles[pos] == (byte)WindTile.Stream; guard++, pos = work.Next(pos))
+                {
                     cells.Add(pos);
+                    end = work.Next(pos);
+                }
                 if (cells.Count < 3) return false;
+                // 4.25: never a chain of anchors (an anchor's stream goes on to land): at most one stop in a stream.
+                if (end >= 0 && work.tiles[end] == (byte)WindTile.Grip) return false;
+                for (int f = 0; f < 4; f++)
+                {
+                    var p = Pos(head) + Step((Facing)f);
+                    if (InGrid(p) && work.tiles[Index(p)] == (byte)WindTile.Grip && work.Next(head) != Index(p)) return false;
+                }
                 int at = cells[1 + rng.NextInt(cells.Count - 2)];
                 work.tiles[at] = (byte)WindTile.Grip;
                 work.dirs[at] = 0;

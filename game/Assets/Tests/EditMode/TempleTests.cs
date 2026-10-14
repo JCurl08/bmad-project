@@ -47,7 +47,7 @@ namespace Game.Cube.Tests
             foreach (KeyValuePair<TemplePuzzleKind, string> e in samples) Debug.Log($"Temple {e.Key}: {e.Value}");
         }
 
-        [Test]
+        [Test, Timeout(900000)] // 4.25: the harder wind tiers take longer to generate (about 4 min here in the editor)
         public void TheGeneratedTemples_OverSeeds1To500_NeverNeedATemplate_AndKeepEveryTarget()
         {
             var clock = Stopwatch.StartNew();
@@ -288,8 +288,11 @@ namespace Game.Cube.Tests
         private static float Luminance(Color32 p) => (0.2126f * p.r + 0.7152f * p.g + 0.0722f * p.b) / 255f;
 
         [Test]
-        public void ThePhysicsTemple_EveryVariant_OpensWithThreeBoulders_AndShutsEarlyWithTwo()
+        public void ThePhysicsTemple_EveryVariant_StaysOpenAQuarterLongerThanItsDash_WithThreeBoulders_AndShutsEarlyWithTwo()
         {
+            // 4.25: the doors time out (no latch), so a booth counts only when the player runs into it in time; the timer is
+            // at least 1.25 times the dash with three boulders, and with two it shuts at least 10% before the dash ends.
+            var dashes = new List<float>();
             for (int seed = 1; seed <= 200; seed++)
             {
                 PhysicsTrialSpec spec = TempleBooths.Deal(TemplePlan.RngFor(seed, FaceId.Right));
@@ -298,22 +301,22 @@ namespace Game.Cube.Tests
                 foreach (TrialBoothSpec b in spec.Booths)
                 {
                     DoorLayout d = b.Layout;
-                    float baseSeconds = TempleBooths.BaseSeconds(d);
-                    // 4.14 review: fair from anywhere on the switch, and one short still fails from the best start.
-                    Assert.GreaterOrEqual(TimeField.OpenSeconds(baseSeconds, 3f), TempleBooths.LongDash(d), "three boulders: open for the longest dash");
-                    Assert.LessOrEqual(TimeField.OpenSeconds(baseSeconds, 2f), 0.9f * TempleBooths.ShortDash(d), "two: shut at least 10% before the shortest");
-                    Assert.Less(TimeField.OpenSeconds(baseSeconds, 3f), 1.21f * TempleBooths.ShortDash(d), "the late slack is tight");
+                    float dash = TempleBooths.DashSeconds(d);
+                    dashes.Add(dash);
+                    Assert.GreaterOrEqual(TempleBooths.OpenSeconds(d, 3f), 1.25f * dash - 1e-4f, "three boulders: open 1.25 times the dash");
+                    Assert.LessOrEqual(TempleBooths.OpenSeconds(d, 2f), 0.9f * dash, "two: shut at least 10% before the dash ends");
+                    Assert.Greater(TempleBooths.OpenSeconds(d, 3f), 1.8f, "a longer timer than before 4.25 (about 1.5 s)");
+                    Assert.AreEqual(0f, d.Opening.y, 1e-4f, "the door faces across the room");
                     Rect corridor = TempleBooths.Corridor(d);
-                    Assert.LessOrEqual(corridor.yMin, TempleBooths.DashY - TempleBooths.SwitchTouch - TimeField.PlayerRadius + 1e-4f);
+                    Assert.IsTrue(corridor.Contains(d.SwitchLocal), "the switch is on the dash's lane");
+                    Assert.IsTrue(TempleBooths.Stall(d).Contains(d.SwitchLocal), "in its stall");
+                    Assert.AreEqual(TempleBooths.StallInner, TempleBooths.Strip(d).height, 1e-4f, "the strip spans the stall");
                     foreach (TrialBoothSpec other in spec.Booths)
-                        Assert.IsFalse(corridor.Overlaps(other.Footprint), "every parallel dash clears the booths");
-                    Rect band = TempleBooths.LatchBand(d);
-                    Assert.LessOrEqual(band.yMin, TempleBooths.DashY - TempleBooths.SwitchTouch);
-                    Assert.GreaterOrEqual(band.yMax, TempleBooths.DashY + TempleBooths.SwitchTouch, "the band meets every parallel dash");
-                    Assert.AreEqual(TempleBooths.DashY, d.SwitchLocal.y, "the switch is on the dash line");
+                        if (other != b) Assert.IsFalse(corridor.Overlaps(other.Footprint), "the dash clears the other booth");
                 }
                 Assert.LessOrEqual(TempleBooths.DragTiles(spec), 30f, "the late tier's drag");
             }
+            TestContext.WriteLine($"dashes {dashes.Min():0.00}-{dashes.Max():0.00} s, open with three {1.25f * dashes.Min():0.00}-{1.25f * dashes.Max():0.00} s");
         }
 
         [Test]

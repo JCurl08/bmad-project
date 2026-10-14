@@ -20,9 +20,10 @@ namespace Game.Cube
     }
 
     /// <summary>
-    /// A gap gate: a gap across an alcove opening that nobody can step over. Swinging the gap-crosser* at it (its
-    /// RequiredItem) lays a crossing over that one gap and opens the gate for good, with the gate-open effect. Any other
-    /// item, a bare swing or a touch does nothing. A small mark in the gap-crosser*'s colour says what it wants.
+    /// A gap gate: a gap across an alcove opening that nobody can step over. 4.25: swinging the gap-crosser* at it (its
+    /// RequiredItem) hops the player over the gap (GapHop), into the alcove or back out of it; nothing is built and the gate
+    /// never opens, so every crossing needs the item. Any other item, a bare swing or a touch does nothing. A small mark in
+    /// the gap-crosser*'s colour says what it wants. (A chest key on a bonus alcove still opens it for good: ForceOpen.)
     /// </summary>
     public class GapGate : Gate, IAttackReceiver
     {
@@ -32,14 +33,18 @@ namespace Game.Cube
         public const float FrontDepth = 0.6f * ScreenMath.ContentScale;
         public const float FrontRadius = 1.0f * ScreenMath.ContentScale;
 
-        [SerializeField] private Material crossingMaterial;
-
         protected override bool OpensOnTouch => false;
 
         protected override Color ClosedColor => GapColor;
 
-        /// <summary>The crossing laid over the gap once open (null before).</summary>
-        public SpriteRenderer Crossing { get; private set; }
+        /// <summary>Times the gap-crosser* hopped the player over this gap (4.25).</summary>
+        public int Hops { get; private set; }
+
+        /// <summary>The way across the gap (unit): along the alcove's depth, across the gate's thin side.</summary>
+        public Vector2 Axis => Solid.bounds.size.x >= Solid.bounds.size.y ? Vector2.up : Vector2.right;
+
+        /// <summary>The gap's half size along its axis (world units).</summary>
+        public float HalfDepth => Mathf.Min(Solid.bounds.size.x, Solid.bounds.size.y) / 2f;
 
         /// <summary>The front of a gap gate in a slot (local to the screen centre): just in front of the opening, toward the lane.</summary>
         public static Vector2 FrontLocal(Vector2 slotLocal, Vector2 pocketOffset)
@@ -50,29 +55,23 @@ namespace Game.Cube
 
         public bool ReceiveAttack(ItemDefinition item, GameObject attacker)
         {
-            if (IsOpen || item == null || item != RequiredItem) return false;
-            return OpenNow();
+            if (IsOpen || item == null || item != RequiredItem || attacker == null) return false;
+            Vector2 centre = Solid.bounds.center;
+            if (!GapHop.TryHop(attacker, Solid, centre, Axis, HalfDepth)) return false;
+            Hops++;
+            return true;
         }
 
         protected override void OnOpened()
         {
             Transform mark = transform.Find("Gap Mark");
             if (mark != null) mark.gameObject.SetActive(false);
-            // The crossing: a plank laid across the gap, from the lane into the pocket.
-            Vector2 size = Solid.size;
-            bool across = size.x >= size.y;
-            Vector2 plank = across ? new Vector2(0.9f, 1.3f) * ScreenMath.ContentScale : new Vector2(1.3f, 0.9f) * ScreenMath.ContentScale;
-            Vector2 at = Visual != null ? (Vector2)Visual.transform.localPosition : Vector2.zero;
-            Crossing = ArtCatalog.AddSprite(transform, "Crossing", ArtKey.PlankBridge, at, across ? new Vector2(plank.y, plank.x) : plank,
-                Color.white, ArtCatalog.GateArtOrder + 1, crossingMaterial, false);
-            Crossing.transform.localRotation = Quaternion.Euler(0f, 0f, across ? 90f : 0f);
         }
 
         public static GapGate Build(GameObject block, ItemDefinition item, Material material)
         {
             block.name = $"Gap Gate ({item})";
             var gate = block.AddComponent<GapGate>();
-            gate.crossingMaterial = material;
             gate.Visual = block.GetComponentInChildren<SpriteRenderer>();
             gate.RequiredItem = item;
             BeakGate.AddSprite(block.transform, "Gap Mark", PartShape.Diamond, Vector2.zero, new Vector2(0.32f, 0.32f) * ScreenMath.ContentScale,

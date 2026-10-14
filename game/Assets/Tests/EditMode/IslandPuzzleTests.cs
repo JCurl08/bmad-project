@@ -94,12 +94,10 @@ namespace Game.Cube.Tests
             Assert.AreEqual(CrossResult.None, lights.Cross(sww), "solved: a crossing changes nothing");
             Assert.IsFalse(lights.Reset(), "a solved screen stays solved when left");
             Assert.IsTrue(layout.NetworkPlanks.All(k => lights[k] == PlankLight.Lit));
-            // Mending: spans only, once.
-            Assert.IsTrue(lights.Mend(span));
-            Assert.AreEqual(PlankLight.Mended, lights[span]);
-            Assert.IsFalse(lights.Mend(span));
-            Assert.IsFalse(lights.Mend(nc), "a whole plank is never mended");
-            Assert.AreNotEqual(IslandScreen.GlowFor(PlankLight.Lit), IslandScreen.GlowFor(PlankLight.Mended), "lit and mended differ");
+            // 4.25: a broken span is only ever hopped (nothing is mended): it never lights.
+            Assert.AreEqual(CrossResult.None, lights.Cross(span));
+            Assert.AreEqual(PlankLight.Unlit, lights[span]);
+            Assert.AreEqual(2, System.Enum.GetValues(typeof(PlankLight)).Length, "unlit or lit: no mended state");
             Assert.AreEqual(0f, IslandScreen.GlowFor(PlankLight.Unlit).a, "unlit has no glow");
         }
 
@@ -457,7 +455,7 @@ namespace Game.Cube.Tests
             Color.RGBToHSV(IslandScreen.OffNetworkWash, out _, out float greySat, out _);
             Assert.Less(greySat, 0.15f, "planks that never light are grey");
 
-            foreach (string text in new[] { IslandScreen.RuleText, IslandScreen.GapDoorText, IslandScreen.GapDoorMendedText })
+            foreach (string text in new[] { IslandScreen.RuleText, IslandScreen.GapDoorText })
             {
                 CollectionAssert.IsEmpty(InWorldText.BannedIn(text), text);
                 CollectionAssert.IsEmpty(InWorldText.UnstarredNames(text), text);
@@ -468,8 +466,7 @@ namespace Game.Cube.Tests
             StringAssert.Contains("If you leave unfinished, then they all go dark too.", IslandScreen.RuleText);
             StringAssert.Contains("every plank that can glow", IslandScreen.RuleText);
             StringAssert.Contains("planks that can glow", IslandScreen.GapDoorText);
-            StringAssert.Contains("planks that can glow", IslandScreen.GapDoorMendedText);
-            StringAssert.Contains("spanned", IslandScreen.GapDoorMendedText);
+            StringAssert.Contains("hop the gap", IslandScreen.GapDoorText, "4.25: the Gap-Crosser* hops, it builds nothing");
 
             // The unlit plank and a grey one as drawn: the plank art (its measured average, WoodTone) under each tint, the
             // grey one under its wash. They differ clearly in brightness (screenshot: luma 0.28 against 0.58).
@@ -501,7 +498,6 @@ namespace Game.Cube.Tests
                         if (on) network++;
                         else gapDoors++;
                         Assert.AreEqual(on ? IslandScreen.RuleText : IslandScreen.GapDoorText, IslandScreen.RuleTextFor(layout, door), $"seed {seed} {spec} {side}");
-                        Assert.AreEqual(on ? IslandScreen.RuleText : IslandScreen.GapDoorMendedText, IslandScreen.RuleTextFor(layout, door, true), $"seed {seed} {spec} {side}, mended");
                     }
                     RuleSignProblems(layout, $"seed {seed} {spec}", signProblems);
                 }

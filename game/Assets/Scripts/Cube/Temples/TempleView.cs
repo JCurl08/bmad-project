@@ -130,7 +130,7 @@ namespace Game.Cube
                     var go = new GameObject("Temple Booths");
                     go.transform.SetParent(transform, false);
                     Booths = go.AddComponent<PhysicsTrial>();
-                    Booths.Configure(world.ItemFor(Theme.Physics), Puzzle.Booths, Centre, 0, material);
+                    Booths.Configure(world.ItemFor(Theme.Physics), Puzzle.Booths, Centre, 0, material, templeRules: true);
                     Booths.Completed += _ => Solve();
                     LayDashes();
                     break;
@@ -173,39 +173,39 @@ namespace Game.Cube
             return board;
         }
 
-        /// <summary>The latch bands of Physics' booths (4.14 review), in door order.</summary>
-        public IReadOnlyList<BoxCollider2D> LatchBands => latchBands;
+        /// <summary>The posts of Physics' stalls (4.25), two per door, in door order.</summary>
+        public IReadOnlyList<BoxCollider2D> StallPosts => stallPosts;
 
-        private readonly List<BoxCollider2D> latchBands = new List<BoxCollider2D>();
+        private readonly List<BoxCollider2D> stallPosts = new List<BoxCollider2D>();
 
         /// <summary>
-        /// Physics' dashes (4.14 review): each door's time comes from its dash (TempleBooths.BaseSeconds), its latch band (a
-        /// trigger across the dash line beside the booth) latches it, and the dash is drawn on the floor: a dashed line from
-        /// the switch to the band and the band itself, faint gold.
+        /// Physics' dashes (4.25): each door's switch is a strip at the end of a stall (two solid posts along its lane, so a run
+        /// from the switch goes straight along the lane), its time comes from its dash (TempleBooths.BaseSeconds, set by
+        /// PhysicsTrial's temple rules), and the dash is drawn on the floor: a dashed line from the stall to the doorway, faint gold.
         /// </summary>
         private void LayDashes()
         {
             var lineColor = new Color(1f, 0.85f, 0.35f, 0.45f);
             for (int i = 0; i < Booths.Doors.Count && i < Puzzle.Booths.Booths.Count; i++)
             {
-                TimedDoorGate door = Booths.Doors[i];
                 DoorLayout layout = Puzzle.Booths.Booths[i].Layout;
-                door.BaseSeconds = TempleBooths.BaseSeconds(layout);
-                Rect band = TempleBooths.LatchBand(layout);
-                var go = new GameObject($"Latch Band {i}");
-                go.transform.SetParent(transform, false);
-                go.transform.localPosition = band.center;
-                var box = go.AddComponent<BoxCollider2D>();
-                box.isTrigger = true;
-                box.size = band.size;
-                go.AddComponent<DoorLatch>().Door = door;
-                latchBands.Add(box);
-                ArtCatalog.AddShape(go.transform, "Band", PartShape.Square, Vector2.zero, band.size, new Color(1f, 0.85f, 0.35f, 0.3f),
-                    FloorOrder + 2, material);
-                float from = layout.SwitchLocal.x, to = band.center.x, step = 0.8f;
-                float dir = Mathf.Sign(to - from);
-                for (float x = from + dir * 0.9f; (to - x) * dir > 0.4f; x += dir * step)
-                    ArtCatalog.AddShape(transform, $"Dash {i}", PartShape.Square, new Vector2(x, TempleBooths.DashY), new Vector2(0.4f, 0.1f),
+                int k = 0;
+                foreach (Rect post in TempleBooths.StallPosts(layout))
+                {
+                    var go = new GameObject($"Stall {i} Post {k++}");
+                    go.transform.SetParent(transform, false);
+                    go.transform.localPosition = post.center;
+                    var box = go.AddComponent<BoxCollider2D>();
+                    box.size = post.size;
+                    stallPosts.Add(box);
+                    ArtCatalog.AddShape(go.transform, "Art", PartShape.Square, Vector2.zero, post.size, PhysicsTrial.WallColor, FloorOrder + 3, material);
+                }
+                Rect corridor = TempleBooths.Corridor(layout);
+                Rect strip = TempleBooths.Strip(layout);
+                float dir = TempleBooths.DashWay(layout).x;
+                float from = dir < 0f ? strip.xMin : strip.xMax, to = dir < 0f ? corridor.xMin : corridor.xMax, step = 0.8f;
+                for (float x = from + dir * 0.6f; (to - x) * dir > 0.5f; x += dir * step)
+                    ArtCatalog.AddShape(transform, $"Dash {i}", PartShape.Square, new Vector2(x, layout.DoorLocal.y), new Vector2(0.4f, 0.1f),
                         lineColor, FloorOrder + 2, material);
             }
         }

@@ -632,12 +632,10 @@ namespace Game.Cube.Tests
             strings.AddRange(Dialogue.BridgekeeperLines);
             strings.Add(Dialogue.IslandLine);
             strings.Add(Dialogue.GapCrosserLine);
-            strings.Add(IslandScreen.MendedText);
             strings.Add(IslandScreen.LoneText);
             strings.Add(IslandScreen.SolvedText);
             strings.Add(IslandScreen.RuleText);
             strings.Add(IslandScreen.GapDoorText);
-            strings.Add(IslandScreen.GapDoorMendedText);
             strings.Add(GapCrosserItem.Name);
             strings.Add(HintGenerator.ItemNickname(Theme.Math));
             ItemDefinition item = Catalog().ForTheme(Theme.Math);

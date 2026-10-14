@@ -4,10 +4,11 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// The player's combat HUD (OnGUI placeholder): a row of hearts at the bottom left (one per health point, partly filled for
-    /// a fraction, e.g. quarter hearts after defence) with the exact health as a number, the equipped item's name, and a plain
-    /// message once the player has died. Under them (4.8) a row of dice, one per face whose region is known (Town from the
-    /// start, the rest once revealed), in die-number order: a pip per fragment, lit once found, and a gold frame once mended.
+    /// The player's combat HUD (OnGUI placeholder): hearts (one per health point, partly filled for a fraction, e.g. quarter
+    /// hearts after defence) with the exact health as a number, the equipped item's name, and a plain message once the player
+    /// has died. Under them (4.8) dice, one per face whose region is known (Town from the start, the rest once revealed), in
+    /// die-number order: a pip per fragment, lit once found, and a gold frame once mended. 4.25: all of it in the left side
+    /// column (SideHud, StatusLayout), with the held stone's and the Mass Mitt's lines under it, never over the play area.
     /// </summary>
     public class CombatHud : MonoBehaviour
     {
@@ -112,95 +113,174 @@ namespace Game.Cube
         /// <summary>The death message while the player is dead, otherwise null.</summary>
         public string MessageText => health != null && health.IsDead ? DeathMessage : null;
 
+        /// <summary>The held stone's and the Mass Mitt's HUD lines (4.25: drawn here, in the left column), with their colours.</summary>
+        public List<(string Text, Color Color)> ItemLines
+        {
+            get
+            {
+                var lines = new List<(string, Color)>();
+                GameObject player = health != null ? health.gameObject : null;
+                if (player == null) return lines;
+                if (player.TryGetComponent(out Isotope stone) && stone.ShowHud && stone.HudText != null)
+                    lines.Add((stone.HudText, ChemistryIsotope.StageColor(stone.Stage)));
+                if (player.TryGetComponent(out MassMitt mitt) && mitt.ShowHud && mitt.HudText != null)
+                    lines.Add((InputPrompts.Fill(mitt.HudText), MassMittItem.ItemColor));
+                return lines;
+            }
+        }
+
+        private GUIStyle healthStyle, smallStyle;
+
         private void OnGUI()
         {
             if (health == null) return;
             Vector2 view = HudScale.Begin(); // 4.21: one shared scale, laid out in a virtual screen of at least 960x600
             if (textStyle == null)
             {
-                textStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
+                textStyle = new GUIStyle(GUI.skin.label) { fontSize = TextSize, fontStyle = FontStyle.Bold, wordWrap = false, clipping = TextClipping.Overflow };
                 textStyle.normal.textColor = Color.white;
+                healthStyle = new GUIStyle(textStyle) { fontSize = HealthSize };
+                smallStyle = new GUIStyle(textStyle) { fontSize = SmallSize, fontStyle = FontStyle.Normal };
                 deathStyle = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
                 deathStyle.normal.textColor = new Color(1f, 0.85f, 0.4f);
             }
 
-            // Bottom left, just above the dialogue box's band (the bottom 150 px), so it never overlaps the debug
-            // overlay (top left, about 156 px tall) or the dialogue box, at any width (the 960x600 WebGL canvas too).
-            const float size = HeartSize, gap = 6f;
+            // 4.25: the player's status lives in the left side column (SideHud), never over the play area.
+            SideHud.Frame frame = SideHud.Layout(view.x, view.y);
             int hearts = Mathf.CeilToInt(health.Max);
-            float width = hearts * (size + gap) - gap;
             string rewardsLine = RewardsText;
             List<FaceDie> dice = FragmentDice;
-            Rect back = PanelRect(view.x, view.y, hearts, rewardsLine != null, dice.Count > 0);
-            float x = back.x + 8f, y = back.y + 6f;
-            GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(back, Texture2D.whiteTexture);
+            List<(string Text, Color Color)> items = ItemLines;
+            var itemTexts = new List<string>();
+            foreach ((string text, _) in items) itemTexts.Add(text);
+            StatusRects s = StatusLayout(frame.Left, hearts, EquippedText, rewardsLine, dice.Count, itemTexts);
+
             for (int i = 0; i < hearts; i++)
             {
                 float fill = Mathf.Clamp01(health.Current - i);
-                var rect = new Rect(x + i * (size + gap), y, size, size);
-                GUI.color = new Color(0.3f, 0.05f, 0.08f);
-                GUI.DrawTexture(rect, Texture2D.whiteTexture);
-                if (fill > 0f)
-                {
-                    GUI.color = new Color(1f, 0.25f, 0.35f);
-                    GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width * fill, rect.height), Texture2D.whiteTexture);
-                }
+                Rect rect = s.Heart(i);
+                SideHud.Fill(rect, new Color(0.3f, 0.05f, 0.08f));
+                if (fill > 0f) SideHud.Fill(new Rect(rect.x, rect.y, rect.width * fill, rect.height), new Color(1f, 0.25f, 0.35f));
             }
             GUI.color = Color.white;
-            GUI.Label(new Rect(x + width + 10f, y - 2f, 120f, 26f), HealthText, textStyle);
-            GUI.Label(new Rect(x, y + size + 4f, Mathf.Max(width, 300f), 26f), EquippedText, textStyle);
-            if (rewardsLine != null)
-                GUI.Label(new Rect(x, y + size + 28f, Mathf.Max(width + 130f, 420f), 26f), rewardsLine, textStyle);
-            if (dice.Count > 0) DrawDice(dice, x, y + size + 28f + (rewardsLine != null ? 24f : 0f));
+            GUI.Label(s.Health, HealthText, healthStyle);
+            SideHud.Label(s.Equipped, EquippedText, TextSize, textStyle);
+            if (rewardsLine != null) SideHud.Label(s.Rewards, RewardsLines(rewardsLine), SmallSize, smallStyle);
+            if (dice.Count > 0) DrawDice(dice, s);
+            for (int i = 0; i < items.Count && i < s.Items.Count; i++)
+            {
+                Rect r = s.Items[i];
+                SideHud.Fill(new Rect(r.x, r.y + 3f, 8f, 8f), items[i].Color);
+                SideHud.Label(new Rect(r.x + 12f, r.y, r.width - 12f, r.height), items[i].Text, SmallSize, smallStyle);
+            }
 
             string message = MessageText;
             if (message == null) return;
-            var panel = new Rect(view.x / 2f - 320f, view.y / 2f - 60f, 640f, 120f);
-            GUI.color = new Color(0f, 0f, 0f, 0.75f);
-            GUI.DrawTexture(panel, Texture2D.whiteTexture);
-            GUI.color = Color.white;
+            // The death message: centred on the play area.
+            var panel = new Rect(frame.Play.center.x - Mathf.Min(320f, frame.Play.width / 2f), frame.Play.center.y - 60f,
+                Mathf.Min(640f, frame.Play.width), 120f);
+            SideHud.Fill(panel, new Color(0f, 0f, 0f, 0.75f));
             GUI.Label(panel, message, deathStyle);
         }
 
-        /// <summary>A heart's size (pixels).</summary>
-        public const float HeartSize = 22f;
+        /// <summary>The rewards line split onto lines of its own ("Keys: 1", "Run boosts: +speed").</summary>
+        public static string RewardsLines(string line) => line?.Replace(" | ", "\n");
 
-        /// <summary>
-        /// The panel's rect on a screen (GUI units, y down: HudScale's virtual screen; 4.19 review: layout tests): bottom left, above the dialogue band
-        /// (the bottom 150 px), as tall as its rows (hearts and the item, the rewards line, the dice).
-        /// </summary>
-        public static Rect PanelRect(float screenWidth, float screenHeight, int hearts, bool rewardsLine, bool dice)
+        /// <summary>Font sizes in the left column (GUI units).</summary>
+        public const int TextSize = 13, HealthSize = 14, SmallSize = 12;
+
+        /// <summary>A heart's size (GUI units), the gap between hearts, and a die's size and gap in the fragments rows.</summary>
+        public const float HeartSize = 18f, HeartGap = 4f, DieSize = 20f, DieGap = 8f;
+
+        /// <summary>Where each part of the status column goes (GUI units), from StatusLayout.</summary>
+        public sealed class StatusRects
         {
-            const float size = HeartSize, gap = 6f, margin = 12f, dialogueBand = 150f;
-            float width = hearts * (size + gap) - gap;
-            float x = margin + 8f;
-            float extra = (rewardsLine ? 24f : 0f) + (dice ? DieRow : 0f);
-            float y = screenHeight - dialogueBand - margin - (size + 40f + extra) + 6f;
-            return new Rect(x - 8f, y - 6f, Mathf.Max(width + 130f, rewardsLine ? 420f : 300f) + 16f, size + 40f + extra);
+            public Rect Column, Inner, Hearts, Health, Equipped, Rewards, DiceLabel, Dice;
+            public int HeartsPerRow, DicePerRow, HeartCount, DieCount;
+            public readonly List<Rect> Items = new List<Rect>();
+
+            /// <summary>The lowest point any part reaches.</summary>
+            public float Bottom;
+
+            public Rect Heart(int i) => new Rect(Hearts.x + i % HeartsPerRow * (HeartSize + HeartGap), Hearts.y + i / HeartsPerRow * (HeartSize + HeartGap),
+                HeartSize, HeartSize);
+
+            public Rect Die(int i) => new Rect(Dice.x + 3f + i % DicePerRow * (DieSize + DieGap), Dice.y + 8f + i / DicePerRow * (DieSize + DieGap + 4f),
+                DieSize, DieSize);
+
+            /// <summary>Every part's rect, for the layout tests.</summary>
+            public IEnumerable<Rect> All()
+            {
+                for (int i = 0; i < HeartCount; i++) yield return Heart(i);
+                yield return Health;
+                yield return Equipped;
+                if (Rewards.height > 0f) yield return Rewards;
+                if (DieCount > 0)
+                {
+                    yield return DiceLabel;
+                    for (int i = 0; i < DieCount; i++) yield return Die(i);
+                }
+                foreach (Rect r in Items) yield return r;
+            }
         }
 
-        /// <summary>Height of the fragments row (4.8).</summary>
-        public const float DieRow = 30f;
-
-        /// <summary>A die's size in the fragments row (pixels).</summary>
-        public const float DieSize = 24f;
+        /// <summary>
+        /// 4.25: the status column's layout (GUI units) in a column (SideHud's left one): hearts in rows, the health number,
+        /// the equipped item (wrapped), the keys and boosts (a line each), the fragment dice in rows under their label, and the
+        /// stone's and the mitt's lines, top to bottom.
+        /// </summary>
+        public static StatusRects StatusLayout(Rect column, int hearts, string equipped, string rewards, int dice, IReadOnlyList<string> items)
+        {
+            var s = new StatusRects { Column = column, Inner = SideHud.Inner(column), HeartCount = Mathf.Max(0, hearts), DieCount = Mathf.Max(0, dice) };
+            Rect inner = s.Inner;
+            float y = inner.y;
+            s.HeartsPerRow = Mathf.Max(1, Mathf.FloorToInt((inner.width + HeartGap) / (HeartSize + HeartGap)));
+            int heartRows = Mathf.Max(1, Mathf.CeilToInt(s.HeartCount / (float)s.HeartsPerRow));
+            s.Hearts = new Rect(inner.x, y, inner.width, heartRows * (HeartSize + HeartGap) - HeartGap);
+            y = s.Hearts.yMax + 4f;
+            s.Health = new Rect(inner.x, y, inner.width, SideHud.LineHeight(HealthSize));
+            y = s.Health.yMax + 6f;
+            s.Equipped = new Rect(inner.x, y, inner.width, SideHud.TextHeight(equipped, TextSize, inner.width));
+            y = s.Equipped.yMax + 6f;
+            if (rewards != null)
+            {
+                s.Rewards = new Rect(inner.x, y, inner.width, SideHud.TextHeight(RewardsLines(rewards), SmallSize, inner.width));
+                y = s.Rewards.yMax + 6f;
+            }
+            if (s.DieCount > 0)
+            {
+                s.DiceLabel = new Rect(inner.x, y, inner.width, SideHud.LineHeight(TextSize));
+                y = s.DiceLabel.yMax + 2f;
+                s.DicePerRow = Mathf.Max(1, Mathf.FloorToInt((inner.width - 6f + DieGap) / (DieSize + DieGap)));
+                int rows = Mathf.CeilToInt(s.DieCount / (float)s.DicePerRow);
+                s.Dice = new Rect(inner.x, y, inner.width, rows * (DieSize + DieGap + 4f) + 8f);
+                y = s.Dice.yMax + 6f;
+            }
+            if (items != null)
+                foreach (string text in items)
+                {
+                    var r = new Rect(inner.x, y, inner.width, SideHud.TextHeight(text, SmallSize, inner.width - 12f));
+                    s.Items.Add(r);
+                    y = r.yMax + 6f;
+                }
+            s.Bottom = y - 6f;
+            return s;
+        }
 
         private static readonly Color MendedGold = new Color(1f, 0.82f, 0.25f);
 
-        /// <summary>The fragments row: its label, then a die per face (region-coloured frame, a pip per fragment).</summary>
-        private void DrawDice(List<FaceDie> dice, float x, float y)
+        /// <summary>The fragments rows: their label, then a die per face (region-coloured frame, a pip per fragment).</summary>
+        private void DrawDice(List<FaceDie> dice, StatusRects s)
         {
-            GUI.Label(new Rect(x, y + 1f, 100f, 26f), RewardText.FragmentsLabel, textStyle);
-            float left = x + 100f;
+            GUI.Label(s.DiceLabel, RewardText.FragmentsLabel, textStyle);
             for (int i = 0; i < dice.Count; i++)
             {
                 FaceDie d = dice[i];
-                var box = new Rect(left + i * (DieSize + 8f), y + 3f, DieSize, DieSize);
+                Rect box = s.Die(i);
                 Color frame = d.Mended ? MendedGold : CubeWorld.ThemeColor(d.Theme);
-                Fill(new Rect(box.x - 3f, box.y - 3f, box.width + 6f, box.height + 6f), Color.black);
-                Fill(new Rect(box.x - 2f, box.y - 2f, box.width + 4f, box.height + 4f), frame);
-                Fill(box, new Color(0.12f, 0.1f, 0.14f));
+                SideHud.Fill(new Rect(box.x - 3f, box.y - 3f, box.width + 6f, box.height + 6f), Color.black);
+                SideHud.Fill(new Rect(box.x - 2f, box.y - 2f, box.width + 4f, box.height + 4f), frame);
+                SideHud.Fill(box, new Color(0.12f, 0.1f, 0.14f));
                 Vector2Int[] pips = TownArt.PipLayouts[Mathf.Clamp(d.Count, 1, 6)];
                 float cell = DieSize / 7f;
                 for (int p = 0; p < pips.Length; p++)
@@ -208,33 +288,25 @@ namespace Game.Cube
                     bool found = rewards != null && rewards.HasFragment(d.Face, p + 1);
                     Color pip = d.Mended ? MendedGold : found ? Color.white : new Color(0.4f, 0.38f, 0.45f);
                     // Pip (x, y) on the 7x7 face, y up; GUI y runs down.
-                    var r = new Rect(box.x + pips[p].x * cell - cell * 0.25f, box.y + (6 - pips[p].y) * cell - cell * 0.25f, cell * 1.5f, cell * 1.5f);
-                    Fill(r, pip);
+                    SideHud.Fill(new Rect(box.x + pips[p].x * cell - cell * 0.25f, box.y + (6 - pips[p].y) * cell - cell * 0.25f, cell * 1.5f, cell * 1.5f), pip);
                 }
                 if (d.HasGem)
                 {
                     // 4.14: the face's gem, a diamond in its region's colour on the die's corner.
                     Color gem = TempleArt.GemColor(d.Theme);
                     var g = new Rect(box.xMax - 6f, box.y - 8f, 12f, 12f);
-                    Fill(new Rect(g.x + 3f, g.y, 6f, 12f), Color.black);
-                    Fill(new Rect(g.x, g.y + 3f, 12f, 6f), Color.black);
-                    Fill(new Rect(g.x + 4f, g.y + 1f, 4f, 10f), gem);
-                    Fill(new Rect(g.x + 1f, g.y + 4f, 10f, 4f), gem);
-                    Fill(new Rect(g.x + 4f, g.y + 4f, 2f, 2f), Color.white);
+                    SideHud.Fill(new Rect(g.x + 3f, g.y, 6f, 12f), Color.black);
+                    SideHud.Fill(new Rect(g.x, g.y + 3f, 12f, 6f), Color.black);
+                    SideHud.Fill(new Rect(g.x + 4f, g.y + 1f, 4f, 10f), gem);
+                    SideHud.Fill(new Rect(g.x + 1f, g.y + 4f, 10f, 4f), gem);
+                    SideHud.Fill(new Rect(g.x + 4f, g.y + 4f, 2f, 2f), Color.white);
                 }
                 else if (d.Unsealed)
                 {
                     // The temple open: a pale bar under the die, waiting for its gem.
-                    Fill(new Rect(box.x - 4f, box.yMax + 3f, box.width + 8f, 2f), new Color(0.85f, 0.85f, 1f));
+                    SideHud.Fill(new Rect(box.x - 4f, box.yMax + 3f, box.width + 8f, 2f), new Color(0.85f, 0.85f, 1f));
                 }
             }
-        }
-
-        private static void Fill(Rect r, Color c)
-        {
-            GUI.color = c;
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = Color.white;
         }
     }
 }

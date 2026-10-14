@@ -8,8 +8,9 @@ namespace Game.Cube
     /// <summary>
     /// A Math island screen in the world (1.25), built from its IslandLayout: solid water over the whole screen inside its
     /// edge walls (WaterRects: solid colliders, so nobody walks or wades it), the islands as land, plank bridges over the
-    /// water between some of them, and the broken spans' gaps (BrokenSpan: solid until the gap-crosser* is swung at them,
-    /// which lays the missing plank for good). Every doorway lands on its own island, so the player can always walk back
+    /// water between some of them, and the broken spans' gaps (BrokenSpan: solid; 4.25: the gap-crosser* swung at one hops the
+    /// player over it, GapHop, and nothing is built, so every crossing needs the item). Every doorway lands on its own island,
+    /// so the player can always walk back
     /// out the way it came. 1.26: the islands are the region's own floor showing through the water (no pads), each with a
     /// shoreline (a foam line and a band of wet sand) where it meets the water; a lone doorway's island (IslandLayout.IsLone,
     /// none in 4.12's layouts) carries a lookout sign and says "go round".
@@ -18,7 +19,7 @@ namespace Game.Cube
     /// lit glows round its rim; the reward roadblock (the chest CubeWorld hands over, on the reward island, under bars, on a
     /// plinth with one lamp per plank) shows the count; lighting the last plank sends a chain of light from that plank to
     /// the roadblock, whose bars then lift (it is the chest's guard). Leaving the screen snuffs an unsolved network; a solved
-    /// one stays lit for the run. Broken spans light nothing: mended, they show the gap-crosser*'s gold.
+    /// one stays lit for the run. Broken spans light nothing and stay grey: the gap-crosser* only hops the player over them.
     /// </summary>
     public class IslandScreen : MonoBehaviour, IPuzzleRewardHost, IRewardGuard
     {
@@ -28,13 +29,13 @@ namespace Game.Cube
         public static readonly Color PlankColor = new Color(0.62f, 0.55f, 0.5f, 1f);
 
         /// <summary>
-        /// 4.17: a plank that never lights (a lookout off the network, or a broken span until mended) is grey: weathered wood
+        /// 4.17: a plank that never lights (a lookout off the network, or a broken span) is grey: weathered wood
         /// under a grey wash (OffNetworkWash), so it never reads as a dark plank of the puzzle. The rule sign says so.
         /// </summary>
         public static readonly Color OffNetworkPlankColor = new Color(0.72f, 0.72f, 0.74f, 1f);
         public static readonly Color OffNetworkWash = new Color(0.62f, 0.64f, 0.68f, 0.7f);
 
-        /// <summary>A lit plank (or a mended span) shows its art at full brightness under its glow.</summary>
+        /// <summary>A lit plank shows its art at full brightness under its glow.</summary>
         public static readonly Color LitPlankColor = Color.white;
 
         /// <summary>
@@ -74,11 +75,11 @@ namespace Game.Cube
         /// </summary>
         public const string RuleText = "A plank glows when you cross it.\nIf you cross a glowing plank, then they all go dark.\nIf you leave unfinished, then they all go dark too.\nIf every plank that can glow does, then the chest is free.\nGrey planks never glow.";
 
-        /// <summary>4.17: said on arriving on the gap doorway's island (off the lit network), while the puzzle is unsolved.</summary>
-        public const string GapDoorText = "Grey planks never glow.\nThe planks that can glow lie past the gap.\nIf you carry the Gap-Crosser*, then swing it at the gap.\nIf not, then go round by another doorway.";
-
-        /// <summary>4.17 review: the gap doorway's line once its span is mended (the way on is open).</summary>
-        public const string GapDoorMendedText = "Grey planks never glow.\nThe gap is spanned. The planks that can glow lie past it.\nIf you cross a glowing plank, then they all go dark.";
+        /// <summary>
+        /// 4.17: said on arriving on the gap doorway's island (off the lit network), while the puzzle is unsolved. 4.25: the
+        /// Gap-Crosser* hops the player over the gap (each time: nothing is built), so the line says so.
+        /// </summary>
+        public const string GapDoorText = "Grey planks never glow.\nThe planks that can glow lie past the gap.\nIf you carry the Gap-Crosser*, then swing it to hop the gap.\nIf not, then go round by another doorway.";
 
         /// <summary>How long the rule stays up.</summary>
         public const float RuleTextSeconds = 6f;
@@ -88,10 +89,6 @@ namespace Game.Cube
         /// <summary>Said when the light chain reaches the roadblock.</summary>
         public const string SolvedText = "Every plank lit. The chest is free.";
 
-        /// <summary>The glow over a mended span (the gap-crosser*'s gold).</summary>
-        public static readonly Color MendedGlow = new Color(1f, 0.8f, 0.15f, 0.55f);
-
-        public static readonly Color MendedColor = new Color(1f, 0.92f, 0.6f);
 
         /// <summary>The shoreline: a foam line on the island's edge, and wet sand just inside it.</summary>
         public static readonly Color FoamColor = new Color(0.93f, 0.97f, 1f, 0.9f);
@@ -101,7 +98,6 @@ namespace Game.Cube
         public static readonly Color SignColor = new Color(0.8f, 0.62f, 0.38f);
         public static readonly Color LoneTextColor = new Color(0.8f, 0.92f, 1f);
 
-        public const string MendedText = "The gap is spanned!";
 
         /// <summary>Said on arriving on a lone doorway's islands (they join nothing else on the screen).</summary>
         public const string LoneText = "Only water here. Go round!";
@@ -186,13 +182,13 @@ namespace Game.Cube
         /// <summary>The screen centre the layout's positions are relative to.</summary>
         public Vector2 Centre { get; private set; }
 
-        /// <summary>The gaps of the broken spans (mended ones included), in plank order.</summary>
+        /// <summary>The gaps of the broken spans, in plank order (4.25: they stay gaps for good).</summary>
         public IReadOnlyList<BrokenSpan> Gaps => gaps;
 
         /// <summary>The solid water pieces.</summary>
         public IReadOnlyList<Collider2D> Water => water;
 
-        /// <summary>The planks' lights (lit, mended) and the puzzle's state (solved).</summary>
+        /// <summary>The planks' lights and the puzzle's state (solved).</summary>
         public PlankLights Lights { get; private set; }
 
         /// <summary>Turns the player's steps into plank crossings.</summary>
@@ -237,9 +233,8 @@ namespace Game.Cube
         public IReadOnlyList<SpriteRenderer> Wash(int plank) =>
             washes.TryGetValue(plank, out List<SpriteRenderer> list) ? list : (IReadOnlyList<SpriteRenderer>)Array.Empty<SpriteRenderer>();
 
-        /// <summary>4.17: true for a plank that never lights and shows grey (a lookout, or a broken span until mended).</summary>
-        public bool ShowsGrey(int plank) => Layout != null && plank >= 0 && plank < Layout.Bridges.Count && !Layout.IsNetworkPlank(plank) &&
-                                            Lights[plank] != PlankLight.Mended;
+        /// <summary>4.17: true for a plank that never lights and shows grey (a lookout, or a broken span: always, 4.25).</summary>
+        public bool ShowsGrey(int plank) => Layout != null && plank >= 0 && plank < Layout.Bridges.Count && !Layout.IsNetworkPlank(plank);
 
         /// <summary>The player whose steps light the planks (found in the scene when not set).</summary>
         public Transform Player
@@ -248,13 +243,11 @@ namespace Game.Cube
             set => player = value;
         }
 
-        /// <summary>Raised when the gap-crosser* mends a broken span, with the plank's index.</summary>
-        public event Action<IslandScreen, int> Mended;
 
 
         /// <summary>The colour a plank's glow shows for a light (clear while unlit).</summary>
         public static Color GlowFor(PlankLight light) =>
-            light == PlankLight.Lit ? LitGlow : light == PlankLight.Mended ? MendedGlow : Color.clear;
+            light == PlankLight.Lit ? LitGlow : Color.clear;
 
         /// <summary>The glow over a plank (its renderer; disabled while unlit).</summary>
         public SpriteRenderer Glow(int plank) => glows[plank];
@@ -587,7 +580,7 @@ namespace Game.Cube
             list.Add(plank);
             if (!Layout.IsNetworkPlank(bridge))
             {
-                // 4.17: a plank that never lights wears a grey wash over its wood (under the glow, which shows gold once mended).
+                // 4.17: a plank that never lights wears a grey wash over its wood.
                 SpriteRenderer wash = ArtCatalog.AddShape(transform, $"{name} (grey)", PartShape.Square, r.center, r.size, OffNetworkWash, WashOrder, material);
                 if (!washes.TryGetValue(bridge, out List<SpriteRenderer> w)) washes[bridge] = w = new List<SpriteRenderer>();
                 w.Add(wash);
@@ -702,7 +695,7 @@ namespace Game.Cube
         private void ShowRule(int island)
         {
             if (Lights.Solved || ruleSaid || !walkedIn) return;
-            string text = RuleTextFor(Layout, island, GapMended(island));
+            string text = RuleTextFor(Layout, island);
             if (text == null) return;
             ruleSaid = true;
             if (rulePopup != null && rulePopup.Text == text) return; // this screen's same words are still up
@@ -710,31 +703,14 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// 4.17 review: true when a broken span from an island's whole-plank component onto the lit network is mended (the
-        /// gap doorway's way on is open).
+        /// The rule a doorway's island says on arrival: RuleText on the lit network; off it (the gap doorway) GapDoorText (4.25:
+        /// always, since the gap is never spanned); null elsewhere.
         /// </summary>
-        public bool GapMended(int island)
-        {
-            if (Layout == null || island < 0 || island >= Layout.Islands.Count) return false;
-            int[] whole = Layout.Components(false);
-            for (int k = 0; k < Layout.Bridges.Count; k++)
-            {
-                IslandBridge b = Layout.Bridges[k];
-                if (!b.Broken || Lights[k] != PlankLight.Mended) continue;
-                if ((whole[b.A] == whole[island] && Layout.OnNetwork(b.B)) || (whole[b.B] == whole[island] && Layout.OnNetwork(b.A))) return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// The rule a doorway's island says on arrival: RuleText on the lit network; off it (the gap doorway) GapDoorText, or
-        /// GapDoorMendedText once its span is mended; null elsewhere.
-        /// </summary>
-        public static string RuleTextFor(IslandLayout layout, int island, bool gapMended = false)
+        public static string RuleTextFor(IslandLayout layout, int island)
         {
             if (layout == null || !layout.HasPuzzle || island < 0 || island >= layout.Islands.Count || !layout.DoorOf(island).HasValue) return null;
             if (layout.IsLone(island)) return null;
-            return layout.OnNetwork(island) ? RuleText : gapMended ? GapDoorMendedText : GapDoorText;
+            return layout.OnNetwork(island) ? RuleText : GapDoorText;
         }
 
         /// <summary>The player crossed a plank (from one island onto the other): the puzzle's response, shown.</summary>
@@ -868,22 +844,17 @@ namespace Game.Cube
         }
 
         /// <summary>
-        /// Mends a broken span (the gap-crosser* swung at its gap): the missing plank is laid, the gap stops blocking and the
-        /// span changes colour. False when the plank is not a gap (whole, or mended already).
+        /// 4.25: hops a player over a broken span's gap (the gap-crosser* swung at it): from either side, onto the plank just
+        /// past the gap (GapHop). Nothing is built; the gap stays solid and grey. False when it is no gap or there is no room.
         /// </summary>
-        public bool Mend(int bridge)
+        public bool Hop(int bridge, GameObject who)
         {
             foreach (BrokenSpan gap in gaps)
             {
-                if (gap == null || gap.Bridge != bridge || gap.IsMended) continue;
+                if (gap == null || gap.Bridge != bridge) continue;
                 IslandBridge b = Layout.Bridges[bridge];
-                Plank(bridge, $"Plank {bridge} (laid)", b.Gap, b.Vertical, material);
-                gap.ShowMended();
-                Lights.Mend(bridge);
-                ShowLight(bridge);
-                PickupPopup.Show(Centre + b.Gap.center, MendedText, MendedColor);
-                Mended?.Invoke(this, bridge);
-                return true;
+                Vector2 axis = b.Vertical ? Vector2.up : Vector2.right;
+                return GapHop.TryHop(who, gap.Solid, Centre + b.Gap.center, axis, IslandLayout.GapLength / 2f);
             }
             return false;
         }
@@ -901,8 +872,8 @@ namespace Game.Cube
 
     /// <summary>
     /// The gap in a broken span: a one-square hole in the plank (the gap art) with the gap-crosser*'s mark, solid so nobody
-    /// steps over it. Swinging the gap-crosser* at it mends the span (IslandScreen.Mend): the plank is laid and the gap
-    /// stops blocking, for good. Any other item, or a bare swing, does nothing.
+    /// steps over it. 4.25: swinging the gap-crosser* at it hops the swinger over it (IslandScreen.Hop); the gap stays, so
+    /// every crossing needs a swing. Any other item, or a bare swing, does nothing.
     /// </summary>
     public class BrokenSpan : MonoBehaviour, IAttackReceiver
     {
@@ -916,24 +887,18 @@ namespace Game.Cube
         /// <summary>The broken plank (an index into the layout's Bridges).</summary>
         public int Bridge { get; private set; }
 
-        public bool IsMended { get; private set; }
+        /// <summary>Times the gap-crosser* hopped the player over this gap.</summary>
+        public int Hops { get; private set; }
 
-        /// <summary>The solid part that stops the player until the span is mended.</summary>
+        /// <summary>The solid part that stops the player (always: 4.25, the gap is never spanned).</summary>
         public Collider2D Solid => solid;
 
         public bool ReceiveAttack(ItemDefinition item, GameObject attacker)
         {
-            if (owner == null || IsMended || !GapCrosserItem.Is(item)) return false;
-            return owner.Mend(Bridge);
-        }
-
-        /// <summary>The plank is laid: the hole and the mark go and the gap stops blocking (the owner colours the span).</summary>
-        public void ShowMended()
-        {
-            IsMended = true;
-            if (solid != null) solid.enabled = false;
-            if (hole != null) hole.gameObject.SetActive(false);
-            if (mark != null) mark.gameObject.SetActive(false);
+            if (owner == null || attacker == null || !GapCrosserItem.Is(item)) return false;
+            if (!owner.Hop(Bridge, attacker)) return false;
+            Hops++;
+            return true;
         }
 
         public static BrokenSpan Create(IslandScreen owner, int bridge, Rect gap, bool vertical, Material material)

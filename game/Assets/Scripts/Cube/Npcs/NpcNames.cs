@@ -65,6 +65,12 @@ namespace Game.Cube
         /// <summary>The guide's label in the dialogue box ("Gus Guidewell the tour guide").</summary>
         public const string GuideKind = "tour guide";
 
+        /// <summary>4.25: the old adventurer by the Mayor who gives tips on beating the Demon (BossTips): a shuffler of things.</summary>
+        public const string BossTipper = "Captain Shuffles";
+
+        /// <summary>The captain's label in the dialogue box ("Captain Shuffles the old adventurer").</summary>
+        public const string BossTipperKind = "old adventurer";
+
         /// <summary>The apple cameo on the Weightlands* (Newton-inspired, never named so).</summary>
         public const string AppleSage = "Sage Conkwell";
 
@@ -117,6 +123,7 @@ namespace Game.Cube
             yield return AppleSage;
             yield return Greeter;
             yield return Guide;
+            yield return BossTipper;
             yield return Demon;
             yield return DemonTitle;
             yield return DemonFull;

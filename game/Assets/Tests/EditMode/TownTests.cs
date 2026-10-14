@@ -34,6 +34,35 @@ namespace Game.Cube.Tests
         }
 
         [Test]
+        public void CaptainShuffles_FindsASpotByTheMayor_OnEverySeed_ClearOfEveryoneElse()
+        {
+            // 4.25: the boss-tips captain stands near the Mayor on the town square, clear of every planned person there.
+            ModuleLibrary library = Library();
+            Vector2Int square = CubeModel.StartCell(N);
+            IReadOnlyList<Rect> blocked = TownPlan.BlockedRects(library.TownModule(square, N));
+            TestContext.WriteLine($"candidates on the square: {TownPlan.Candidates(blocked).Count}");
+            for (int seed = 1; seed <= 50; seed++)
+            {
+                List<TownSpot> spots = SpotsFor(seed, N, library);
+                var taken = spots.Where(s => s.Found && s.Screen.Cell == square && s.Screen.Face == CubeModel.StartFace).Select(s => s.Local).ToList();
+                var fps = taken.Append(TownLayout.LeaderStandLocal).Select(t => TownPlan.Footprint(t, TownPlan.Spacing / 2f)).ToList();
+                int clear = TownPlan.Candidates(blocked).Count(c => !fps.Any(f => f.Overlaps(TownPlan.Footprint(c, TownPlan.Spacing / 2f))));
+                Assert.IsTrue(BossTips.Spot(blocked, taken, out Vector2 at), $"seed {seed}: a spot ({taken.Count} people on the square, {clear} clear, preferred {BossTips.Preferred}, fps {string.Join(" ", fps)})");
+                Assert.Less(Vector2.Distance(at, TownLayout.LeaderStandLocal), 3.5f, $"seed {seed}: by the Mayor ({at})");
+                Assert.IsTrue(ScreenModule.KeepsExitsOpen(BossTips.Feet(at)), $"seed {seed}: his feet keep off the lanes");
+                Assert.IsFalse(blocked.Any(b => b.Overlaps(BossTips.Feet(at))), $"seed {seed}: and off the solids");
+                foreach (Vector2 t in taken.Append(TownLayout.LeaderStandLocal))
+                    Assert.IsFalse(TownPlan.Footprint(t, TownPlan.Spacing / 2f).Overlaps(TownPlan.Footprint(at, TownPlan.Spacing / 2f)), $"seed {seed}: clear of {t}");
+            }
+            foreach (string line in BossTips.Lines)
+            {
+                Assert.LessOrEqual(line.Length, Dialogue.MaxLineLength, line);
+                CollectionAssert.IsEmpty(InWorldText.Problems(line), line);
+            }
+            Assert.AreEqual(Dialogue.MaxLines, BossTips.Lines.Count);
+        }
+
+        [Test]
         public void Specs_OneOfEachFaceRace_PlusAPerScreenShareOfTownsfolk_SameForTheSameSeed()
         {
             var townsfolkCounts = new HashSet<int>();

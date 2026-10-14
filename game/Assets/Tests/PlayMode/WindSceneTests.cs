@@ -264,6 +264,99 @@ namespace Game.Cube.Tests
             Assert.AreEqual(0, rider.Backstops, "no move was ever held back by a collider");
         }
 
+        /// <summary>The first seed whose wind screen is of a tier (the Earth die number decides it).</summary>
+        private static int SeedWithTier(ModuleLibrary library, PuzzleTier tier, out ScreenAddress screen)
+        {
+            for (int seed = 1; seed <= 80; seed++)
+            {
+                var model = new CubeModel(seed);
+                WindPlan plan = WindPlan.Create(model, CubeLayout.Generate(model, library));
+                foreach (WindScreenSpec s in plan.Screens)
+                {
+                    if (s.Tier != tier || s.Layout == null || s.Layout.FromTemplate) continue;
+                    screen = s.Screen;
+                    return seed;
+                }
+            }
+            screen = default;
+            return -1;
+        }
+
+        /// <summary>Rides a list of rides with the real keys: walk to each ride's tile, tap its way, check where it lands.</summary>
+        private IEnumerator RideAll(WindLayout wind, List<Ride> rides, string what)
+        {
+            for (int i = 0; i < rides.Count; i++)
+            {
+                Ride r = rides[i];
+                yield return WalkTo(wind, r.Cell);
+                int count = rider.Rides;
+                yield return Move(r.Facing);
+                Assert.AreEqual(count + 1, rider.Rides, $"{what}: ride {i + 1} happened");
+                Assert.AreEqual(r.End, rider.Cell, $"{what}: ride {i + 1} lands on {WindLayout.Pos(r.End)}");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ALateWindScreen_TakesNineRidesOrMore_ADecoyLeadsAstray_AndTheRealKeysStillSolveIt()
+        {
+            // 4.25 ("very simple, requiring just 2 crossings"): a late screen needs at least nine rides; one of the ring's rides
+            // is a decoy (off every shortest route); riding it costs rides, and the route from there still reaches the goal.
+            yield return Load();
+            int seed = SeedWithTier(world.Library, PuzzleTier.Late, out ScreenAddress where);
+            Assert.Greater(seed, 0, "some seed has a late wind screen");
+            yield return Reveal(seed);
+            WindScreen screen = earth.WindScreens.Single(s => s.Screen == where);
+            WindLayout wind = screen.Layout;
+            Facing door = wind.Doors()[0];
+            WindMetrics m = wind.Measure(door);
+            Assert.GreaterOrEqual(m.MinRides, 9, "nine rides or more to the goal");
+            Assert.GreaterOrEqual(m.Decoys, WindTargets.Late.DecoysLo, "decoys");
+            Assert.GreaterOrEqual(m.Choices, WindTargets.Late.ChoicesLo, "route choices");
+            navigator.TeleportTo(where, door.Opposite());
+            yield return PhysicsSteps(3);
+            yield return WaitUntilOrTimeout(() => rider.AtRest, 3f);
+            int start = wind.NodeOf(rider.Cell);
+            List<Ride> best = Route(wind, start);
+            Assert.AreEqual(m.MinRides, best.Count);
+
+            // A decoy: a ride from a resting place of the route that leaves every shortest route (the rest from there is longer).
+            List<Ride> stray = null, recover = null;
+            int at = start, done = 0;
+            for (int i = 0; i <= best.Count && stray == null; i++)
+            {
+                foreach (int c in wind.CellsOf(at))
+                {
+                    for (int f = 0; f < 4 && stray == null; f++)
+                    {
+                        Vector2Int p = WindLayout.Pos(c) + WindLayout.Step((Facing)f);
+                        if (!WindLayout.InGrid(p)) continue;
+                        int end = wind.RideFrom(c, WindLayout.Index(p), out _);
+                        if (end < 0 || wind.NodeOf(end) == wind.NodeOf(wind.Goal)) continue;
+                        List<Ride> rest = Route(wind, wind.NodeOf(end));
+                        if (rest == null || 1 + rest.Count + done <= best.Count) continue;
+                        stray = best.Take(done).Append(new Ride { From = at, Cell = c, End = end, Facing = (Facing)f }).ToList();
+                        recover = rest;
+                    }
+                    if (stray != null) break;
+                }
+                if (stray != null || i == best.Count) break;
+                at = wind.NodeOf(best[i].End);
+                done = i + 1;
+            }
+            Assert.IsNotNull(stray, "a decoy ride somewhere along the route");
+            yield return RideAll(wind, stray, "to the decoy");
+            int taken = rider.Rides;
+            yield return RideAll(wind, recover, "back on course");
+            Assert.AreEqual(wind.NodeOf(wind.Goal), wind.NodeOf(rider.Cell), "on the goal's island after all");
+            Assert.Greater(stray.Count + recover.Count, m.MinRides, "the decoy cost rides");
+            yield return WalkTo(wind, wind.Goal);
+            Assert.IsTrue(screen.GoalReached, "standing on the goal pad");
+            yield return PhysicsSteps(3);
+            Assert.IsTrue(screen.Chest.IsOpen, "the chest opens");
+            Assert.AreEqual(0, rider.Backstops);
+            Assert.Greater(rider.Rides, taken);
+        }
+
         [UnityTest]
         public IEnumerator ALostScreenOrARerollMidRide_LeavesNoRide_AndSwingsWork()
         {

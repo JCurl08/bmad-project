@@ -15,6 +15,10 @@ namespace Game.Cube
     /// a player at base speed gets from the switch to the door; with Required boulders it is still open. A player
     /// who reaches the door while it is open (its threshold in the lane, or the doorway) latches it open for good
     /// (IsOpen, Opened), so a door never shuts on a player inside. Touches and swings do nothing to the door itself.
+    /// 4.25: a door that does not latch (Latches off: the Physics temple's booths) counts the player getting in instead
+    /// (Passed, once per opening) and stays a timed door: its clock pauses while the player stands in it, and once they
+    /// leave it runs out and the door shuts again. Such a door may count only its doorway (UsesThreshold off), and may have a
+    /// stronger field (DilationPerBoulder).
     /// The doorway and the pocket behind are a BoulderBlocker. A faint ring shows the time field, pips on the door
     /// show how much of the required mass is in it, and a bar shows the time left while it is open.
     /// </summary>
@@ -38,6 +42,46 @@ namespace Game.Cube
         private bool ajar;
         private float elapsed;
         private float speedScale = 1f;
+        private BoxCollider2D doorwayBox;
+        private bool passedThisOpening;
+
+        /// <summary>
+        /// True (the default) when reaching the door while it is open latches it open for good. False (4.25, the Physics
+        /// temple): reaching it counts a pass (Passed) and the door keeps timing out.
+        /// </summary>
+        public bool Latches { get; set; } = true;
+
+        /// <summary>False when only the doorway counts as reaching the door, not the threshold in front of it (4.25, the temple's straight dash).</summary>
+        public bool UsesThreshold { get; set; } = true;
+
+        /// <summary>The field's slowing per boulder of mass (TimeField.K on the faces; stronger in the Physics temple).</summary>
+        public float DilationPerBoulder { get; set; } = TimeField.K;
+
+        /// <summary>The slowing of the mass in the field right now.</summary>
+        public float DilationNow => TimeField.Dilation(MassInField, DilationPerBoulder);
+
+        /// <summary>Times the player got in while a door that does not latch was open (once per opening).</summary>
+        public int Passes { get; private set; }
+
+        /// <summary>Raised when the player gets in while a door that does not latch is open (once per opening).</summary>
+        public event Action<TimedDoorGate> Passed;
+
+        /// <summary>True while a door that does not latch is held open by the player standing in it.</summary>
+        /// <summary>
+        /// 4.25 review: occupancy is read from the doorway box itself each physics step (Physics2D.OverlapBox), not from trigger
+        /// Stay callbacks, which stop when the player's body sleeps standing still.
+        /// </summary>
+        public bool IsHeld => !Latches && ajar && PlayerInDoorway();
+
+        /// <summary>True when the player's body (anything solid with an Inventory) overlaps the doorway (the opening and the pocket).</summary>
+        public bool PlayerInDoorway()
+        {
+            if (doorwayBox == null) return false;
+            Bounds b = doorwayBox.bounds;
+            foreach (Collider2D c in Physics2D.OverlapBoxAll(b.center, b.size, 0f))
+                if (c != null && !c.isTrigger && ItemPickup.FindInventory(c) != null) return true;
+            return false;
+        }
 
         public DoorSwitch Switch => doorSwitch;
 
@@ -67,16 +111,13 @@ namespace Game.Cube
         public bool IsAjar => ajar && !IsOpen;
 
         /// <summary>Boulder mass in the door's time field right now.</summary>
-        public float MassInField => TimeField.MassNear(FieldCentre, TimeField.FieldRadius, MassOwner);
-
-        /// <summary>When set, only boulders of this owner weigh in this door's field (a trial booth: its trial's boulders).</summary>
-        public UnityEngine.Object MassOwner { get; set; }
+        public float MassInField => TimeField.MassNear(FieldCentre, TimeField.FieldRadius);
 
         /// <summary>The base open time for the player who last stepped on the switch (scaled to their speed).</summary>
         public float ScaledBaseSeconds => baseSeconds * speedScale;
 
         /// <summary>How long the door would stay open with the mass beside it right now.</summary>
-        public float OpenSecondsNow => TimeField.OpenSeconds(ScaledBaseSeconds, MassInField);
+        public float OpenSecondsNow => ScaledBaseSeconds * DilationNow;
 
         /// <summary>Local seconds left before it shuts (0 when shut).</summary>
         public float LocalSecondsLeft => IsAjar ? Mathf.Max(0f, ScaledBaseSeconds - elapsed) : 0f;
@@ -112,23 +153,37 @@ namespace Game.Cube
             speedScale = TimeField.SpeedScale(playerSpeed);
             if (ajar) return;
             ajar = true;
+            passedThisOpening = false;
             Solid.enabled = false;
             Openings++;
             ShowAjar();
             SwungOpen?.Invoke(this);
         }
 
-        /// <summary>The player reached the threshold or the doorway: latches it open for good if it is open now.</summary>
-        public void Reached()
+        /// <summary>
+        /// The player reached the threshold or the doorway (doorway true): latches it open for good if it is open now; a door
+        /// that does not latch counts the pass (once per opening) and holds while the player stays in it.
+        /// </summary>
+        public void Reached(bool doorway = true)
         {
             if (IsOpen || !ajar) return;
-            OpenNow();
+            if (!doorway && !UsesThreshold) return;
+            if (Latches)
+            {
+                OpenNow();
+                return;
+            }
+            if (passedThisOpening) return;
+            passedThisOpening = true;
+            Passes++;
+            Passed?.Invoke(this);
         }
 
         private void FixedUpdate()
         {
             if (!ajar || IsOpen) return;
-            elapsed += Time.fixedDeltaTime / TimeField.Dilation(MassInField);
+            if (IsHeld) return; // 4.25: never shuts on a player standing in its doorway
+            elapsed += Time.fixedDeltaTime / DilationNow;
             if (elapsed >= ScaledBaseSeconds) Close();
         }
 
@@ -157,6 +212,7 @@ namespace Game.Cube
 
         private void Close()
         {
+            if (!Latches && PlayerInDoorway()) return; // 4.25 review: never shuts on a player in its doorway
             ajar = false;
             elapsed = 0f;
             Solid.enabled = true;
@@ -187,7 +243,7 @@ namespace Game.Cube
         /// pocket behind the door goes (the doorway BoulderBlocker covers it).
         /// </summary>
         public static TimedDoorGate Build(GameObject block, ItemDefinition item, Vector2 opening, float pocketDepth,
-            Vector2 switchWorld, Transform switchParent, float baseSeconds, int required, Material material)
+            Vector2 switchWorld, Transform switchParent, float baseSeconds, int required, Material material, Vector2 switchStrip = default)
         {
             block.name = $"Timed Door ({item})";
             opening = opening.sqrMagnitude > 1e-6f ? opening.normalized : Vector2.down;
@@ -211,7 +267,9 @@ namespace Game.Cube
             var thresholdCircle = thresholdGo.AddComponent<CircleCollider2D>();
             thresholdCircle.isTrigger = true;
             thresholdCircle.radius = TimeField.ThresholdRadius;
-            thresholdGo.AddComponent<DoorLatch>().Door = gate;
+            var thresholdLatch = thresholdGo.AddComponent<DoorLatch>();
+            thresholdLatch.Door = gate;
+            thresholdLatch.IsDoorway = false;
             gate.threshold = thresholdGo.transform;
 
             // Doorway: the opening and the pocket behind it; boulders keep out.
@@ -222,7 +280,10 @@ namespace Game.Cube
             var box = doorway.AddComponent<BoxCollider2D>();
             box.isTrigger = true;
             box.size = across ? new Vector2(width, length) : new Vector2(length, width);
-            doorway.AddComponent<DoorLatch>().Door = gate;
+            gate.doorwayBox = box;
+            var doorwayLatch = doorway.AddComponent<DoorLatch>();
+            doorwayLatch.Door = gate;
+            doorwayLatch.IsDoorway = true;
             doorway.AddComponent<BoulderBlocker>();
 
             // Field ring, mass pips, timer bar.
@@ -247,7 +308,10 @@ namespace Game.Cube
             gate.timerBar.sortingOrder = -2;
             gate.timerBar.enabled = false;
 
-            gate.doorSwitch = DoorSwitch.Create(switchParent != null ? switchParent : block.transform, switchWorld, gate, material);
+            Transform parent = switchParent != null ? switchParent : block.transform;
+            gate.doorSwitch = switchStrip.x > 0f && switchStrip.y > 0f
+                ? DoorSwitch.CreateStrip(parent, switchWorld, switchStrip, gate, material)
+                : DoorSwitch.Create(parent, switchWorld, gate, material);
             ArtCatalog.DressGate(gate, ArtKey.GateTimedDoor, -opening); // the pocket lies behind the door, away from the player
             gate.ApplyVisual();
             return gate;

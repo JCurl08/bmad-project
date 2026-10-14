@@ -132,6 +132,12 @@ Open `game/` in Unity, open `Assets/Scenes/Cube.unity`, and press Play.
 
 The step-by-step **`player-guide.md`** is up to date with all of this.
 
+## Since playtest 7 (2026-10-13)
+| Story | What to check |
+|---|---|
+| 4.21 Release readiness | Saves go to the browser's localStorage, so they survive itch re-uploads. The HUD scales with the window. A gamepad can finish the game. Areas load ahead of time to cut hitches. You can abandon a run with **X** in the quest log. Name "Entropy Cube", version 0.4.0. |
+| 4.25 Playtest 7 fixes | **Boulders:** any boulder opens any door, and a screen with two doors has 3 boulders. **Physics temple:** doors shut on a timer, about 1.9 s with 3 boulders. Is that about right? **Wind:** about 4, 6 and 9 rides. Challenging, or just long? **Rain:** covers the whole screen. **Gap-Crosser\*:** swing it at a gap to hop across; nothing is ever built. **HUD:** in the black side bars. How does it look at your window size? A wider itch embed, about 1300×600, gives the bars more room. **Captain Shuffles:** stands by the Mayor (just above the statue) and gives boss tips. |
+
 ## Not built, possible next steps
 - **4.16 / 1.14 itch.io releases.** These need you: run Tracer → Build WebGL in Unity, upload the build, and play it in a browser.
 - **Epic 2: every run plays differently.** Not started.

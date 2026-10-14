@@ -38,6 +38,12 @@ namespace Game.Cube
         public const int TrialBooths = 2;
         public const int TrialRequired = 2;
 
+        /// <summary>
+        /// 4.25: the boulders on a screen with more than one timed door (its doors and the trial's booths), shared by all of
+        /// them: any boulder counts for any door near it.
+        /// </summary>
+        public const int SharedBoulders = 3;
+
         /// <summary>Minimum centre distance between a placed thing and any other interactable (the 1.9 spot rule).</summary>
         public const float MinGap = 1.05f * ScreenMath.ContentScale;
 
@@ -166,6 +172,31 @@ namespace Game.Cube
             return index;
         }
 
+        /// <summary>The timed doors on a screen (its doors with a layout, and the trial's booths when the trial is there).</summary>
+        private static int DoorCount(ScreenAddress screen, IReadOnlyList<TimedDoorSpec> specs, PhysicsTrialSpec trial)
+        {
+            int count = trial != null && trial.Screen == screen ? trial.Booths.Count : 0;
+            foreach (TimedDoorSpec s in specs)
+                if (s.Screen == screen && s.Layout != null) count++;
+            return count;
+        }
+
+        /// <summary>The timed doors on a screen this plan lays out (doors and the trial's booths).</summary>
+        public int DoorCountOn(ScreenAddress screen) => DoorCount(screen, doors, Trial);
+
+        /// <summary>True when a screen's timed doors share its boulders (4.25: more than one timed door, SharedBoulders of them).</summary>
+        public bool SharesBoulders(ScreenAddress screen) => DoorCountOn(screen) > 1;
+
+        /// <summary>Every boulder that starts on a screen (local): its doors' and, there, the trial's. Each counts for every door near it.</summary>
+        public List<Vector2> BouldersOn(ScreenAddress screen)
+        {
+            var list = new List<Vector2>();
+            foreach (TimedDoorSpec s in doors)
+                if (s.Screen == screen) list.AddRange(s.Boulders);
+            if (Trial != null && Trial.Screen == screen) list.AddRange(Trial.Boulders);
+            return list;
+        }
+
         /// <summary>Whether PhysicsFace builds a planned door: only with a layout that has its switch.</summary>
         public static bool Builds(TimedDoorSpec spec) => spec.Layout != null && spec.Layout.HasSwitch;
 
@@ -288,12 +319,15 @@ namespace Game.Cube
                     continue;
                 }
                 problems.AddRange(DoorProblems(s.ToString(), d, ctx, BoothsOn(s.Screen)));
-                if (s.Boulders.Count != s.Required + s.Spare)
+                // 4.25: every boulder on the screen counts for this door (shared on a screen with more than one timed door).
+                List<Vector2> pool = BouldersOn(s.Screen);
+                if (!SharesBoulders(s.Screen) && s.Boulders.Count != s.Required + s.Spare)
                     problems.Add($"{s}: {s.Boulders.Count} boulders on its screen, want {s.Required + s.Spare}");
+                if (SharesBoulders(s.Screen) && s.Spare != 0) problems.Add($"{s}: a spare boulder on a screen that shares its boulders");
                 int reachable = 0;
                 var grid = new ReachGrid(ctx.Blocked, BoothsOn(s.Screen));
                 bool[] reach = grid.ReachableTo(d);
-                foreach (Vector2 b in s.Boulders)
+                foreach (Vector2 b in pool)
                     if (grid.Reaches(reach, b)) reachable++;
                 if (reachable < s.Required)
                     problems.Add($"{s}: only {reachable} reachable boulders on its screen, needs {s.Required}");
@@ -303,14 +337,27 @@ namespace Game.Cube
                 foreach (Vector2 b in s.Boulders) Mark(s.Screen, $"boulder of {s}", b, Boulder.Radius, true);
             }
 
+            // 4.25: a screen with more than one timed door holds exactly SharedBoulders, shared by all its doors.
+            var sharedScreens = new HashSet<ScreenAddress>();
+            foreach (TimedDoorSpec s in doors)
+                if (s.Layout != null && SharesBoulders(s.Screen)) sharedScreens.Add(s.Screen);
+            if (Trial != null && SharesBoulders(Trial.Screen)) sharedScreens.Add(Trial.Screen);
+            foreach (ScreenAddress screen in sharedScreens)
+            {
+                int count = BouldersOn(screen).Count;
+                if (count != SharedBoulders)
+                    problems.Add($"{screen}: {count} boulders shared by its {DoorCountOn(screen)} timed doors, want {SharedBoulders}");
+            }
+
             if (Trial == null) problems.Add("the trial fits on no Physics screen");
             else
             {
                 ScreenContext ctx = Context(Trial.Screen);
                 if (Trial.Screen != TrialScreen) problems.Add($"the trial is built on {Trial.Screen}, planned on {TrialScreen}");
                 if (Trial.Booths.Count != TrialBooths) problems.Add($"the trial has {Trial.Booths.Count} booths, want {TrialBooths}");
-                if (Trial.Boulders.Count != Trial.Required)
-                    problems.Add($"the trial has {Trial.Boulders.Count} boulders, want exactly {Trial.Required} (shared)");
+                List<Vector2> pool = BouldersOn(Trial.Screen);
+                if (pool.Count >= Trial.Required * Trial.Booths.Count)
+                    problems.Add($"the trial's screen has {pool.Count} boulders, enough for every booth at once (no need to move them)");
                 List<Rect> booths = BoothsOn(Trial.Screen);
                 var grid = new ReachGrid(ctx.Blocked, booths);
                 for (int i = 0; i < Trial.Booths.Count; i++)
@@ -329,9 +376,9 @@ namespace Game.Cube
                     problems.AddRange(DoorProblems(what, booth.Layout, ctx, booths));
                     bool[] reach = grid.ReachableTo(booth.Layout);
                     int reachable = 0;
-                    foreach (Vector2 b in Trial.Boulders)
+                    foreach (Vector2 b in pool)
                         if (grid.Reaches(reach, b)) reachable++;
-                    if (reachable < Trial.Required) problems.Add($"{what}: only {reachable} trial boulders can reach it");
+                    if (reachable < Trial.Required) problems.Add($"{what}: only {reachable} boulders can reach it");
                     int room = grid.Room(reach, booth.Layout);
                     if (room < Trial.Required) problems.Add($"{what}: room for only {room} boulders near the door");
                     if (booth.Layout.HasSwitch) Mark(Trial.Screen, $"switch of {what}", booth.Layout.SwitchLocal, TimeField.SwitchRadius, false);
@@ -340,25 +387,6 @@ namespace Game.Cube
                             problems.Add($"{Trial.Screen}: {what} sits on {o.What}");
                 }
                 foreach (Vector2 b in Trial.Boulders) Mark(Trial.Screen, "trial boulder", b, Boulder.Radius, true);
-
-                // Non-trial boulders (the screen's timed doors') must never satisfy a booth: the booths weigh only the
-                // trial's own boulders, or else no other boulder can be dragged into a booth's field.
-                if (!Trial.CountsOnlyOwnBoulders)
-                {
-                    var others = new List<Vector2>();
-                    foreach (TimedDoorSpec s in doors)
-                        if (s.Screen == Trial.Screen) others.AddRange(s.Boulders);
-                    for (int i = 0; i < Trial.Booths.Count; i++)
-                    {
-                        bool[] reach = grid.ReachableTo(Trial.Booths[i].Layout);
-                        int reachable = 0;
-                        foreach (Vector2 b in others)
-                            if (grid.Reaches(reach, b)) reachable++;
-                        if (reachable > 0)
-                            problems.Add($"trial booth {i} on {Trial.Screen}: {reachable} non-trial boulders can dilate it " +
-                                         "(the shared boulders need not be moved)");
-                    }
-                }
             }
 
             // Every spot: clear of other faces' interactables and of each other; boulders off the lanes, out of walls,

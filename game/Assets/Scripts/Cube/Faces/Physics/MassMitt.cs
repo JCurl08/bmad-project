@@ -55,7 +55,6 @@ namespace Game.Cube
         private InputAction interact;
         private Boulder held;
         private int handledSwing = -1;
-        private GUIStyle hudStyle;
 
         /// <summary>The mitt item this works with (the run's Physics item).</summary>
         public ItemDefinition Item
@@ -363,28 +362,6 @@ namespace Game.Cube
             return best;
         }
 
-        private void OnGUI()
-        {
-            if (!showHud) return;
-            string text = HudText;
-            if (text == null) return;
-            Vector2 view = HudScale.Begin(); // 4.21: the shared scale
-            text = InputPrompts.Fill(text); // "[Interact]" shows the real key or button
-            if (hudStyle == null)
-            {
-                hudStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
-                hudStyle.normal.textColor = Color.white;
-            }
-            // Above the Chemistry stone's HUD line (bottom left, above the combat panel and the dialogue band).
-            const float margin = 12f, dialogueBand = 150f, combatPanel = 62f, pip = 16f;
-            float x = margin;
-            float y = view.y - dialogueBand - margin - combatPanel - 66f;
-            GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(new Rect(x, y, 470f, 28f), Texture2D.whiteTexture);
-            GUI.color = MassMittItem.ItemColor;
-            GUI.DrawTexture(new Rect(x + 8f, y + 6f, pip, pip), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-            GUI.Label(new Rect(x + 8f + pip + 8f, y + 2f, 450f, 26f), text, hudStyle);
-        }
+        // 4.25: the HUD line (HudText) is drawn in the left side column by the CombatHud (SideHud), not here.
     }
 }

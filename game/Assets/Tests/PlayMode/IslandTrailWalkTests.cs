@@ -286,7 +286,7 @@ namespace Game.Cube.Tests
             if (aborted) yield break;
             for (int k = 0; k < layout.Bridges.Count && !aborted; k++)
             {
-                bool grey = !layout.IsNetworkPlank(k) && screen.Lights[k] != PlankLight.Mended;
+                bool grey = !layout.IsNetworkPlank(k);
                 if (screen.ShowsGrey(k) != grey || screen.Wash(k).Any(w => w.enabled != grey) || (grey && screen.Wash(k).Count == 0))
                     Fail($"plank {k} ({(layout.IsNetworkPlank(k) ? "lit network" : layout.Bridges[k].Broken ? "broken span" : "lookout")}) shows grey {screen.ShowsGrey(k)}, want {grey}");
             }
@@ -305,7 +305,7 @@ namespace Game.Cube.Tests
                     int k = way[i];
                     if (layout.Bridges[k].Broken)
                     {
-                        yield return MendSpan(screen, k, at, centre, layout);
+                        yield return HopSpan(screen, k, at, centre, layout);
                         if (aborted) yield break;
                     }
                     yield return Cross(screen, k, at, centre, layout, i);
@@ -516,7 +516,7 @@ namespace Game.Cube.Tests
             int to = b.Other(from);
             Vector2 axis = Along(b, from, layout);
             Vector2 far = centre + Mouth(b, to, layout) + axis * (0.6f * K);
-            bool direct = index % 2 == 1;
+            bool direct = index % 2 == 1 || b.Broken; // 4.25: past a hopped gap there is no lining up behind it
             if (direct) directLegs++;
             else
             {
@@ -531,12 +531,14 @@ namespace Game.Cube.Tests
             if (island != to) Fail($"over plank {k}: ended on island {island}, not {to}");
         }
 
-        /// <summary>Walks up to a broken span's gap from an island and swings the gap-crosser* at it.</summary>
-        private IEnumerator MendSpan(IslandScreen screen, int k, int from, Vector2 centre, IslandLayout layout)
+        /// <summary>
+        /// 4.25: walks up to a broken span's gap from an island, the gap stopping the player, then [Attack] (Enter, the real key)
+        /// with the gap-crosser* hops it: the player lands past the gap, and the gap stays (grey, solid, unlit).
+        /// </summary>
+        private IEnumerator HopSpan(IslandScreen screen, int k, int from, Vector2 centre, IslandLayout layout)
         {
             IslandBridge b = layout.Bridges[k];
             BrokenSpan span = screen.Gaps.First(g => g.Bridge == k);
-            if (span.IsMended) yield break;
             Vector2 axis = Along(b, from, layout);
             yield return HoldTo(centre + Mouth(b, from, layout) - axis * (0.6f * K), $"lining up on broken plank {k}");
             if (aborted) yield break;
@@ -553,12 +555,17 @@ namespace Game.Cube.Tests
                 last = body.position;
             }
             SetHeld();
+            int hops = span.Hops;
+            float before = Vector2.Dot(body.position - centre - b.Gap.center, axis);
             yield return new WaitForSeconds(attack.Cooldown + 0.05f);
-            if (attack.TryAttack() < 0) Fail("the swing did not happen");
+            yield return this.Tap(keyboard.enterKey);
             yield return null;
-            if (!span.IsMended) Fail($"a swing at broken plank {k}'s gap from {body.position - centre} did not mend it");
-            else if (screen.ShowsGrey(k) || screen.Wash(k).Any(w => w.enabled) || !screen.Glow(k).enabled || screen.Glow(k).color != IslandScreen.MendedGlow)
-                Fail($"mended broken plank {k} still shows grey, not gold");
+            float after = Vector2.Dot(body.position - centre - b.Gap.center, axis);
+            if (span.Hops != hops + 1) Fail($"[Attack] at broken plank {k}'s gap from {body.position - centre} did not hop it");
+            else if (before > 0f || after < IslandLayout.GapLength / 2f + TimeField.PlayerRadius - 0.02f)
+                Fail($"the hop over broken plank {k} went from {before:0.00} to {after:0.00} along it (want from before the gap to past it)");
+            else if (!screen.ShowsGrey(k) || !span.Solid.enabled || screen.Glow(k).enabled)
+                Fail($"hopped broken plank {k} no longer shows a grey gap (grey {screen.ShowsGrey(k)}, solid {span.Solid.enabled})");
         }
 
         /// <summary>Walks out by the doorway onto the next screen and back in, keys held (a fresh press after a face crossing).</summary>

@@ -130,7 +130,7 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator IslandScreen_WaterIsSolid_PlanksCarryThePlayer_AndABrokenSpanBlocksUntilTheGapCrosserMendsIt()
+        public IEnumerator IslandScreen_WaterIsSolid_PlanksCarryThePlayer_ABrokenSpanBlocks_AndTheGapCrosserHopsIt_BothWays_BuildingNothing()
         {
             IslandLayout layout = Layout(false);
             Assert.IsEmpty(layout.Problems("test", _ => true));
@@ -157,29 +157,37 @@ namespace Game.Cube.Tests
             // East over the broken span: the gap stops it.
             yield return Push(body, Vector2.right, 1f);
             BrokenSpan gap = screen.Gaps[0];
-            Assert.Less(body.position.x, gap.transform.position.x - layout.Bridges[gap.Bridge].Gap.width / 2f + 0.01f * K, "The gap stops the player");
-            Assert.IsFalse(gap.IsMended);
+            Rect gapRect = layout.Bridges[gap.Bridge].Gap;
+            Assert.Less(body.position.x, gap.transform.position.x - gapRect.width / 2f + 0.01f * K, "The gap stops the player");
 
-            // Swings: bare and another item do nothing; the gap-crosser* lays the plank.
+            // Swings: bare and another item do nothing; the gap-crosser* hops the player over the gap (4.25).
             player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.right);
+            Vector2 before = body.position;
             Assert.AreEqual(0, Swing(player, null), "A bare swing");
             Assert.AreEqual(0, Swing(player, other), "Another item");
-            Assert.IsFalse(gap.IsMended);
-            int mended = 0;
-            screen.Mended += (_, __) => mended++;
+            Assert.AreEqual(before, body.position, "neither moves the player");
             Assert.AreEqual(1, Swing(player, crosser), "The gap-crosser* reaches the gap");
-            Assert.IsTrue(gap.IsMended);
-            Assert.IsFalse(gap.Solid.enabled, "The gap stops blocking");
-            Assert.AreEqual(1, mended);
-            Assert.AreEqual(0, Swing(player, crosser), "Mended: nothing more");
+            Assert.AreEqual(1, gap.Hops);
+            Assert.Greater(body.position.x - Origin.x, gapRect.xMax + TimeField.PlayerRadius - 0.01f, $"Hopped over the gap (at {body.position - Origin})");
+            Assert.AreEqual(gapRect.center.y, body.position.y - Origin.y, 0.01f, "onto the plank's middle line");
+            Assert.IsTrue(gap.Solid.enabled, "Nothing is built: the gap still blocks");
+            Assert.IsTrue(screen.ShowsGrey(gap.Bridge), "and the span stays grey");
+            Assert.IsFalse(screen.GetComponentsInChildren<SpriteRenderer>().Any(r => r.name.Contains("(laid)")), "no plank is laid");
+            yield return new WaitForFixedUpdate();
 
-            // Now it walks over to the east doorway's island.
-            yield return Push(body, Vector2.right, 0.92f);
-            Assert.AreEqual(1, layout.IslandAt(body.position - Origin), $"Over the mended span to the east island (at {body.position - Origin})");
+            // On to the east doorway's island, then back: the gap stops the player again, and a second swing hops back.
+            yield return Push(body, Vector2.right, 0.6f);
+            Assert.AreEqual(1, layout.IslandAt(body.position - Origin), $"Over the span to the east island (at {body.position - Origin})");
+            yield return Push(body, Vector2.left, 1.2f);
+            Assert.Greater(body.position.x - Origin.x, gapRect.xMax - 0.01f * K, "The gap stops the player on the way back too");
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.left);
+            Assert.AreEqual(1, Swing(player, crosser), "a swing on the way back");
+            Assert.AreEqual(2, gap.Hops, "every crossing is a hop");
+            Assert.Less(body.position.x - Origin.x, gapRect.xMin - TimeField.PlayerRadius + 0.01f, "Hopped back west");
         }
 
         [UnityTest]
-        public IEnumerator IslandScreen_ACrossedPlankLights_ALitOneCrossedAgainSnuffsAllWithARedFlash_ASpanShowsGold_AndLeavingResets()
+        public IEnumerator IslandScreen_ACrossedPlankLights_ALitOneCrossedAgainSnuffsAllWithARedFlash_ASpanStaysGrey_AndLeavingResets()
         {
             IslandLayout layout = Layout(false, true);
             Assert.AreEqual(4, layout.NetworkPlanks.Count, "N-C, C-S, S-SW and SW-W light; the span and nothing else");
@@ -231,14 +239,13 @@ namespace Game.Cube.Tests
             yield return new WaitForSeconds(IslandScreen.FlashSeconds + 0.1f);
             foreach (int k in layout.NetworkPlanks) Assert.IsFalse(screen.Glow(k).enabled, $"plank {k} dark after the flash");
 
-            // A mended span shows the gap-crosser*'s gold and never lights or snuffs.
+            // A broken span (4.25: only ever hopped) stays grey, never lights and never snuffs.
             int broken = Enumerable.Range(0, layout.Bridges.Count).First(k => layout.Bridges[k].Broken);
             Assert.IsFalse(layout.IsNetworkPlank(broken));
-            Assert.IsTrue(screen.Mend(broken));
-            Assert.AreEqual(PlankLight.Mended, screen.Lights[broken]);
-            Assert.AreEqual(IslandScreen.MendedGlow, screen.Glow(broken).color);
-            Assert.AreEqual(CrossResult.None, screen.Cross(broken), "Crossing the mended span changes nothing");
-            Assert.AreNotEqual(IslandScreen.LitGlow, IslandScreen.MendedGlow);
+            Assert.AreEqual(CrossResult.None, screen.Cross(broken), "Crossing the span changes nothing");
+            Assert.AreEqual(PlankLight.Unlit, screen.Lights[broken]);
+            Assert.IsTrue(screen.ShowsGrey(broken), "grey for good");
+            Assert.IsFalse(screen.Glow(broken).enabled);
 
             // Down to the south island again (C-S lights), then off the screen: the unsolved network goes dark.
             yield return Push(body, Vector2.down, 0.6f);
@@ -278,31 +285,61 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator GapGate_TheGapCrosserSwungAtIt_LaysACrossingAndOpensIt_OtherItemsOrBareDoNothing()
+        public IEnumerator GapGate_TheGapCrosserSwungAtIt_HopsThePlayerOverAndBack_BuildingNothing_OtherItemsOrBareDoNothing()
         {
             GameObject player = Player(Origin);
             GameObject block = Block(Origin + Vector2.down * 1.1f * K);
             GapGate gate = GapGate.Build(block, crosser, null);
             int opened = 0;
             gate.Opened += _ => opened++;
+            var body = player.GetComponent<Rigidbody2D>();
             yield return null;
 
             player.GetComponent<Inventory>().Add(crosser);
             Assert.IsFalse(gate.TryOpen(player.GetComponent<Collider2D>()), "Touching it does nothing");
-            Assert.AreEqual(0, Swing(player, null), "A bare swing: shut");
-            Assert.AreEqual(0, Swing(player, other), "Another item: shut");
-            Assert.IsFalse(gate.IsOpen);
-            Assert.IsNull(gate.Crossing);
+            Assert.AreEqual(0, Swing(player, null), "A bare swing: nothing");
+            Assert.AreEqual(0, Swing(player, other), "Another item: nothing");
+            Assert.AreEqual(Origin, body.position);
 
             int effects = GateOpenEffect.Played;
-            Assert.AreEqual(1, Swing(player, crosser));
-            Assert.IsTrue(gate.IsOpen, "The gap-crosser* lays a crossing over the gap");
-            Assert.IsFalse(gate.Solid.enabled);
-            Assert.IsNotNull(gate.Crossing);
-            Assert.AreEqual(1, opened);
-            Assert.AreEqual(effects + 1, GateOpenEffect.Played);
+            Assert.AreEqual(1, Swing(player, crosser), "the gap-crosser* reaches the gap");
+            float gapY = gate.Solid.bounds.center.y;
+            Assert.Less(body.position.y, gapY - gate.HalfDepth - TimeField.PlayerRadius + 0.01f, $"hopped over the gap (at {body.position - Origin})");
+            Assert.AreEqual(Origin.x, body.position.x, 0.01f, "straight across");
+            Assert.IsFalse(gate.IsOpen, "4.25: nothing is built, the gate never opens");
+            Assert.IsTrue(gate.Solid.enabled, "the gap still blocks");
+            Assert.AreEqual(0, opened);
+            Assert.AreEqual(effects, GateOpenEffect.Played);
+            Assert.AreEqual(1, gate.Hops);
             Assert.IsTrue(player.GetComponent<Inventory>().Has(crosser), "The gap-crosser* is kept");
-            Assert.AreEqual(0, Swing(player, crosser), "Already open: nothing more");
+
+            // Facing it from the far side, a second swing hops back.
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.up);
+            Assert.AreEqual(1, Swing(player, crosser));
+            Assert.Greater(body.position.y, gapY + gate.HalfDepth + TimeField.PlayerRadius - 0.01f, "hopped back");
+            Assert.AreEqual(2, gate.Hops);
+            Assert.IsFalse(gate.IsOpen);
+
+            // 4.25 review: something solid on every landing spot (a block past the gap): no hop, and the player is told.
+            Vector2 stays = body.position;
+            float gapAt = gate.Solid.bounds.center.y;
+            GameObject wall = Track(new GameObject("Blocker"));
+            wall.transform.position = new Vector2(Origin.x, gapAt - 1.5f * K);
+            wall.AddComponent<BoxCollider2D>().size = new Vector2(4f * K, 1.6f * K);
+            Physics2D.SyncTransforms();
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.down);
+            int popups = PickupPopup.Active.Count(p => p != null && p.Text == GapHop.BlockedText);
+            Assert.AreEqual(0, Swing(player, crosser), "nowhere to land: no hop");
+            Assert.AreEqual(stays, body.position, "the player stays");
+            Assert.AreEqual(2, gate.Hops);
+            Assert.AreEqual(popups + 1, PickupPopup.Active.Count(p => p != null && p.Text == GapHop.BlockedText), "something is in the way");
+            Object.Destroy(wall);
+            yield return null;
+            Physics2D.SyncTransforms();
+            Assert.AreEqual(1, Swing(player, crosser), "with the way clear, the hop goes");
+            Assert.AreEqual(3, gate.Hops);
+            foreach (PickupPopup p in PickupPopup.Active.ToList())
+                if (p != null) Object.Destroy(p.gameObject);
         }
 
         [UnityTest]
@@ -324,16 +361,25 @@ namespace Game.Cube.Tests
             yield return new WaitForFixedUpdate();
             Assert.IsFalse(trial.IsComplete, "Not yet on the trial island");
 
-            // Over the mended span onto the trial island: it pays once.
+            // A hop over the span (4.25) onto the trial island: it pays once.
             BrokenSpan gap = screen.Gaps.First(g => layout.Bridges[g.Bridge].Joins(layout.TrialIsland));
-            Assert.IsTrue(screen.Mend(gap.Bridge));
             yield return Push(body, Vector2.left, 0.8f);
+            Assert.AreNotEqual(layout.TrialIsland, layout.IslandAt(body.position - Origin), "the gap stops the player");
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.left);
+            Assert.AreEqual(1, Swing(player, crosser), "the gap-crosser* hops the gap");
+            yield return Push(body, Vector2.left, 0.6f);
             Assert.AreEqual(layout.TrialIsland, layout.IslandAt(body.position - Origin), $"On the trial island (at {body.position - Origin})");
             Assert.IsTrue(trial.IsComplete);
             CollectionAssert.AreEqual(new[] { MathPlan.TrialCurrency }, paid);
 
-            // Off and on again: nothing more.
-            yield return Push(body, Vector2.right, 0.6f);
+            // Off and on again (a hop each way): nothing more.
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.right);
+            yield return Push(body, Vector2.right, 0.4f);
+            Swing(player, crosser);
+            yield return Push(body, Vector2.right, 0.4f);
+            player.GetComponent<Game.Tracer.PlayerMover>().SetFacing(Vector2.left);
+            yield return Push(body, Vector2.left, 0.4f);
+            Swing(player, crosser);
             yield return Push(body, Vector2.left, 0.6f);
             Assert.IsFalse(trial.Complete(), "Completing again does nothing");
             Assert.AreEqual(1, paid.Count, "Fires once");

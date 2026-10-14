@@ -1,6 +1,6 @@
 # Player guide: how a run works
 
-This describes the game as of commit `951bec4` (Epic 4 through 4.19), plus 4.20 (the Mayor's tour of Town in place of the lost-and-found trail, yes/no questions in conversations, and a much stronger Weightlands\* gem) and 4.21 (release readiness: gamepad controls, abandoning a run, a HUD that scales with the window, and saves that survive a new upload). Names ending in `*` are placeholders until the naming brainstorm; the game's working title is *Entropy Cube*.
+This describes the game as of commit `951bec4` (Epic 4 through 4.19), plus 4.20 (the Mayor's tour of Town in place of the lost-and-found trail, yes/no questions in conversations, and a much stronger Weightlands\* gem), 4.21 (release readiness: gamepad controls, abandoning a run, a HUD that scales with the window, and saves that survive a new upload) and 4.25 (playtest 7: shared boulders, temple doors that time out, harder wind screens, rain all over, the Gap-Crosser\* hop, the HUD in the side columns and Captain Shuffles's boss tips). Names ending in `*` are placeholders until the naming brainstorm; the game's working title is *Entropy Cube*.
 
 ## The goal
 The world is a cube of 6 faces, each a 3×3 grid of screens. **Primsworth the Demon** hides in the cube's core. A run ends when you beat Primsworth or run out of hearts. Either way you keep your **Jumbles\*** (the currency) and spend them on permanent upgrades before the next run.
@@ -29,6 +29,12 @@ The prompts on screen (in the dialogue box, the map, the log, the between-runs s
 
 **The HUD scales with the window.** Everything on screen (hearts, the dialogue box, the map, the log, the between-runs screen) was laid out for the 960×600 page and grows with a bigger window, fullscreen or a high-DPI screen, so the text stays readable.
 
+**The HUD sits beside the play area, never on it.** The play area keeps its shape in the middle of the window, with a dark column either side:
+- **Left column:** your hearts and health, the item you're holding, keys, chest keys and run boosts, the fragment dice, and the lines for a held stone or the Heavy Mitt\*.
+- **Right column:** your current quest (its title and next step), the keys for the map and the quest log, and, in the core, the Demon's meter with your gems' help.
+
+On a very wide window the play area fills the full height and the columns are the window's own side bars. On the 960×600 page, a 16:9 or a 4:3 window the play area shrinks a little to make room for the columns, with black bands above and below. The dialogue box, the map and the quest log still open over the middle while the game is paused.
+
 **Abandoning a run.** Stuck (a boulder wedged in a corner, say)? Open the quest log and press X. You're asked first, with "Keep going" picked; choose "Abandon" (left or up, then E, or A on a pad) and the run ends just as if you'd been defeated: what you earned is banked, the run counts, and the between-runs screen opens.
 
 Your **swing uses the item you're holding**. Most puzzles and gates are solved by holding the right item and swinging at the thing.
@@ -38,6 +44,7 @@ Your **swing uses the item you're holding**. Most puzzles and gates are solved b
 ### 1. Start in Town (the white face)
 - You start on Town's centre screen, in the town square, with **1 key**.
 - **Talk to everyone (E).** People give hints about where items are, in their own voice. Hints always tell the truth. Town's folk come from every face, so each speaks in their own race's voice; only Hattie Hullo (the greeter, waving) and the Mayor have Town's own look. Nobody in Town ever turns hostile: it's the one place everyone still mixes.
+- **Captain Shuffles** (an old adventurer in a hooded traveller's look, standing just beside the Mayor by the statue) once tangled with Primsworth the Demon. Talk to him for plain tips on beating it (see step 6).
 - **Talk to Mayor Muddleton** (purple top hat, by the statue). Town keeps one fragment of its own, and on your first talk he asks: **shall he show you round first?**
   - **Yes: the tour.** A glowing marker (a mint ring with a little gold flag) lights on a screen next to the square. Walk onto it and its sign says one short lesson with a tiny task; do the task and the next marker lights, one doorway on. The stops go round the square in a ring (where it starts and which way round changes each run):
 
@@ -74,8 +81,8 @@ Every science face has a colour and a race of people:
 |---|---|---|---|---|
 | Greenwood\* | Green | Finches | Thin Beak\* or Thick Beak\* (one each run) | Thin: distant buttons and flowers. Thick: pots and rocks. |
 | Ember Vale\* | Red | Mushroom folk | Glowstone\*, Wildstone\* or Leadstone\* (one each run) | Glow: dark rooms. Wild: cracked walls. Lead: pressure plates. |
-| Weightlands\* | Blue | Alien folk | Heavy Mitt\* | Pick up boulders (E) and pile them by **timed doors**, then hit the door's switch and run. More boulders keep the door open longer. **E always drops the boulder you hold**, whichever way you face: it is set down where it is, or on the nearest free spot beside you. |
-| Bridgelands\* | Yellow | Shape people | Gap-Crosser\* | Swing at a gap gate or a broken bridge to lay a plank. |
+| Weightlands\* | Blue | Alien folk | Heavy Mitt\* | Pick up boulders (E) and pile them by **timed doors**, then hit the door's switch and run. More boulders keep the door open longer. **Any boulder works for any door it's near.** A screen with two or more timed doors (or the face's two trial booths) has exactly **three** boulders, shared: move them from door to door. **E always drops the boulder you hold**, whichever way you face: it is set down where it is, or on the nearest free spot beside you. |
+| Bridgelands\* | Yellow | Shape people | Gap-Crosser\* | Stand by a gap (a gap gate's alcove mouth, or the hole in a broken bridge) and swing: **you hop over it**. Nothing is built, so every crossing needs a swing, there and back. |
 | Wildlands\* | Orange | Dinosaurs | Stormcaller\* (one weather each run) | Quake knocks down rock pillars, rain puts out fire walls, snow freezes water, tornado blows debris away. |
 
 **Finding the face's item:**
@@ -94,12 +101,13 @@ Every science face has a colour and a race of people:
 
 **Puzzle screens:**
 - **Ice (Wildlands\*):** you slide in a straight line until something stops you. Pits drop you back at the doorway you came in by, with no damage. Grip tiles stop you. Slide onto the gold pad to open the chest.
-- **Wind (Wildlands\*):** step into a gust and it carries you to the next island or grip rock. You can't steer while riding. Reach the gold ring to open the chest.
+- **Wind (Wildlands\*):** step into a gust and it carries you to the next island or grip rock. You can't steer while riding. Reach the gold ring to open the chest. The ring is a real journey: at least 4 rides away on an easy face, 6 on a middling one and 9 on the hardest, with gusts that lead nowhere useful and places where you must choose which gust to take. There is always a way back to the edge path.
+- **Freezing rain (Wildlands\*):** a rainy screen is rainy all over: you walk slower anywhere on it. Ice, wind and town screens never get rain.
 - **Bridges (Bridgelands\*):** every dark wooden plank glows green when you cross it. **Crossing a glowing plank again turns them all off** (a red flash), so you need a route that uses each plank exactly once. Leaving the screen unfinished turns them off too. Light them all and the chest opens.
-  - **Grey planks never glow:** they are lookouts, or broken spans (gold once mended). They don't count.
+  - **Grey planks never glow:** they are lookouts, or broken spans (a plank with a hole in it). They don't count, and crossing them never turns anything off.
   - A sign stands on each doorway's island, and arriving there says the rule.
   - Tip: count each island's planks. If two islands have an odd number, start on one of them.
-  - One doorway reaches the puzzle only over a broken span, so use the Gap-Crosser\* there. Without it, go round by another doorway (its sign says so).
+  - One doorway reaches the puzzle only over a broken span: walk up to the hole and swing the Gap-Crosser\* to hop over it (and again on the way back). Without it, go round by another doorway (its sign says so).
 - **Trials:** each face has one harder puzzle (numbered targets, boulder booths and similar) that pays Jumbles\*. The temples (step 4) hold the hardest ones.
 
 ### 4. Open the temples and win their gems
@@ -115,7 +123,7 @@ Every science face has a colour and a race of people:
 | Town | **Sliding picture.** Town's crest is cut into eight tiles on a 3×3 board with one gap; the whole crest hangs small by the west wall. Swing at a tile beside the gap and it slides in (a tile in its own place shows a gold pip in its corner). Put the crest back together; the last piece then fills the gap. The scramble always takes 14–18 slides at best. |
 | Greenwood\* | **Finch song.** Four finch statues (red, gold, blue and green, with one to four crest feathers) stand round a perch. They sing a song (each finch glows, opens its beak and a note rises), then you swing at them in the same order. Each song is one note longer: 3, then 4, 5 and 6 notes. A wrong note and they sing that song again; you keep the round. |
 | Ember Vale\* | **Lights out.** A bank of 15 crystals (5×3), some lit gold, some dark. Swinging at a crystal flips it and the crystals beside it (above, below, left, right). Light them all. It always takes at least 6 or 7 strikes. |
-| Weightlands\* | Two booths behind timed doors that each need **three** boulders by them, and only three boulders. The temple lends you a grip, so press E (Interact) to grab a boulder even without the Heavy Mitt\*. Pile them by one door (off the gold dashed line), step on its switch across the room and dash straight along the line to the glowing band beside the booth; then drag them all over to the other door. Anywhere on the switch is fine. |
+| Weightlands\* | Two booths against the side walls, one high and one low, behind timed doors that each need **three** boulders by them, and only three boulders. The temple lends you a grip, so press E (Interact) to grab a boulder even without the Heavy Mitt\*. Pile them by one door (off the gold dashed line), walk into the little stall across the room onto its switch strip, then dash straight along the line **into the booth** before the door shuts. The doors time out like every other timed door: with three boulders you have a quarter longer than the dash needs (about 2 s), with two it shuts in your face. The door holds while you stand in it, then shuts again once you leave; a booth you got into stays done (its pad turns green). Then drag the boulders over to the other door. |
 | Bridgelands\* | A big "light every plank" island network (the hardest kind). |
 | Wildlands\* | A big ice screen or a big wind screen (it varies by run). |
 
@@ -139,9 +147,11 @@ Every science face has a colour and a race of people:
 - Once you know the real portal, the map marks it in gold.
 
 ### 6. Beat Primsworth the Demon
-- The arena is split by the Demon's wall. **Mix the particles by knocking them through the gaps** faster than the Demon can sort them back.
+- The arena is split by the Demon's wall. **Mix the particles by knocking them through the gaps** at both ends of the wall, faster than the Demon can sort them back.
 - The Demon glows and draws a line before it shoots, so step aside.
-- It tires as the fight goes on.
+- It tires as the fight goes on, so keep mixing.
+- Every temple gem you win makes the fight easier (step 4).
+- Captain Shuffles in Town's square says all of this in his own words; the lair's prisoners add more.
 - Need to leave? Walk out of the door in the **west wall** (straight west into the recess). The fight resets.
 
 ### 7. Between runs
@@ -173,7 +183,7 @@ Your progress (Jumbles\*, upgrades, runs and victories) is saved in the browser 
 | F9 | Rest to full health |
 | F10 | New run (nothing banked; to end a run properly, abandon it from the quest log) |
 | F5 | Reroll the seed |
-| F1 | Debug overlay: two slim bars over the top and bottom walls (where you are and the seed on top, every dev key at the bottom), never over the floor |
+| F1 | Debug overlay: two slim bars along the top and bottom of the window (where you are and the seed on top, every dev key at the bottom), never over the floor |
 | F3 | Spawn NPCs (Shift+F3: all six leaders) |
 | F7 | Spawn an enemy |
 

@@ -3,13 +3,13 @@ using UnityEngine;
 
 namespace Game.Cube
 {
-    /// <summary>How a plank of an island screen shows: dark, lit (a network plank crossed, 4.12), or a broken span mended (gold).</summary>
-    public enum PlankLight { Unlit = 0, Lit = 1, Mended = 2 }
+    /// <summary>How a plank of an island screen shows: dark, or lit (a network plank crossed, 4.12). 4.25: a broken span is never mended.</summary>
+    public enum PlankLight { Unlit = 0, Lit = 1 }
 
     /// <summary>What one crossing of a plank did to the island puzzle (4.12).</summary>
     public enum CrossResult
     {
-        /// <summary>Nothing: a plank off the lit network, a mended span, or the puzzle is solved already.</summary>
+        /// <summary>Nothing: a plank off the lit network (a lookout or a broken span), or the puzzle is solved already.</summary>
         None = 0,
 
         /// <summary>A dark network plank lit up.</summary>
@@ -26,8 +26,9 @@ namespace Game.Cube
     /// An island screen's "light every plank" state (4.12) as pure data. Each whole plank of the lit network
     /// (IslandLayout.IsNetworkPlank) lights the first time it is crossed; crossing a lit one again snuffs every plank (so any
     /// island can be a clean start: step out and back); lighting the last one solves the network, which then stays lit for
-    /// the run. Leaving the screen resets an unsolved network (Reset). A broken span lights nothing: mended, it shows gold
-    /// and is crossed for free, and so are planks off the network (the lookouts). 1.26's plank lights are this state now.
+    /// the run. Leaving the screen resets an unsolved network (Reset). A broken span lights nothing and is crossed for free (4.25:
+    /// the gap-crosser* hops the player over its gap each time; nothing is mended), and so are planks off the network (the
+    /// lookouts). 1.26's plank lights are this state now.
     /// </summary>
     public sealed class PlankLights
     {
@@ -96,13 +97,6 @@ namespace Game.Cube
             return any;
         }
 
-        /// <summary>A broken span is mended: it shows Mended for good. False for a whole plank or one mended already.</summary>
-        public bool Mend(int plank)
-        {
-            if (plank < 0 || plank >= states.Length || !layout.Bridges[plank].Broken || states[plank] == PlankLight.Mended) return false;
-            states[plank] = PlankLight.Mended;
-            return true;
-        }
     }
 
     /// <summary>

@@ -7,9 +7,9 @@ namespace Game.Cube
     /// The Bridgekeeper*'s face, plugged into CubeWorld through IFaceContent (it sits on the CubeWorld's GameObject), in the
     /// same three parts as the other faces. On the reveal it builds the run's MathPlan (with the screens' modules, so the
     /// island screens are known), and then:
-    /// gate behaviours: every Math gate (on Math and off it) becomes a GapGate the gap-crosser* opens;
+    /// gate behaviours: every Math gate (on Math and off it) becomes a GapGate the gap-crosser* hops the player over (4.25);
     /// the island screens (1.25): each of the plan's island screens becomes an IslandScreen (solid water, islands, planks and
-    /// broken spans the gap-crosser* mends), and the trial a MathTrial on its screen's trial island;
+    /// broken spans the gap-crosser* hops the player over), and the trial a MathTrial on its screen's trial island;
     /// the population: shape people (MathPopulation) and Math enemies (Dead Ends, a Loose End) on seeded clear spots
     /// (FaceSpots, stream PopulationRngStream) off the island screens, kept off the fronts of Math's own gates, the core
     /// entrance and the other slots and interactables.

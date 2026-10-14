@@ -175,7 +175,8 @@ namespace Game.Cube.Tests
         private ScreenAddress ScreenOf(Vector2 position, FaceId face) => new ScreenAddress(face, world.CellAt(face, position));
 
         private List<Boulder> BouldersOn(ScreenAddress screen) =>
-            physics.Boulders.Where(b => b != null && OnScreen(b.Position, screen)).ToList();
+            physics.Boulders.Concat(physics.Trial != null ? physics.Trial.Boulders : new List<Boulder>())
+                .Where(b => b != null && OnScreen(b.Position, screen)).ToList();
 
         private bool OnScreen(Vector2 position, ScreenAddress screen)
         {
@@ -212,7 +213,8 @@ namespace Game.Cube.Tests
                 Assert.Less(Vector2.Distance(centre + spec.Layout.FieldLocal, door.FieldCentre), 1e-3f, "Its field");
                 Assert.AreEqual(0f, door.MassInField, $"{spec}: no boulder starts in its field");
                 List<Boulder> mine = BouldersOn(spec.Screen);
-                Assert.GreaterOrEqual(mine.Count, spec.Required + spec.Spare, $"{spec}: its own boulders on its screen");
+                Assert.AreEqual(plan.SharesBoulders(spec.Screen) ? PhysicsPlan.SharedBoulders : spec.Required + spec.Spare, mine.Count,
+                    $"{spec}: its screen's boulders (4.25: three shared where a screen has several timed doors)");
                 foreach (Vector2 local in spec.Boulders)
                     Assert.IsTrue(mine.Any(b => Vector2.Distance(b.Position, centre + local) < 1e-3f), $"{spec}: a boulder at {local}");
                 boulders += spec.Boulders.Count;
@@ -223,7 +225,7 @@ namespace Game.Cube.Tests
             Assert.IsNotNull(physics.Trial, "The trial is built");
             Assert.AreEqual(plan.TrialScreen, ScreenOf(physics.Trial.transform.position, plan.Face));
             Assert.AreEqual(PhysicsPlan.TrialBooths, physics.Trial.Doors.Count);
-            Assert.AreEqual(PhysicsPlan.TrialRequired, physics.Trial.Boulders.Count);
+            Assert.AreEqual(PhysicsPlan.SharedBoulders, physics.Trial.Boulders.Count, "4.25: the trial's screen holds three shared boulders");
             Assert.IsFalse(physics.Trial.IsComplete);
         }
 
@@ -308,7 +310,7 @@ namespace Game.Cube.Tests
             {
                 TimedDoorGate booth = trial.Doors[k];
                 Vector2[] spots = BesideTheDoor(booth);
-                for (int i = 0; i < trial.Boulders.Count; i++) trial.Boulders[i].Teleport(spots[i]);
+                for (int i = 0; i < PhysicsPlan.TrialRequired; i++) trial.Boulders[i].Teleport(spots[i]);
                 yield return new WaitForFixedUpdate();
                 Assert.AreEqual(PhysicsPlan.TrialRequired, booth.MassInField, 1e-4f, $"booth {k}: the shared boulders beside it");
                 yield return RunFromSwitch(plan.TrialScreen, booth);

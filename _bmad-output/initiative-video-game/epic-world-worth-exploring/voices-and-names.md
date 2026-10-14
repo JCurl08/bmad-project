@@ -38,7 +38,9 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 - An NPC speaks in its own race's voice wherever it stands, including the Town's visitors from each face.
 - A dinosaur speaks by its kind: avian dinosaurs use Sky, the others Ground.
 - **Town's residents (4.18)** are folk of every face race, not Townsfolk: Town is the last place everyone still mixes. Resident *i* takes the five face races in turn from a seeded start (`TownPlan.ResidentRace`, one draw on the Town stream under its own key), so every race turns up evenly; Town's shop is run the same way (`TownPlan.InteriorRace`). Each is drawn, named and voiced as their own race.
-- The Town voice is now for Town's own people only: the greeter (Hattie Hullo), the Mayor, the tour guide (Gus Guidewell, 4.20), Sage Conkwell and any Townsfolk captive in a lair.
+- The Town voice is now for Town's own people only: the greeter (Hattie Hullo), the Mayor, the tour guide (Gus Guidewell, 4.20), Captain Shuffles (4.25), Sage Conkwell and any Townsfolk captive in a lair.
+
+**Captain Shuffles (4.25, `BossTips`):** an old adventurer of Town (a fixed name, `NpcNames.BossTipper`; label "Captain Shuffles the old adventurer"; a Townsfolk in the hooded traveller's look, standing still) beside Mayor Muddleton on the town square. His two lines, in the Town voice, are plain tips on beating Primsworth the Demon, each true of the fight: knock the warm and cool motes through the gaps at both ends of its wall faster than it tidies them back; step aside when it glows and draws a line; it tires as the fight drags on; every temple gem makes it easier. They are in `Dialogue.SpokenLines(Town)`, so the voice, length and text scans read them. The lair's prisoners keep their own hints.
 
 **Leaders (4.5):** a leader greets the player (`Dialogue.LeaderLines`), then gives the region's quest hook in their voice (`Dialogue.QuestLines`): the region is coming apart, so bring back what was lost and help mend it. Chief Rockjaw's hook suits both dinosaur voices.
 
@@ -97,4 +99,5 @@ There is one voice per race. The dinosaurs have two: ground and avian.
 | The apple-bonked sage | Sage Conkwell | apple-bonked sage* |
 | The Town greeter | Hattie Hullo | (a townsperson) |
 | The Mayor's tour guide (4.20) | Gus Guidewell | (new) |
+| The old adventurer with the boss tips (4.25) | Captain Shuffles | (new) |
 | The boss | Primsworth the Demon | the Demon* |

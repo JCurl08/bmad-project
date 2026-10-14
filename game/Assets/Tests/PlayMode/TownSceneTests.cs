@@ -205,8 +205,53 @@ namespace Game.Cube.Tests
             CollectionAssert.AreEqual(ExpectedSpots(world.Seed), town.Spots);
             NpcTalker[] all = Object.FindObjectsByType<NpcTalker>(FindObjectsSortMode.None);
             Assert.IsNotNull(town.Leader, "Mayor Muddleton stands in Town's town (4.5)");
-            Assert.AreEqual(town.Npcs.Count + 1, all.Length, "No duplicates or leftovers in the scene");
-            CollectionAssert.AreEquivalent(town.Npcs.Append(town.Leader), all);
+            Assert.IsNotNull(town.BossTipper, "Captain Shuffles stands by him (4.25)");
+            Assert.AreEqual(town.Npcs.Count + 2, all.Length, "No duplicates or leftovers in the scene");
+            CollectionAssert.AreEquivalent(town.Npcs.Append(town.Leader).Append(town.BossTipper), all);
+        }
+
+        [UnityTest]
+        public IEnumerator CaptainShuffles_StandsByTheMayor_AndTellsHowToBeatTheDemon_WithTheRealKeys()
+        {
+            // 4.25: a named Town character near the Mayor gives plain tips on beating Primsworth the Demon.
+            yield return Load();
+            yield return WaitForPopulation();
+            NpcTalker captain = town.BossTipper;
+            Assert.IsNotNull(captain, "Captain Shuffles is in town");
+            Assert.AreEqual(NpcNames.BossTipper, captain.Spec.Name);
+            Assert.AreEqual("Captain Shuffles the old adventurer", captain.Spec.DisplayName);
+            Assert.AreEqual(Voice.Town, captain.Spec.Voice, "in the Town voice");
+            float mayor = Vector2.Distance(captain.transform.position, town.Leader.transform.position);
+            Assert.Less(mayor, 3.5f, $"beside the Mayor ({mayor:0.00} away)");
+            Assert.AreEqual(world.CellAt(CubeModel.StartFace, town.Leader.transform.position), world.CellAt(CubeModel.StartFace, captain.transform.position),
+                "on the town square with him");
+            CollectionAssert.AreEqual(BossTips.Lines, captain.Lines);
+            string all = string.Join(" ", captain.Lines);
+            foreach (string fact in new[] { "Primsworth the Demon", "warm and cool motes", "gaps at both ends of his wall", "glows and draws a line", "tires", "gem" })
+                StringAssert.Contains(fact, all);
+            foreach (string line in captain.Lines) CollectionAssert.IsEmpty(InWorldText.Problems(line), line);
+
+            // Stand by him (on his far side from the Mayor), talk with [Interact] and page through.
+            Vector2 away = ((Vector2)captain.transform.position - (Vector2)town.Leader.transform.position).normalized;
+            Vector2 at = (Vector2)captain.transform.position + away * 1f * K;
+            Rigidbody2D body = navigator.GetComponent<Rigidbody2D>();
+            body.position = at;
+            navigator.transform.position = new Vector3(at.x, at.y, navigator.transform.position.z);
+            Physics2D.SyncTransforms();
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            DialogueBox box = DialogueBox.Shared;
+            yield return this.Tap(keyboard.eKey, holdFrames: 2);
+            Assert.IsTrue(box.IsOpen, "Interact talks to the captain");
+            Assert.AreSame(captain, box.Owner);
+            Assert.AreEqual(BossTips.Lines[0], box.CurrentLine);
+            yield return this.Tap(keyboard.eKey, holdFrames: 2);
+            Assert.AreEqual(BossTips.Lines[1], box.CurrentLine);
+            yield return this.Tap(keyboard.eKey, holdFrames: 2);
+            Assert.IsFalse(box.IsOpen);
+            Vector2 stood = captain.transform.position;
+            yield return new WaitForSeconds(1f);
+            Assert.Less(Vector2.Distance(stood, captain.transform.position), 0.2f, "he stands still");
         }
 
         [UnityTest]

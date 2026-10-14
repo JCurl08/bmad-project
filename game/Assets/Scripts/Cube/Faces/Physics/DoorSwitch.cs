@@ -68,6 +68,27 @@ namespace Game.Cube
             if (top != null) top.color = PressedColor;
         }
 
+        /// <summary>
+        /// 4.25: a switch strip (the Physics temple's): a box across a stall, so the player leaves it at the same line wherever
+        /// they stood on it (TempleBooths.DashLength).
+        /// </summary>
+        public static DoorSwitch CreateStrip(Transform parent, Vector2 world, Vector2 size, TimedDoorGate door, Material material)
+        {
+            var go = new GameObject("Door Switch");
+            go.transform.SetParent(parent, false);
+            go.transform.position = world;
+            var trigger = go.AddComponent<BoxCollider2D>();
+            trigger.isTrigger = true;
+            trigger.size = size;
+            ArtCatalog.AddShape(go.transform, "Rim", PartShape.Square, Vector2.zero, size + Vector2.one * 0.1f, new Color(0.15f, 0.18f, 0.25f), -3, material);
+            var sw = go.AddComponent<DoorSwitch>();
+            sw.door = door;
+            sw.top = ArtCatalog.AddShape(go.transform, "Top", PartShape.Square, Vector2.zero, size * 0.85f, PadColor, -2, material);
+            BeakGate.AddSprite(go.transform, "Hand", PartShape.Square, Vector2.zero, new Vector2(0.05f, 0.2f) * ScreenMath.ContentScale,
+                new Color(0.1f, 0.1f, 0.15f), -1, material);
+            return sw;
+        }
+
         public static DoorSwitch Create(Transform parent, Vector2 world, TimedDoorGate door, Material material)
         {
             var go = new GameObject("Door Switch");

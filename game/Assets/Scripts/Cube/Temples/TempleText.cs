@@ -44,7 +44,7 @@ namespace Game.Cube
                 case TemplePuzzleKind.Wind:
                     return "Reach the gold ring to win the gem.\nStep into a gust and it carries you.\nYou cannot steer while riding.";
                 case TemplePuzzleKind.Booths:
-                    return "Open both booths to win the gem.\nEach door needs three boulders by it.\nThe temple lends you a grip:\n[Interact] grabs a boulder.\nStep on a switch, then run.";
+                    return "Get into both booths to win the gem.\nEach door needs three boulders by it.\nThe temple lends you a grip:\n[Interact] grabs a boulder.\nStep on a switch, then run in before it shuts.";
                 case TemplePuzzleKind.Lights:
                     return "Light every crystal to win the gem.\nA strike flips a crystal and the ones beside it:\nlit ones go dark, dark ones light.\nAny swing will do here.";
                 case TemplePuzzleKind.Song:

@@ -186,7 +186,7 @@ namespace Game.Cube.Tests
                 PhysicsPlan physics = PhysicsPlan.Create(model, placement, moduleAt, beaks, PhysicsPlan.DefaultMaxRequired, stones);
                 Assert.IsNotNull(physics.Trial, $"seed {seed}: the Physics trial fits");
                 Assert.Greater(physics.Doors.Count, 0, $"seed {seed}: timed doors");
-                Assert.IsTrue(physics.Doors.All(d => d.Boulders.Count >= d.Required), $"seed {seed}: boulders by every door");
+                Assert.IsTrue(physics.Doors.All(d => physics.BouldersOn(d.Screen).Count >= d.Required), $"seed {seed}: boulders by every door (4.25: shared on its screen)");
                 MathPlan math = MathPlan.Create(model, placement, moduleAt, beaks, stones);
                 Assert.AreEqual(CubeLayout.IslandScreensPerFace(N), math.IslandScreens.Count, $"seed {seed}: island screens");
                 Assert.IsTrue(math.HasTrial, $"seed {seed}: the Math trial island");

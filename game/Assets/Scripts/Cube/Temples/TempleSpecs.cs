@@ -7,19 +7,19 @@ using UnityEngine;
 namespace Game.Cube
 {
     /// <summary>
-    /// Physics' temple (4.14) as pure data: two booths against the north half of the room, each behind a timed door that
-    /// needs Required (3, the research note's late count) boulders in its time field, and exactly Required boulders, shared
-    /// (PhysicsTrialSpec, built by PhysicsTrial as the face's own trial is). Each door's switch stands across the room on
-    /// the dash line (DashY, below the booths), and the door latches when the player reaches its latch band (LatchBand: a
-    /// tall strip on the line beside the booth, on the switch's side), so the dash is one straight run along the floor
-    /// (drawn on it). Review patch: the dash is fair from anywhere on the switch. A player touching the switch at its very
-    /// edge, up to SwitchTouch off the line, runs a parallel line that still meets the latch band and never a booth (the
-    /// corridor is clear for the whole touch spread), and the door's time (BaseSeconds) is set from the dash: with Required
-    /// boulders it is open for the longest dash (leaving from the switch's far side), and with one short it shuts at least
-    /// 10% before the shortest dash (leaving on the line at its near edge) ends. The same three boulders must be dragged to
-    /// one door, then over to the other: six box lines. Deal picks among a few seeded variants; Problems proves each one:
-    /// that timing, the corridor, the fields apart, the boulders starting outside every field, and room for Required
-    /// boulders in each field off the corridor.
+    /// Physics' temple (4.14; 4.25 redesign) as pure data: two booths against the side walls, one high on one side and one low
+    /// on the other, each behind a timed door facing across the room, needing Required (3, the research note's late count)
+    /// boulders in its time field, with exactly Required boulders, shared (PhysicsTrialSpec, built by PhysicsTrial as the
+    /// face's own trial is). Since 4.25 a temple door times out like the face's doors instead of latching: the booth counts
+    /// once the player runs into its doorway while it is open, the door holds while the player is inside, and it shuts again
+    /// on its timer once they leave (TimedDoorGate.Latches off). Each door's switch is a strip across a short stall (two
+    /// posts) on the far side of the room, on the door's lane, so the dash is one straight run along the lane from the stall
+    /// into the doorway, the same length from anywhere on the switch (the stall keeps the player on the lane): DashLength.
+    /// The temple's field is stronger than the face's (FieldK per boulder, TimedDoorGate.DilationPerBoulder), so the door can
+    /// stay open DashSlack (1.25) times the dash with three boulders and still shut at least 10% early with two
+    /// (assumption: the face's 0.6 cannot give both, at most 1.27 times with any margin). Deal picks among a few seeded
+    /// variants; Problems proves each one: the timing, the corridors clear, the fields apart, the boulders starting outside
+    /// every field and off every corridor, and room for Required boulders in each field off the corridor.
     /// </summary>
     public static class TempleBooths
     {
@@ -28,105 +28,140 @@ namespace Game.Cube
 
         public const int BoothCount = 2;
 
-        /// <summary>The booths' near (south) wall line (local y): their doors face south onto the open floor.</summary>
-        public const float NearY = 2.4f;
+        /// <summary>The temple field's slowing per boulder (the face's is TimeField.K, 0.6).</summary>
+        public const float FieldK = 1.8f;
 
-        /// <summary>A booth's footprint (local), centred on x, its door south.</summary>
-        public static Rect Footprint(float x) =>
-            Rect.MinMaxRect(x - PhysicsPlan.BoothOuter / 2f, NearY, x + PhysicsPlan.BoothOuter / 2f, NearY + PhysicsPlan.BoothOuter);
+        /// <summary>With Required boulders a door stays open this many times the dash (4.25: at least 1.25).</summary>
+        public const float DashSlack = 1.25f;
 
-        /// <summary>A booth's door (local), facing south (the player comes from below), needing Required boulders.</summary>
-        public static DoorLayout Door(float x) => new DoorLayout(new Vector2(x, NearY + PhysicsPlan.BoothWall / 2f), Vector2.down,
-            PhysicsPlan.BoothInner, PhysicsPlan.BoothWall, PhysicsPlan.BoothInner, Required);
-
-        /// <summary>The dash line (local y): below the booths, far enough that the whole switch-touch corridor clears them.</summary>
-        public const float DashY = 0.3f;
-
-        /// <summary>How far off the switch's centre a player still touches it (switch and player radii).</summary>
-        public const float SwitchTouch = TimeField.SwitchRadius + TimeField.PlayerRadius;
-
-        /// <summary>The latch band's width, and how far it stands from its booth's side (beyond a player's radius).</summary>
-        public const float BandWidth = 0.3f, BandGap = 0.3f;
-
-        /// <summary>The share of the shortest dash one boulder short may stay open for, at most (it shuts at least 10% early).</summary>
+        /// <summary>The share of the dash one boulder short may stay open for, at most (it shuts at least 10% early).</summary>
         public const float ShortShare = 0.9f;
 
-        private static readonly float[] BoothXs = { 5.5f, 6.5f };
-        private static readonly float[] SwitchXs = { 9f, 10f };
+        /// <summary>A stall's length along the lane, its inner width (the booth door's), its posts' thickness and the switch strip's depth.</summary>
+        public const float StallLength = 1.8f, StallPost = 0.15f, StripDepth = 0.4f;
+
+        /// <summary>The stall's inner width: the booth's doorway, so every run from the switch goes straight in.</summary>
+        public static float StallInner => PhysicsPlan.BoothInner;
+
+        /// <summary>How far a booth stands from its side wall (in from it, so the boulders' drag between the fields stays short).</summary>
+        public const float WallGap = 1.5f;
+
+        private static readonly float[] HighLanes = { 2.6f, 3.0f };
+        private static readonly float[] LowLanes = { -1.5f, -2.0f };
+        private static readonly float[] StallXs = { 7.2f, 7.6f };
 
         private static readonly Vector2[][] BoulderSets =
         {
-            new[] { new Vector2(-2.5f, -3.5f), new Vector2(0f, -1.5f), new Vector2(2.5f, -3.5f) },
-            new[] { new Vector2(-2f, -1.5f), new Vector2(0f, -3f), new Vector2(2f, -1.5f) },
-            new[] { new Vector2(-3f, -2.5f), new Vector2(0f, -0.5f), new Vector2(3f, -2.5f) },
+            new[] { new Vector2(-1.6f, 0.8f), new Vector2(0f, 0.8f), new Vector2(1.6f, 0.8f) },
+            new[] { new Vector2(-3.2f, -4.8f), new Vector2(0f, 0.8f), new Vector2(3.2f, -4.8f) },
+            new[] { new Vector2(-2.6f, 5.2f), new Vector2(0f, 0.8f), new Vector2(2.6f, 5.2f) },
         };
 
-        /// <summary>Deals a variant: the booths' spread, the switches' distance, the boulders' start row and which booth is first, each seeded.</summary>
+        /// <summary>A booth's footprint (local) against a side wall (side -1 west, +1 east), centred on its lane.</summary>
+        public static Rect Footprint(int side, float lane)
+        {
+            float outer = TempleRoom.Floor.xMax - WallGap, inner = outer - PhysicsPlan.BoothOuter;
+            float h = PhysicsPlan.BoothOuter / 2f;
+            return side < 0 ? Rect.MinMaxRect(-outer, lane - h, -inner, lane + h) : Rect.MinMaxRect(inner, lane - h, outer, lane + h);
+        }
+
+        /// <summary>A booth's door (local): in the wall facing across the room, the player coming from the far side; its switch strip's centre.</summary>
+        public static DoorLayout Door(int side, float lane, float stallX)
+        {
+            Rect f = Footprint(side, lane);
+            float x = side < 0 ? f.xMax - PhysicsPlan.BoothWall / 2f : f.xMin + PhysicsPlan.BoothWall / 2f;
+            var opening = new Vector2(-side, 0f);
+            var door = new DoorLayout(new Vector2(x, lane), opening, PhysicsPlan.BoothInner, PhysicsPlan.BoothWall, PhysicsPlan.BoothInner, Required);
+            return door.WithSwitch(new Vector2(-side * (stallX + StripDepth / 2f), lane));
+        }
+
+        /// <summary>Deals a variant: which side is high, the lanes, the stalls' distance, the boulders' start and which booth is first, each seeded.</summary>
         public static PhysicsTrialSpec Deal(SeededRng rng)
         {
-            float bx = BoothXs[rng.NextInt(BoothXs.Length)];
-            float sx = SwitchXs[rng.NextInt(SwitchXs.Length)];
+            int highSide = rng.NextInt(2) == 0 ? -1 : 1;
+            float high = HighLanes[rng.NextInt(HighLanes.Length)];
+            float low = LowLanes[rng.NextInt(LowLanes.Length)];
+            float stall = StallXs[rng.NextInt(StallXs.Length)];
             Vector2[] boulders = BoulderSets[rng.NextInt(BoulderSets.Length)];
-            bool westFirst = rng.NextInt(2) == 0;
+            bool highFirst = rng.NextInt(2) == 0;
             var booths = new List<TrialBoothSpec>();
-            foreach (float side in westFirst ? new[] { -1f, 1f } : new[] { 1f, -1f })
+            foreach (bool isHigh in highFirst ? new[] { true, false } : new[] { false, true })
             {
-                float x = side * bx;
-                // Each door's switch stands across the room on the dash line, so the run is one straight dash along the floor
-                // (a keyboard's own direction: no diagonal detour eats the late tier's tight slack).
-                DoorLayout door = Door(x).WithSwitch(new Vector2(-side * sx, DashY));
-                booths.Add(new TrialBoothSpec(Footprint(x), door));
+                int side = isHigh ? highSide : -highSide;
+                float lane = isHigh ? high : low;
+                booths.Add(new TrialBoothSpec(Footprint(side, lane), Door(side, lane, stall)));
             }
-            return new PhysicsTrialSpec(default, booths, new List<Vector2>(boulders), Required, true);
+            var stones = new List<Vector2>();
+            foreach (Vector2 b in boulders) stones.Add(new Vector2(b.x * highSide * -1f, b.y)); // mirrored with the booths
+            return new PhysicsTrialSpec(default, booths, stones, Required);
         }
 
-        /// <summary>The side of its booth a door's switch is on (+1 east, -1 west).</summary>
-        public static float SwitchSide(DoorLayout door) => door.SwitchLocal.x > door.DoorLocal.x ? 1f : -1f;
+        /// <summary>The unit vector a door's dash runs along: from its switch toward the door.</summary>
+        public static Vector2 DashWay(DoorLayout door) => -door.Opening;
 
-        /// <summary>
-        /// A door's latch band (local): a strip across the dash line beside its booth, on the switch's side, tall enough for
-        /// the whole switch-touch spread (SwitchTouch either side, plus a margin). Reaching it while the door is open latches it.
-        /// </summary>
-        public static Rect LatchBand(DoorLayout door)
+        /// <summary>The door's face toward the room (local x): where its doorway starts.</summary>
+        private static float FaceX(DoorLayout door) => door.DoorLocal.x + door.Opening.x * door.Thickness / 2f;
+
+        /// <summary>The switch strip (local): across the stall at its end nearest the booth.</summary>
+        public static Rect Strip(DoorLayout door)
         {
-            float x = door.DoorLocal.x + SwitchSide(door) * (PhysicsPlan.BoothOuter / 2f + TimeField.PlayerRadius + BandGap + BandWidth / 2f);
-            float h = SwitchTouch + 0.3f;
-            return Rect.MinMaxRect(x - BandWidth / 2f, DashY - h, x + BandWidth / 2f, DashY + h);
+            float half = StallInner / 2f;
+            return Rect.MinMaxRect(door.SwitchLocal.x - StripDepth / 2f, door.SwitchLocal.y - half, door.SwitchLocal.x + StripDepth / 2f,
+                door.SwitchLocal.y + half);
         }
 
-        /// <summary>The dash's corridor (local): from the switch to the latch band, as tall as a player touching the switch anywhere.</summary>
+        /// <summary>The stall (local): its inside, from the strip's near edge back along the lane, StallInner wide.</summary>
+        public static Rect Stall(DoorLayout door)
+        {
+            float near = door.SwitchLocal.x + DashWay(door).x * StripDepth / 2f;
+            float far = near - DashWay(door).x * StallLength;
+            float half = StallInner / 2f;
+            return Rect.MinMaxRect(Mathf.Min(near, far), door.SwitchLocal.y - half, Mathf.Max(near, far), door.SwitchLocal.y + half);
+        }
+
+        /// <summary>The stall's two posts (local, solid): along the lane, either side of its inside.</summary>
+        public static List<Rect> StallPosts(DoorLayout door)
+        {
+            Rect s = Stall(door);
+            return new List<Rect>
+            {
+                Rect.MinMaxRect(s.xMin, s.yMax, s.xMax, s.yMax + StallPost),
+                Rect.MinMaxRect(s.xMin, s.yMin - StallPost, s.xMax, s.yMin),
+            };
+        }
+
+        /// <summary>The dash's corridor (local): what the player's body sweeps from the stall's far end into the doorway.</summary>
         public static Rect Corridor(DoorLayout door)
         {
-            Rect band = LatchBand(door);
-            float h = SwitchTouch + TimeField.PlayerRadius;
-            float near = SwitchSide(door) > 0f ? band.xMax : band.xMin;
-            return Rect.MinMaxRect(Mathf.Min(near, door.SwitchLocal.x), DashY - h, Mathf.Max(near, door.SwitchLocal.x), DashY + h);
+            Rect s = Stall(door);
+            float face = FaceX(door);
+            float half = StallInner / 2f;
+            float far = DashWay(door).x > 0f ? s.xMin : s.xMax;
+            return Rect.MinMaxRect(Mathf.Min(face, far), door.DoorLocal.y - half, Mathf.Max(face, far), door.DoorLocal.y + half);
         }
-
-        /// <summary>From the switch's centre line to the band's near edge, less the player's radius (the run with no switch in it).</summary>
-        private static float DashLength(DoorLayout door)
-        {
-            Rect band = LatchBand(door);
-            float near = SwitchSide(door) > 0f ? band.xMax : band.xMin;
-            return Mathf.Abs(door.SwitchLocal.x - near) - TimeField.PlayerRadius;
-        }
-
-        /// <summary>The longest dash (seconds at base speed): leaving the switch from its far side (touching it SwitchTouch off the line).</summary>
-        public static float LongDash(DoorLayout door) => DashLength(door) / TimeField.BasePlayerSpeed;
-
-        /// <summary>The shortest dash: leaving the switch on the line at its near edge.</summary>
-        public static float ShortDash(DoorLayout door) => (DashLength(door) - SwitchTouch) / TimeField.BasePlayerSpeed;
 
         /// <summary>
-        /// The door's base time for the dash: with Required boulders it stays open Slack(Required) times the longest dash, but
-        /// never so long that one boulder short stays open more than ShortShare of the shortest dash.
+        /// The dash's length (local units): from where the player's body leaves the switch strip (wherever it stood on it, the
+        /// stall keeps it on the lane) to where it first touches the doorway, running straight along the lane.
         /// </summary>
-        public static float BaseSeconds(DoorLayout door)
+        public static float DashLength(DoorLayout door)
         {
-            float ratio = TimeField.Dilation((Required - 1) * TimeField.BoulderMass) / TimeField.Dilation(Required * TimeField.BoulderMass);
-            float open = Mathf.Min(TimeField.Slack(Required) * LongDash(door), ShortShare * ShortDash(door) / ratio * 0.998f);
-            return open / TimeField.Dilation(Required * TimeField.BoulderMass);
+            Rect strip = Strip(door);
+            float leave = DashWay(door).x > 0f ? strip.xMax : strip.xMin; // the strip's edge nearest the booth
+            return Mathf.Abs(FaceX(door) - leave) - 2f * TimeField.PlayerRadius;
         }
+
+        /// <summary>The dash in seconds at base speed (the same from anywhere on the switch).</summary>
+        public static float DashSeconds(DoorLayout door) => DashLength(door) / TimeField.BasePlayerSpeed;
+
+        /// <summary>The temple field's slowing of a mass (TimeField.Dilation at FieldK).</summary>
+        public static float Dilation(float mass) => TimeField.Dilation(mass, FieldK);
+
+        /// <summary>How long a temple door stays open with a mass in its field.</summary>
+        public static float OpenSeconds(DoorLayout door, float mass) => BaseSeconds(door) * Dilation(mass);
+
+        /// <summary>The door's base time: with Required boulders it stays open DashSlack times the dash.</summary>
+        public static float BaseSeconds(DoorLayout door) => DashSlack * DashSeconds(door) / Dilation(Required * TimeField.BoulderMass);
 
         /// <summary>A circle against a rect: true when they overlap.</summary>
         private static bool Touches(Rect r, Vector2 c, float radius)
@@ -137,11 +172,11 @@ namespace Game.Cube
 
         /// <summary>
         /// How many boulders fit in a door's field (centres within FieldRadius less NearMargin of its threshold), on the floor,
-        /// clear of the booths and the dash's corridor (Corridor): a greedy count over a fine grid.
+        /// clear of the booths, the stalls and every dash's corridor: a greedy count over a fine grid.
         /// </summary>
         public static int FieldRoom(PhysicsTrialSpec spec, DoorLayout door) => FieldSpots(spec, door).Count;
 
-        /// <summary>The boulder spots FieldRoom counts (local): in the door's field, off the booths and the dash's corridor.</summary>
+        /// <summary>The boulder spots FieldRoom counts (local): in the door's field, off the booths, the stalls and the corridors.</summary>
         public static List<Vector2> FieldSpots(PhysicsTrialSpec spec, DoorLayout door)
         {
             float inner = TimeField.FieldRadius - PhysicsPlan.NearMargin;
@@ -153,10 +188,8 @@ namespace Game.Cube
                 {
                     var p = new Vector2(x, y);
                     if (Vector2.Distance(p, door.FieldLocal) > inner || !bounds.Contains(p)) continue;
+                    if (!ClearOfBooths(spec, p, 0.1f)) continue;
                     bool clear = true;
-                    foreach (TrialBoothSpec b in spec.Booths)
-                        if (Touches(TempleRoom.Grow(b.Footprint, 0.1f), p, Boulder.Radius)) clear = false;
-                    if (Touches(TempleRoom.Grow(Corridor(door), 0.05f), p, Boulder.Radius)) clear = false;
                     foreach (Vector2 q in placed)
                         if (Vector2.Distance(p, q) < 2f * Boulder.Radius + 0.1f) clear = false;
                     if (clear) placed.Add(p);
@@ -164,13 +197,28 @@ namespace Game.Cube
             return placed;
         }
 
+        /// <summary>True when a boulder at p stays off every booth, stall and corridor (by margin).</summary>
+        private static bool ClearOfBooths(PhysicsTrialSpec spec, Vector2 p, float margin)
+        {
+            foreach (TrialBoothSpec b in spec.Booths)
+            {
+                if (Touches(TempleRoom.Grow(b.Footprint, margin), p, Boulder.Radius)) return false;
+                if (!b.Layout.HasSwitch) continue;
+                if (Touches(TempleRoom.Grow(Corridor(b.Layout), margin / 2f), p, Boulder.Radius)) return false;
+                foreach (Rect post in StallPosts(b.Layout))
+                    if (Touches(TempleRoom.Grow(post, margin), p, Boulder.Radius)) return false;
+            }
+            return true;
+        }
+
         /// <summary>
-        /// Problems (empty when the temple is solvable as dealt): two booths, exactly Required shared boulders weighing only in
-        /// the booths (CountsOnlyOwnBoulders); each booth on the floor, clear of the altar, the lane in and the other booth;
-        /// the fields more than twice their radius apart; each door with its switch, a walk of at least PhysicsPlan's least,
-        /// open for the whole walk with Required boulders and shut at least 10% early with one short, its runway from the
-        /// switch clear of both booths; the boulders starting on the floor, outside every field, clear of the booths, the
-        /// switches and each other; and room in each field for Required boulders off the runway.
+        /// Problems (empty when the temple is solvable as dealt): two booths and exactly Required shared boulders; each booth on
+        /// the floor against a side wall, clear of the altar, the lane in and the other booth; each door facing across the
+        /// room with its switch strip in its stall, a dash of at least PhysicsPlan's least walk, open DashSlack times the dash
+        /// with Required boulders and shut at least 10% early with one short; its corridor (stall to doorway) clear of the other
+        /// booth, the other stall, the altar and the lane in; the fields more than twice their radius apart; the boulders
+        /// starting on the floor, outside every field, off every booth, stall and corridor, off the altar and the lane in, and
+        /// apart; and room in each field for Required boulders off the corridors.
         /// </summary>
         public static List<string> Problems(string what, PhysicsTrialSpec spec)
         {
@@ -178,7 +226,6 @@ namespace Game.Cube
             if (spec.Booths.Count != BoothCount) problems.Add($"{what}: {spec.Booths.Count} booths (want {BoothCount})");
             if (spec.Required != Required || spec.Boulders.Count != Required)
                 problems.Add($"{what}: {spec.Boulders.Count} boulders for {spec.Required} a door (want exactly {Required}, shared)");
-            if (!spec.CountsOnlyOwnBoulders) problems.Add($"{what}: the booths weigh any boulder");
             Rect floor = TempleRoom.Floor, altar = TempleRoom.AltarRect, lane = TempleRoom.EntryLane;
             Rect bounds = Boulder.ScreenBounds(Vector2.zero);
             for (int i = 0; i < spec.Booths.Count; i++)
@@ -186,33 +233,37 @@ namespace Game.Cube
                 TrialBoothSpec booth = spec.Booths[i];
                 DoorLayout d = booth.Layout;
                 string w = $"{what} booth {i}";
-                if (!TempleRoom.Grow(floor, -0.3f).Contains(booth.Footprint.min) || !TempleRoom.Grow(floor, -0.3f).Contains(booth.Footprint.max))
-                    problems.Add($"{w}: off the floor");
+                if (!floor.Contains(booth.Footprint.min) || !floor.Contains(booth.Footprint.max)) problems.Add($"{w}: off the floor");
                 if (booth.Footprint.Overlaps(TempleRoom.Grow(altar, 0.5f)) || booth.Footprint.Overlaps(lane)) problems.Add($"{w}: on the altar or the lane in");
                 if (d.Required != Required) problems.Add($"{w}: its door needs {d.Required}");
+                if (Mathf.Abs(d.Opening.y) > 1e-4f) problems.Add($"{w}: its door does not face across the room");
                 if (!d.HasSwitch)
                 {
                     problems.Add($"{w}: no switch");
                     continue;
                 }
-                if (!TempleRoom.Grow(floor, -1f).Contains(d.SwitchLocal)) problems.Add($"{w}: its switch is off the floor");
-                if (ShortDash(d) < PhysicsPlan.MinWalkSeconds) problems.Add($"{w}: the dash from its switch is only {ShortDash(d):0.00} s");
-                float open = TimeField.OpenSeconds(BaseSeconds(d), Required * TimeField.BoulderMass);
-                float shortOpen = TimeField.OpenSeconds(BaseSeconds(d), (Required - 1) * TimeField.BoulderMass);
-                if (open < LongDash(d)) problems.Add($"{w}: shut before the longest dash ends even with {Required} boulders");
-                if (shortOpen > ShortShare * ShortDash(d)) problems.Add($"{w}: one boulder short still nearly makes the shortest dash ({shortOpen:0.00} of {ShortDash(d):0.00} s)");
-                // The whole switch-touch corridor (every parallel dash) is clear of both booths, and meets the latch band.
-                Rect corridor = Corridor(d);
-                foreach (TrialBoothSpec other in spec.Booths)
-                    if (corridor.Overlaps(TempleRoom.Grow(other.Footprint, 0.05f))) problems.Add($"{w}: a dash from its switch can hit a booth");
-                Rect band = LatchBand(d);
-                if (band.yMin > DashY - SwitchTouch || band.yMax < DashY + SwitchTouch) problems.Add($"{w}: its latch band misses a dash off the line");
-                if (band.Overlaps(TempleRoom.Grow(booth.Footprint, TimeField.PlayerRadius))) problems.Add($"{w}: its latch band is behind the booth's wall");
-                for (int j = i + 1; j < spec.Booths.Count; j++)
+                Rect stall = Stall(d), corridor = Corridor(d);
+                if (!TempleRoom.Grow(floor, -0.2f).Contains(stall.min) || !TempleRoom.Grow(floor, -0.2f).Contains(stall.max))
+                    problems.Add($"{w}: its stall is off the floor");
+                if (!stall.Contains(d.SwitchLocal)) problems.Add($"{w}: its switch is not in its stall");
+                if (DashSeconds(d) < PhysicsPlan.MinWalkSeconds) problems.Add($"{w}: the dash is only {DashSeconds(d):0.00} s");
+                float open = OpenSeconds(d, Required * TimeField.BoulderMass);
+                float shortOpen = OpenSeconds(d, (Required - 1) * TimeField.BoulderMass);
+                if (open < DashSlack * DashSeconds(d) - 1e-4f) problems.Add($"{w}: open {open:0.00} s with {Required} boulders, under {DashSlack} times the dash");
+                if (shortOpen > ShortShare * DashSeconds(d)) problems.Add($"{w}: one boulder short still nearly makes the dash ({shortOpen:0.00} of {DashSeconds(d):0.00} s)");
+                if (corridor.Overlaps(altar) || corridor.Overlaps(lane)) problems.Add($"{w}: its dash crosses the altar or the lane in");
+                for (int j = 0; j < spec.Booths.Count; j++)
                 {
-                    if (Vector2.Distance(d.FieldLocal, spec.Booths[j].Layout.FieldLocal) <= 2f * TimeField.FieldRadius)
+                    if (j == i) continue;
+                    TrialBoothSpec other = spec.Booths[j];
+                    if (corridor.Overlaps(TempleRoom.Grow(other.Footprint, 0.05f))) problems.Add($"{w}: its dash can hit booth {j}");
+                    if (other.Layout.HasSwitch)
+                        foreach (Rect post in StallPosts(other.Layout))
+                            if (corridor.Overlaps(TempleRoom.Grow(post, 0.05f))) problems.Add($"{w}: its dash can hit booth {j}'s stall");
+                    if (j < i) continue;
+                    if (Vector2.Distance(d.FieldLocal, other.Layout.FieldLocal) <= 2f * TimeField.FieldRadius)
                         problems.Add($"{w}: its field overlaps booth {j}'s");
-                    if (TempleRoom.Grow(booth.Footprint, 0.5f).Overlaps(spec.Booths[j].Footprint)) problems.Add($"{w}: touches booth {j}");
+                    if (TempleRoom.Grow(booth.Footprint, 0.5f).Overlaps(other.Footprint)) problems.Add($"{w}: touches booth {j}");
                 }
                 int room = FieldRoom(spec, d);
                 if (room < Required) problems.Add($"{w}: room for only {room} boulders in its field off the run");
@@ -223,13 +274,10 @@ namespace Game.Cube
                 string w = $"{what} boulder {i}";
                 if (!bounds.Contains(b)) problems.Add($"{w}: off the floor");
                 foreach (TrialBoothSpec booth in spec.Booths)
-                {
                     if (Vector2.Distance(b, booth.Layout.FieldLocal) <= TimeField.FieldRadius + PhysicsPlan.FieldClearance)
                         problems.Add($"{w}: starts in a field");
-                    if (Touches(TempleRoom.Grow(booth.Footprint, 0.3f), b, Boulder.Radius)) problems.Add($"{w}: starts against a booth");
-                    if (booth.Layout.HasSwitch && Vector2.Distance(b, booth.Layout.SwitchLocal) < PhysicsPlan.MinGap) problems.Add($"{w}: on a switch");
-                }
-                if (Touches(altar, b, Boulder.Radius)) problems.Add($"{w}: on the altar");
+                if (!ClearOfBooths(spec, b, 0.3f)) problems.Add($"{w}: starts on a booth, a stall or a dash");
+                if (Touches(altar, b, Boulder.Radius) || Touches(lane, b, Boulder.Radius)) problems.Add($"{w}: on the altar or the lane in");
                 for (int j = i + 1; j < spec.Boulders.Count; j++)
                     if (Vector2.Distance(b, spec.Boulders[j]) < PhysicsPlan.BoulderSpacing) problems.Add($"{w}: too near boulder {j}");
             }
@@ -253,18 +301,18 @@ namespace Game.Cube
 
         public static string Stats(PhysicsTrialSpec spec)
         {
-            var walks = new List<string>();
-            float slack = float.MaxValue, early = float.MaxValue;
+            var dashes = new List<string>();
+            float open = float.MaxValue, early = float.MaxValue;
             foreach (TrialBoothSpec b in spec.Booths)
             {
                 DoorLayout d = b.Layout;
-                walks.Add($"{ShortDash(d):0.00}-{LongDash(d):0.00}");
-                slack = Mathf.Min(slack, TimeField.OpenSeconds(BaseSeconds(d), Required) / LongDash(d));
-                early = Mathf.Min(early, 1f - TimeField.OpenSeconds(BaseSeconds(d), Required - 1) / ShortDash(d));
+                dashes.Add($"{DashSeconds(d):0.00}");
+                open = Mathf.Min(open, OpenSeconds(d, Required));
+                early = Mathf.Min(early, 1f - OpenSeconds(d, Required - 1) / DashSeconds(d));
             }
             return $"{spec.Booths.Count} booths sharing {spec.Boulders.Count} boulders (each door needs {Required}), box lines {spec.Booths.Count * Required}, " +
-                   $"dashes {string.Join(" / ", walks)} s (on the line to the switch's far side), slack {slack:0.00} over the longest, " +
-                   $"one short shuts {early * 100f:0.#}% before the shortest, least drag {DragTiles(spec):0.#} tiles";
+                   $"dashes {string.Join(" / ", dashes)} s, open {open:0.00} s with {Required} ({DashSlack:0.##}x), " +
+                   $"one short shuts {early * 100f:0.#}% early, least drag {DragTiles(spec):0.#} tiles";
         }
 
         public static string Signature(PhysicsTrialSpec spec)

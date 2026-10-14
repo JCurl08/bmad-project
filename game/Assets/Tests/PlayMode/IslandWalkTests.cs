@@ -19,7 +19,8 @@ namespace Game.Cube.Tests
     /// broken span on the way stops the player; then with the gap-crosser* every island the model says the doorway reaches
     /// is walked to, each broken span mended by walking up to its gap and swinging at it. Any island the model claims but the
     /// walk cannot reach (or a span the walk crosses without the gap-crosser*) is reported with the seed, screen and spot.
-    /// Afterwards every mended span shows Mended and each lone doorway has its lookout sign (1.26; none since 4.12). 4.12: the
+    /// Afterwards every broken span is still a grey gap (4.25: the gap-crosser* hops it, there and back, building nothing)
+    /// and each lone doorway has its lookout sign (1.26; none since 4.12). 4.12: the
     /// walk lights and snuffs the lit network as it goes (it backtracks over planks), so the screen's lights must match the
     /// "light every plank" rule replayed over the walker's own crossings (PlankLights fed each leg that changed island).
     /// Game time runs one physics step per frame (Time.captureDeltaTime) and the player slows only for the last step of a
@@ -46,7 +47,7 @@ namespace Game.Cube.Tests
         private readonly List<string> failures = new List<string>();
         private string where;
         private bool aborted;
-        private int screens, doorways, islandsWalked, spansMended, spansBlocked, loneDoorways, planksLit, signs, crossings, snuffs;
+        private int screens, doorways, islandsWalked, spansHopped, spansBlocked, loneDoorways, planksLit, signs, crossings, snuffs;
 
         /// <summary>The rule replayed over the walker's own crossings of the current screen (4.12).</summary>
         private PlankLights expected;
@@ -110,7 +111,7 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest, Timeout(3600000)]
-        public IEnumerator EveryIslandScreen_Seeds1To50_EveryIslandTheModelClaims_IsWalkedTo_FromItsDoorways_SpansMendedBySwinging()
+        public IEnumerator EveryIslandScreen_Seeds1To50_EveryIslandTheModelClaims_IsWalkedTo_FromItsDoorways_SpansHoppedBySwinging()
         {
             yield return Load();
             Time.captureDeltaTime = Time.fixedDeltaTime;
@@ -141,7 +142,7 @@ namespace Game.Cube.Tests
                 mover.Speed = baseSpeed;
             }
             Debug.Log($"Island walk: {screens} island screens, {doorways} doorways, {islandsWalked} islands walked to, " +
-                      $"{spansMended} broken spans mended by a swing, {spansBlocked} stopped the player without the gap-crosser*, " +
+                      $"{spansHopped} broken-span hops by a swing, {spansBlocked} stopped the player without the gap-crosser*, " +
                       $"{loneDoorways} lone doorways with no plank, {signs} lookout signs, {crossings} plank crossings ({snuffs} of them " +
                       $"snuffed the network), {planksLit} planks left lit; {failures.Count} problems.");
             Assert.IsEmpty(failures, string.Join("\n", failures));
@@ -149,7 +150,7 @@ namespace Game.Cube.Tests
             Assert.Greater(snuffs, 0, "Walking back over a lit plank snuffed the network");
             Assert.AreEqual(replayLit, planksLit, "The screens leave lit exactly the planks the rule leaves lit");
             if (replayLit > 0) Assert.Greater(planksLit, 0, "Planks the replay leaves lit show lit on the screens");
-            Assert.Greater(spansMended, 0, "Spans were mended");
+            Assert.Greater(spansHopped, 0, "Spans were hopped");
         }
 
         private void Fail(string what)
@@ -233,15 +234,17 @@ namespace Game.Cube.Tests
                         if (!walked.Contains(i) && open.Any(s => layout.DoorIsland(s) >= 0))
                             failures.Add($"seed {seed} {spec.Screen}: island {i} (spot {layout.Spots[i]}) was walked to from no doorway");
             }
-            // What the walk did shows: every mended span changed colour, the network's lights are the rule replayed over the
-            // walker's own crossings (4.12), and each lone doorway's island has its lookout sign.
+            // What the walk did shows: every hopped span is still a grey gap (4.25: nothing built), the network's lights are the
+            // rule replayed over the walker's own crossings (4.12), and each lone doorway's island has its lookout sign.
             for (int k = 0; k < layout.Bridges.Count; k++)
             {
                 PlankLight light = screen.Lights[k];
-                if (swungAt.Contains(k) && light != PlankLight.Mended)
-                    failures.Add($"seed {seed} {spec.Screen}: broken plank {k} was mended but shows {light}");
-                if (crossed.Contains(k) && layout.Bridges[k].Broken && light != PlankLight.Mended)
-                    failures.Add($"seed {seed} {spec.Screen}: broken plank {k} was crossed but shows {light}");
+                if (layout.Bridges[k].Broken)
+                {
+                    BrokenSpan span = screen.Gaps.First(g => g.Bridge == k);
+                    if (light != PlankLight.Unlit || !screen.ShowsGrey(k) || !span.Solid.enabled)
+                        failures.Add($"seed {seed} {spec.Screen}: broken plank {k} ({(swungAt.Contains(k) ? "hopped" : "never hopped")}) shows {light}, grey {screen.ShowsGrey(k)}, gap solid {span.Solid.enabled}");
+                }
                 if (!layout.Bridges[k].Broken && light != expected[k])
                     failures.Add($"seed {seed} {spec.Screen}: whole plank {k} shows {light}, the rule over the walk says {expected[k]}");
                 if (!layout.Bridges[k].Broken && !layout.IsNetworkPlank(k) && light != PlankLight.Unlit)
@@ -284,35 +287,53 @@ namespace Game.Cube.Tests
                 if (visited.Contains(other) || !claimed.Contains(other)) continue;
                 if (b.Broken)
                 {
-                    BrokenSpan span = screen.Gaps.First(g => g.Bridge == k);
-                    if (!span.IsMended)
-                    {
-                        yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[other]), -1, centre, layout, $"up to the gap of plank {k}");
-                        if (layout.IslandAt(body.position - centre) == other)
-                        {
-                            Fail($"walked over the unmended gap of plank {k}");
-                            yield break;
-                        }
-                        if (!AtGapEdge(b, at, centre, layout, $"stopped walking up to the gap of plank {k}")) yield break;
-                        yield return new WaitForSeconds(attack.Cooldown + 0.02f);
-                        if (attack.TryAttack() < 0) Fail("the swing did not happen");
-                        yield return null;
-                        if (!span.IsMended)
-                        {
-                            Fail($"a swing of the gap-crosser* at {body.position - centre} (facing {mover.Facing}) did not mend plank {k}'s gap at {span.transform.position - (Vector3)centre}");
-                            yield break;
-                        }
-                        spansMended++;
-                        swungAt.Add(k);
-                    }
+                    yield return HopGap(screen, k, b, at, other, centre, layout);
+                    if (aborted) yield break;
                 }
                 yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[other]), other, centre, layout, $"over plank {k} to island {other}");
                 if (aborted) yield break;
                 crossed.Add(k);
                 yield return Explore(other, claimed, visited, gap, screen, centre, layout);
                 if (aborted) yield break;
+                if (b.Broken)
+                {
+                    // 4.25: nothing was built, so the way back needs a hop too.
+                    yield return HopGap(screen, k, b, other, at, centre, layout);
+                    if (aborted) yield break;
+                }
                 yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[at]), at, centre, layout, $"back over plank {k} to island {at}");
             }
+        }
+
+        /// <summary>
+        /// 4.25: walks from island from up to a broken plank's gap (it stops the player), swings the gap-crosser* and checks the
+        /// hop: the player lands just past the gap toward island to, on the plank, and the gap is still there.
+        /// </summary>
+        private IEnumerator HopGap(IslandScreen screen, int k, IslandBridge b, int from, int to, Vector2 centre, IslandLayout layout)
+        {
+            BrokenSpan span = screen.Gaps.First(g => g.Bridge == k);
+            yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[to]), -1, centre, layout, $"up to the gap of plank {k}");
+            if (layout.IslandAt(body.position - centre) == to)
+            {
+                Fail($"walked over the gap of plank {k}");
+                yield break;
+            }
+            if (!AtGapEdge(b, from, centre, layout, $"stopped walking up to the gap of plank {k}")) yield break;
+            int hops = span.Hops;
+            yield return new WaitForSeconds(attack.Cooldown + 0.02f);
+            if (attack.TryAttack() < 0) Fail("the swing did not happen");
+            yield return null;
+            if (span.Hops != hops + 1)
+            {
+                Fail($"a swing of the gap-crosser* at {body.position - centre} (facing {mover.Facing}) did not hop plank {k}'s gap at {span.transform.position - (Vector3)centre}");
+                yield break;
+            }
+            Vector2 axis = ((Vector2)(layout.Spots[to] - layout.Spots[from])).normalized;
+            float past = Vector2.Dot(body.position - centre - b.Gap.center, axis);
+            if (past < IslandLayout.GapLength / 2f + TimeField.PlayerRadius - 0.02f) Fail($"the hop over plank {k} landed {past:0.00} past the gap's middle");
+            if (!span.Solid.enabled) Fail($"the hop over plank {k} built something: its gap no longer blocks");
+            spansHopped++;
+            swungAt.Add(k);
         }
 
         /// <summary>

@@ -115,16 +115,24 @@ namespace Game.Cube
             /// <summary>
             /// Boulders for a screen (PlaceBoulders) with the doors' rolled counts where they fit; on a screen too
             /// cramped for them, the counts come down until they do (spares first, then the largest requirement, never
-            /// below one boulder). The adjusted specs come back in a copy. False only if even one boulder per door fails.
+            /// below one boulder). On a screen whose doors share their boulders (4.25, DoorCount over one) the spares are 0.
+            /// The adjusted specs come back in a copy. False only if even one boulder per door fails.
             /// </summary>
             private bool FitBoulders(ScreenAddress screen, List<TimedDoorSpec> specs, PhysicsTrialSpec trial, List<ScreenMark> own,
                 out List<TimedDoorSpec> adjusted, out Dictionary<int, List<Vector2>> placed, out List<Vector2> trialBoulders)
             {
                 adjusted = new List<TimedDoorSpec>(specs);
+                if (DoorCount(screen, adjusted, trial) > 1)
+                    for (int i = 0; i < adjusted.Count; i++)
+                        if (adjusted[i].Screen == screen && adjusted[i].Layout != null && adjusted[i].Spare > 0)
+                            adjusted[i] = adjusted[i].WithCounts(adjusted[i].Required, 0);
+                bool shared = DoorCount(screen, adjusted, trial) > 1;
                 while (true)
                 {
                     var rng = new SeededRng(ScreenSeed(screen, trial != null ? 3 : 2), RngStream);
                     if (PlaceBoulders(screen, adjusted, trial, own, rng, out placed, out trialBoulders)) return true;
+                    // 4.25 review: a shared screen's pool is fixed at SharedBoulders, so lowering a requirement cannot help.
+                    if (shared) return false;
                     int spare = -1, largest = -1;
                     for (int i = 0; i < adjusted.Count; i++)
                     {
@@ -227,9 +235,10 @@ namespace Game.Cube
                     var spec = new PhysicsTrialSpec(screen, new[] { new TrialBoothSpec(aRect, a), new TrialBoothSpec(bRect, b) },
                         null, TrialRequired);
                     if (!FitBoulders(screen, specs, spec, marks, out adjusted, out doorBoulders, out List<Vector2> trialBoulders)) continue;
+                    // The trial may not lower a door's requirement (4.25: sharing the screen's boulders drops its spare, which is fine).
                     bool costly = false;
                     for (int i = 0; i < adjusted.Count; i++)
-                        if (adjusted[i].Required != baseline[i].Required || adjusted[i].Spare != baseline[i].Spare) costly = true;
+                        if (adjusted[i].Required != baseline[i].Required) costly = true;
                     if (costly) continue;
                     // Every door on this screen still has room near it with the booths there.
                     var grid = new ReachGrid(ctx.Blocked, booths);
@@ -259,9 +268,10 @@ namespace Game.Cube
             }
 
             /// <summary>
-            /// Seeded boulder spots for every door on a screen (required + spare each) and, with a trial, its shared
-            /// boulders: off the lanes, out of walls and booths, outside every time field, clear of interactables and
-            /// apart, each reachable to its door (both booths for the trial's). False if any falls short.
+            /// Seeded boulder spots for a screen: off the lanes, out of walls and booths, outside every time field, clear of
+            /// interactables and apart. With one timed door on the screen, its required + spare, each reachable to it. With more
+            /// (4.25: the doors and the trial's booths share them), exactly SharedBoulders, each reachable to every door and booth
+            /// there, built with the trial when it is on the screen, else with the screen's first door. False if any falls short.
             /// </summary>
             private bool PlaceBoulders(ScreenAddress screen, List<TimedDoorSpec> specs, PhysicsTrialSpec trial,
                 List<ScreenMark> own, SeededRng rng, out Dictionary<int, List<Vector2>> doorBoulders, out List<Vector2> trialBoulders)
@@ -324,6 +334,28 @@ namespace Game.Cube
                     }
                     if (picked.Count < count) ok = false;
                     return picked;
+                }
+
+                if (DoorCount(screen, specs, trial) > 1)
+                {
+                    // 4.25: the screen's boulders are shared by every door and booth on it, each one reachable to them all.
+                    var reaches = new List<bool[]>();
+                    int first = -1;
+                    for (int i = 0; i < specs.Count; i++)
+                    {
+                        TimedDoorSpec s = specs[i];
+                        if (s.Screen != screen || s.Layout == null) continue;
+                        reaches.Add(grid.ReachableTo(s.Layout));
+                        // 4.25 review: the pool goes with a door that is built (one with its switch: PhysicsFace builds no other).
+                        if (first < 0 || (!specs[first].Layout.HasSwitch && s.Layout.HasSwitch)) first = i;
+                        doorBoulders[i] = new List<Vector2>();
+                    }
+                    if (trial != null)
+                        foreach (TrialBoothSpec b in trial.Booths) reaches.Add(grid.ReachableTo(b.Layout));
+                    List<Vector2> pool = Pick(SharedBoulders, reaches);
+                    if (trial != null) trialBoulders = pool;
+                    else if (first >= 0) doorBoulders[first] = pool;
+                    return ok;
                 }
 
                 for (int i = 0; i < specs.Count; i++)

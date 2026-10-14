@@ -262,14 +262,16 @@ namespace Game.Cube.Tests
                 Vector2 v = HudScale.VirtualSize(s.x, s.y);
                 var screen = new Rect(0f, 0f, v.x, v.y);
                 CubeDebug.OverlayBars(v.x, v.y, out Rect top, out Rect bottom);
+                Rect statusColumn = SideHud.Layout(v.x, v.y).Left;
                 foreach (int hearts in new[] { 3, 5, 10 })
                     foreach (bool rewards in new[] { false, true })
                         foreach (bool dice in new[] { false, true })
-                        {
-                            Rect panel = CombatHud.PanelRect(v.x, v.y, hearts, rewards, dice);
-                            Assert.IsTrue(Inside(screen, panel), $"{s}: the combat panel {panel} is on screen");
-                            Assert.IsFalse(panel.Overlaps(top) || panel.Overlaps(bottom), $"{s}: the combat panel clears the bars");
-                        }
+                            foreach (Rect panel in CombatHud.StatusLayout(statusColumn, hearts, CombatHud.BareHandsLabel, rewards ? "Keys: 1 | Run boosts: +speed" : null,
+                                         dice ? 6 : 0, null).All())
+                            {
+                                Assert.IsTrue(Inside(screen, panel), $"{s}: the status column's {panel} is on screen");
+                                Assert.IsFalse(panel.Overlaps(top) || panel.Overlaps(bottom), $"{s}: the status column clears the bars");
+                            }
                 Rect box = DialogueBox.PanelRect(v.x, v.y);
                 Assert.IsTrue(Inside(screen, box), $"{s}: the dialogue box {box}");
                 Assert.IsFalse(box.Overlaps(top), $"{s}: the box clears the top bar");

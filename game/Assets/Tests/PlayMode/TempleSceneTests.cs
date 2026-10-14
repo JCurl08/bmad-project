@@ -791,31 +791,60 @@ namespace Game.Cube.Tests
 
         // ---------------------------------------------------------------- Physics' booths
 
-        /// <summary>The direction of a door's dash: from its switch toward its latch band.</summary>
-        private static Facing DashWay(DoorLayout layout) =>
-            TempleBooths.LatchBand(layout).center.x < layout.SwitchLocal.x ? Facing.West : Facing.East;
+        /// <summary>The key of a door's dash: from its stall toward its booth.</summary>
+        private static Facing DashKey(DoorLayout layout) => TempleBooths.DashWay(layout).x < 0f ? Facing.West : Facing.East;
 
-        /// <summary>Stands the player on a door's switch (the real keys: along the floor below the dash line, then up to it).</summary>
-        private IEnumerator ToSwitch(TempleView room, DoorLayout layout, float above = 0f)
+        /// <summary>
+        /// Stands the player on a door's switch strip: set down just outside its stall's far end on the lane, then walked in
+        /// with the real keys (toward the booth) until the strip is pressed, offset across the lane by across.
+        /// </summary>
+        private IEnumerator ToSwitch(TempleView room, DoorLayout layout, TimedDoorGate door, float across = 0f)
         {
-            Vector2 sw = room.Centre + layout.SwitchLocal;
-            yield return WalkToward(new Vector2(body.position.x, room.Centre.y + Lane), 0.3f);
-            yield return WalkToward(new Vector2(sw.x, room.Centre.y + Lane), 0.3f);
-            yield return WalkToward(sw + new Vector2(0f, above), 0.15f);
+            Rect stall = TempleBooths.Stall(layout);
+            Vector2 way = TempleBooths.DashWay(layout);
+            float outside = way.x < 0f ? stall.xMax + 0.9f : stall.xMin - 0.9f;
+            yield return PutPlayerAt(room.Centre + new Vector2(outside, layout.DoorLocal.y + across));
+            yield return PhysicsSteps(2);
+            int presses = door.Switch.Presses;
+            yield return this.HoldUntil(KeyFor(keyboard, DashKey(layout)), () => door.Switch.Presses > presses, 3f);
+            yield return PhysicsSteps(2);
+            Assert.Greater(door.Switch.Presses, presses, "walked onto the switch strip");
+            Assert.IsTrue(door.IsAjar, "and it swings the door open");
         }
 
-        /// <summary>The dash, with the real keys: held toward the latch band until the door latches (or the time is long up).</summary>
+        /// <summary>The dash, with the real keys: held toward the booth until the player gets in (or the time is long up).</summary>
         private IEnumerator Dash(DoorLayout layout, TimedDoorGate door, float seconds = 4f)
         {
-            yield return this.HoldUntil(KeyFor(keyboard, DashWay(layout)), () => door.IsOpen, seconds);
+            int passes = door.Passes;
+            yield return this.HoldUntil(KeyFor(keyboard, DashKey(layout)), () => door.Passes > passes, seconds);
             yield return PhysicsSteps(2);
         }
 
-        /// <summary>The players' lane along the bottom of the room (local y), under every boulder and corridor.</summary>
-        private const float Lane = -6.4f;
+        /// <summary>Walks back out of a booth with the real keys and waits for its door to shut on its timer (4.25: no latch).</summary>
+        private IEnumerator OutAndShut(DoorLayout layout, TimedDoorGate door)
+        {
+            int closings = door.Closings;
+            Facing back = DashKey(layout) == Facing.West ? Facing.East : Facing.West;
+            yield return this.HoldUntil(KeyFor(keyboard, back), () => !door.IsHeld, 3f);
+            yield return this.HoldUntil(KeyFor(keyboard, back), () => false, 0.4f);
+            float end = Time.time + 6f;
+            while (door.Closings == closings && Time.time < end) yield return null;
+            Assert.Greater(door.Closings, closings, "the door times out once the player has left");
+            Assert.IsFalse(door.IsOpen, "it never latches open");
+            Assert.IsTrue(door.Solid.enabled, "and it is shut again");
+        }
+
+        /// <summary>Three boulders in a door's field, set down at spots off every dash.</summary>
+        private IEnumerator ThreeInTheField(TempleView room, PhysicsTrial booths, DoorLayout layout, int count = 3)
+        {
+            List<Vector2> spots = TempleBooths.FieldSpots(room.Puzzle.Booths, layout);
+            for (int b = 0; b < booths.Boulders.Count; b++)
+                booths.Boulders[b].Teleport(b < count ? room.Centre + spots[b * spots.Count / 3] : room.Centre + new Vector2(0f, -5f));
+            yield return PhysicsSteps(2);
+        }
 
         [UnityTest]
-        public IEnumerator ThePhysicsTemple_LendsItsGrip_AndEachBoothOpensWithThreeBoulders_AndADash()
+        public IEnumerator ThePhysicsTemple_LendsItsGrip_EachBoothCountsOnlyWhenRunIntoInTime_AndItsDoorTimesOutAfter()
         {
             yield return Load();
             yield return Rebuild(7, true);
@@ -826,9 +855,10 @@ namespace Game.Cube.Tests
             TempleView room = temples.Current;
             PhysicsTrial booths = room.Booths;
             Assert.IsNotNull(booths);
+            Assert.IsTrue(booths.TempleRules, "the temple's doors time out instead of latching");
             Assert.IsTrue(mitt.TempleGrip && mitt.IsEquipped, "the temple lends its grip");
             Assert.AreEqual(MassMitt.TempleGrabText, mitt.HudText, "the HUD says how to grab, not the mitt's name");
-            Assert.AreEqual(2, room.LatchBands.Count, "a latch band per door");
+            Assert.AreEqual(4, room.StallPosts.Count, "two stall posts per door");
             Assert.IsNotEmpty(room.GetComponentsInChildren<SpriteRenderer>().Where(r => r.name.StartsWith("Dash ")), "the dash is drawn on the floor");
 
             // One boulder grabbed with [Interact] and dragged a little, with the real keys.
@@ -848,13 +878,31 @@ namespace Game.Cube.Tests
                 TimedDoorGate door = booths.Doors[i];
                 DoorLayout layout = room.Puzzle.Booths.Booths[i].Layout;
                 Assert.AreEqual(TempleBooths.BaseSeconds(layout), door.BaseSeconds, 1e-4f, "the door's time is the dash's");
-                List<Vector2> spots = TempleBooths.FieldSpots(room.Puzzle.Booths, layout);
-                for (int b = 0; b < 3; b++) booths.Boulders[b].Teleport(room.Centre + spots[b * spots.Count / 3]);
-                yield return PhysicsSteps(2);
+                Assert.AreEqual(TempleBooths.FieldK, door.DilationPerBoulder, 1e-4f, "the temple's stronger field");
+                Assert.IsFalse(door.Latches);
+                yield return ThreeInTheField(room, booths, layout);
                 Assert.AreEqual(3f, door.MassInField, 0.01f, "three boulders in the field");
-                yield return ToSwitch(room, layout);
+                Assert.GreaterOrEqual(door.OpenSecondsNow, 1.25f * TempleBooths.DashSeconds(layout) - 1e-3f, "open a quarter longer than the dash");
+                yield return ToSwitch(room, layout, door);
                 yield return Dash(layout, door);
-                Assert.IsTrue(door.IsOpen, $"booth {i}: reached while open, latched");
+                Assert.AreEqual(1, door.Passes, $"booth {i}: run into while open");
+                Assert.IsTrue(booths.IsBoothDone(i), $"booth {i}: done");
+                Assert.IsFalse(door.IsOpen, "never latched");
+                Assert.IsTrue(door.IsAjar, "held open while the player stands in it");
+                if (i == 0)
+                {
+                    // 4.25 review: well inside the booth, idle (the body asleep, so no trigger Stay arrives) for longer than
+                    // the door's time: it never shuts on the player, who then walks out.
+                    yield return this.HoldUntil(KeyFor(keyboard, DashKey(layout)), () => false, 0.3f);
+                    yield return PhysicsSteps(2);
+                    body.Sleep();
+                    yield return new WaitForSeconds(2.5f);
+                    Assert.Greater(2.5f, door.OpenSecondsNow, "idled longer than the door's open time");
+                    Assert.IsTrue(door.IsAjar, "still open with the player idle inside");
+                    Assert.IsFalse(door.Solid.enabled, "and not solid");
+                    Assert.IsTrue(door.PlayerInDoorway());
+                }
+                yield return OutAndShut(layout, door);
             }
             Assert.IsTrue(booths.IsComplete);
             Assert.IsTrue(room.IsSolved);
@@ -865,10 +913,10 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
-        public IEnumerator APhysicsDash_FromTheSwitchsOuterEdge_StillMakesIt_WithThreeBoulders()
+        public IEnumerator APhysicsDash_FromTheStripsEdge_StillMakesIt_WithThreeBoulders()
         {
-            // 4.14 review: touching the switch well off the line (its outer edge, 0.8 above) and dashing straight on still
-            // meets the latch band in time, never a booth.
+            // Standing on the strip's edge (as far across the lane as the stall lets a player stand), the straight dash is just
+            // as long and still makes it in time.
             yield return Load();
             yield return Rebuild(7, true);
             FaceId face = world.Model.FaceOf(Theme.Physics);
@@ -879,28 +927,18 @@ namespace Game.Cube.Tests
             {
                 TimedDoorGate door = booths.Doors[i];
                 DoorLayout layout = room.Puzzle.Booths.Booths[i].Layout;
-                List<Vector2> spots = TempleBooths.FieldSpots(room.Puzzle.Booths, layout);
-                for (int b = 0; b < 3; b++) booths.Boulders[b].Teleport(room.Centre + spots[b * spots.Count / 3]);
-                yield return PhysicsSteps(2);
-                float above = 0.55f * K; // 0.5K or more off the line, still on the switch (SwitchTouch is 0.8K)
-                Assert.Less(above, TempleBooths.SwitchTouch);
-                Vector2 sw = room.Centre + layout.SwitchLocal;
-                yield return WalkToward(new Vector2(body.position.x, room.Centre.y + Lane), 0.3f);
-                yield return WalkToward(new Vector2(sw.x, room.Centre.y + Lane), 0.3f);
-                int presses = door.Switch.Presses;
-                yield return PutPlayerAt(sw + new Vector2(0f, above));
-                yield return PhysicsSteps(2);
-                Assert.Greater(door.Switch.Presses, presses, "touching the switch at its outer edge presses it");
-                Assert.IsTrue(door.IsAjar, "and opens the door");
+                yield return ThreeInTheField(room, booths, layout);
+                float across = (i == 0 ? 1f : -1f) * (TempleBooths.StallInner / 2f - TimeField.PlayerRadius - 0.02f);
+                yield return ToSwitch(room, layout, door, across);
                 yield return Dash(layout, door);
-                Assert.IsTrue(door.IsOpen, $"booth {i}: a dash {above:0.00} off the line still latches it");
-                Assert.Greater(body.position.y - room.Centre.y, TempleBooths.DashY + 0.4f, "and it was run off the line");
+                Assert.AreEqual(1, door.Passes, $"booth {i}: a dash {across:0.00} off the lane's middle still gets in");
+                yield return OutAndShut(layout, door);
             }
             Assert.IsTrue(room.IsSolved);
         }
 
         [UnityTest]
-        public IEnumerator APhysicsBooth_StaysShutForADash_WithOnlyTwoBoulders()
+        public IEnumerator APhysicsBooth_ShutsBeforeTheDashEnds_WithOnlyTwoBoulders()
         {
             yield return Load();
             yield return Rebuild(7, true);
@@ -908,17 +946,20 @@ namespace Game.Cube.Tests
             yield return WalkIn(face);
             TempleView room = temples.Current;
             PhysicsTrial booths = room.Booths;
-            TimedDoorGate door = booths.Doors[0];
-            DoorLayout layout = room.Puzzle.Booths.Booths[0].Layout;
-            List<Vector2> spots = TempleBooths.FieldSpots(room.Puzzle.Booths, layout);
-            booths.Boulders[0].Teleport(room.Centre + spots[0]);
-            booths.Boulders[1].Teleport(room.Centre + spots[spots.Count - 1]);
-            yield return PhysicsSteps(2);
-            Assert.AreEqual(2f, door.MassInField, 0.01f);
-            yield return ToSwitch(room, layout);
-            yield return Dash(layout, door, 3f);
-            Assert.IsFalse(door.IsOpen, "one boulder short: shut before the dash ends, even from the switch's near edge on the line");
-            Assert.GreaterOrEqual(door.Closings, 1);
+            for (int i = 0; i < booths.Doors.Count; i++)
+            {
+                TimedDoorGate door = booths.Doors[i];
+                DoorLayout layout = room.Puzzle.Booths.Booths[i].Layout;
+                yield return ThreeInTheField(room, booths, layout, 2);
+                Assert.AreEqual(2f, door.MassInField, 0.01f);
+                yield return ToSwitch(room, layout, door);
+                yield return Dash(layout, door, 3f);
+                Assert.AreEqual(0, door.Passes, $"booth {i}: one boulder short, shut before the dash ends");
+                Assert.GreaterOrEqual(door.Closings, 1);
+                Assert.IsFalse(booths.IsBoothDone(i));
+                Assert.IsTrue(door.Solid.enabled, "the door is shut in the player's face");
+            }
+            Assert.IsFalse(room.IsSolved);
         }
 
         /// <summary>
@@ -945,14 +986,26 @@ namespace Game.Cube.Tests
             Assert.Less(Vector2.Distance(boulder.Position, c + targetLocal), 0.6f, "the boulder stands where it was taken");
         }
 
-        /// <summary>Three spots in a field a boulder can be carried up to from the lane: columns apart, none above a booth.</summary>
+        /// <summary>The players' lane along the bottom of the room (local y), under every boulder and dash.</summary>
+        private const float Lane = -6.4f;
+
+        /// <summary>
+        /// Three spots in a field a boulder can be carried up to from the bottom lane: columns apart, with nothing solid (a booth
+        /// or a stall post) between the lane and the spot.
+        /// </summary>
         private static List<Vector2> CarrySpots(PhysicsTrialSpec spec, DoorLayout layout)
         {
+            var solids = new List<Rect>();
+            foreach (TrialBoothSpec b in spec.Booths)
+            {
+                solids.Add(b.Footprint);
+                solids.AddRange(TempleBooths.StallPosts(b.Layout));
+            }
             var chosen = new List<Vector2>();
             foreach (Vector2 p in TempleBooths.FieldSpots(spec, layout).OrderByDescending(p => p.y))
             {
-                bool overBooth = spec.Booths.Any(b => p.x > b.Footprint.xMin - 0.7f && p.x < b.Footprint.xMax + 0.7f && p.y > b.Footprint.yMin - 1f);
-                if (overBooth || p.y < Lane + 3f || chosen.Any(q => Mathf.Abs(q.x - p.x) < 1.35f)) continue;
+                bool blocked = solids.Any(r => r.xMax > p.x - 1.4f && r.xMin < p.x + 1.4f && r.yMin < p.y + 0.7f);
+                if (blocked || p.y < Lane + 1.6f || chosen.Any(q => Vector2.Distance(q, p) < 1.3f)) continue;
                 chosen.Add(p);
                 if (chosen.Count == 3) break;
             }
@@ -980,9 +1033,10 @@ namespace Game.Cube.Tests
                 for (int b = 0; b < 3; b++) yield return Drag(room, mitt, order[b], spots[b]);
                 yield return PhysicsSteps(2);
                 Assert.AreEqual(3f, door.MassInField, 0.01f, $"booth {i}: all three dragged into its field");
-                yield return ToSwitch(room, layout);
+                yield return ToSwitch(room, layout, door);
                 yield return Dash(layout, door);
-                Assert.IsTrue(door.IsOpen, $"booth {i}: opened by the dash");
+                Assert.AreEqual(1, door.Passes, $"booth {i}: got in on the dash");
+                yield return OutAndShut(layout, door);
             }
             Assert.IsTrue(room.IsSolved, "both booths: the temple is solved");
             yield return MagicAndGem(room, face, Theme.Physics);
@@ -1001,9 +1055,9 @@ namespace Game.Cube.Tests
             TempleView room = temples.Current;
             Boulder boulder = room.Booths.Boulders[0];
             // The middle of the floor, clear of the booths and the other boulders.
-            room.Booths.Boulders[1].Teleport(room.Centre + new Vector2(-9f, -5.5f));
-            room.Booths.Boulders[2].Teleport(room.Centre + new Vector2(9f, -5.5f));
-            Vector2 middle = room.Centre + new Vector2(0f, -2.5f);
+            room.Booths.Boulders[1].Teleport(room.Centre + new Vector2(-5f, 5.5f));
+            room.Booths.Boulders[2].Teleport(room.Centre + new Vector2(5f, 5.5f));
+            Vector2 middle = room.Centre + new Vector2(0f, -4.2f); // 4.25: below the booths and their dashes, clear of the doorway
             var ways = new[]
             {
                 new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(1, 0), new Vector2Int(1, -1),

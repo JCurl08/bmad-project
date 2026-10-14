@@ -162,7 +162,13 @@ namespace Game.Cube.Tests
                 {
                     Assert.That(d.Required, Is.InRange(1, PhysicsPlan.MaxRequiredCap), d.ToString());
                     Assert.That(d.Spare, Is.InRange(0, 1), d.ToString());
-                    Assert.AreEqual(d.Required + d.Spare, d.Boulders.Count, $"seed {seed}: {d} brings its own boulders");
+                    if (a.SharesBoulders(d.Screen))
+                    {
+                        // 4.25: a screen with more than one timed door holds exactly three, shared by every door there.
+                        Assert.AreEqual(0, d.Spare, $"seed {seed}: {d} shares its screen's boulders");
+                        Assert.AreEqual(PhysicsPlan.SharedBoulders, a.BouldersOn(d.Screen).Count, $"seed {seed}: {d.Screen} holds three shared boulders");
+                    }
+                    else Assert.AreEqual(d.Required + d.Spare, d.Boulders.Count, $"seed {seed}: {d} brings its own boulders");
                     Assert.AreEqual(d.Required, d.Layout.Required);
                     requiredSeen.Add(d.Required);
                 }
@@ -208,12 +214,21 @@ namespace Game.Cube.Tests
         [Test]
         public void SweepRule_FlagsADoorWithTooFewReachableBoulders()
         {
-            PhysicsPlan plan = Plan(1, Library(), Catalog(), out _, out _, out _);
-            Assert.IsEmpty(plan.LayoutProblems());
-            TimedDoorSpec door = plan.Doors[0];
-            PhysicsPlan short1 = plan.WithDoor(0, door.WithBoulders(door.Boulders.Take(door.Required - 1).ToList()));
-            List<string> problems = short1.LayoutProblems();
-            Assert.IsTrue(problems.Any(x => x.Contains("reachable boulders") && x.Contains(door.Screen.ToString())), string.Join("; ", problems));
+            ModuleLibrary library = Library();
+            ItemCatalog catalog = Catalog();
+            for (int seed = 1; seed <= Seeds; seed++)
+            {
+                PhysicsPlan plan = Plan(seed, library, catalog, out _, out _, out _);
+                Assert.IsEmpty(plan.LayoutProblems());
+                int index = plan.Doors.ToList().FindIndex(d => !plan.SharesBoulders(d.Screen) && d.Boulders.Count > 0);
+                if (index < 0) continue;
+                TimedDoorSpec door = plan.Doors[index];
+                PhysicsPlan short1 = plan.WithDoor(index, door.WithBoulders(door.Boulders.Take(door.Required - 1).ToList()));
+                List<string> problems = short1.LayoutProblems();
+                Assert.IsTrue(problems.Any(x => x.Contains("reachable boulders") && x.Contains(door.Screen.ToString())), string.Join("; ", problems));
+                return;
+            }
+            Assert.Fail("No seed has a timed door alone on its screen");
         }
 
         [Test]
@@ -222,18 +237,19 @@ namespace Game.Cube.Tests
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
             PhysicsPlan plan = Plan(1, library, catalog, out _, out _, out var moduleAt);
-            TimedDoorSpec door = plan.Doors[0];
+            int first = plan.Doors.ToList().FindIndex(d => d.Boulders.Count > 0);
+            TimedDoorSpec door = plan.Doors[first];
 
             // In the field (beside the threshold): the door would start dilated.
             var inField = door.Boulders.ToList();
             inField[0] = door.Layout.FieldLocal + new Vector2(0f, door.Layout.Opening.y * 1.2f);
-            List<string> a = plan.WithDoor(0, door.WithBoulders(inField)).LayoutProblems();
+            List<string> a = plan.WithDoor(first, door.WithBoulders(inField)).LayoutProblems();
             Assert.IsTrue(a.Any(x => x.Contains("starts in the time field")), string.Join("; ", a));
 
             // In a wall: inside the door's own alcove.
             var inWall = door.Boulders.ToList();
             inWall[0] = door.Layout.DoorLocal - door.Layout.Opening * 1.2f;
-            List<string> b = plan.WithDoor(0, door.WithBoulders(inWall)).LayoutProblems();
+            List<string> b = plan.WithDoor(first, door.WithBoulders(inWall)).LayoutProblems();
             Assert.IsTrue(b.Any(x => x.Contains("inside a wall")), string.Join("; ", b));
 
             // On another face's interactable: the first seed whose door screen holds one.
@@ -243,7 +259,7 @@ namespace Game.Cube.Tests
                 for (int i = 0; i < p.Doors.Count; i++)
                 {
                     ScreenMark mark = p.OtherMarks(p.Doors[i].Screen).FirstOrDefault(m => !m.What.Contains("slot"));
-                    if (mark.What == null) continue;
+                    if (mark.What == null || p.Doors[i].Boulders.Count == 0) continue;
                     var onIt = p.Doors[i].Boulders.ToList();
                     onIt[0] = mark.Local;
                     List<string> c = p.WithDoor(i, p.Doors[i].WithBoulders(onIt)).LayoutProblems();
@@ -255,24 +271,36 @@ namespace Game.Cube.Tests
         }
 
         [Test]
-        public void SweepRule_NonTrialBoulders_CannotSatisfyATrialBooth()
+        public void SharedBoulders_AScreenWithSeveralTimedDoors_HoldsExactlyThree_EachReachingEveryDoor()
         {
+            // 4.25: any boulder counts for any timed door near it, so a screen with more than one timed door (its doors and the
+            // trial's booths) holds exactly three boulders, shared; every one of them can be dragged to every door there.
             ModuleLibrary library = Library();
             ItemCatalog catalog = Catalog();
+            int shared = 0, withDoorAndTrial = 0;
             for (int seed = 1; seed <= Seeds; seed++)
             {
                 PhysicsPlan plan = Plan(seed, library, catalog, out _, out _, out _);
-                Assert.IsTrue(plan.Trial.CountsOnlyOwnBoulders, $"seed {seed}: booths weigh only the trial's boulders");
-                if (!plan.Doors.Any(d => d.Screen == plan.Trial.Screen)) continue;
-                Assert.IsEmpty(plan.LayoutProblems());
-                // Booths that weighed every boulder: the screen's door boulders could stand in for the shared ones.
+                Assert.IsTrue(plan.SharesBoulders(plan.Trial.Screen), $"seed {seed}: the trial's two booths share their screen's boulders");
+                foreach (ScreenAddress screen in plan.Doors.Select(d => d.Screen).Append(plan.Trial.Screen).Distinct())
+                {
+                    if (!plan.SharesBoulders(screen)) continue;
+                    shared++;
+                    Assert.AreEqual(PhysicsPlan.SharedBoulders, plan.BouldersOn(screen).Count, $"seed {seed}: {screen}");
+                    Assert.IsTrue(plan.Doors.Where(d => d.Screen == screen).All(d => d.Required <= PhysicsPlan.SharedBoulders && d.Spare == 0));
+                    // 4.25 review: the pool is built with a door that is built (PhysicsPlan.Builds), or with the trial.
+                    Assert.IsTrue(plan.Doors.Where(d => d.Screen == screen && d.Boulders.Count > 0).All(PhysicsPlan.Builds), $"seed {seed}: {screen}'s pool goes with a built door");
+                    if (plan.Doors.Any(d => d.Screen == screen) && screen == plan.Trial.Screen) withDoorAndTrial++;
+                }
+                // The rule: a shared screen one boulder short is flagged.
+                if (seed != 1) continue;
                 PhysicsTrialSpec t = plan.Trial;
-                var open = new PhysicsTrialSpec(t.Screen, t.Booths, t.Boulders, t.Required, false);
-                List<string> problems = plan.WithTrial(open).LayoutProblems();
-                Assert.IsTrue(problems.Any(x => x.Contains("non-trial boulders can dilate it")), $"seed {seed}: {string.Join("; ", problems)}");
-                return;
+                var fewer = new PhysicsTrialSpec(t.Screen, t.Booths, t.Boulders.Take(2).ToList(), t.Required);
+                List<string> problems = plan.WithTrial(fewer).LayoutProblems();
+                Assert.IsTrue(problems.Any(x => x.Contains("shared by its")), string.Join("; ", problems));
             }
-            Assert.Fail("No seed puts a timed door on the trial screen");
+            Assert.Greater(shared, Seeds, "every seed's trial screen, and more");
+            TestContext.WriteLine($"{shared} shared screens over {Seeds} seeds, {withDoorAndTrial} with a door beside the trial");
         }
 
         [Test]
@@ -422,7 +450,8 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(model.FaceOf(Theme.Physics), trial.Screen.Face);
                 Assert.AreEqual(PhysicsPlan.TrialBooths, trial.Booths.Count);
                 Assert.AreEqual(PhysicsPlan.TrialRequired, trial.Required);
-                Assert.AreEqual(trial.Required, trial.Boulders.Count, "Only enough boulders for one door at a time");
+                Assert.AreEqual(PhysicsPlan.SharedBoulders, plan.BouldersOn(trial.Screen).Count, "4.25: three shared boulders on the trial's screen");
+                Assert.Less(plan.BouldersOn(trial.Screen).Count, trial.Required * trial.Booths.Count, "Only enough boulders for one booth at a time");
                 Assert.Greater(Vector2.Distance(trial.Booths[0].Layout.FieldLocal, trial.Booths[1].Layout.FieldLocal), 2f * TimeField.FieldRadius,
                     $"seed {seed}: no boulder can dilate both booths at once");
                 foreach (TrialBoothSpec booth in trial.Booths)

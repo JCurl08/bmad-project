@@ -268,22 +268,37 @@ namespace Game.Cube.Tests
             yield return new WaitForSeconds(attack.Cooldown + 0.02f);
             yield return PutPlayerAt(screenAt, (Vector2)gap.transform.position - toward * (IslandLayout.GapLength / 2f + 0.45f * K));
             navigator.GetComponent<Game.Tracer.PlayerMover>().SetFacing(facing.ToVector());
-            attack.TryAttack();
+            yield return this.Tap(keyboard.enterKey);
             yield return null;
-            Assert.IsTrue(gap.IsMended, "The gap-crosser* spans the gap");
+            Assert.AreEqual(1, gap.Hops, "4.25: the gap-crosser* hops the player over the gap");
+            Assert.IsTrue(gap.Solid.enabled, "and builds nothing");
             int paid = 0;
             math.Trial.Completed += _ => paid++;
             yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[layout.TrialIsland]));
-            Assert.AreEqual(layout.TrialIsland, layout.IslandAt(body.position - centre), "Over the mended span onto the trial island");
+            Assert.AreEqual(layout.TrialIsland, layout.IslandAt(body.position - centre), "Over the gap onto the trial island");
             Assert.IsTrue(math.Trial.IsComplete);
+            // Back and on again: the gap stops the walk each way, and each crossing is a hop.
+            yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[near]), 1.5f);
+            Assert.AreNotEqual(near, layout.IslandAt(body.position - centre), "the gap stops the way back too");
+            yield return new WaitForSeconds(attack.Cooldown + 0.02f);
+            yield return this.Tap(keyboard.enterKey);
+            yield return null;
+            Assert.AreEqual(2, gap.Hops, "a hop back");
             yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[near]));
+            Assert.AreEqual(near, layout.IslandAt(body.position - centre));
+            yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[layout.TrialIsland]), 1.5f);
+            yield return new WaitForSeconds(attack.Cooldown + 0.02f);
+            yield return this.Tap(keyboard.enterKey);
+            yield return null;
             yield return WalkTo(centre + IslandLayout.SpotCentre(layout.Spots[layout.TrialIsland]));
+            Assert.AreEqual(3, gap.Hops);
+            Assert.AreEqual(layout.TrialIsland, layout.IslandAt(body.position - centre));
             Assert.AreEqual(1, paid, "The trial fires once");
             navigator.GetComponent<Equipment>().Equip(null);
         }
 
         [UnityTest]
-        public IEnumerator TheGapCrosser_OpensEveryGapGate_TheOffFaceOneIncluded()
+        public IEnumerator TheGapCrosser_HopsIntoEveryGapGatesAlcove_AndBackOut_WithTheRealKeys_TheOffFaceOneIncluded()
         {
             yield return Load();
             yield return StartRunOntoMath(2);
@@ -301,10 +316,23 @@ namespace Game.Cube.Tests
                 yield return this.TapThroughPhysics(KeyFor(keyboard, toward));
                 yield return new WaitForSeconds(attack.Cooldown + 0.02f);
                 yield return PutPlayerAt(spec.Screen, (Vector2)slot.transform.position - (Vector2)toward.ToVector() * 1.0f * K);
-                Assert.GreaterOrEqual(attack.TryAttack(), 0, "The swing happened");
-                yield return null;
-                Assert.IsTrue(gap.IsOpen, $"{spec}: the gap-crosser* lays a crossing");
-                Assert.IsNotNull(gap.Crossing);
+                // 4.25: [Attack] (Enter) with the gap-crosser* hops the player over the gap into the alcove; nothing is built.
+                Vector2 into = toward.ToVector();
+                yield return this.Tap(keyboard.enterKey);
+                yield return PhysicsSteps(2);
+                Assert.AreEqual(1, gap.Hops, $"{spec}: the swing hopped the gap");
+                Assert.Greater(Vector2.Dot(body.position - (Vector2)slot.transform.position, into), gap.HalfDepth + TimeField.PlayerRadius - 0.02f,
+                    $"{spec}: in the alcove behind the gap");
+                Assert.IsFalse(gap.IsOpen, $"{spec}: the gate never opens");
+                Assert.IsTrue(gap.Solid.enabled, $"{spec}: the gap still blocks");
+                // Facing out (a tap toward the gap only turns: it blocks), a second swing hops back out.
+                yield return this.TapThroughPhysics(KeyFor(keyboard, slot.Opening));
+                yield return new WaitForSeconds(attack.Cooldown + 0.02f);
+                yield return this.Tap(keyboard.enterKey);
+                yield return PhysicsSteps(2);
+                Assert.AreEqual(2, gap.Hops, $"{spec}: hopped back out");
+                Assert.Less(Vector2.Dot(body.position - (Vector2)slot.transform.position, into), -(gap.HalfDepth + TimeField.PlayerRadius) + 0.02f,
+                    $"{spec}: back in front of the gap");
             }
             Assert.IsTrue(plan.Gates.Any(g => !g.OnHome), "The off-face gap gate was among them");
         }

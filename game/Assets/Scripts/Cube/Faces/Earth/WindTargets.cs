@@ -17,10 +17,13 @@ namespace Game.Cube
     /// <item>RandomSolveRate: P_rand, exactly (PuzzleGraph.RandomSolveRate), capped at 3x MinRides rides.</item>
     /// <item>LongestRide: the most stream tiles one reachable ride crosses. Crossing: the most rides between two doorways.</item>
     /// <item>Fans: fan switches (always 0: 4.11 skips them, see WindTargets).</item>
+    /// <item>Choices (4.25): resting places on a shortest route (the goal's aside) where the player can ride on to two or
+    /// more different places: the route's real choices.</item>
     /// </list>
     /// </summary>
     public sealed class WindMetrics
     {
+        public int Choices;
         public bool Solvable;
         public int Regions;
         public int Streams;
@@ -43,17 +46,21 @@ namespace Game.Cube
             string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
             return Solvable
                 ? $"regions {Regions}, streams {Streams}, min rides {MinRides}, decoys {Decoys}, return {ReturnCost}, traps {Traps}, " +
-                  $"P_rand {F(RandomSolveRate * 100)}%, longest {LongestRide}, anchors {Anchors}, walls {Walls}, crossing {Crossing}, " +
+                  $"P_rand {F(RandomSolveRate * 100)}%, longest {LongestRide}, choices {Choices}, anchors {Anchors}, walls {Walls}, crossing {Crossing}, " +
                   $"unreached {Unreached}, unused {UnusedStreams}"
                 : $"unsolvable (regions {Regions}, unreached {Unreached}, traps {Traps})";
         }
     }
 
     /// <summary>
-    /// The research note's targets for wind streams per tier (puzzle-difficulty-research.md 1c), as pass/fail bands, with the
-    /// islands each tier deals. Departures, marked as assumptions in the 4.11 plan: fan switches are left out (the note allows
-    /// 0-1 at mid; late's 1-2 is not met); anchors count as regions and split a stream in two; every region must be reachable
-    /// and every stream ridable (no clutter); a crossing between doorways costs 0 rides (they share the ring).
+    /// The targets for wind streams per tier, as pass/fail bands, with the islands each tier deals. 4.11 took them from the
+    /// research note (puzzle-difficulty-research.md 1c); 4.25 (playtest 7: "very simple, requiring just 2 crossings") raised
+    /// every tier past it: at least 4, 6 and 9 rides to the goal, more regions, streams and decoys, route choices
+    /// (ChoicesLo), at most AnchorsHi grip anchors and never two in one stream (so the rides come from islands and choices,
+    /// not a chain of stops), and a longer way home allowed. Departures, marked as assumptions in the 4.11 plan: fan switches
+    /// are left out (the note allows 0-1 at mid; late's 1-2 is not met); anchors count as regions and split a stream in two;
+    /// every region must be reachable and every stream ridable (no clutter); a crossing between doorways costs 0 rides (they
+    /// share the ring).
     /// </summary>
     public sealed class WindTargets
     {
@@ -65,6 +72,12 @@ namespace Game.Cube
         public int ReturnMax;
         public double RandomLo, RandomHi;
         public int LongestMax;
+
+        /// <summary>4.25: the fewest route choices (WindMetrics.Choices) a screen must offer.</summary>
+        public int ChoicesLo;
+
+        /// <summary>4.25: the most grip anchors (so the rides come from islands and choices, not a chain of stops).</summary>
+        public int AnchorsHi;
 
         /// <summary>
         /// Fan switches the note asks for: NOT BUILT in 4.11 (the story allows it), so Misses and Score never check them; the
@@ -78,25 +91,29 @@ namespace Game.Cube
         /// <summary>A crossing between two doorways may cost at most this share of the reward route (research note section 0).</summary>
         public const float CrossingShare = 0.5f;
 
+        // 4.25 (playtest 7: "very simple, requiring just 2 crossings"): every tier is harder than the research note's 1c table,
+        // which 4.11 met: at least 4 rides to the goal early, 6 mid and 9 late, with more regions and streams to match, more
+        // decoys, real route choices (ChoicesLo) and a longer way home allowed. The bands were tuned on the generator over
+        // seeds 1-500 (assumption: within its limits on the 21x13 grid, every band met with no template).
         public static readonly WindTargets Early = new WindTargets
         {
-            Tier = PuzzleTier.Early, RegionsLo = 3, RegionsHi = 5, StreamsLo = 3, StreamsHi = 5, MinRidesLo = 2, MinRidesHi = 3,
-            DecoysLo = 0, DecoysHi = 1, ReturnMax = 1, RandomLo = 0.50, RandomHi = 1.0, LongestMax = 10, FansLo = 0, FansHi = 0,
-            IslandsLo = 2, IslandsHi = 3, TwinPercent = 25,
+            Tier = PuzzleTier.Early, RegionsLo = 5, RegionsHi = 8, StreamsLo = 4, StreamsHi = 8, MinRidesLo = 4, MinRidesHi = 5,
+            DecoysLo = 1, DecoysHi = 3, ReturnMax = 2, RandomLo = 0.10, RandomHi = 0.60, LongestMax = 12, FansLo = 0, FansHi = 0,
+            IslandsLo = 3, IslandsHi = 5, TwinPercent = 25, ChoicesLo = 1, AnchorsHi = 2,
         };
 
         public static readonly WindTargets Mid = new WindTargets
         {
-            Tier = PuzzleTier.Mid, RegionsLo = 5, RegionsHi = 8, StreamsLo = 5, StreamsHi = 8, MinRidesLo = 3, MinRidesHi = 5,
-            DecoysLo = 1, DecoysHi = 2, ReturnMax = 2, RandomLo = 0.15, RandomHi = 0.50, LongestMax = 14, FansLo = 0, FansHi = 1,
-            IslandsLo = 3, IslandsHi = 5, TwinPercent = 35,
+            Tier = PuzzleTier.Mid, RegionsLo = 7, RegionsHi = 11, StreamsLo = 6, StreamsHi = 11, MinRidesLo = 6, MinRidesHi = 7,
+            DecoysLo = 2, DecoysHi = 4, ReturnMax = 3, RandomLo = 0.03, RandomHi = 0.30, LongestMax = 14, FansLo = 0, FansHi = 1,
+            IslandsLo = 4, IslandsHi = 6, TwinPercent = 35, ChoicesLo = 2, AnchorsHi = 3,
         };
 
         public static readonly WindTargets Late = new WindTargets
         {
-            Tier = PuzzleTier.Late, RegionsLo = 7, RegionsHi = 11, StreamsLo = 7, StreamsHi = 11, MinRidesLo = 5, MinRidesHi = 7,
-            DecoysLo = 2, DecoysHi = 3, ReturnMax = 3, RandomLo = 0.03, RandomHi = 0.15, LongestMax = 18, FansLo = 1, FansHi = 2,
-            IslandsLo = 3, IslandsHi = 5, TwinPercent = 45,
+            Tier = PuzzleTier.Late, RegionsLo = 10, RegionsHi = 16, StreamsLo = 8, StreamsHi = 16, MinRidesLo = 9, MinRidesHi = 10,
+            DecoysLo = 3, DecoysHi = 5, ReturnMax = 4, RandomLo = 0.005, RandomHi = 0.15, LongestMax = 18, FansLo = 1, FansHi = 2,
+            IslandsLo = 5, IslandsHi = 7, TwinPercent = 45, ChoicesLo = 3, AnchorsHi = 6,
         };
 
         public static WindTargets For(PuzzleTier tier) => tier == PuzzleTier.Late ? Late : tier == PuzzleTier.Mid ? Mid : Early;
@@ -125,6 +142,8 @@ namespace Game.Cube
             Band("unused streams", m.UnusedStreams, 0, 0);
             Band("P_rand", m.RandomSolveRate, RandomLo, RandomHi);
             Band("longest ride", m.LongestRide, 1, LongestMax);
+            if (m.Choices < ChoicesLo) misses.Add($"route choices {m.Choices} under {ChoicesLo}");
+            if (m.Anchors > AnchorsHi) misses.Add($"anchors {m.Anchors} over {AnchorsHi}");
             // Fans: not built (FansLo/FansHi), so not checked.
             if (m.Crossing > CrossingShare * m.MinRides + 1e-6)
                 misses.Add($"a crossing takes {m.Crossing} rides, over half the reward route's {m.MinRides}");
@@ -147,6 +166,8 @@ namespace Game.Cube
             s += 3f * m.UnusedStreams;
             s += 40f * Off(m.RandomSolveRate, RandomLo, RandomHi);
             s += 1f * Off(m.LongestRide, 1, LongestMax);
+            s += 2f * Off(m.Choices, ChoicesLo, 99);
+            s += 1.5f * Off(m.Anchors, 0, AnchorsHi);
             if (m.Crossing > CrossingShare * m.MinRides) s += 3f * (m.Crossing - CrossingShare * m.MinRides);
             return s;
         }

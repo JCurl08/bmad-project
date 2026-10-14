@@ -124,7 +124,8 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(6, m.LongestRide);
                 // One ride from the ring reaches the goal's island, the only way off the ring: the random player always wins.
                 Assert.AreEqual(1.0, m.RandomSolveRate, 1e-9, "P_rand");
-                Assert.That(m.RandomSolveRate, Is.InRange(WindTargets.Early.RandomLo, WindTargets.Early.RandomHi), "inside early's band");
+                Assert.Greater(m.RandomSolveRate, WindTargets.Early.RandomHi, "4.25: far too easy for even the early band now");
+                Assert.AreEqual(0, m.Choices, "no choice on its one-ride route");
             }
             Assert.IsTrue(w.Problems("hand").Any(p => p.Contains("unreached")), "the stranded twin is flagged");
             Assert.AreEqual(0, w.DoorRegion(Facing.East));
@@ -230,7 +231,7 @@ namespace Game.Cube.Tests
         /// Generate never returns an unsolved layout, and never needs its template: over seeds 1-500 at every tier (generation
         /// only), every layout is inside every target from every doorway and none is a template.
         /// </summary>
-        [Test]
+        [Test, Timeout(900000)] // 4.25: the harder wind tiers take longer to generate (about 4 min here in the editor)
         public void Generate_OverSeeds1To500_AtEveryTier_IsInsideEveryTarget_WithNoTemplateFallback()
         {
             var problems = new List<string>();
@@ -246,6 +247,26 @@ namespace Game.Cube.Tests
             Debug.Log($"Wind generation over seeds 1-500 x 3 tiers: {templates} template fallbacks.");
             Assert.IsEmpty(problems, string.Join("\n", problems.Take(20)));
             Assert.AreEqual(0, templates, "no template fallback");
+        }
+
+        [Test]
+        public void TheTiers_AskForTheHarderRoutes_OfPlaytest7()
+        {
+            // 4.25: "very simple, requiring just 2 crossings": at least 4 rides to the goal early, 6 mid and 9 late, with decoys
+            // and route choices at every tier (the seeds' screens are held to these by Problems and the tests above).
+            Assert.GreaterOrEqual(WindTargets.Early.MinRidesLo, 4);
+            Assert.GreaterOrEqual(WindTargets.Mid.MinRidesLo, 6);
+            Assert.GreaterOrEqual(WindTargets.Late.MinRidesLo, 9);
+            foreach (PuzzleTier tier in PuzzleTiers.All)
+            {
+                WindTargets t = WindTargets.For(tier);
+                Assert.GreaterOrEqual(t.DecoysLo, 1, $"{tier}: decoys");
+                Assert.GreaterOrEqual(t.ChoicesLo, 1, $"{tier}: route choices");
+                WindLayout template = WindLayout.Template(tier, _ => true);
+                WindMetrics m = template.Measure(Facing.South);
+                Assert.GreaterOrEqual(m.MinRides, t.MinRidesLo, $"{tier} template: rides");
+                Assert.GreaterOrEqual(m.Choices, t.ChoicesLo, $"{tier} template: choices");
+            }
         }
 
         [Test]

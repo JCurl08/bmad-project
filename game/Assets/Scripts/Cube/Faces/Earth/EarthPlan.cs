@@ -142,7 +142,11 @@ namespace Game.Cube
         /// <summary>Hazard areas stay inside this half-extent (inside the screen, clear of its very edge).</summary>
         public static readonly Vector2 AreaHalf = new Vector2(7f, 4.4f) * ScreenMath.ContentScale;
 
-        public static readonly Vector2 RainSize = new Vector2(6f, 4f) * ScreenMath.ContentScale;
+        /// <summary>
+        /// 4.25: freezing rain covers its whole screen (it was a 9x6 patch across one half-lane): the rain falls everywhere on
+        /// it, and so does its slowing. Ice, wind and town screens never get any (they are never hazard screens).
+        /// </summary>
+        public static Rect RainArea => new Rect(-ScreenMath.DefaultScreenSize / 2f, ScreenMath.DefaultScreenSize);
 
         /// <summary>A crevice strip's lengths, longest first (a shorter one is tried where a longer one fits nowhere), and its thickness.</summary>
         public static readonly float[] CreviceLengths = { 3f * ScreenMath.ContentScale, 2.4f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale };
@@ -440,7 +444,7 @@ namespace Game.Cube
                     if (dealt) owed++;
                     kind = HazardKind.FreezingRain;
                 }
-                hazards.Add(AreaHazard(s, kind, level, screenRng));
+                hazards.Add(AreaHazard(s, kind, level));
             }
             return new EarthPlan(model.Seed, face, n, rolled, specs, hazards, calm, ice, wind, eye, level, trialScreen, trialSpots, moduleAt, others, placement)
             {
@@ -494,31 +498,11 @@ namespace Game.Cube
             return solids;
         }
 
-        /// <summary>A rain area on a screen, its place drawn from the screen's stream.</summary>
-        private static HazardSpec AreaHazard(ScreenAddress s, HazardKind kind, int level, SeededRng rng)
-        {
-            float strength = StrengthOf(kind, level);
-            Vector2 centre = LanePatchCentre(rng, 3f * ScreenMath.ContentScale, 1.8f * ScreenMath.ContentScale);
-            return new HazardSpec(s, kind, Clip(CentredOn(centre, RainSize)), strength);
-        }
-
-        /// <summary>A patch centre on one of the four half-lanes (so the patch lies across a way through the screen).</summary>
-        private static Vector2 LanePatchCentre(SeededRng rng, float x, float y)
-        {
-            switch (rng.NextInt(4))
-            {
-                case 0: return new Vector2(x, 0f);
-                case 1: return new Vector2(-x, 0f);
-                case 2: return new Vector2(0f, y);
-                default: return new Vector2(0f, -y);
-            }
-        }
+        /// <summary>A rain hazard on a screen: 4.25, the whole screen (RainArea).</summary>
+        private static HazardSpec AreaHazard(ScreenAddress s, HazardKind kind, int level) =>
+            new HazardSpec(s, kind, RainArea, StrengthOf(kind, level));
 
         private static Rect CentredOn(Vector2 c, Vector2 size) => new Rect(c - size / 2f, size);
-
-        private static Rect Clip(Rect r) =>
-            Rect.MinMaxRect(Mathf.Max(r.xMin, -AreaHalf.x), Mathf.Max(r.yMin, -AreaHalf.y),
-                Mathf.Min(r.xMax, AreaHalf.x), Mathf.Min(r.yMax, AreaHalf.y));
 
         /// <summary>
         /// The spots a crevice keeps clear of on a screen: every gate front (whatever gate stands there), the module's
@@ -926,7 +910,14 @@ namespace Game.Cube
                             problems.Add($"{h}: slows below the minimum speed (or not at all)");
                         break;
                 }
-                if (h.Kind != HazardKind.Crevice || HasLayout)
+                if (h.Kind == HazardKind.FreezingRain)
+                {
+                    Rect all = RainArea;
+                    if (Mathf.Abs(h.Area.xMin - all.xMin) > 1e-4f || Mathf.Abs(h.Area.yMin - all.yMin) > 1e-4f ||
+                        Mathf.Abs(h.Area.xMax - all.xMax) > 1e-4f || Mathf.Abs(h.Area.yMax - all.yMax) > 1e-4f)
+                        problems.Add($"{h}: does not cover its whole screen");
+                }
+                else if (HasLayout)
                 {
                     if (!h.IsPlaced) problems.Add($"{h}: not placed");
                     else if (h.Area.xMin < -AreaHalf.x - 1e-4f || h.Area.xMax > AreaHalf.x + 1e-4f ||

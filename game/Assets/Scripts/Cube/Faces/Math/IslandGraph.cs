@@ -98,8 +98,8 @@ namespace Game.Cube
 
     /// <summary>
     /// What the solver measures on an island screen's lit network (4.12), from one doorway: the research note's section 1a
-    /// metrics. The lit network is every whole plank of the reward island's whole-plank component; broken spans (mended or
-    /// not) and planks off that component never light.
+    /// metrics. The lit network is every whole plank of the reward island's whole-plank component; broken spans (hopped with
+    /// the gap-crosser*, never mended: 4.25) and planks off that component never light.
     /// <list type="bullet">
     /// <item>Planks, Islands: E and V of the lit network. Cycles: E - V + 1. OddIslands: islands with an odd number of lit
     /// planks; OddDoorIslands: those that are a doorway's island.</item>
@@ -110,8 +110,8 @@ namespace Game.Cube
     /// <item>Entry: the network island this doorway's player first stands on (over broken spans when it has to). StartWalk:
     /// planks from there to the nearest island it can start a clean trail from (a start of the trail that is the entry, or
     /// has two planks or more, so stepping out and back snuffs everything and leaves the player on it).</item>
-    /// <item>Crossing: the most planks from this doorway's island to another doorway's (a mended span counts as none: it is the
-    /// gap-crosser*'s one step, not a walk); RewardRoute: the planks and spans to the entry, StartWalk and Planks.</item>
+    /// <item>Crossing: the most planks from this doorway's island to another doorway's (a broken span counts as none: it is the
+    /// gap-crosser*'s one hop, not a walk); RewardRoute: the planks and spans to the entry, StartWalk and Planks.</item>
     /// <item>RedHerrings: whole planks off the lit network. BrokenInNetwork: spans inside it. Spread: the share of the
     /// lattice inside the network's bounding box. RetrySeconds: the longest walk, after a snuff anywhere on the network, to
     /// the nearest clean start and out and back over its shortest plank, at walking speed.</item>
@@ -447,8 +447,8 @@ namespace Game.Cube
         // ------------------------------------------------------------------ Distances
 
         /// <summary>
-        /// Fewest planks between two islands (broken spans included when spans, each counting spanCost: a mended span is the
-        /// gap-crosser*'s one step, so the crossing rule counts it as 0), or -1 when they do not join.
+        /// Fewest planks between two islands (broken spans included when spans, each counting spanCost: a broken span is the
+        /// gap-crosser*'s one hop, so the crossing rule counts it as 0), or -1 when they do not join.
         /// </summary>
         public int Hops(int from, int to, bool spans, bool networkOnly = false, int spanCost = 1)
         {

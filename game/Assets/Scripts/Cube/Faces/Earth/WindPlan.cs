@@ -204,7 +204,7 @@ namespace Game.Cube
                           $"streams {Range(l, m => m.Streams)}, min rides {Range(l, m => m.MinRides)}, decoys {Range(l, m => m.Decoys)}, " +
                           $"return {Range(l, m => m.ReturnCost)}, traps {Range(l, m => m.Traps)}, P_rand {Range(l, m => 100.0 * m.RandomSolveRate)}%, " +
                           $"longest ride {Range(l, m => m.LongestRide)}, anchors {Range(l, m => m.Anchors)}, walls {Range(l, m => m.Walls)}, " +
-                          $"crossing {Range(l, m => m.Crossing)}, fans 0 (not built).\n");
+                          $"crossing {Range(l, m => m.Crossing)}, choices {Range(l, m => m.Choices)}, fans 0 (not built).\n");
             }
             return sb.ToString();
         }

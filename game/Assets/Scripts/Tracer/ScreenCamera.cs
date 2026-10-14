@@ -4,7 +4,8 @@ namespace Game.Tracer
 {
     /// <summary>
     /// Zelda-style camera: snaps to the centre of the screen that contains the target.
-    /// Letterboxes to the screen's aspect ratio so exactly one full screen is visible.
+    /// Letterboxes to the screen's aspect ratio so exactly one full screen is visible. 4.25: with a Viewport set (the Cube
+    /// scene's SideHud), the camera draws into the rect it gives instead, leaving room for the HUD's side columns.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class ScreenCamera : MonoBehaviour
@@ -15,6 +16,22 @@ namespace Game.Tracer
         private Camera cam;
         private int lastWidth = -1;
         private int lastHeight = -1;
+        private System.Func<float, float, Rect> viewport;
+
+        /// <summary>
+        /// 4.25: the camera's normalized viewport for a window of (width, height) pixels, or null for the plain letterbox. Set by
+        /// the Cube scene so the play area sits between the HUD's side columns.
+        /// </summary>
+        public System.Func<float, float, Rect> Viewport
+        {
+            get => viewport;
+            set
+            {
+                viewport = value;
+                lastWidth = lastHeight = -1;
+                if (cam != null) UpdateLetterbox();
+            }
+        }
 
         public Transform Target
         {
@@ -55,6 +72,11 @@ namespace Game.Tracer
             if (Screen.width == lastWidth && Screen.height == lastHeight) return;
             lastWidth = Screen.width;
             lastHeight = Screen.height;
+            if (viewport != null)
+            {
+                cam.rect = viewport(Screen.width, Screen.height);
+                return;
+            }
 
             float targetAspect = screenSize.x / screenSize.y;
             float windowAspect = (float)Screen.width / Mathf.Max(1, Screen.height);

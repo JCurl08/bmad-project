@@ -414,16 +414,15 @@ namespace Game.Cube.Tests
             Assert.AreEqual(2, trial.Doors.Count);
             Assert.AreEqual(required, trial.Boulders.Count, "Only enough boulders for one door at a time");
 
-            // Booth B with only other (non-trial) boulders beside it: they weigh nothing there, so it shuts first.
+            // 4.25: any boulder counts for any door. One boulder of another door's beside booth B weighs there like a trial
+            // boulder (one short of its two: it still shuts first).
             Vector2[] besideB = BesideTheDoor(b);
-            var foreign = new List<Boulder>();
-            for (int i = 0; i < required; i++) foreign.Add(MakeBoulder(Origin + besideB[i]));
+            Boulder foreign = MakeBoulder(Origin + besideB[0]);
             yield return TestInput.PhysicsSteps();
-            Assert.AreEqual(0f, trial.Doors[1].MassInField, "Non-trial boulders cannot dilate a booth");
-            Assert.AreEqual(required, TimeField.MassNear(trial.Doors[1].FieldCentre), 1e-4f, "They are in its field");
+            Assert.AreEqual(1f, trial.Doors[1].MassInField, 1e-4f, "Any boulder weighs in a booth's field");
             yield return RunFromSwitch(body, trial.Doors[1]);
-            Assert.IsFalse(trial.Doors[1].IsOpen, "Booth B does not pass on other boulders");
-            foreach (Boulder f in foreign) Object.Destroy(f.gameObject);
+            Assert.IsFalse(trial.Doors[1].IsOpen, "Booth B shuts first one boulder short");
+            Object.Destroy(foreign.gameObject);
             yield return TestInput.PhysicsSteps();
 
             // The boulders beside booth A: in.

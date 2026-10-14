@@ -70,6 +70,12 @@ namespace Game.Cube
         /// <summary>Where the NPC for TownPlan.Specs index i stands (unfound if it found no spot).</summary>
         public TownSpot SpotAt(int planIndex) => byPlanIndex.TryGetValue(planIndex, out int k) && k < spots.Count ? spots[k] : default;
 
+        /// <summary>
+        /// 4.25: Captain Shuffles, who gives tips on beating the Demon (BossTips), beside the Mayor on the town square; null on a
+        /// Town face without a town, or before the first population. Not in Npcs.
+        /// </summary>
+        public NpcTalker BossTipper { get; private set; }
+
         /// <summary>The Mayor's tour of Town in play (4.20), bound to every population (on this object).</summary>
         public TownTourQuest Tour { get; private set; }
 
@@ -140,6 +146,12 @@ namespace Game.Cube
                 Destroy(Leader.gameObject);
             }
             Leader = null;
+            if (BossTipper != null)
+            {
+                BossTipper.gameObject.SetActive(false);
+                Destroy(BossTipper.gameObject);
+            }
+            BossTipper = null;
             PopulatedSeed = null;
         }
 
@@ -173,6 +185,7 @@ namespace Game.Cube
                 Leader = TownSquares.SpawnLeader(world, mayor, CubeModel.StartFace, world.ScreenCenter(square), TownLayout.For(Theme.Town).LeaderStand,
                     target, root, peaceful: true);
                 Leader.name = $"Town Leader {mayor.DisplayName}";
+                SpawnBossTipper(square, planned, target);
             }
 
             for (int i = 0; i < planSpecs.Count; i++)
@@ -229,6 +242,35 @@ namespace Game.Cube
             Tour.Bind(world, tour, guide, ResolvePlayer());
             LeaderQuest mayor = Leader.GetComponent<LeaderQuest>();
             if (mayor != null) Leader.SetLines(mayor.Preview());
+        }
+
+        /// <summary>
+        /// 4.25: Captain Shuffles by the Mayor (BossTips.Spot: clear of every planned person on the square and of the tour
+        /// guide's spot, so the guide, placed later from the same plan, never shares it), standing still, never hostile.
+        /// </summary>
+        private void SpawnBossTipper(ScreenAddress square, List<TownSpot> planned, Transform target)
+        {
+            var taken = new List<Vector2>();
+            foreach (TownSpot s in planned)
+                if (s.Found && s.Screen == square) taken.Add(s.Local);
+            TownTour tour = world.TownTour;
+            if (tour != null)
+            {
+                TownSpot guide = TownTour.GuideSpot(tour, planned, BlockedFor(tour.StopOf(TourLesson.Talk).Screen.Cell));
+                if (guide.Found && guide.Screen == square) taken.Add(guide.Local);
+            }
+            if (!BossTips.Spot(BlockedFor(square.Cell), taken, out Vector2 local))
+            {
+                Debug.LogError($"TownPopulation: no spot for {NpcNames.BossTipper} (seed {world.Seed}).");
+                return;
+            }
+            NpcSpec spec = BossTips.Spec(world.Seed);
+            Vector2 feet = world.ScreenCenter(square) + local;
+            var bounds = new Rect(feet - Vector2.one * 0.05f, Vector2.one * 0.1f);
+            BossTipper = NpcFactory.Spawn(spec, new List<string>(BossTips.Lines), feet, bounds, null, target, root, world.Material);
+            BossTipper.name = $"Town Boss Tips {spec.DisplayName}";
+            // 4.25 review: he never moves, so nothing pushes him onto the lane or the statue (only his feet were checked).
+            if (BossTipper.TryGetComponent(out Rigidbody2D captainBody)) captainBody.bodyType = RigidbodyType2D.Kinematic;
         }
 
         private List<string> LinesFor(NpcSpec spec, RunFacts facts, string errandGiver)

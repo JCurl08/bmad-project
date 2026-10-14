@@ -43,9 +43,6 @@ namespace Game.Cube
         /// <summary>Every enabled boulder (what the time field weighs).</summary>
         public static IReadOnlyList<Boulder> All => active;
 
-        /// <summary>Who placed this boulder (a PhysicsTrial for its own boulders), or null; see TimeField.MassNear.</summary>
-        public Object Owner { get; set; }
-
         public float Mass
         {
             get => mass;

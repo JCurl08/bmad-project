@@ -31,10 +31,12 @@ namespace Game.Cube
     /// four doorways and everything in it join); on an island screen each island is its own region, joined to others only by
     /// its planks (broken spans only with the gap-crosser*); on an ice screen every doorway lands in region 0 (they join
     /// through the camp) and the goal pad is region 1, joined when the solver reaches it. A doorway leads from the region it
-    /// lands on to the place behind it on the next screen. Every join works both ways (doorways, planks, mended spans, the
-    /// ice route and its way back), so the player is never stranded: wherever it can get to, it can walk back the way it
-    /// came, out of the doorway it came in by. The seed sweep (SeedSweep, MathPlan, RewardPlacement, LockWorld) collects
-    /// every item and reward with it.
+    /// lands on to the place behind it on the next screen. Every join works both ways (doorways, planks, broken spans hopped
+    /// with the gap-crosser*, the ice route and its way back), so the player is never stranded: wherever it can get to, it
+    /// can walk back the way it came, out of the doorway it came in by. The seed sweep (SeedSweep, MathPlan,
+    /// RewardPlacement, LockWorld) collects every item and reward with it. 4.25: a join over a gap (a broken span, a gap
+    /// gate) needs the gap-crosser* held at that crossing (the hop builds nothing): Reachable(true) is the walk of a player
+    /// who carries it, and since an item is never lost in a run, that is every crossing it makes, there and back.
     /// </summary>
     public sealed class DoorwayReach
     {
