@@ -16,8 +16,8 @@ namespace Game.Cube
     /// posts) on the far side of the room, on the door's lane, so the dash is one straight run along the lane from the stall
     /// into the doorway, the same length from anywhere on the switch (the stall keeps the player on the lane): DashLength.
     /// The temple's field is stronger than the face's (FieldK per boulder, TimedDoorGate.DilationPerBoulder), so the door can
-    /// stay open DashSlack (1.25) times the dash with three boulders and still shut at least 10% early with two
-    /// (assumption: the face's 0.6 cannot give both, at most 1.27 times with any margin). Deal picks among a few seeded
+    /// stay open DashSlack (2.25) times the dash with three boulders; with fewer its clock runs ShortRush times faster (TimedDoorGate.MinMass,
+    /// ShortRush), so it shuts well before the player arrives (4.25 playtest: the earlier 1.25 times was far too tight). Deal picks among a few seeded
     /// variants; Problems proves each one: the timing, the corridors clear, the fields apart, the boulders starting outside
     /// every field and off every corridor, and room for Required boulders in each field off the corridor.
     /// </summary>
@@ -31,11 +31,16 @@ namespace Game.Cube
         /// <summary>The temple field's slowing per boulder (the face's is TimeField.K, 0.6).</summary>
         public const float FieldK = 1.8f;
 
-        /// <summary>With Required boulders a door stays open this many times the dash (4.25: at least 1.25).</summary>
-        public const float DashSlack = 1.25f;
+        /// <summary>
+        /// With Required boulders a door stays open this many times the dash (4.25 playtest: 1.25 was far too tight, so 2.25).
+        /// </summary>
+        public const float DashSlack = 2.25f;
 
-        /// <summary>The share of the dash one boulder short may stay open for, at most (it shuts at least 10% early).</summary>
-        public const float ShortShare = 0.9f;
+        /// <summary>With fewer than Required boulders the door's clock runs this much faster (TimedDoorGate.ShortRush), so it shuts quickly.</summary>
+        public const float ShortRush = 4f;
+
+        /// <summary>The share of the dash one boulder short may stay open for, at most (it shuts well before the player arrives).</summary>
+        public const float ShortShare = 0.5f;
 
         /// <summary>A stall's length along the lane, its inner width (the booth door's), its posts' thickness and the switch strip's depth.</summary>
         public const float StallLength = 1.8f, StallPost = 0.15f, StripDepth = 0.4f;
@@ -160,6 +165,9 @@ namespace Game.Cube
         /// <summary>How long a temple door stays open with a mass in its field.</summary>
         public static float OpenSeconds(DoorLayout door, float mass) => BaseSeconds(door) * Dilation(mass);
 
+        /// <summary>How long a temple door stays open one boulder short (its clock rushed, ShortRush).</summary>
+        public static float ShortOpenSeconds(DoorLayout door) => OpenSeconds(door, (Required - 1) * TimeField.BoulderMass) / ShortRush;
+
         /// <summary>The door's base time: with Required boulders it stays open DashSlack times the dash.</summary>
         public static float BaseSeconds(DoorLayout door) => DashSlack * DashSeconds(door) / Dilation(Required * TimeField.BoulderMass);
 
@@ -248,9 +256,8 @@ namespace Game.Cube
                 if (!stall.Contains(d.SwitchLocal)) problems.Add($"{w}: its switch is not in its stall");
                 if (DashSeconds(d) < PhysicsPlan.MinWalkSeconds) problems.Add($"{w}: the dash is only {DashSeconds(d):0.00} s");
                 float open = OpenSeconds(d, Required * TimeField.BoulderMass);
-                float shortOpen = OpenSeconds(d, (Required - 1) * TimeField.BoulderMass);
                 if (open < DashSlack * DashSeconds(d) - 1e-4f) problems.Add($"{w}: open {open:0.00} s with {Required} boulders, under {DashSlack} times the dash");
-                if (shortOpen > ShortShare * DashSeconds(d)) problems.Add($"{w}: one boulder short still nearly makes the dash ({shortOpen:0.00} of {DashSeconds(d):0.00} s)");
+                if (ShortOpenSeconds(d) > ShortShare * DashSeconds(d)) problems.Add($"{w}: one boulder short stays open {ShortOpenSeconds(d):0.00} of a {DashSeconds(d):0.00} s dash");
                 if (corridor.Overlaps(altar) || corridor.Overlaps(lane)) problems.Add($"{w}: its dash crosses the altar or the lane in");
                 for (int j = 0; j < spec.Booths.Count; j++)
                 {
@@ -302,17 +309,18 @@ namespace Game.Cube
         public static string Stats(PhysicsTrialSpec spec)
         {
             var dashes = new List<string>();
-            float open = float.MaxValue, early = float.MaxValue;
+            float open = float.MaxValue, shortOpen = 0f;
             foreach (TrialBoothSpec b in spec.Booths)
             {
                 DoorLayout d = b.Layout;
                 dashes.Add($"{DashSeconds(d):0.00}");
                 open = Mathf.Min(open, OpenSeconds(d, Required));
-                early = Mathf.Min(early, 1f - OpenSeconds(d, Required - 1) / DashSeconds(d));
+                shortOpen = Mathf.Max(shortOpen, ShortOpenSeconds(d));
+
             }
             return $"{spec.Booths.Count} booths sharing {spec.Boulders.Count} boulders (each door needs {Required}), box lines {spec.Booths.Count * Required}, " +
                    $"dashes {string.Join(" / ", dashes)} s, open {open:0.00} s with {Required} ({DashSlack:0.##}x), " +
-                   $"one short shuts {early * 100f:0.#}% early, least drag {DragTiles(spec):0.#} tiles";
+                   $"one short shuts after {shortOpen:0.00} s, least drag {DragTiles(spec):0.#} tiles";
         }
 
         public static string Signature(PhysicsTrialSpec spec)

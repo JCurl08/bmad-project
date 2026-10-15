@@ -880,9 +880,11 @@ namespace Game.Cube.Tests
                 Assert.AreEqual(TempleBooths.BaseSeconds(layout), door.BaseSeconds, 1e-4f, "the door's time is the dash's");
                 Assert.AreEqual(TempleBooths.FieldK, door.DilationPerBoulder, 1e-4f, "the temple's stronger field");
                 Assert.IsFalse(door.Latches);
+                Assert.AreEqual(3f, door.MinMass, 1e-4f, "short of all three");
+                Assert.AreEqual(TempleBooths.ShortRush, door.ShortRush, 1e-4f, "its clock rushes");
                 yield return ThreeInTheField(room, booths, layout);
                 Assert.AreEqual(3f, door.MassInField, 0.01f, "three boulders in the field");
-                Assert.GreaterOrEqual(door.OpenSecondsNow, 1.25f * TempleBooths.DashSeconds(layout) - 1e-3f, "open a quarter longer than the dash");
+                Assert.GreaterOrEqual(door.OpenSecondsNow, 2.25f * TempleBooths.DashSeconds(layout) - 1e-3f, "open well past the dash");
                 yield return ToSwitch(room, layout, door);
                 yield return Dash(layout, door);
                 Assert.AreEqual(1, door.Passes, $"booth {i}: run into while open");
@@ -896,8 +898,8 @@ namespace Game.Cube.Tests
                     yield return this.HoldUntil(KeyFor(keyboard, DashKey(layout)), () => false, 0.3f);
                     yield return PhysicsSteps(2);
                     body.Sleep();
-                    yield return new WaitForSeconds(2.5f);
-                    Assert.Greater(2.5f, door.OpenSecondsNow, "idled longer than the door's open time");
+                    yield return new WaitForSeconds(4.5f);
+                    Assert.Greater(4.5f, door.OpenSecondsNow, "idled longer than the door's open time");
                     Assert.IsTrue(door.IsAjar, "still open with the player idle inside");
                     Assert.IsFalse(door.Solid.enabled, "and not solid");
                     Assert.IsTrue(door.PlayerInDoorway());

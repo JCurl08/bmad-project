@@ -57,6 +57,18 @@ namespace Game.Cube
         /// <summary>The field's slowing per boulder of mass (TimeField.K on the faces; stronger in the Physics temple).</summary>
         public float DilationPerBoulder { get; set; } = TimeField.K;
 
+        /// <summary>
+        /// With less mass than this in the field the door's clock runs ShortRush times faster (4.25 playtest: the temple's
+        /// doors get a generous timer with all Required boulders and shut quickly without them; 0 elsewhere).
+        /// </summary>
+        public float MinMass { get; set; }
+
+        /// <summary>How much faster the clock runs while the field is short of MinMass (1: no rush).</summary>
+        public float ShortRush { get; set; } = 1f;
+
+        /// <summary>The clock's rush now: ShortRush while the field is short of MinMass, else 1.</summary>
+        public float RushNow => MassInField < MinMass - 1e-4f ? Mathf.Max(1f, ShortRush) : 1f;
+
         /// <summary>The slowing of the mass in the field right now.</summary>
         public float DilationNow => TimeField.Dilation(MassInField, DilationPerBoulder);
 
@@ -117,7 +129,7 @@ namespace Game.Cube
         public float ScaledBaseSeconds => baseSeconds * speedScale;
 
         /// <summary>How long the door would stay open with the mass beside it right now.</summary>
-        public float OpenSecondsNow => ScaledBaseSeconds * DilationNow;
+        public float OpenSecondsNow => ScaledBaseSeconds * DilationNow / RushNow;
 
         /// <summary>Local seconds left before it shuts (0 when shut).</summary>
         public float LocalSecondsLeft => IsAjar ? Mathf.Max(0f, ScaledBaseSeconds - elapsed) : 0f;
@@ -183,7 +195,7 @@ namespace Game.Cube
         {
             if (!ajar || IsOpen) return;
             if (IsHeld) return; // 4.25: never shuts on a player standing in its doorway
-            elapsed += Time.fixedDeltaTime / DilationNow;
+            elapsed += Time.fixedDeltaTime * RushNow / DilationNow;
             if (elapsed >= ScaledBaseSeconds) Close();
         }
 

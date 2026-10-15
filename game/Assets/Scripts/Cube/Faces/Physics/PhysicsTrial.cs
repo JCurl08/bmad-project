@@ -84,6 +84,8 @@ namespace Game.Cube
                     door.UsesThreshold = false;
                     door.DilationPerBoulder = TempleBooths.FieldK;
                     door.BaseSeconds = TempleBooths.BaseSeconds(booth.Layout);
+                    door.MinMass = TempleBooths.Required * TimeField.BoulderMass;
+                    door.ShortRush = TempleBooths.ShortRush;
                     door.Passed += _ => OnBoothDone(index);
                 }
                 else door.Opened += _ => OnBoothDone(index);

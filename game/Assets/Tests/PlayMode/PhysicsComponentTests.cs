@@ -285,6 +285,33 @@ namespace Game.Cube.Tests
         }
 
         [UnityTest]
+        public IEnumerator TimedDoor_ShortOfItsMinMass_RushesShut()
+        {
+            // 4.25 playtest (the Physics temple): a generous timer with all the boulders, a rushed one without them.
+            const int required = 3;
+            DoorLayout layout = SlotLikeDoor(required);
+            MakePlayer(Origin + layout.SwitchLocal + Vector2.down * 3f * K, true);
+            TimedDoorGate door = MakeDoor(layout);
+            Vector2[] spots = BesideTheDoor(layout);
+            for (int i = 0; i < required - 1; i++) MakeBoulder(Origin + spots[i]);
+            yield return TestInput.PhysicsSteps();
+            float plain = door.OpenSecondsNow;
+            door.MinMass = required;
+            door.ShortRush = 4f;
+            Assert.AreEqual(4f, door.RushNow, 1e-4f, "one short: rushed");
+            Assert.AreEqual(plain / 4f, door.OpenSecondsNow, 1e-4f, "open a quarter as long");
+            door.Trigger();
+            Assert.IsTrue(door.IsAjar, "the switch still swings it");
+            yield return new WaitForSeconds(plain / 4f + 0.3f);
+            Assert.IsFalse(door.IsAjar, "and it shut on the rushed clock");
+            Assert.IsTrue(door.Solid.enabled);
+
+            MakeBoulder(Origin + spots[required - 1]);
+            yield return TestInput.PhysicsSteps();
+            Assert.AreEqual(1f, door.RushNow, 1e-4f, "all of them: no rush");
+        }
+
+        [UnityTest]
         public IEnumerator TimedDoor_AFasterPlayer_StillNeedsTheRequiredBoulders()
         {
             const int required = 2;

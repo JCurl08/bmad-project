@@ -288,10 +288,10 @@ namespace Game.Cube.Tests
         private static float Luminance(Color32 p) => (0.2126f * p.r + 0.7152f * p.g + 0.0722f * p.b) / 255f;
 
         [Test]
-        public void ThePhysicsTemple_EveryVariant_StaysOpenAQuarterLongerThanItsDash_WithThreeBoulders_AndShutsEarlyWithTwo()
+        public void ThePhysicsTemple_EveryVariant_StaysOpenWellPastItsDash_WithThreeBoulders_AndRushesShutWithTwo()
         {
             // 4.25: the doors time out (no latch), so a booth counts only when the player runs into it in time; the timer is
-            // at least 1.25 times the dash with three boulders, and with two it shuts at least 10% before the dash ends.
+            // 2.25 times the dash with three boulders; with two its clock rushes and it shuts within half the dash.
             var dashes = new List<float>();
             for (int seed = 1; seed <= 200; seed++)
             {
@@ -303,9 +303,9 @@ namespace Game.Cube.Tests
                     DoorLayout d = b.Layout;
                     float dash = TempleBooths.DashSeconds(d);
                     dashes.Add(dash);
-                    Assert.GreaterOrEqual(TempleBooths.OpenSeconds(d, 3f), 1.25f * dash - 1e-4f, "three boulders: open 1.25 times the dash");
-                    Assert.LessOrEqual(TempleBooths.OpenSeconds(d, 2f), 0.9f * dash, "two: shut at least 10% before the dash ends");
-                    Assert.Greater(TempleBooths.OpenSeconds(d, 3f), 1.8f, "a longer timer than before 4.25 (about 1.5 s)");
+                    Assert.GreaterOrEqual(TempleBooths.OpenSeconds(d, 3f), 2.25f * dash - 1e-4f, "three boulders: open 2.25 times the dash (playtest: 1.25 was far too tight)");
+                    Assert.Greater(TempleBooths.OpenSeconds(d, 3f), 3f, "a generous timer (over 3 s)");
+                    Assert.LessOrEqual(TempleBooths.ShortOpenSeconds(d), 0.5f * dash, "two: the door rushes shut, half the dash at most");
                     Assert.AreEqual(0f, d.Opening.y, 1e-4f, "the door faces across the room");
                     Rect corridor = TempleBooths.Corridor(d);
                     Assert.IsTrue(corridor.Contains(d.SwitchLocal), "the switch is on the dash's lane");
@@ -316,7 +316,7 @@ namespace Game.Cube.Tests
                 }
                 Assert.LessOrEqual(TempleBooths.DragTiles(spec), 30f, "the late tier's drag");
             }
-            TestContext.WriteLine($"dashes {dashes.Min():0.00}-{dashes.Max():0.00} s, open with three {1.25f * dashes.Min():0.00}-{1.25f * dashes.Max():0.00} s");
+            TestContext.WriteLine($"dashes {dashes.Min():0.00}-{dashes.Max():0.00} s, open with three {TempleBooths.DashSlack * dashes.Min():0.00}-{TempleBooths.DashSlack * dashes.Max():0.00} s");
         }
 
         [Test]
